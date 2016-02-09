@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<IAD name="IonParticlesShaders">
+  <assets>
+    <file name="capture.fp">shaders/particles_capture.fp</file>
+    <file name="capture.vp">shaders/particles_capture.vp</file>
+    <file name="flying.fp">shaders/particles_flying.fp</file>
+    <file name="flying.vp">shaders/particles_flying.vp</file>
+    <file name="plane.fp">shaders/particles_plane.fp</file>
+    <file name="plane.vp">shaders/particles_plane.vp</file>
+  </assets>
+</IAD>

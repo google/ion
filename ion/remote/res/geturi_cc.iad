@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<IAD name="IonRemoteGetUri" disable_in_prod="true">
+  <assets prefix="/ion/remote">
+    <file name="geturi.js">geturi/geturi_cc.js</file>
+  </assets>
+</IAD>

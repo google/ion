@@ -1,0 +1,53 @@
+/**
+Copyright 2016 Google Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS-IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+*/
+
+attribute vec3 aColor;
+attribute vec3 aVelocity;
+attribute vec2 aOffsetLength;  // x: time offset, y: length
+
+uniform mat4 uProjectionMatrix;
+uniform mat4 uModelviewMatrix;
+uniform float uTime;
+uniform float uExposure;
+uniform float uPointSize;
+
+varying vec4 v_color;
+varying float v_rotation;
+varying vec2 v_point_center;
+
+float height(float t, float time_scale) {
+  float x = t * time_scale;
+  return max(0., -x * x + x);
+}
+
+void main(void) {
+  float time = fract(max((uTime - aOffsetLength.x) * aOffsetLength.y, 0.));
+  float intensity = time == 0. ? 0. : exp(-3. * time);
+  v_color = uExposure * vec4((1. - time) * aColor, intensity);
+  float time_scale = 3.;
+  float max_dist = 10. * time_scale;
+  float move_fact = max_dist * min(time, 1. / time_scale);
+  vec3 position =
+      aVelocity * vec3(move_fact, height(time, time_scale), move_fact);
+  v_rotation = 10. * move_fact;
+  vec4 glposition = uProjectionMatrix * uModelviewMatrix * vec4(position, 1.);
+
+  // Store the projected center of the point to simulate gl_PointCoord.
+  v_point_center = glposition.xy / glposition.w;
+  gl_Position = glposition;
+  gl_PointSize = uPointSize;
+}

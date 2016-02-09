@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<IAD name="IonSkinDataResources">
+  <assets>
+    <file name="diffuse.jpg">res/head_diffuse.jpg</file>
+    <file name="head.obj">third_party/away3d_examples_broomstick/embeds/head/head.obj</file>
+    <file name="normal.jpg">res/head_normal.jpg</file>
+  </assets>
+</IAD>

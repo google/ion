@@ -1,0 +1,97 @@
+/**
+Copyright 2016 Google Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS-IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+*/
+
+html, body {
+  position: relative;
+  width: 98%;
+  height: 100%;
+}
+
+.button {
+  display: inline-block;
+  margin-left: 1em;
+  border: 1px solid #575852;
+  border-radius: 5px;
+  cursor: pointer;
+  width: 10em;
+  padding: 5px 7px 5px 7px;
+  background-color: #eee;
+  color: #000;
+}
+
+.button:active {
+  color: #f00;
+}
+
+.button_box {
+  text-align: center;
+}
+
+.resource_box {
+  display: inline-block;
+  border: 1px solid #575852;
+  border-radius: 5px;
+  margin-left: 24px;
+  padding: 6px;
+}
+
+.resource_label {
+  display: inline-block;
+  vertical-align: middle;
+  padding: 2px;
+}
+
+.resource_selection {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.trace {
+  text-align: left;
+  width: 100%;
+  height: 90%;
+  border: solid 2px #333;
+  margin: 1em auto;
+  padding: 4px;
+  overflow: auto;  /* Add scroll bars if necessary. */
+}
+
+.trace_header {
+  color: blue;
+  font-weight: bold;
+}
+
+.trace_error {
+  color: red;
+  font-weight: bold;
+  font-style: italic;
+  background-color: #eeeedd;
+}
+
+.trace_function {  /* Syntax coloring for function names */
+  color: #aa2222;
+}
+.trace_arg_name {  /* Syntax coloring for function argument names. */
+  color: #223388;
+}
+.trace_arg_value {  /* Syntax coloring for function argument values. */
+  color: #227722;
+}
+
+#platform {
+  font-size: 80%;
+}

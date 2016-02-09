@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<IAD name="IonRemoteRoot" disable_in_prod="true">
+  <assets prefix="/ion/js">
+    <file name="jquery-2.0.1.min.js">third_party/jquery/v2_0_1/jquery-2.0.1.min.js</file>
+    <file name="jquery-2.0.1.min.map">third_party/jquery/v2_0_1/jquery.min.map</file>
+    <file name="jquery-ui.min.js">third_party/jquery_ui/jquery-ui-1.11.4/jquery-ui.min.js</file>
+  </assets>
+  <assets prefix="/ion/css">
+    <file name="jquery-ui.min.css">third_party/jquery_ui/jquery-ui-1.11.4/jquery-ui.min.css</file>
+    <file name="style.css">css/style.css</file>
+    <file name="tree.css">css/tree.css</file>
+  </assets>
+  <assets prefix="/ion/css/images">
+    <file name="tree-icons.png">css/images/tree-icons.png</file>
+    <file name="ui-bg_diagonals-thick_18_b81900_40x40.png">third_party/jquery_ui/jquery-ui-1.11.4/images/ui-bg_diagonals-thick_18_b81900_40x40.png</file>
+    <file name="ui-bg_diagonals-thick_20_666666_40x40.png">third_party/jquery_ui/jquery-ui-1.11.4/images/ui-bg_diagonals-thick_20_666666_40x40.png</file>
+    <file name="ui-bg_flat_10_000000_40x100.png">third_party/jquery_ui/jquery-ui-1.11.4/images/ui-bg_flat_10_000000_40x100.png</file>
+    <file name="ui-bg_glass_65_ffffff_1x400.png">third_party/jquery_ui/jquery-ui-1.11.4/images/ui-bg_glass_65_ffffff_1x400.png</file>
+    <file name="ui-bg_glass_100_f6f6f6_1x400.png">third_party/jquery_ui/jquery-ui-1.11.4/images/ui-bg_glass_100_f6f6f6_1x400.png</file>
+    <file name="ui-bg_glass_100_fdf5ce_1x400.png">third_party/jquery_ui/jquery-ui-1.11.4/images/ui-bg_glass_100_fdf5ce_1x400.png</file>
+    <file name="ui-bg_gloss-wave_35_f6a828_500x100.png">third_party/jquery_ui/jquery-ui-1.11.4/images/ui-bg_gloss-wave_35_f6a828_500x100.png</file>
+    <file name="ui-bg_highlight-soft_75_ffe45c_1x100.png">third_party/jquery_ui/jquery-ui-1.11.4/images/ui-bg_highlight-soft_75_ffe45c_1x100.png</file>
+    <file name="ui-bg_highlight-soft_100_eeeeee_1x100.png">third_party/jquery_ui/jquery-ui-1.11.4/images/ui-bg_highlight-soft_100_eeeeee_1x100.png</file>
+    <file name="ui-icons_228ef1_256x240.png">third_party/jquery_ui/jquery-ui-1.11.4/images/ui-icons_228ef1_256x240.png</file>
+    <file name="ui-icons_222222_256x240.png">third_party/jquery_ui/jquery-ui-1.11.4/images/ui-icons_222222_256x240.png</file>
+    <file name="ui-icons_ef8c08_256x240.png">third_party/jquery_ui/jquery-ui-1.11.4/images/ui-icons_ef8c08_256x240.png</file>
+    <file name="ui-icons_ffd27a_256x240.png">third_party/jquery_ui/jquery-ui-1.11.4/images/ui-icons_ffd27a_256x240.png</file>
+    <file name="ui-icons_ffffff_256x240.png">third_party/jquery_ui/jquery-ui-1.11.4/images/ui-icons_ffffff_256x240.png</file>
+  </assets>
+</IAD>

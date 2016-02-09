@@ -1,0 +1,121 @@
+/**
+Copyright 2016 Google Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS-IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+*/
+
+body {
+  background-color: #272822;
+  color: #ccc;
+  font-family: "Trebuchet MS", "Helvetica", "Arial",  "Verdana", "sans-serif";
+  font-size: 90%;
+  position: relative;
+  width: 98%;
+  height: 100%;
+}
+
+#header {
+  clear: both;
+  float: left;
+  width: 100%;
+  height: 60px;
+  text-align: center;
+}
+
+.colmask {
+  position: relative;  /* This fixes the IE7 overflow hidden bug */
+  clear: both;
+  float: left;
+  width: 100%;         /* width of whole page */
+  overflow: hidden;    /* This chops off any overhanging divs */
+}
+
+.colleft {
+  float: left;
+  width: 100%;
+  position: relative;
+}
+
+.col1,
+.col2 {
+  border-right: 1px #fff;
+  margin-right: 10px;
+  padding: 4px;
+  height: 100%;
+  float: left;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 2 Column settings */
+.leftcolumn {
+}
+
+.leftcolumn .colleft {
+  right: 72%;      /* right column width */
+}
+
+.leftcolumn .col1 {
+  width: 70%;      /* right column content width */
+  left: 100%;      /* 100% plus left column left padding */
+}
+
+.leftcolumn .col2 {
+  font-size: 80%;
+  width: 26%;    /* left column content width (column width minus left and right padding) */
+  left: 1%;      /* (right column left and right padding) plus (left column left padding) */
+}
+
+#grouplist {
+  background: #373832;
+  height: 100%;
+}
+
+.group {
+  color: #fff;
+  text-decoration: none;
+  display: block;
+  padding: 2px 7px 2px 7px;
+  border: 1px solid #575852;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.group:hover {
+  background-color: #575852;
+}
+
+#results {
+  margin-top: 3em;
+}
+
+.settings {
+  width: 100%;
+  background-color: #373832;
+}
+
+.setting {
+  width: 100%;
+}
+
+.setting_name {
+  border-right: 1px solid #373832;
+  width: 50%;
+  padding: 2px 7px 2px 7px;
+  margin: 2px 7px 2px 7px;
+}
+
+.setting_value {
+  width: 50%;
+}

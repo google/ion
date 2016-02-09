@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<IAD name="__font_name___assets">
+  <assets>
+    <file name="__font_name__.ttf">__file_name__</file>
+  </assets>
+</IAD>

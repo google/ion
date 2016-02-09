@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<IAD name="IonRemoteResourcesRoot" disable_in_prod="true">
+  <assets prefix="/ion/resources">
+    <file name="index.html">resources/index.html</file>
+    <file name="resources.css">resources/resources.css</file>
+    <file name="resources.js">resources/resources.js</file>
+  </assets>
+</IAD>

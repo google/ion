@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<IAD name="IonDemoHud">
+  <assets>
+    <file name="Hud.ttf">third_party/webfonts/apache/droidsansmono/DroidSansMono.ttf</file>
+  </assets>
+</IAD>

@@ -1,0 +1,73 @@
+<!--
+Copyright 2016 Google Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS-IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+
+-->
+<!DOCTYPE html>
+<html>
+  <head><title>Ion Remote Interface - Resources</title>
+    <link rel="stylesheet" href="/ion/css/jquery-ui.min.css" />
+    <link rel="stylesheet" href="/ion/css/style.css">
+    <link rel="stylesheet" href="/ion/resources/resources.css">
+  </head>
+  <body>
+    <!--HEADER-->
+    <div id="refresh" class="display_object">Click to refresh resources</div>
+    <p>Choose a resource type to inspect:</p>
+    <div id="tabs" class="resource_tab">
+      <ul>
+        <li><a href="#tabs_0">Platform</a></li>
+        <li><a href="#tabs_1">Buffers</a></li>
+        <li><a href="#tabs_2">Framebuffers</a></li>
+        <li><a href="#tabs_3">Programs</a></li>
+        <li><a href="#tabs_4">Samplers</a></li>
+        <li><a href="#tabs_5">Shaders</a></li>
+        <li><a href="#tabs_6">Textures</a></li>
+        <li><a href="#tabs_7">Vertex Arrays</a></li>
+      </ul>
+      <div class="resource_tab" id="tabs_0">
+        <div id="platform"></div>
+      </div>
+      <div class="resource_tab" id="tabs_1">
+        <div id="buffers"></div>
+      </div>
+      <div class="resource_tab" id="tabs_2">
+        <div id="framebuffers"></div>
+      </div>
+      <div class="resource_tab" id="tabs_3">
+        <div id="programs"></div>
+      </div>
+      <div class="resource_tab" id="tabs_4">
+        <div id="samplers"></div>
+      </div>
+      <div class="resource_tab" id="tabs_5">
+        <div id="shaders"></div>
+      </div>
+      <div class="resource_tab" id="tabs_6">
+        <div id="textures"></div>
+      </div>
+      <div class="resource_tab" id="tabs_7">
+        <div id="vertex_arrays"></div>
+      </div>
+    </div>
+
+    <!--FOOTER-->
+    <!-- Placing scripts at the end of the body gives a quicker load time for the page. -->
+    <script type="text/javascript" src="/ion/js/jquery-2.0.1.min.js"> </script>
+    <script type="text/javascript" src="/ion/js/jquery-ui.min.js"> </script>
+    <script type="text/javascript" src="/ion/remote/geturi.js"> </script>
+    <script type="text/javascript" src="/ion/resources/resources.js"> </script>
+  </body>
+</html>

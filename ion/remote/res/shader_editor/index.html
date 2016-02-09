@@ -1,0 +1,173 @@
+<!--
+Copyright 2016 Google Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS-IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+
+-->
+<!DOCTYPE html>
+<html>
+  <head><title>Ion Remote Interface - Shader Editor</title>
+    <link rel="stylesheet" href="/ion/css/style.css">
+    <style type="text/css">
+      body {
+        background-color: #272822;
+        color: #ccc;
+        font-family: "Trebuchet MS", "Helvetica", "Arial",  "Verdana", "sans-serif";
+        font-size: 90%;
+      }
+
+      button { margin: 4px; cursor:pointer; margin-right: 5px }
+
+      #minitabs {
+        color: #fff;
+        background: #434340;
+        margin: 2px 0px 0px 0px;
+        padding: 0px;
+        height: 1.5em;
+        font-size: 70%;
+        z-index: 1;
+        padding-left: 45px;
+        border-color: #626360;
+      }
+
+      #minitabs li {
+        display: inline;
+        overflow: hidden;
+        list-style-type: none;
+      }
+
+      #minitabs a, a.current {
+        color: #fff;
+        background: #272822;
+        border: 2px solid black;
+        border-radius: 5px;
+        padding: 2px 5px 0px 5px;
+        margin: 0px;
+        text-decoration: none;
+      }
+
+      #minitabs a.current {
+        color: #fff;
+        background: #272822
+        border-bottom: 3px solid;
+        border-radius: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <!--HEADER-->
+    <div class="shaders_frame_div">
+    <div id="help_container" style="text-align: center;">
+      <h3><span id="help_container_text">Click for help</span></h3>
+      <div id="help" style="display: none; text-align: left;">
+        <table width=100% summary="">
+          <tr>
+            <td width=40% style="font-size: .9em;"> <b>Usage:</b><br>
+              Click on a program name to view/edit its source, and click on file tabs to open a particular file.  Programs in
+              <span style="color: #0a0; text-decoration: underline;">green</span> compiled/linked
+              successfully, while programs in <span style="color: #a00; text-decoration: underline;">red</span>
+              were unsuccessful.  The current program is highlighted in <span style="background-color: #ffa; color: #000;">yellow</span>.
+              Shaders that have been loaded, but are not yet used by the client (and cannot be compiled) are in black.
+              The "Click to get source as C-string" fields will open a new window with the source of the editor converted to a C-style
+              string with double quotes and newlines added.
+              <br><br>
+              See the status area below the editor for compiler error messages.
+            </td>
+            <td width=40% style="padding-left: 2em;">
+              Key bindings may be overridden via the drop-down below the editors.<br>
+              Default key commands: (replace Ctrl with Command on OSX)
+              <ul style="padding-top: 0; padding-bottom: 0; margin-top: 0; display: block;">
+                <li> Ctrl+S saves a file you have edited.</li>
+                <li> Ctrl+F searches for text.</li>
+                <li> Ctrl+G searches again for the same text.</li>
+                <li> Ctrl+L goes to a specific line.</li>
+              </ul>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Links to top-level shader names -->
+    <div id="shader_list" style="text-align: center;">Click 'Refresh' to load shaders.</div>
+    <div style="text-align: center; width: 100%;">
+      <!-- Button refreshes list of shaders -->
+      <button id="refresh_shaders">Refresh shaders from client</button>
+    </div>
+    <div id="shaders_container" style="width: 100%;">
+      <div style="margin-top: 0px; margin-bottom: 10px;">
+        <div style="width: 49.5%; text-align: center; float: right;">Fragment Shader
+          <pre id="fragment_string" style="cursor: pointer">Click to get source as C-string</pre>
+        </div>
+        <div style="width: 49.5%; text-align: center;">Vertex Shader
+          <pre id="vertex_string" style="cursor: pointer">Click to get source as C-string</pre>
+        </div>
+      </div>
+      <div style="background-color: #2F3129;">
+        <div id="fragment_tabs" class="minitabs" style="width: 49.5%; float: right; margin-right: 1%;">
+        </div>
+        <div id="vertex_tabs" class="minitabs" style="width: 49.5%;">
+        </div>
+        <div id="shader_source" style="width: 100%; padding: 0px 8px 8px 8px;">
+          <!-- Holds the vertex shader source -->
+          <div id="shader_source_editor" style="width: 98%; margin-right: 1%; height: 700px; font-size: small; text-align: left;"></div>
+        </div>
+      </div>
+      <!-- Placeholder to hold the compiler/linker output -->
+      <div id="shaders_output_div" style="text-align: center; width: 100%;">
+        <!-- Whether to reload the shader (and its inputs) when the user makes a change and saves it (or any of its inputs) on disk -->
+        <label><input id="auto_reload_shaders" type="checkbox">Reload files on external change (requires shader source composer support)</label>
+        <div style="width: 100%; text-align: right;">
+          Editor Font size:
+          <select id="fontsize" name="fontsize">
+            <option value='8pt'>8pt</option>
+            <option value='9pt' selected>9pt</option>
+            <option value='10pt'>10pt</option>
+            <option value='11pt'>11pt</option>
+            <option value='12pt'>12pt</option>
+            <option value='14pt'>14pt</option>
+            <option value='16pt'>16pt</option>
+            <option value='20pt'>20pt</option>
+            <option value='24pt'>24pt</option>
+          </select>
+          Key bindings:
+          <select id="keybindings" name="keybindings">
+            <option value='default' selected>Default</option>
+            <option value='emacs'>Emacs</option>
+            <option value='vim'>Vim</option>
+          </select>
+        </div>
+        <div style="width: 46.5%; float: right; margin-right: 1%; text-align: left;">Fragment shader compile status:
+          <pre id="fragment_output" style="width: 100%; white-space: normal;"></pre>
+        </div>
+        <div style="width: 46.5%; text-align: left;">Vertex shader compile status:
+          <pre id="vertex_output" style="width: 100%; white-space: normal;"></pre>
+        </div>
+        <br>
+        <div style="width: 46.5%; text-align: left;">Link status:
+          <pre id="link_output" style="width: 100%; white-space: normal;"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!--FOOTER-->
+  <!-- Placing scripts at the end of the body gives a quicker load time for the page. -->
+  <script type="text/javascript" src="/ion/js/jquery-2.0.1.min.js"> </script>
+  <script type="text/javascript" src="/ion/js/jquery-ui.min.js"> </script>
+  <script type="text/javascript" src="/ion/remote/geturi.js"> </script>
+  <script type="text/javascript" data-ace-base="/ion/shaders/shader_editor/js" src="/ion/shaders/shader_editor/js/ace.js" charset="utf-8"></script>
+  <script type="text/javascript" src="/ion/shaders/shader_editor/js/shader_editor.js"> </script>
+</body>
+</html>

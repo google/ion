@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<IAD name="IonRemoteTracingRoot" disable_in_prod="true">
+  <assets prefix="/ion">
+    <file>tracing/index.html</file>
+    <file>tracing/tracing.css</file>
+    <file>tracing/tracing.js</file>
+  </assets>
+</IAD>

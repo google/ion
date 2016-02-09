@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<IAD name="IonRemoteCallTraceRoot" disable_in_prod="true">
+  <assets prefix="/ion/calltrace">
+    <file name="app/icons/activity_indicator.gif">third_party/tracing_framework/bin/app/icons/activity_indicator.gif</file>
+    <file name="app/icons/arrow_dropdown.svg">third_party/tracing_framework/bin/app/icons/arrow_dropdown.svg</file>
+    <file name="app/icons/attachment.svg">third_party/tracing_framework/bin/app/icons/attachment.svg</file>
+    <file name="app/icons/autofilter_filled.svg">third_party/tracing_framework/bin/app/icons/autofilter_filled.svg</file>
+    <file name="app/icons/checkmark.svg">third_party/tracing_framework/bin/app/icons/checkmark.svg</file>
+    <file name="app/icons/folder_open.svg">third_party/tracing_framework/bin/app/icons/folder_open.svg</file>
+    <file name="app/icons/link.svg">third_party/tracing_framework/bin/app/icons/link.svg</file>
+    <file name="app/icons/move_left.svg">third_party/tracing_framework/bin/app/icons/move_left.svg</file>
+    <file name="app/icons/move_right.svg">third_party/tracing_framework/bin/app/icons/move_right.svg</file>
+    <file name="app/icons/pause.svg">third_party/tracing_framework/bin/app/icons/pause.svg</file>
+    <file name="app/icons/play.svg">third_party/tracing_framework/bin/app/icons/play.svg</file>
+    <file name="app/icons/popout.svg">third_party/tracing_framework/bin/app/icons/popout.svg</file>
+    <file name="app/icons/popout_white.svg">third_party/tracing_framework/bin/app/icons/popout_white.svg</file>
+    <file name="app/icons/reset.svg">third_party/tracing_framework/bin/app/icons/reset.svg</file>
+    <file name="app/icons/save.svg">third_party/tracing_framework/bin/app/icons/save.svg</file>
+    <file name="app/icons/seek_to_bottom.svg">third_party/tracing_framework/bin/app/icons/seek_to_bottom.svg</file>
+    <file name="app/icons/seek_to_end.svg">third_party/tracing_framework/bin/app/icons/seek_to_end.svg</file>
+    <file name="app/icons/seek_to_start.svg">third_party/tracing_framework/bin/app/icons/seek_to_start.svg</file>
+    <file name="app/icons/seek_to_top.svg">third_party/tracing_framework/bin/app/icons/seek_to_top.svg</file>
+    <file name="app/icons/settings.svg">third_party/tracing_framework/bin/app/icons/settings.svg</file>
+    <file name="app/icons/skip_down.svg">third_party/tracing_framework/bin/app/icons/skip_down.svg</file>
+    <file name="app/icons/skip_up.svg">third_party/tracing_framework/bin/app/icons/skip_up.svg</file>
+    <file name="app/icons/sync.svg">third_party/tracing_framework/bin/app/icons/sync.svg</file>
+    <file name="app/icons/upload_item.svg">third_party/tracing_framework/bin/app/icons/upload_item.svg</file>
+    <file name="app/maindisplay.html">third_party/tracing_framework/bin/app/maindisplay.html</file>
+    <file name="app/scripts/release-maindisplay.js">third_party/tracing_framework/bin/app/scripts/release-maindisplay.js</file>
+    <file name="index.html">calltrace/index.html</file>
+    <file name="third_party/d3/d3-min-concat.js">third_party/tracing_framework/bin/third_party/d3/d3-min-concat.js</file>
+    <file name="wtf_ui_js_compiled.js">third_party/tracing_framework/bin/wtf_ui_js_compiled.js</file>
+    <file name="wtf_ui_styles_release.css">third_party/tracing_framework/bin/wtf_ui_styles_release.css</file>
+  </assets>
+</IAD>

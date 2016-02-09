@@ -1,0 +1,37 @@
+/**
+Copyright 2016 Google Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS-IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+*/
+
+#include "ion/base/logchecker.h"
+#include "ion/text/fontmacros.h"
+#include "ion/text/fonts/roboto_regular.h"
+#include "third_party/googletest/googletest/include/gtest/gtest.h"
+
+namespace ion {
+namespace text {
+
+TEST(FontMacrosTest, IonFont) {
+  base::LogChecker logchecker;
+  FontManagerPtr fm(new FontManager);
+  ion::text::FontPtr font = ION_FONT(fm, roboto_regular, 56U, 4U);
+  EXPECT_FALSE(font.Get() == NULL);
+  EXPECT_EQ("roboto_regular", font->GetName());
+  EXPECT_EQ(56U, font->GetSizeInPixels());
+  EXPECT_EQ(4U, font->GetSdfPadding());
+}
+
+}  // namespace text
+}  // namespace ion

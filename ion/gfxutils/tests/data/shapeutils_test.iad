@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<IAD name="ShapeUtilsTest">
+  <assets>
+    <file>model.3ds</file>
+    <file>model.dae</file>
+    <file>model.lwo</file>
+    <file>model.obj</file>
+    <file>model.off</file>
+    <file>model_with_32bit_indices.obj</file>
+  </assets>
+</IAD>

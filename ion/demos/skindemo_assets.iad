@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<IAD name="IonSkinResources">
+  <assets>
+    <file name="accum.fp">shaders/accum.fp</file>
+    <file name="accum.vp">shaders/accum.vp</file>
+    <file name="blur.fp">shaders/blur.fp</file>
+    <file name="blur_accum.fp">shaders/blur_accum.fp</file>
+    <file name="blur_horizontal.vp">shaders/blur_horizontal.vp</file>
+    <file name="blur_vertical.vp">shaders/blur_vertical.vp</file>
+    <file name="depth.fp">shaders/depth.fp</file>
+    <file name="depth.vp">shaders/depth.vp</file>
+    <file name="irrad.fp">shaders/irrad.fp</file>
+    <file name="irrad.vp">shaders/irrad.vp</file>
+    <file name="skin.fp">shaders/skin.fp</file>
+    <file name="skin.vp">shaders/skin.vp</file>
+    <file name="texture.fp">shaders/texture.fp</file>
+    <file name="texture.vp">shaders/texture.vp</file>
+  </assets>
+</IAD>

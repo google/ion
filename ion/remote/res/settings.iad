@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<IAD name="IonRemoteSettingsRoot" disable_in_prod="true">
+  <assets prefix="/ion/settings">
+    <file name="index.html">settings/index.html</file>
+    <file name="settings.css">settings/settings.css</file>
+    <file name="settings.js">settings/settings.js</file>
+    <file name="settingspage.js">settings/settingspage.js</file>
+  </assets>
+</IAD>

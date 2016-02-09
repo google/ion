@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<IAD name="Images">
+  <assets>
+    <file>tooltip.9.png</file>
+    <file>tooltip_120x48.png</file>
+  </assets>
+</IAD>

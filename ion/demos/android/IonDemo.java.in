@@ -1,0 +1,137 @@
+/**
+Copyright 2016 Google Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS-IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+*/
+
+package __package_name__;
+
+import android.app.Activity;
+import android.content.Context;
+import android.opengl.GLSurfaceView;
+import android.os.Bundle;
+import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
+import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.opengles.GL10;
+
+/**
+ * Main activity for Ion demos.
+ *
+ */
+public class __class_name__ extends Activity {
+  @Override
+  protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    mGLView = new DemoGLSurfaceView(this);
+    setContentView(mGLView);
+  }
+
+  @Override
+  protected void onPause() {
+    super.onPause();
+    mGLView.onPause();
+  }
+
+  @Override
+  protected void onResume() {
+    super.onResume();
+    mGLView.onResume();
+  }
+
+  private GLSurfaceView mGLView;
+
+  static {
+    System.loadLibrary("__app_name___apklib");
+  }
+}
+
+class DemoGLSurfaceView extends GLSurfaceView {
+  public DemoGLSurfaceView(Context context) {
+    super(context);
+    setEGLContextClientVersion(2);  // Use OpenGL ES 2.0.
+    setEGLConfigChooser(8, 8, 8, 8, 16, 8);
+    mRenderer = new IonRenderer(getWidth(), getHeight());
+    setPreserveEGLContextOnPause(true);
+    setRenderer(mRenderer);
+    mScaleDetector = new ScaleGestureDetector(context, new ScaleListener());
+  }
+
+  public boolean onTouchEvent(MotionEvent event) {
+    // Give the ScaleGestureDetector first crack at the event.
+    mScaleDetector.onTouchEvent(event);
+
+    if (!mScaleDetector.isInProgress() &&
+        event.getAction() != MotionEvent.ACTION_UP) {
+      // If it is not a scale, assume it is regular motion.
+      mRenderer.processMotion(event.getX(0), event.getY(0),
+                              event.getAction() == MotionEvent.ACTION_DOWN);
+    }
+    return true;
+  }
+
+  private class ScaleListener
+      extends ScaleGestureDetector.SimpleOnScaleGestureListener {
+    @Override
+    public boolean onScale(ScaleGestureDetector detector) {
+      mScaleFactor /= Math.max(0.1f, detector.getScaleFactor());
+
+      // Don't let the object get too small or too large.
+      mScaleFactor = Math.max(0.1f, Math.min(mScaleFactor, 5.0f));
+
+      mRenderer.processScale(mScaleFactor);
+      return true;
+    }
+  }
+
+  IonRenderer mRenderer;
+  ScaleGestureDetector mScaleDetector;
+  float mScaleFactor = 1.0f;
+}
+
+class IonRenderer implements GLSurfaceView.Renderer {
+  public IonRenderer(int width, int height) {
+    width_ = width;
+    height_ = height;
+  }
+  public void onSurfaceCreated(GL10 gl, EGLConfig config) {
+    nativeInit(width_, height_);
+  }
+
+  public void onSurfaceChanged(GL10 gl, int w, int h) {
+    nativeResize(w, h);
+  }
+
+  public void onDrawFrame(GL10 gl) {
+    nativeRender();
+  }
+
+  public void processMotion(float x, float y, boolean isPress) {
+    nativeMotion(x, y, isPress);
+  }
+
+  public void processScale(float scale) {
+    nativeScale(scale);
+  }
+
+  private int width_;
+  private int height_;
+
+  private static native void nativeInit(int w, int h);
+  private static native void nativeResize(int w, int h);
+  private static native void nativeRender();
+  private static native void nativeMotion(float x, float y, boolean isPress);
+  private static native void nativeScale(float scale);
+  private static native void nativeDone();
+}

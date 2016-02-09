@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<IAD name="IonRemoteGetUri">
+  <assets prefix="/ion/remote">
+    <file name="geturi.js">geturi/geturi_asmjs.js</file>
+  </assets>
+</IAD>

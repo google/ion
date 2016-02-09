@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<IAD name="IonShapeDemoResources">
+  <assets>
+    <file name="shapes.fp">shaders/shapes.fp</file>
+    <file name="shapes.vp">shaders/shapes.vp</file>
+    <file name="shapes_cubemap_image_back.jpg">res/shapes_cubemap_image_back.jpg</file>
+    <file name="shapes_cubemap_image_bottom.jpg">res/shapes_cubemap_image_bottom.jpg</file>
+    <file name="shapes_cubemap_image_front.jpg">res/shapes_cubemap_image_front.jpg</file>
+    <file name="shapes_cubemap_image_left.jpg">res/shapes_cubemap_image_left.jpg</file>
+    <file name="shapes_cubemap_image_right.jpg">res/shapes_cubemap_image_right.jpg</file>
+    <file name="shapes_cubemap_image_top.jpg">res/shapes_cubemap_image_top.jpg</file>
+    <file name="shapes_texture_image.jpg">res/shapes_texture_image.jpg</file>
+  </assets>
+</IAD>

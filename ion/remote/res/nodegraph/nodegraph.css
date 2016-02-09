@@ -1,0 +1,107 @@
+/**
+Copyright 2016 Google Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS-IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+*/
+
+html, body {
+  position: relative;
+  width: 98%;
+}
+
+.button, .button_toggled {
+  display: inline-block;
+  margin-left: 1em;
+  border: 1px solid #575852;
+  border-radius: 5px;
+  cursor: pointer;
+  min-width: 14em;
+  white-space: nowrap;
+  padding: 5px 7px 5px 7px;
+  background-color: #eee;
+  color: #000;
+}
+
+.button_toggled {
+  background-color: #ddccbb;
+}
+
+.button:active, .button_toggled:active {
+  color: #f00;
+}
+
+.button_box {
+  text-align: center;
+  border: 1px solid #888888;
+  padding: 5px;
+  background-color: #eeeedd;
+}
+
+.format_box {
+  display: inline-block;
+  text-align: center;
+}
+
+.nodes {
+  text-align: left;
+  width: 100%;
+  margin: 1em auto;
+  padding: 4px;
+}
+
+/* Override default tree indentation */
+.nodes input + label + ul {
+  margin: 0 0 0 44px;
+}
+
+.nodes_header {
+  text-align: center;
+  color: blue;
+  font-weight: bold;
+}
+
+.nodes_field_table {
+  background-color: #f3f3e8;
+  border: solid 1px #c5c5c5;
+}
+
+.nodes_field_table td {
+  min-width: 120px;
+  vertical-align: top;
+}
+
+.nodes_field_table td.name {
+  color: #aa2222;
+}
+
+.nodes_field_table td.value {
+  color: #227722;
+}
+
+.nodes_field_value_table {
+  display:inline;
+  text-align: center;
+}
+
+.nodes_field_value_table td {
+  min-width: 50px;
+}
+
+.table_label {
+  color: #332266;
+}
+
+#platform {
+  font-size: 80%;
+}

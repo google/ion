@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<IAD name="IonGearsResources">
+  <assets>
+    <file name="gears.fp">shaders/gears.fp</file>
+    <file name="gears.vp">shaders/gears.vp</file>
+    <file name="gear.obj">res/gear.obj</file>
+  </assets>
+</IAD>

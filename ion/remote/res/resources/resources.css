@@ -1,0 +1,81 @@
+/**
+Copyright 2016 Google Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS-IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+*/
+
+body {
+  position: relative;
+  width: 98%;
+  height: 100%;
+}
+
+/* Override jQuery vertical tabs */
+.ui-tabs-vertical .ui-tabs-nav {
+  font-size: 70%;
+  padding: .2em .1em .2em .2em;
+  float: left;
+}
+.ui-tabs-vertical .ui-tabs-nav li {
+  clear: left;
+  width: 100%;
+  border-bottom-width: 1px !important;
+  border-right-width: 0 !important;
+  margin: 0 -1px .2em 0;
+}
+.ui-tabs-vertical .ui-tabs-nav li a {
+  display:block;
+}
+.ui-tabs-vertical .ui-tabs-nav li.ui-tabs-active {
+  padding-bottom: 0;
+  padding-right: .1em;
+  border-right-width: 1px;
+}
+.ui-tabs-vertical .ui-tabs-panel {
+  width: 80%;
+  font-size: 80%;
+  position: relative;
+  margin-left: 12em;
+}
+
+.display_object {
+  float: right;
+  height: 100%;
+  color: #000000;
+  background-color: #eee;
+  padding: 2px 7px 2px 7px;
+  border: 1px solid #575852;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.gl_link {
+  height: 100%;
+  margin-left: 1em;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.resource_tab select {
+  font-size: 80%;
+  margin-top: 1em;
+}
+
+.resource_data {
+  font-size: 80%;
+}
+
+#platform {
+  font-size: 80%;
+}

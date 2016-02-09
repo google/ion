@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<IAD name="ZipAssetTest">
+  <assets>
+    <file>zipasset_file1.txt</file>
+    <file>zipasset_file2.txt</file>
+    <file name="dir/file1.txt">zipasset_file1.txt</file>
+    <file name="dir/file2.txt">zipasset_file2.txt</file>
+  </assets>
+  <assets prefix="path">
+    <file name="file1.txt">zipasset_file1.txt</file>
+    <file name="file2.txt">zipasset_file2.txt</file>
+  </assets>
+</IAD>

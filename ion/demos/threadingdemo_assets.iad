@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<IAD name="IonThreadingResources">
+  <assets>
+    <file name="texture.fp">shaders/texture.fp</file>
+    <file name="texture.vp">shaders/texture.vp</file>
+    <file name="skybox.fp">shaders/skybox.fp</file>
+    <file name="skybox.vp">shaders/skybox.vp</file>
+    <file name="reflective_sphere.fp">shaders/reflective_sphere.fp</file>
+    <file name="reflective_sphere.vp">shaders/reflective_sphere.vp</file>
+    <file name="marble.jpg">res/marble.jpg</file>
+    <file name="shapes_cubemap_image_back.jpg">res/shapes_cubemap_image_back.jpg</file>
+    <file name="shapes_cubemap_image_bottom.jpg">res/shapes_cubemap_image_bottom.jpg</file>
+    <file name="shapes_cubemap_image_front.jpg">res/shapes_cubemap_image_front.jpg</file>
+    <file name="shapes_cubemap_image_left.jpg">res/shapes_cubemap_image_left.jpg</file>
+    <file name="shapes_cubemap_image_right.jpg">res/shapes_cubemap_image_right.jpg</file>
+    <file name="shapes_cubemap_image_top.jpg">res/shapes_cubemap_image_top.jpg</file>
+  </assets>
+</IAD>

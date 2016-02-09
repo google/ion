@@ -1,0 +1,59 @@
+This directory contains stand-alone programs that demonstrate Ion usage.  The
+programs here are not tests in the gtest sense.  There is no attempt to have
+them conform to any particular standard; "all bets are off in demos/."  They are
+best used for two purposes:
+ - to educate developers on how to use Ion in their own code
+ - to confirm that changes to the Ion libraries do not create visual artifacts
+
+Note that on OSX, XQuartz is required for demos to compile and run.
+
+The demos expose various settings through the remote interface. Point your
+browser at http://localhost:1234 to modify them.
+
+The following demo programs are non-interactive:
+
+- ionsimpledraw
+  Minimal non-interactive example that draws two rectangles.
+
+- volatilescene
+  A version of ionsimpledraw that builds the scene on every frame. Note that
+  doing this in real-world applications will result in terrible performance.
+
+The following demo programs act as interactive viewers:
+
+- iondraw
+  Displays three simple objects with optional animation.
+
+- shapedemo
+  Displays four different textured shapes: a quad, a cube, a sphere and
+  a cylinder. Demonstrates the helper functions for procedural construction
+  of simple meshes. All parameters of the meshes can be adjusted in the remote
+  interface.
+
+- gearsdemo
+  Shows rotating, interlocking, untextured gears in rainbow colors laid out
+  on a square grid. Demonstrates instanced rendering and using buffer objects
+  to pass per-instance data into the shader.
+
+- shoedemo
+  Shows a 3D scan of a shoe with advanced shading. Demonstrates depth mapping,
+  shadow mapping, multipass blurring, use of FBOs and rendering to a texture.
+
+- skindemo
+  Shows a head model. Demonstrates normal mapping, subsurface scattering
+  and physically-based shading.
+
+- textdemo
+  Shows a few lines of Unicode text. Demonstrates the text renderer included
+  in Ion, based on signed distance fields.
+
+- threadingdemo
+  Shiny, reflective ball floating inside a marble structure. Shows how to
+  concurrently render the same nodes from multiple threads.
+
+
+Asset Credits
+
+res/marble.jpg is a cropped and seamless version of Marble pattern 008.jpg,
+made by Amada44 and downloaded from Wikimedia Commons:
+https://commons.wikimedia.org/wiki/File:Marble_pattern_008.jpg

@@ -1,0 +1,284 @@
+<!--
+Copyright 2016 Google Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS-IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+
+-->
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Ion</title>
+    <link href="http://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet" type="text/css">
+    <style>
+      html, body {
+        background-color: #000000;
+        font-family: "Trebuchet MS", "Helvetica", "Arial",  "Verdana", "sans-serif";
+        font-size: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        padding: 0;
+        width: 100%;
+        position: relative;
+      }
+      #canvas_container {
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        padding: 0;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+      }
+      #ion_header {
+        color: #AAAAAA;
+        left: 0;
+        padding: 8px;
+        position: absolute;
+        top: 0;
+        z-index: 1;
+      }
+      .ion_header_h1 {
+        color: #FFFFFF;
+        font-size: 24pt;
+      }
+      #output {
+        background: transparent;
+        border: 0;
+        padding: 8px;
+        bottom: 0;
+        font-size: 8pt;
+        color: #AAAAAA;
+        overflow: hidden;
+        pointer-events: none;
+        position: absolute;
+        width: 100%;
+        z-index: 1;
+      }
+      a:link { color: #AAAAFF; }
+      a:visited { color: #AAAAFF; }
+    </style>
+    <style>
+      #show_hide_ion_remote {
+        position: absolute;
+        right: 8px;
+        top: 8px;
+        cursor: pointer;
+        z-index: 1;
+        color: #AAAAAA;
+      }
+      .ion_remote {
+        color: #FFFFFF;
+        background-color: #272822;
+        width: 100%;
+        height: 400px, auto;
+        cursor: default;
+        overflow: hidden;
+      }
+      .ion_remote a {
+        padding: 0 0 15px 15px;
+      }
+      .drag_bar {
+        width: 100%;
+        color: #000000;
+        background-color: #cccccc;
+        text-align: center;
+        opacity: 0.85;
+        cursor: pointer;
+        position: relative;
+        visibility: hidden;
+        z-index: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <script type='text/javascript'>
+      var s_ion_remote_visible = false;
+      var s_drag_element = null;
+      var s_drag_x = 0;
+      var s_drag_y = 0;
+      var s_is_dragging = false;
+
+      document.onmousedown = function(e) {
+        s_drag_element = e.target;
+        var do_drag = false;
+        var element = s_drag_element;
+        while (element) {
+          // Don't drag the contents directly.
+          if (element.className === "ion_remote" ||
+              element.className === "ion_remote_content")
+            return;
+          // If any ancestor is the drag_bar then drag it.
+          if (element.className === "drag_bar") {
+            do_drag = true;
+            s_drag_element = element;
+            break;
+          }
+          element = element.parentNode;
+        }
+        if (do_drag) {
+          s_drag_x = e.clientX - s_drag_element.offsetLeft + 8;
+          s_drag_y = e.clientY - s_drag_element.offsetTop + 8;
+          s_is_dragging = true;
+          e.preventDefault();
+        }
+      };
+      document.onmousemove = function(e) {
+        if (s_is_dragging) {
+          s_drag_element.style.left =
+            Math.min(Math.max(10, e.clientX), window.innerWidth - 10) -
+            s_drag_x + "px";
+          s_drag_element.style.top =
+            Math.min(Math.max(10, e.clientY), window.innerHeight - 10) -
+            s_drag_y + "px";
+        }
+      };
+      document.onmouseup = function() {
+        s_is_dragging = false;
+        s_drag_element = null;
+      };
+      function runScripts(e) {
+        // Only process elements.
+        if (e.nodeType == 1) {
+          if (e.tagName.toLowerCase() == 'script') {
+            // Execute the script.
+            eval.call(null, e.text);
+          } else {
+            // Process all children for more scripts.
+            var n = e.firstChild;
+            while (n) {
+              runScripts(n);
+              n = n.nextSibling;
+            }
+          }
+        }
+      }
+      function ionRemoteShowOrHide() {
+        s_ion_remote_visible = !s_ion_remote_visible;
+        if (s_ion_remote_visible) {
+          document.getElementById('ion_remote_container').style.visibility = 'visible';
+          document.getElementById('output').style.visibility = 'hidden';
+          window.removeEventListener('keydown', GLUT.onKeydown, true);
+          window.removeEventListener('keyup', GLUT.onKeyup, true);
+          document.getElementById('show_hide_ion_remote').innerHTML =
+              'Hide remote interface';
+        } else {
+          document.getElementById('ion_remote_container').style.visibility = 'hidden';
+          document.getElementById('output').style.visibility = 'visible';
+          window.addEventListener('keydown', GLUT.onKeydown, true);
+          window.addEventListener('keyup', GLUT.onKeyup, true);
+          document.getElementById('show_hide_ion_remote').innerHTML =
+              'Show remote interface';
+        }
+      }
+      function ionRemoteShowPage(page) {
+        if (s_ion_remote_visible) {
+          document.getElementById('ion_remote_content').innerHTML =
+            IonRemoteGet('/ion/' + page);
+          runScripts(document.getElementById('ion_remote_content'));
+        }
+      }
+    </script>
+    <div id="ion_header">
+      <span class="ion_header_h1">Ion</span><br />
+      <div id="status">Downloading...</div>
+      <progress value="0" max="100" id="progress" hidden=1></progress>
+    </div>
+    <div id="canvas_container">
+      <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+    </div>
+    <textarea id="output" rows="32"></textarea>
+    <div id="show_hide_ion_remote" onclick="ionRemoteShowOrHide()">
+      Show remote interface
+    </div>
+    <div id="ion_remote_container" class="drag_bar">
+      <span style="font-size:150%;">
+        Remote pages - click and drag to move
+      </span>
+      <div class="ion_remote">
+        <a onclick="ionRemoteShowPage('resources')" href="#">
+          OpenGL Resources
+        </a>
+        <a onclick="ionRemoteShowPage('settings')" href="#">Settings</a>
+        <a onclick="ionRemoteShowPage('shaders/shader_editor')" href="#">
+          Shader editor
+        </a>
+        <a onclick="ionRemoteShowPage('profile')" href="#">Profiling</a>
+        <a onclick="ionRemoteShowPage('tracing')" href="#">OpenGL Tracing</a>
+        <br>
+        <span style="color: #FFFFFF;">Click links above to load/reload pages</span>
+        <div id="ion_remote_content" class="ion_remote_content"></div>
+      </div>
+    </div>
+    <script type='text/javascript'>
+      // Module is used for Emscripten communication to the
+      var Module = {
+        preRun: [],
+        postRun: [],
+        print: (function() {
+          var element = document.getElementById('output');
+          element.value = ''; // clear browser cache
+          return function(text) {
+            text = Array.prototype.slice.call(arguments).join(' ');
+            element.value += text + "\n";
+            element.scrollTop = 99999; // focus on bottom
+          };
+        })(),
+        printErr: function(text) {
+          text = Array.prototype.slice.call(arguments).join(' ');
+          console.log(text);
+        },
+        canvas: document.getElementById('canvas'),
+        setStatus: function(text) {
+          if (Module.setStatus.interval) clearInterval(Module.setStatus.interval);
+          var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+          var statusElement = document.getElementById('status');
+          var progressElement = document.getElementById('progress');
+          if (m) {
+            text = m[1];
+            progressElement.value = parseInt(m[2])*100;
+            progressElement.max = parseInt(m[4])*100;
+            progressElement.hidden = false;
+          } else {
+            progressElement.value = null;
+            progressElement.max = null;
+            progressElement.hidden = true;
+          }
+          statusElement.innerHTML = text;
+        },
+        totalDependencies: 0,
+        monitorRunDependencies: function(left) {
+          this.totalDependencies = Math.max(this.totalDependencies, left);
+          Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+        },
+      };
+      Module.setStatus('Downloading...');
+
+      function IonRemoteGet(page, successCb, errorCb) {
+        successCb(Module.ccall('IonRemoteGet', 'string', ['string'], [page]));
+      }
+
+      window.addEventListener ("resize", function (e) {
+        Module.canvas.width = canvas_container.clientWidth;
+        Module.canvas.height = canvas_container.clientHeight;
+        }, true);
+      Module.canvas.width = canvas_container.clientWidth;
+      Module.canvas.height = canvas_container.clientHeight;
+    </script>
+    <script src='SCRIPT_NAME.js' async type='text/javascript'></script>
+  </body>
+</html>

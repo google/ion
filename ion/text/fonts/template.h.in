@@ -1,0 +1,51 @@
+/**
+Copyright 2016 Google Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS-IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+*/
+
+#ifndef VR_ENGINE_FONTS___font_name___H_
+#define VR_ENGINE_FONTS___font_name___H_
+
+// This file gets processed by the ion_font build rule to generate a header file
+// specific for one particular font.
+
+#include "ion/text/font.h"
+#include "ion/text/fontmacros.h"
+#include "ion/text/fontmanager.h"
+#include "ion/base/zipassetmanagermacros.h"
+
+ION_REGISTER_ASSETS(__font_name___assets);
+
+namespace ion {
+namespace text {
+namespace fonts {
+
+inline ion::text::FontPtr CreateFont___font_name__(
+    const ion::text::FontManagerPtr& font_manager,
+    size_t font_size_px,
+    size_t sdf_padding) {
+  __font_name___assets::RegisterAssetsOnce();
+  const std::string font_name("__font_name__");
+  return font_manager->AddFontFromZipasset(font_name,
+                                           font_name,
+                                           font_size_px,
+                                           sdf_padding);
+}
+
+}  // namespace fonts
+}  // namespace text
+}  // namespace ion
+
+#endif  // VR_ENGINE_FONTS___font_name___H_
