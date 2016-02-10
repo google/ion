@@ -1,9 +1,10 @@
+# Ion
 Ion is a portable suite of libraries and tools for building client applications,
 especially graphical ones. It is small, fast, and robust, and is cross-platform
 across many platforms and devices, including desktops, mobile devices, browsers,
 and other embedded platforms.
 
-Why Use Ion?
+### Why Use Ion?
 * Small: < 500k binary size on mobile platforms, often much smaller
 * Powerful: Tools for faster productivity when developing applications
   * Robust, portable application infrastructure aids in:
@@ -29,8 +30,8 @@ Why Use Ion?
   * Integrated Remote: extensible API allows changing arbitrary application
     settings on-the-fly for faster development, testing, and debugging
 * Cross-platform:
-  * Desktop: Linux, Mac OSX, Windows (OpenGL)
-  * Handheld: Android (ARM, x86 MIPS), iOS (ARM and x86), and their 64-bit
+  * Desktop: Linux, OS X, Windows (OpenGL)
+  * Handheld: Android (ARM, x86, MIPS), iOS (ARM and x86), and their 64-bit
     variants
   * Browser: Emscripten/asm.js, NaCl / pNaCl
 * Cross-functional
