@@ -1,9 +1,11 @@
+# Ion
+
 Ion is a portable suite of libraries and tools for building client applications,
-especially graphical ones. It is small, fast, and robust, and is cross-platform
+especially graphical ones. It is small, fast, robust, and is cross-platform
 across many platforms and devices, including desktops, mobile devices, browsers,
 and other embedded platforms.
 
-Why Use Ion?
+## Why Use Ion?
 * Small: < 500k binary size on mobile platforms, often much smaller
 * Powerful: Tools for faster productivity when developing applications
   * Robust, portable application infrastructure aids in:
