@@ -1,1 +1,13 @@
-To build Ion, use the build.sh or build.py scripts in the ion/ directory.
+1. Install dependencies
+  - gyp
+  - clang
+  - libc++-dev
+  - libc++abi-dev
+
+2. Update git submodules
+  ```
+  git submodule init
+  git submodule update
+  ```
+
+3. Build by running `build.sh` or `build.py` in the `ion/` directory.
