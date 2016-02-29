@@ -1,0 +1,28 @@
+<map id="port/threadutils.h" name="port/threadutils.h">
+<area shape="rect" id="node2" href="$threadlocalobject_8h.html" title="base/threadlocalobject.h" alt="" coords="334,80,497,107"/>
+<area shape="rect" id="node12" href="$calltracemanager_8cc.html" title="profile/calltracemanager.cc" alt="" coords="1242,229,1421,256"/>
+<area shape="rect" id="node13" href="$tracerecorder_8cc.html" title="profile/tracerecorder.cc" alt="" coords="157,229,310,256"/>
+<area shape="rect" id="node16" href="$once_8h.html" title="base/once.h" alt="" coords="745,80,838,107"/>
+<area shape="rect" id="node18" href="$spinmutex_8cc.html" title="base/spinmutex.cc" alt="" coords="923,80,1054,107"/>
+<area shape="rect" id="node19" href="$threadspawner_8h.html" title="base/threadspawner.h" alt="" coords="1079,80,1229,107"/>
+<area shape="rect" id="node21" href="$workerpool_8h.html" title="base/workerpool.h" alt="" coords="1254,80,1382,107"/>
+<area shape="rect" id="node23" href="$tracerecorder_8h.html" title="profile/tracerecorder.h" alt="" coords="896,155,1044,181"/>
+<area shape="rect" id="node24" href="$semaphore_8cc.html" title="port/semaphore.cc" alt="" coords="1457,80,1586,107"/>
+<area shape="rect" id="node25" href="$threadutils_8cc.html" title="port/threadutils.cc" alt="" coords="1612,80,1738,107"/>
+<area shape="rect" id="node26" href="$timelinethread_8h.html" title="profile/timelinethread.h" alt="" coords="1763,80,1916,107"/>
+<area shape="rect" id="node27" href="$timelinesearch_8h.html" title="profile/timelinesearch.h" alt="" coords="1819,155,1974,181"/>
+<area shape="rect" id="node3" href="$allocatable_8cc.html" title="base/allocatable.cc" alt="" coords="28,155,162,181"/>
+<area shape="rect" id="node4" href="$graphicsmanager_8cc.html" title="gfx/graphicsmanager.cc" alt="" coords="526,155,686,181"/>
+<area shape="rect" id="node5" href="$calltracemanager_8h.html" title="profile/calltracemanager.h" alt="" coords="330,155,501,181"/>
+<area shape="rect" id="node15" href="$visual_8cc.html" title="portgfx/visual.cc" alt="" coords="187,155,305,181"/>
+<area shape="rect" id="node6" href="$gpuprofiler_8h.html" title="gfxprofile/gpuprofiler.h" alt="" coords="387,304,537,331"/>
+<area shape="rect" id="node7" href="$gpuprofiler_8cc.html" title="gfxprofile/gpuprofiler.cc" alt="" coords="384,379,541,405"/>
+<area shape="rect" id="node8" href="$profiling_8h.html" title="profile/profiling.h" alt="" coords="677,229,793,256"/>
+<area shape="rect" id="node14" href="$vsyncprofiler_8h.html" title="profile/vsyncprofiler.h" alt="" coords="897,229,1044,256"/>
+<area shape="rect" id="node9" href="$profiling_8cc.html" title="profile/profiling.cc" alt="" coords="760,304,884,331"/>
+<area shape="rect" id="node10" href="$vsyncprofiler_8cc.html" title="profile/vsyncprofiler.cc" alt="" coords="908,304,1061,331"/>
+<area shape="rect" id="node11" href="$calltracehandler_8cc.html" title="remote/calltracehandler.cc" alt="" coords="562,304,736,331"/>
+<area shape="rect" id="node17" href="$remoteserver_8cc.html" title="remote/remoteserver.cc" alt="" coords="712,155,870,181"/>
+<area shape="rect" id="node20" href="$threadspawner_8cc.html" title="base/threadspawner.cc" alt="" coords="1069,155,1226,181"/>
+<area shape="rect" id="node22" href="$workerpool_8cc.html" title="base/workerpool.cc" alt="" coords="1251,155,1385,181"/>
+</map>

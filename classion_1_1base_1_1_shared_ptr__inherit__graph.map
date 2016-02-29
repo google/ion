@@ -1,0 +1,7 @@
+<map id="ion::base::SharedPtr&lt; T &gt;" name="ion::base::SharedPtr&lt; T &gt;">
+<area shape="rect" id="node2" href="$classion_1_1base_1_1_shared_ptr.html" title="ion::base::SharedPtr\l\&lt; SettingData \&gt;" alt="" coords="388,5,529,46"/>
+<area shape="rect" id="node3" href="$classion_1_1base_1_1_shared_ptr.html" title="ion::base::SharedPtr\l\&lt; Allocator \&gt;" alt="" coords="388,70,529,111"/>
+<area shape="rect" id="node4" href="$classion_1_1base_1_1_shared_ptr.html" title="ion::base::SharedPtr\l\&lt; ion::base::Shareable \&gt;" alt="" coords="376,135,541,177"/>
+<area shape="rect" id="node5" href="$classion_1_1base_1_1_shared_ptr.html" title="ion::base::SharedPtr\l\&lt; InternalAllocator \&gt;" alt="" coords="388,201,529,242"/>
+<area shape="rect" id="node6" href="$classion_1_1base_1_1_shared_ptr.html" title="ion::base::SharedPtr\l\&lt; AllocationTracker \&gt;" alt="" coords="385,266,532,307"/>
+</map>

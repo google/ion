@@ -1,0 +1,26 @@
+var jniutil_8h =
+[
+    [ "LocalFrame", "classion_1_1port_1_1android_1_1_local_frame.html", "classion_1_1port_1_1android_1_1_local_frame" ],
+    [ "ScopedJObject", "classion_1_1port_1_1android_1_1_scoped_j_object.html", "classion_1_1port_1_1android_1_1_scoped_j_object" ],
+    [ "FindClassGlobal", "jniutil_8h.html#a46f74caf43cfba28253f8428e264762f", null ],
+    [ "GetBooleanMember", "jniutil_8h.html#a047a8e88d7cc54694402a3a910893f5d", null ],
+    [ "GetIntArrayMember", "jniutil_8h.html#aa7f1e916db72973174023fd3dd1a99c1", null ],
+    [ "GetIntMember", "jniutil_8h.html#ac974744f59b3b2579b7b55b417d45244", null ],
+    [ "GetJVM", "jniutil_8h.html#a030507d9c39cb7ca0ba49ec87622a85f", null ],
+    [ "GetLongMember", "jniutil_8h.html#afe2143f67ff0851e121bae92d78fa57b", null ],
+    [ "GetMember", "jniutil_8h.html#abcde7476369db7046cd0bc152535c610", null ],
+    [ "GetMethod", "jniutil_8h.html#a182fa58efdb34592f2539aa3e5ce48d6", null ],
+    [ "GetStaticBooleanMember", "jniutil_8h.html#ae27ce9e95edecb9357eddabdb7ab122c", null ],
+    [ "GetStaticIntMember", "jniutil_8h.html#a1f0efb9c576b1553dadf659e33651a0a", null ],
+    [ "GetStaticLongMember", "jniutil_8h.html#a31ff182ffcdf7c0f16fa1410aeab4711", null ],
+    [ "GetStaticMember", "jniutil_8h.html#a3f5791343f30f60c8e287c00fe15efe6", null ],
+    [ "GetStaticMethod", "jniutil_8h.html#abfb0afce5945a92b6ff68f8c68832fdf", null ],
+    [ "GetStaticStringMember", "jniutil_8h.html#ab068c6b979793eabc2128473324d7b9f", null ],
+    [ "GetStringMember", "jniutil_8h.html#a86f1eea6227c6317215b940bd1451f98", null ],
+    [ "JavaByteArray", "jniutil_8h.html#a041484d3a3467f30f54bf246ca2502b2", null ],
+    [ "JavaByteArray", "jniutil_8h.html#a9c0afcf16c092e267a06ae233d0174e0", null ],
+    [ "JavaGetByteArray", "jniutil_8h.html#ae2534a7cc615944abfecdd50ff4f6e9f", null ],
+    [ "JavaString", "jniutil_8h.html#a10a8d6402c44e39833765c0d6aad277b", null ],
+    [ "JavaStringArray", "jniutil_8h.html#add8b8af83285bb73cf9a64a91e14ba56", null ],
+    [ "SetJVM", "jniutil_8h.html#ace0b665e7f508a4b7f55f08796cddcb7", null ]
+];

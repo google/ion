@@ -1,0 +1,5 @@
+<map id="ion::base::IsConvertible&lt; From, To &gt;" name="ion::base::IsConvertible&lt; From, To &gt;">
+<area shape="rect" id="node2" href="$struction_1_1base_1_1_bool_type.html" title="ion::base::BoolType\l\&lt; IsSameType\&lt; To, From\l \&gt;::value\|\|IsBaseOf\&lt; To,\l From \&gt;::value \&gt;" alt="" coords="515,6,688,77"/>
+<area shape="rect" id="node3" href="$classbool.html" title="bool" alt="" coords="6,20,53,47"/>
+<area shape="rect" id="node4" href="$struction_1_1base_1_1_bool_type.html" title="BoolType is a struct whose value member is either true or false. " alt="" coords="139,59,309,85"/>
+</map>

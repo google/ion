@@ -1,0 +1,4 @@
+<map id="ion::base::FunctionCall&lt; ReturnType(Types...)&gt;" name="ion::base::FunctionCall&lt; ReturnType(Types...)&gt;">
+<area shape="rect" id="node2" href="$classion_1_1base_1_1_function_call_base.html" title="FunctionCallBase does nothing but define a virtual operator() to allow containers of arbitrary Functi..." alt="" coords="5,80,192,107"/>
+<area shape="rect" id="node3" href="$classion_1_1base_1_1_allocatable.html" title="Allocatable is an abstract base class for classes whose memory is managed by an Allocator. " alt="" coords="25,5,172,32"/>
+</map>

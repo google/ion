@@ -1,0 +1,8 @@
+<map id="ion::base::VectorDataContainer&lt; T &gt;" name="ion::base::VectorDataContainer&lt; T &gt;">
+<area shape="rect" id="node2" href="$classion_1_1base_1_1_data_container.html" title="The DataContainer class encapsulates arbitrary user data passed to Ion. " alt="" coords="79,304,245,331"/>
+<area shape="rect" id="node3" href="$classion_1_1base_1_1_notifier.html" title="A Notifier both sends notifications to and receives notifications from other Notifiers. " alt="" coords="100,229,225,256"/>
+<area shape="rect" id="node4" href="$classion_1_1base_1_1_weak_referent.html" title="Abstract base class that inherits from Referent, and adds the ability for instances to be referenced ..." alt="" coords="79,155,245,181"/>
+<area shape="rect" id="node5" href="$classion_1_1base_1_1_referent.html" title="Thread&#45;safe abstract base class. " alt="" coords="96,80,229,107"/>
+<area shape="rect" id="node6" href="$classion_1_1base_1_1_allocatable.html" title="Allocatable is an abstract base class for classes whose memory is managed by an Allocator. " alt="" coords="5,5,152,32"/>
+<area shape="rect" id="node7" href="$classion_1_1base_1_1_shareable.html" title="Shareable is an abstract base class for any object that can be shared via the SharedPtr class..." alt="" coords="176,5,316,32"/>
+</map>

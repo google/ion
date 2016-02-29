@@ -1,0 +1,26 @@
+var classion_1_1gfxutils_1_1_resource_callback =
+[
+    [ "RefPtr", "classion_1_1gfxutils_1_1_resource_callback.html#ab9cf30fdc2896a47bd974c3dd711c222", null ],
+    [ "ResourceCallback", "classion_1_1gfxutils_1_1_resource_callback.html#a32a1441af97194a604d36c5fae6f10a9", null ],
+    [ "~ResourceCallback", "classion_1_1gfxutils_1_1_resource_callback.html#a80be033fdbe452fe233c3df7c8086c4d", null ],
+    [ "Callback", "classion_1_1gfxutils_1_1_resource_callback.html#a56a18f8a36b08a94aa4cc569f25263ce", null ],
+    [ "GetAllocator", "classion_1_1gfxutils_1_1_resource_callback.html#abf64f94fc5627fd973153954cff6d8db", null ],
+    [ "GetAllocatorForLifetime", "classion_1_1gfxutils_1_1_resource_callback.html#a0682f27004c4f1a332360d7878b351a7", null ],
+    [ "GetData", "classion_1_1gfxutils_1_1_resource_callback.html#a041f43781bd3e1667ec4ef2b02e11fbf", null ],
+    [ "GetNonNullAllocator", "classion_1_1gfxutils_1_1_resource_callback.html#a6e809807b095c4a2f3ce3a8de39f8793", null ],
+    [ "GetRefCount", "classion_1_1gfxutils_1_1_resource_callback.html#a708e4bb577006e3e0f6f647abf42f5e2", null ],
+    [ "operator delete", "classion_1_1gfxutils_1_1_resource_callback.html#ac011e838d42e277e7cc139e1ac23aae9", null ],
+    [ "operator delete", "classion_1_1gfxutils_1_1_resource_callback.html#a06a1f82c20759cb781e104087eb9400f", null ],
+    [ "operator delete", "classion_1_1gfxutils_1_1_resource_callback.html#a1766a42930a87e42a37d82108d033e72", null ],
+    [ "operator delete", "classion_1_1gfxutils_1_1_resource_callback.html#a63fe049e57c8f42610cf49fcdab2c5a8", null ],
+    [ "operator new", "classion_1_1gfxutils_1_1_resource_callback.html#ad8a8662b6cd9caa0492118b82b2c5c44", null ],
+    [ "operator new", "classion_1_1gfxutils_1_1_resource_callback.html#a068284b2fbe2a9e19032b466858007ae", null ],
+    [ "operator new", "classion_1_1gfxutils_1_1_resource_callback.html#af3b34b1e07c5f8ba42ab570d5bf96ec5", null ],
+    [ "operator new", "classion_1_1gfxutils_1_1_resource_callback.html#a44d9858ce2b2b8271a2da8444c1b3b66", null ],
+    [ "operator new", "classion_1_1gfxutils_1_1_resource_callback.html#a9c3026f50bb891fe194e3b0081caa012", null ],
+    [ "WaitForCompletion", "classion_1_1gfxutils_1_1_resource_callback.html#a66e247cc579d8db4eb93c2ff935ab48b", null ],
+    [ "callback_holder_", "classion_1_1gfxutils_1_1_resource_callback.html#a5635113e6090e60ab0efb1890d36834a", null ],
+    [ "data_", "classion_1_1gfxutils_1_1_resource_callback.html#a4d37fadbf9e0eb218c852d8f2c39bc9a", null ],
+    [ "semaphore_", "classion_1_1gfxutils_1_1_resource_callback.html#a61544ef0b03646825831741e5de00f1b", null ],
+    [ "wait_holder_", "classion_1_1gfxutils_1_1_resource_callback.html#a95b97ca7f2cd97a08d58e75f6726b13d", null ]
+];

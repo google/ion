@@ -1,0 +1,32 @@
+<map id="base/varianttyperesolver.h" name="base/varianttyperesolver.h">
+<area shape="rect" id="node2" href="$shaderinputregistry_8h.html" title="gfx/shaderinputregistry.h" alt="" coords="1127,80,1291,107"/>
+<area shape="rect" id="node7" href="$buffertoattributebinder_8h.html" title="gfxutils/buffertoattributebinder.h" alt="" coords="163,163,368,189"/>
+<area shape="rect" id="node3" href="$hierarchy_8cc.html" title="doc/usersguide/examples\l/hierarchy.cc" alt="" coords="2494,155,2664,197"/>
+<area shape="rect" id="node4" href="$rectangle_8cc.html" title="doc/usersguide/examples\l/rectangle.cc" alt="" coords="392,155,563,197"/>
+<area shape="rect" id="node5" href="$shaders_8cc.html" title="doc/usersguide/examples\l/shaders.cc" alt="" coords="587,155,758,197"/>
+<area shape="rect" id="node6" href="$doc_2usersguide_2examples_2shape_8cc.html" title="doc/usersguide/examples\l/shape.cc" alt="" coords="518,246,688,287"/>
+<area shape="rect" id="node9" href="$shapeutils_8cc.html" title="gfxutils/shapeutils.cc" alt="" coords="713,253,858,280"/>
+<area shape="rect" id="node10" href="$basicbuilder_8cc.html" title="text/basicbuilder.cc" alt="" coords="210,419,344,445"/>
+<area shape="rect" id="node11" href="$outlinebuilder_8cc.html" title="text/outlinebuilder.cc" alt="" coords="825,419,967,445"/>
+<area shape="rect" id="node12" href="$text_8cc.html" title="doc/usersguide/examples\l/text.cc" alt="" coords="2808,411,2979,453"/>
+<area shape="rect" id="node13" href="$shadermanager_8h.html" title="gfxutils/shadermanager.h" alt="" coords="2688,163,2856,189"/>
+<area shape="rect" id="node14" href="$builder_8h.html" title="text/builder.h" alt="" coords="1133,253,1230,280"/>
+<area shape="rect" id="node18" href="$shadermanager_8cc.html" title="gfxutils/shadermanager.cc" alt="" coords="934,253,1108,280"/>
+<area shape="rect" id="node23" href="$doc_2usersguide_2examples_2texture_8cc.html" title="doc/usersguide/examples\l/texture.cc" alt="" coords="1035,155,1206,197"/>
+<area shape="rect" id="node24" href="$attributearray_8cc.html" title="gfx/attributearray.cc" alt="" coords="1230,163,1368,189"/>
+<area shape="rect" id="node25" href="$renderer_8cc.html" title="gfx/renderer.cc" alt="" coords="1392,163,1502,189"/>
+<area shape="rect" id="node26" href="$shader_8cc.html" title="gfx/shader.cc" alt="" coords="1526,163,1627,189"/>
+<area shape="rect" id="node27" href="$shaderinputregistry_8cc.html" title="gfx/shaderinputregistry.cc" alt="" coords="1652,163,1823,189"/>
+<area shape="rect" id="node28" href="$shaderprogram_8cc.html" title="gfx/shaderprogram.cc" alt="" coords="1848,163,1995,189"/>
+<area shape="rect" id="node29" href="$uniformholder_8cc.html" title="gfx/uniformholder.cc" alt="" coords="2020,163,2159,189"/>
+<area shape="rect" id="node30" href="$printer_8cc.html" title="gfxutils/printer.cc" alt="" coords="2184,163,2307,189"/>
+<area shape="rect" id="node31" href="$renderutils_8cc.html" title="image/renderutils.cc" alt="" coords="2331,163,2470,189"/>
+<area shape="rect" id="node8" href="$buffertoattributebinder_8cc.html" title="gfxutils/buffertoattributebinder.cc" alt="" coords="29,253,240,280"/>
+<area shape="rect" id="node19" href="$remoteserver_8h.html" title="remote/remoteserver.h" alt="" coords="2445,253,2598,280"/>
+<area shape="rect" id="node21" href="$shaderhandler_8h.html" title="remote/shaderhandler.h" alt="" coords="2646,253,2804,280"/>
+<area shape="rect" id="node22" href="$shaderhandler_8cc.html" title="remote/shaderhandler.cc" alt="" coords="2667,336,2831,363"/>
+<area shape="rect" id="node15" href="$outlinebuilder_8h.html" title="text/outlinebuilder.h" alt="" coords="1186,336,1320,363"/>
+<area shape="rect" id="node16" href="$basicbuilder_8h.html" title="text/basicbuilder.h" alt="" coords="315,336,443,363"/>
+<area shape="rect" id="node17" href="$builder_8cc.html" title="text/builder.cc" alt="" coords="1058,336,1162,363"/>
+<area shape="rect" id="node20" href="$remoteserver_8cc.html" title="remote/remoteserver.cc" alt="" coords="2462,336,2620,363"/>
+</map>

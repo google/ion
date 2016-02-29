@@ -1,0 +1,12 @@
+<map id="ion::gfx::ResourceManager::InfoCallback&lt; T &gt;" name="ion::gfx::ResourceManager::InfoCallback&lt; T &gt;">
+<area shape="rect" id="node2" href="$struction_1_1gfx_1_1_resource_manager_1_1_info_callback.html" title="ion::gfx::ResourceManager\l::InfoCallback\&lt; ion::gfx\l::BufferInfo \&gt;" alt="" coords="445,5,624,61"/>
+<area shape="rect" id="node3" href="$struction_1_1gfx_1_1_resource_manager_1_1_info_callback.html" title="ion::gfx::ResourceManager\l::InfoCallback\&lt; ion::gfx\l::ArrayInfo \&gt;" alt="" coords="445,85,624,141"/>
+<area shape="rect" id="node4" href="$struction_1_1gfx_1_1_resource_manager_1_1_info_callback.html" title="ion::gfx::ResourceManager\l::InfoCallback\&lt; ion::gfx\l::TextureInfo \&gt;" alt="" coords="445,165,624,221"/>
+<area shape="rect" id="node5" href="$struction_1_1gfx_1_1_resource_manager_1_1_info_callback.html" title="ion::gfx::ResourceManager\l::InfoCallback\&lt; InfoType \&gt;" alt="" coords="445,245,624,286"/>
+<area shape="rect" id="node6" href="$struction_1_1gfx_1_1_resource_manager_1_1_info_callback.html" title="ion::gfx::ResourceManager\l::InfoCallback\&lt; ion::gfx\l::ResourceManager::PlatformInfo \&gt;" alt="" coords="421,309,648,365"/>
+<area shape="rect" id="node7" href="$struction_1_1gfx_1_1_resource_manager_1_1_info_callback.html" title="ion::gfx::ResourceManager\l::InfoCallback\&lt; ion::gfx\l::FramebufferInfo \&gt;" alt="" coords="445,389,624,445"/>
+<area shape="rect" id="node8" href="$struction_1_1gfx_1_1_resource_manager_1_1_info_callback.html" title="ion::gfx::ResourceManager\l::InfoCallback\&lt; ion::gfx\l::ShaderInfo \&gt;" alt="" coords="445,469,624,525"/>
+<area shape="rect" id="node9" href="$struction_1_1gfx_1_1_resource_manager_1_1_info_callback.html" title="ion::gfx::ResourceManager\l::InfoCallback\&lt; ion::gfx\l::SamplerInfo \&gt;" alt="" coords="445,549,624,605"/>
+<area shape="rect" id="node10" href="$struction_1_1gfx_1_1_resource_manager_1_1_info_callback.html" title="ion::gfx::ResourceManager\l::InfoCallback\&lt; ion::gfx\l::ResourceManager::TextureImageInfo \&gt;" alt="" coords="405,629,664,685"/>
+<area shape="rect" id="node11" href="$struction_1_1gfx_1_1_resource_manager_1_1_info_callback.html" title="ion::gfx::ResourceManager\l::InfoCallback\&lt; ion::gfx\l::ProgramInfo \&gt;" alt="" coords="445,709,624,765"/>
+</map>

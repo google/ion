@@ -1,0 +1,4 @@
+<map id="ion::port::LogEntryWriter" name="ion::port::LogEntryWriter">
+<area shape="rect" id="node2" href="$classion_1_1base_1_1_log_checker.html" title="The LogChecker class can be used inside unit tests to trap all log output and verify that it matches ..." alt="" coords="5,80,157,107"/>
+<area shape="rect" id="node3" href="$classion_1_1base_1_1_null_log_entry_writer.html" title="A NullLogEntryWriter can be used completely disable all logging programmatically as long as it exists..." alt="" coords="182,80,375,107"/>
+</map>

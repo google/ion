@@ -1,0 +1,13 @@
+<map id="ion::gfx::ResourceBase" name="ion::gfx::ResourceBase">
+<area shape="rect" id="node2" title="This is an abstract base class for all resources that can be managed by this manager. " alt="" coords="217,567,431,609"/>
+<area shape="rect" id="node3" title="Renderer&#45;specific base Resource class. " alt="" coords="483,567,648,609"/>
+<area shape="rect" id="node4" title="Renderer::BufferResource class. " alt="" coords="947,280,1154,336"/>
+<area shape="rect" id="node5" title="Renderer::FramebufferResource class. " alt="" coords="926,360,1175,416"/>
+<area shape="rect" id="node6" title="Renderer::SamplerResource class. " alt="" coords="953,440,1148,496"/>
+<area shape="rect" id="node7" title="Renderer::ShaderInputRegistryResource class. " alt="" coords="921,520,1181,576"/>
+<area shape="rect" id="node8" title="Renderer::ShaderProgramResource class. " alt="" coords="935,600,1166,656"/>
+<area shape="rect" id="node9" title="Renderer::ShaderResource class. " alt="" coords="961,680,1141,736"/>
+<area shape="rect" id="node10" title="Renderer::TextureResource class. " alt="" coords="951,760,1150,816"/>
+<area shape="rect" id="node11" title="Renderer::VertexArrayResource class. " alt="" coords="940,840,1161,896"/>
+<area shape="rect" id="node12" title="Renderer::VertexArrayResource class. " alt="" coords="1232,847,1411,889"/>
+</map>

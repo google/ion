@@ -1,0 +1,24 @@
+<map id="base/staticsafedeclare.h" name="base/staticsafedeclare.h">
+<area shape="rect" id="node2" href="$allocatable_8cc.html" title="base/allocatable.cc" alt="" coords="5,80,139,107"/>
+<area shape="rect" id="node3" href="$allocationmanager_8cc.html" title="base/allocationmanager.cc" alt="" coords="163,80,340,107"/>
+<area shape="rect" id="node4" href="$datacontainer_8cc.html" title="base/datacontainer.cc" alt="" coords="365,80,515,107"/>
+<area shape="rect" id="node5" href="$base_2logging_8cc.html" title="base/logging.cc" alt="" coords="539,80,652,107"/>
+<area shape="rect" id="node6" href="$memoryzipstream_8cc.html" title="base/memoryzipstream.cc" alt="" coords="677,80,853,107"/>
+<area shape="rect" id="node7" href="$once_8h.html" title="base/once.h" alt="" coords="928,80,1021,107"/>
+<area shape="rect" id="node8" href="$graphicsmanager_8cc.html" title="gfx/graphicsmanager.cc" alt="" coords="810,155,971,181"/>
+<area shape="rect" id="node10" href="$settingmanager_8cc.html" title="base/settingmanager.cc" alt="" coords="1046,80,1207,107"/>
+<area shape="rect" id="node11" href="$staticsafedeclare_8cc.html" title="base/staticsafedeclare.cc" alt="" coords="1232,80,1403,107"/>
+<area shape="rect" id="node12" href="$zipassetmanager_8cc.html" title="base/zipassetmanager.cc" alt="" coords="1427,80,1597,107"/>
+<area shape="rect" id="node13" href="$renderer_8cc.html" title="gfx/renderer.cc" alt="" coords="1621,80,1731,107"/>
+<area shape="rect" id="node14" href="$shaderinputregistry_8cc.html" title="gfx/shaderinputregistry.cc" alt="" coords="1755,80,1927,107"/>
+<area shape="rect" id="node15" href="$gpuprofiler_8h.html" title="gfxprofile/gpuprofiler.h" alt="" coords="1779,155,1929,181"/>
+<area shape="rect" id="node17" href="$profiling_8h.html" title="profile/profiling.h" alt="" coords="2053,80,2169,107"/>
+<area shape="rect" id="node18" href="$profiling_8cc.html" title="profile/profiling.cc" alt="" coords="1954,155,2077,181"/>
+<area shape="rect" id="node19" href="$vsyncprofiler_8cc.html" title="profile/vsyncprofiler.cc" alt="" coords="2301,155,2453,181"/>
+<area shape="rect" id="node21" href="$visual_8cc.html" title="portgfx/visual.cc" alt="" coords="2246,80,2364,107"/>
+<area shape="rect" id="node22" href="$fontimage_8cc.html" title="text/fontimage.cc" alt="" coords="2389,80,2512,107"/>
+<area shape="rect" id="node23" href="$freetypefont_8cc.html" title="text/freetypefont.cc" alt="" coords="2537,80,2671,107"/>
+<area shape="rect" id="node9" href="$remoteserver_8cc.html" title="remote/remoteserver.cc" alt="" coords="996,155,1155,181"/>
+<area shape="rect" id="node16" href="$gpuprofiler_8cc.html" title="gfxprofile/gpuprofiler.cc" alt="" coords="1776,229,1933,256"/>
+<area shape="rect" id="node20" href="$calltracehandler_8cc.html" title="remote/calltracehandler.cc" alt="" coords="2102,155,2276,181"/>
+</map>

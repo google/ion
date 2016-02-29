@@ -1,0 +1,61 @@
+<map id="ion::base::Shareable" name="ion::base::Shareable">
+<area shape="rect" id="node2" href="$classion_1_1base_1_1_allocation_tracker.html" title="AllocationTracker is an abstract base class for objects that track memory. " alt="" coords="195,77,379,104"/>
+<area shape="rect" id="node5" href="$classion_1_1base_1_1_allocator.html" title="Allocator is an abstract base class for a memory allocator used for Ion objects derived from Allocata..." alt="" coords="219,324,354,351"/>
+<area shape="rect" id="node7" href="$classion_1_1base_1_1_referent.html" title="Thread&#45;safe abstract base class. " alt="" coords="220,581,353,608"/>
+<area shape="rect" id="node61" href="$classion_1_1base_1_1_static_deleter_deleter.html" title="StaticDeleterDeleter is an internal class that holds and deletes StaticDeleters; it should not be use..." alt="" coords="207,698,366,739"/>
+<area shape="rect" id="node3" href="$classion_1_1base_1_1_allocation_size_tracker.html" title="AllocationSizeTracker is an abstract base class for objects that track memory. " alt="" coords="462,5,629,46"/>
+<area shape="rect" id="node4" href="$classion_1_1base_1_1_full_allocation_tracker.html" title="FullAllocationTracker is a derived AllocationTracker class that keeps track of all active allocations..." alt="" coords="465,70,626,111"/>
+<area shape="rect" id="node6" title="AllocationManager::MallocAllocator class definition. " alt="" coords="450,135,641,177"/>
+<area shape="rect" id="node8" href="$classion_1_1base_1_1_call_list.html" title="CallList contains a list of function calls to execute. " alt="" coords="482,201,609,228"/>
+<area shape="rect" id="node9" href="$classion_1_1base_1_1_weak_referent.html" title="Abstract base class that inherits from Referent, and adds the ability for instances to be referenced ..." alt="" coords="462,252,629,279"/>
+<area shape="rect" id="node28" href="$classion_1_1gfx_1_1_graphics_manager.html" title="GraphicsManager manages the graphics library for an application. " alt="" coords="458,303,633,329"/>
+<area shape="rect" id="node29" href="$classion_1_1gfx_1_1_node.html" title="A Node instance represents a node in a scene graph. " alt="" coords="493,353,597,380"/>
+<area shape="rect" id="node30" href="$classion_1_1gfx_1_1_renderer.html" title="The Renderer class handles rendering ION scene graphs using OpenGL. " alt="" coords="482,404,609,431"/>
+<area shape="rect" id="node31" href="$classion_1_1gfx_1_1_shape.html" title="A Shape object represents a shape (vertices + indices) to draw. " alt="" coords="490,455,601,481"/>
+<area shape="rect" id="node32" href="$classion_1_1gfx_1_1_state_table.html" title="A StateTable represents a collection of graphical state items that affect OpenGL rendering. " alt="" coords="477,505,613,532"/>
+<area shape="rect" id="node33" href="$classion_1_1gfxutils_1_1_frame.html" title="Frame manages an application&#45;defined frame of execution. " alt="" coords="478,556,613,583"/>
+<area shape="rect" id="node34" href="$classion_1_1gfxutils_1_1_resource_callback.html" title="Class that allows blocking until a callback is called and automagically destroys itself after both Ca..." alt="" coords="427,607,663,633"/>
+<area shape="rect" id="node35" href="$classion_1_1gfxutils_1_1_shader_manager.html" title="ShaderManager contains an association between shader programs, their names, and any source dependenci..." alt="" coords="451,657,639,684"/>
+<area shape="rect" id="node36" href="$classion_1_1gfxutils_1_1_shader_source_composer.html" title="A ShaderSourceComposer is a generic interface for constructing a shader source string. " alt="" coords="456,709,635,750"/>
+<area shape="rect" id="node41" href="$classion_1_1image_1_1_nine_patch.html" title="Represents a nine&#45;patch image as described in the Android SDK reference. " alt="" coords="470,775,621,801"/>
+<area shape="rect" id="node42" href="$classion_1_1remote_1_1_http_server_1_1_request_handler.html" title="RequestHandlers handle requests for a file or path. " alt="" coords="466,826,625,867"/>
+<area shape="rect" id="node49" href="$classion_1_1remote_1_1_http_server_1_1_websocket.html" title="Represents the server side of a connected Websocket. " alt="" coords="466,891,625,933"/>
+<area shape="rect" id="node50" href="$classion_1_1text_1_1_builder.html" title="Builder is an abstract base class for building graphics objects used to render text. " alt="" coords="487,985,604,1012"/>
+<area shape="rect" id="node53" href="$classion_1_1text_1_1_font.html" title="Font is a base class for implementation&#45;specific representations of fonts. " alt="" coords="494,1087,597,1113"/>
+<area shape="rect" id="node56" href="$classion_1_1text_1_1_font_image.html" title="A FontImage contains image and texture coordinate information used to render font glyphs..." alt="" coords="476,1163,615,1189"/>
+<area shape="rect" id="node59" href="$classion_1_1text_1_1_font_manager.html" title="The FontManager provides the main interface for fonts used to create text strings to render..." alt="" coords="469,1213,622,1240"/>
+<area shape="rect" id="node10" href="$classion_1_1base_1_1_notifier.html" title="A Notifier both sends notifications to and receives notifications from other Notifiers. " alt="" coords="753,252,879,279"/>
+<area shape="rect" id="node11" href="$classion_1_1base_1_1_data_container.html" title="The DataContainer class encapsulates arbitrary user data passed to Ion. " alt="" coords="990,151,1157,177"/>
+<area shape="rect" id="node13" href="$classion_1_1gfx_1_1_image.html" title="An Image represents 2D image data that can be used in a texture supplied to a shader. " alt="" coords="1019,252,1128,279"/>
+<area shape="rect" id="node14" href="$classion_1_1gfx_1_1_resource_holder.html" title="ResourceHolder is an internal base class for objects that hold resources managed by an outside entity..." alt="" coords="990,328,1157,355"/>
+<area shape="rect" id="node12" href="$classion_1_1base_1_1_vector_data_container.html" title="VectorDataContainer is a special kind of DataContainer that is backed by an AllocVector. " alt="" coords="1227,125,1464,152"/>
+<area shape="rect" id="node15" href="$classion_1_1gfx_1_1_attribute_array.html" title="An AttributeArray represents a collection of Attributes used to describe the vertices of a Shape..." alt="" coords="1269,176,1422,203"/>
+<area shape="rect" id="node16" href="$classion_1_1gfx_1_1_buffer_object.html" title="A BufferObject describes a generic array of data used, for example, to describe the vertices in a Sha..." alt="" coords="1272,227,1419,253"/>
+<area shape="rect" id="node18" href="$classion_1_1gfx_1_1_framebuffer_object.html" title="A FramebufferObject describes an off&#45;screen framebuffer that can be drawn to and read from like a reg..." alt="" coords="1255,277,1436,304"/>
+<area shape="rect" id="node19" href="$classion_1_1gfx_1_1_sampler.html" title="A Sampler object represents texture parameters that control how texture data is accessed in shaders..." alt="" coords="1285,328,1406,355"/>
+<area shape="rect" id="node20" href="$classion_1_1gfx_1_1_shader_base.html" title="Base class for Shader and ShaderProgram objects. " alt="" coords="1273,379,1417,405"/>
+<area shape="rect" id="node23" href="$classion_1_1gfx_1_1_shader_input_registry.html" title="A ShaderInputRegistry is used to manage a collection of shader inputs to a specific ShaderProgram (bo..." alt="" coords="1249,429,1441,456"/>
+<area shape="rect" id="node24" href="$classion_1_1gfx_1_1_texture_base.html" title="This is an internal base class for all texture types. " alt="" coords="1272,480,1419,507"/>
+<area shape="rect" id="node27" href="$classion_1_1gfx_1_1_uniform_block.html" title="A UniformBlock is a grouping of uniforms that can be easily shared between multiple Nodes; changing a..." alt="" coords="1269,531,1421,557"/>
+<area shape="rect" id="node17" href="$classion_1_1gfx_1_1_index_buffer.html" title="An IndexBuffer is a type of BufferObject that contains the element indices of an array, e.g., a vertex index array. " alt="" coords="1529,227,1669,253"/>
+<area shape="rect" id="node21" href="$classion_1_1gfx_1_1_shader.html" title="A Shader represents an OpenGL shader stage. " alt="" coords="1541,353,1656,380"/>
+<area shape="rect" id="node22" href="$classion_1_1gfx_1_1_shader_program.html" title="A ShaderProgram represents an OpenGL shader program that can be applied to shapes. " alt="" coords="1517,404,1680,431"/>
+<area shape="rect" id="node25" href="$classion_1_1gfx_1_1_cube_map_texture.html" title="A CubeMapTexture object represents the image data and mipmaps associated with the six faces of a cube..." alt="" coords="1512,467,1685,493"/>
+<area shape="rect" id="node26" href="$classion_1_1gfx_1_1_texture.html" title="A Texture object represents the image data and mipmaps associated with a single texture. " alt="" coords="1540,517,1657,544"/>
+<area shape="rect" id="node37" href="$classion_1_1gfxutils_1_1_filter_composer.html" title="Applies a fixed transformation to the output of another composer. " alt="" coords="723,529,909,556"/>
+<area shape="rect" id="node38" href="$classion_1_1gfxutils_1_1_include_composer.html" title="Loads a shader source from a resource that may include other resources using the special directive &#39;$..." alt="" coords="717,580,915,607"/>
+<area shape="rect" id="node40" href="$classion_1_1gfxutils_1_1_string_composer.html" title="Simple composer that just returns the string passed to its constructor. " alt="" coords="721,631,911,657"/>
+<area shape="rect" id="node39" href="$classion_1_1gfxutils_1_1_zip_asset_composer.html" title="Loads a shader source from zip asset resources that may $input other zip assets. " alt="" coords="969,580,1178,607"/>
+<area shape="rect" id="node43" href="$classion_1_1remote_1_1_call_trace_handler.html" title="CallTraceHandler serves a snapshot of the current call trace. " alt="" coords="718,681,914,708"/>
+<area shape="rect" id="node44" href="$classion_1_1remote_1_1_node_graph_handler.html" title="NodeGraphHandler serves files to display Ion node graphs as text or HTML using the gfxutils::Printer ..." alt="" coords="713,732,919,759"/>
+<area shape="rect" id="node45" href="$struction_1_1remote_1_1_resource_handler.html" title="ResourceHandler serves files related to OpenGL resources. " alt="" coords="718,783,914,809"/>
+<area shape="rect" id="node46" href="$classion_1_1remote_1_1_setting_handler.html" title="SettingHandler serves files related to Settings, including an interface for viewing and modifying the..." alt="" coords="725,833,907,860"/>
+<area shape="rect" id="node47" href="$classion_1_1remote_1_1_shader_handler.html" title="ShaderHandler serves files related to shaders, their dependencies, and the shader editor..." alt="" coords="725,884,907,911"/>
+<area shape="rect" id="node48" href="$classion_1_1remote_1_1_tracing_handler.html" title="TracingHandler serves files related to OpenGL tracing. " alt="" coords="725,935,907,961"/>
+<area shape="rect" id="node51" href="$classion_1_1text_1_1_basic_builder.html" title="BasicBuilder is a derived Builder class that uses a very basic shader to render text. " alt="" coords="741,985,891,1012"/>
+<area shape="rect" id="node52" href="$classion_1_1text_1_1_outline_builder.html" title="OutlineBuilder is a derived Builder class that can render text with outlines. " alt="" coords="737,1036,895,1063"/>
+<area shape="rect" id="node54" href="$classion_1_1text_1_1_core_text_font.html" title="This represents a single CoreText font. " alt="" coords="737,1087,895,1113"/>
+<area shape="rect" id="node55" href="$classion_1_1text_1_1_free_type_font.html" title="This derived Font class represents a FreeType2 font. " alt="" coords="737,1137,895,1164"/>
+<area shape="rect" id="node57" href="$classion_1_1text_1_1_dynamic_font_image.html" title="DynamicFontImage is a derived FontImage that may contain any number of ImageData instances. " alt="" coords="721,1188,911,1215"/>
+<area shape="rect" id="node58" href="$classion_1_1text_1_1_static_font_image.html" title="StaticFontImage is a derived FontImage that contains a single ImageData instance that is created by t..." alt="" coords="729,1239,903,1265"/>
+</map>

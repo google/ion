@@ -1,0 +1,9 @@
+<map id="gfx/shaderinput.h" name="gfx/shaderinput.h">
+<area shape="rect" id="node4" href="$allocator_8h.html" title="ion/base/allocator.h" alt="" coords="262,80,396,107"/>
+<area shape="rect" id="node6" href="$allocationtracker_8h.html" title="ion/base/allocationtracker.h" alt="" coords="239,155,420,181"/>
+<area shape="rect" id="node7" href="$shareable_8h.html" title="ion/base/shareable.h" alt="" coords="185,304,327,331"/>
+<area shape="rect" id="node8" href="$base_2logging_8h.html" title="Copyright 2016 Google Inc. " alt="" coords="434,379,560,405"/>
+<area shape="rect" id="node16" href="$sharedptr_8h.html" title="ion/base/sharedptr.h" alt="" coords="321,229,460,256"/>
+<area shape="rect" id="node14" href="$atomic_8h.html" title="ion/port/atomic.h" alt="" coords="225,379,343,405"/>
+<area shape="rect" id="node13" href="$port_2logging_8h.html" title="ion/port/logging.h" alt="" coords="351,453,472,480"/>
+</map>

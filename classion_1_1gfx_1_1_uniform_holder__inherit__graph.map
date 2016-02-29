@@ -1,0 +1,4 @@
+<map id="ion::gfx::UniformHolder" name="ion::gfx::UniformHolder">
+<area shape="rect" id="node2" href="$classion_1_1gfx_1_1_node.html" title="A Node instance represents a node in a scene graph. " alt="" coords="5,80,109,107"/>
+<area shape="rect" id="node3" href="$classion_1_1gfx_1_1_uniform_block.html" title="A UniformBlock is a grouping of uniforms that can be easily shared between multiple Nodes; changing a..." alt="" coords="133,80,285,107"/>
+</map>

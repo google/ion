@@ -1,0 +1,8 @@
+<map id="ion::gfx::ResourceManager::TextureImageInfo" name="ion::gfx::ResourceManager::TextureImageInfo">
+<area shape="rect" id="node2" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; ion::base::SharedPtr \&gt;" alt="" coords="939,61,1104,102"/>
+<area shape="rect" id="node3" title="STL class. " alt="" coords="355,5,533,61"/>
+<area shape="rect" id="node6" title="STL class. " alt="" coords="152,70,331,111"/>
+<area shape="rect" id="node5" href="$classion_1_1base_1_1_alloc_vector.html" title="This class can be used in place of std::vector to allow an Ion Allocator to be used for memory alloca..." alt="" coords="558,76,741,103"/>
+<area shape="rect" id="node7" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; TextureBase \&gt;" alt="" coords="946,126,1097,167"/>
+<area shape="rect" id="node8" href="$struction_1_1base_1_1_referent_ptr.html" title="A ReferentPtr is a smart shared pointer to an instance of some class derived from Referent..." alt="" coords="558,133,741,160"/>
+</map>

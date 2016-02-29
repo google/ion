@@ -1,0 +1,8 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node1" href="$classion_1_1gfx_1_1_shader_input_base.html" title="ion::gfx::ShaderInputBase" alt="" coords="5,100,179,127"/>
+<area shape="rect" id="node2" href="$classion_1_1gfx_1_1_shader_input.html" title="A ShaderInput instance represents a general shader input. " alt="" coords="227,5,437,61"/>
+<area shape="rect" id="node3" href="$classion_1_1gfx_1_1_shader_input.html" title="ion::gfx::ShaderInput\l\&lt; AttributeValueType,\l AttributeType \&gt;" alt="" coords="257,85,407,141"/>
+<area shape="rect" id="node5" href="$classion_1_1gfx_1_1_shader_input.html" title="ion::gfx::ShaderInput\l\&lt; UniformValueType, Uniform\lType \&gt;" alt="" coords="234,165,430,221"/>
+<area shape="rect" id="node4" href="$classion_1_1gfx_1_1_attribute.html" title="ion::gfx::Attribute" alt="" coords="485,100,608,127"/>
+<area shape="rect" id="node6" href="$classion_1_1gfx_1_1_uniform.html" title="A Uniform instance represents a uniform shader argument. " alt="" coords="487,180,606,207"/>
+</map>

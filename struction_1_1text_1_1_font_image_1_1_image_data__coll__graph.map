@@ -1,0 +1,12 @@
+<map id="ion::text::FontImage::ImageData" name="ion::text::FontImage::ImageData">
+<area shape="rect" id="node2" href="$classion_1_1base_1_1_alloc_map.html" title="ion::base::AllocMap\l\&lt; GlyphIndex, math::\lRange2f \&gt;" alt="" coords="977,55,1122,111"/>
+<area shape="rect" id="node3" title="STL class. " alt="" coords="152,84,363,169"/>
+<area shape="rect" id="node7" title="STL class. " alt="" coords="169,4,345,60"/>
+<area shape="rect" id="node11" title="STL class. " alt="" coords="387,245,597,301"/>
+<area shape="rect" id="node13" title="STL class. " alt="" coords="182,194,333,235"/>
+<area shape="rect" id="node6" href="$classion_1_1base_1_1_alloc_map.html" title="This class can be used in place of std::map to allow an Ion Allocator to be used for memory allocatio..." alt="" coords="645,15,782,57"/>
+<area shape="rect" id="node8" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; Texture \&gt;" alt="" coords="974,134,1125,175"/>
+<area shape="rect" id="node9" href="$struction_1_1base_1_1_referent_ptr.html" title="A ReferentPtr is a smart shared pointer to an instance of some class derived from Referent..." alt="" coords="622,141,805,168"/>
+<area shape="rect" id="node10" href="$classion_1_1base_1_1_alloc_set.html" title="ion::base::AllocSet\l\&lt; GlyphIndex \&gt;" alt="" coords="983,199,1115,241"/>
+<area shape="rect" id="node12" href="$classion_1_1base_1_1_alloc_set.html" title="This class can be used in place of std::set to allow an Ion Allocator to be used for memory allocatio..." alt="" coords="647,194,779,235"/>
+</map>

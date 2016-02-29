@@ -1,0 +1,18 @@
+<map id="math/vector.h" name="math/vector.h">
+<area shape="rect" id="node3" href="$base_2logging_8h.html" title="Copyright 2016 Google Inc. " alt="" coords="201,768,327,795"/>
+<area shape="rect" id="node9" href="$base_2static__assert_8h.html" title="ion/base/static_assert.h" alt="" coords="625,80,785,107"/>
+<area shape="rect" id="node11" href="$stringutils_8h.html" title="ion/base/stringutils.h" alt="" coords="190,80,332,107"/>
+<area shape="rect" id="node8" href="$port_2logging_8h.html" title="ion/port/logging.h" alt="" coords="337,843,457,869"/>
+<area shape="rect" id="node10" href="$port_2static__assert_8h.html" title="ion/port/static_assert.h" alt="" coords="717,155,871,181"/>
+<area shape="rect" id="node14" href="$allocvector_8h.html" title="ion/base/stlalloc/allocvector.h" alt="" coords="448,155,643,181"/>
+<area shape="rect" id="node15" href="$allocatable_8h.html" title="ion/base/allocatable.h" alt="" coords="634,304,781,331"/>
+<area shape="rect" id="node17" href="$allocationmanager_8h.html" title="ion/base/allocationmanager.h" alt="" coords="755,387,945,413"/>
+<area shape="rect" id="node26" href="$stlallocator_8h.html" title="ion/base/stlalloc/stlallocator.h" alt="" coords="301,229,496,256"/>
+<area shape="rect" id="node18" href="$allocator_8h.html" title="ion/base/allocator.h" alt="" coords="430,469,564,496"/>
+<area shape="rect" id="node19" href="$allocationtracker_8h.html" title="ion/base/allocationtracker.h" alt="" coords="403,544,584,571"/>
+<area shape="rect" id="node20" href="$shareable_8h.html" title="ion/base/shareable.h" alt="" coords="441,693,583,720"/>
+<area shape="rect" id="node23" href="$sharedptr_8h.html" title="ion/base/sharedptr.h" alt="" coords="317,619,456,645"/>
+<area shape="rect" id="node21" href="$atomic_8h.html" title="ion/port/atomic.h" alt="" coords="463,768,581,795"/>
+<area shape="rect" id="node28" href="$type__structs_8h.html" title="ion/base/type_structs.h" alt="" coords="319,304,477,331"/>
+<area shape="rect" id="node29" href="$align_8h.html" title="ion/port/align.h" alt="" coords="503,304,609,331"/>
+</map>

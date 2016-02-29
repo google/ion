@@ -1,0 +1,16 @@
+<map id="base/serialize.h" name="base/serialize.h">
+<area shape="rect" id="node5" href="$stringutils_8h.html" title="ion/base/stringutils.h" alt="" coords="718,80,860,107"/>
+<area shape="rect" id="node9" href="$allocvector_8h.html" title="ion/base/stlalloc/allocvector.h" alt="" coords="625,155,820,181"/>
+<area shape="rect" id="node10" href="$allocatable_8h.html" title="ion/base/allocatable.h" alt="" coords="406,304,553,331"/>
+<area shape="rect" id="node12" href="$allocationmanager_8h.html" title="ion/base/allocationmanager.h" alt="" coords="43,387,233,413"/>
+<area shape="rect" id="node25" href="$stlallocator_8h.html" title="ion/base/stlalloc/stlallocator.h" alt="" coords="609,229,804,256"/>
+<area shape="rect" id="node13" href="$allocator_8h.html" title="ion/base/allocator.h" alt="" coords="361,469,495,496"/>
+<area shape="rect" id="node16" href="$base_2logging_8h.html" title="Copyright 2016 Google Inc. " alt="" coords="513,768,639,795"/>
+<area shape="rect" id="node14" href="$allocationtracker_8h.html" title="ion/base/allocationtracker.h" alt="" coords="304,544,485,571"/>
+<area shape="rect" id="node15" href="$shareable_8h.html" title="ion/base/shareable.h" alt="" coords="195,693,337,720"/>
+<area shape="rect" id="node22" href="$sharedptr_8h.html" title="ion/base/sharedptr.h" alt="" coords="355,619,495,645"/>
+<area shape="rect" id="node20" href="$atomic_8h.html" title="ion/port/atomic.h" alt="" coords="218,768,336,795"/>
+<area shape="rect" id="node19" href="$port_2logging_8h.html" title="ion/port/logging.h" alt="" coords="343,843,464,869"/>
+<area shape="rect" id="node27" href="$type__structs_8h.html" title="ion/base/type_structs.h" alt="" coords="686,304,844,331"/>
+<area shape="rect" id="node28" href="$align_8h.html" title="ion/port/align.h" alt="" coords="869,304,976,331"/>
+</map>

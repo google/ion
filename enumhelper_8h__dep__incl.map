@@ -1,0 +1,12 @@
+<map id="base/enumhelper.h" name="base/enumhelper.h">
+<area shape="rect" id="node2" href="$bufferobject_8cc.html" title="gfx/bufferobject.cc" alt="" coords="5,80,135,107"/>
+<area shape="rect" id="node3" href="$cubemaptexture_8cc.html" title="gfx/cubemaptexture.cc" alt="" coords="160,80,313,107"/>
+<area shape="rect" id="node4" href="$image_8cc.html" title="gfx/image.cc" alt="" coords="339,80,436,107"/>
+<area shape="rect" id="node5" href="$renderer_8cc.html" title="gfx/renderer.cc" alt="" coords="461,80,571,107"/>
+<area shape="rect" id="node6" href="$sampler_8cc.html" title="gfx/sampler.cc" alt="" coords="595,80,703,107"/>
+<area shape="rect" id="node7" href="$gfx_2shape_8cc.html" title="gfx/shape.cc" alt="" coords="727,80,824,107"/>
+<area shape="rect" id="node8" href="$statetable_8cc.html" title="gfx/statetable.cc" alt="" coords="849,80,967,107"/>
+<area shape="rect" id="node9" href="$gfx_2texture_8cc.html" title="gfx/texture.cc" alt="" coords="991,80,1093,107"/>
+<area shape="rect" id="node10" href="$updatestatetable_8cc.html" title="gfx/updatestatetable.cc" alt="" coords="1118,80,1276,107"/>
+<area shape="rect" id="node11" href="$printer_8cc.html" title="gfxutils/printer.cc" alt="" coords="1301,80,1424,107"/>
+</map>

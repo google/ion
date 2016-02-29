@@ -1,0 +1,35 @@
+<map id="image/ninepatch.cc" name="image/ninepatch.cc">
+<area shape="rect" id="node2" href="$ninepatch_8h.html" title="ion/image/ninepatch.h" alt="" coords="1917,80,2065,107"/>
+<area shape="rect" id="node8" href="$allocationmanager_8h.html" title="ion/base/allocationmanager.h" alt="" coords="697,685,887,712"/>
+<area shape="rect" id="node12" href="$base_2logging_8h.html" title="Copyright 2016 Google Inc. " alt="" coords="1518,1067,1644,1093"/>
+<area shape="rect" id="node30" href="$datacontainer_8h.html" title="ion/base/datacontainer.h" alt="" coords="970,304,1133,331"/>
+<area shape="rect" id="node5" href="$allocmap_8h.html" title="ion/base/stlalloc/allocmap.h" alt="" coords="1714,453,1896,480"/>
+<area shape="rect" id="node27" href="$allocvector_8h.html" title="ion/base/stlalloc/allocvector.h" alt="" coords="1495,453,1689,480"/>
+<area shape="rect" id="node29" href="$image_8h.html" title="ion/gfx/image.h" alt="" coords="1589,229,1699,256"/>
+<area shape="rect" id="node43" href="$range_8h.html" title="ion/math/range.h" alt="" coords="2431,155,2549,181"/>
+<area shape="rect" id="node49" href="$vector_8h.html" title="ion/math/vector.h" alt="" coords="2331,304,2453,331"/>
+<area shape="rect" id="node7" href="$allocatable_8h.html" title="ion/base/allocatable.h" alt="" coords="1318,603,1465,629"/>
+<area shape="rect" id="node23" href="$stlallocator_8h.html" title="ion/base/stlalloc/stlallocator.h" alt="" coords="1649,528,1844,555"/>
+<area shape="rect" id="node9" href="$allocator_8h.html" title="ion/base/allocator.h" alt="" coords="1115,768,1249,795"/>
+<area shape="rect" id="node10" href="$allocationtracker_8h.html" title="ion/base/allocationtracker.h" alt="" coords="1033,843,1215,869"/>
+<area shape="rect" id="node11" href="$shareable_8h.html" title="ion/base/shareable.h" alt="" coords="925,992,1067,1019"/>
+<area shape="rect" id="node20" href="$sharedptr_8h.html" title="ion/base/sharedptr.h" alt="" coords="1175,917,1315,944"/>
+<area shape="rect" id="node18" href="$atomic_8h.html" title="ion/port/atomic.h" alt="" coords="107,1067,225,1093"/>
+<area shape="rect" id="node17" href="$port_2logging_8h.html" title="ion/port/logging.h" alt="" coords="1677,1141,1797,1168"/>
+<area shape="rect" id="node25" href="$type__structs_8h.html" title="ion/base/type_structs.h" alt="" coords="1931,603,2089,629"/>
+<area shape="rect" id="node26" href="$align_8h.html" title="ion/port/align.h" alt="" coords="1693,603,1800,629"/>
+<area shape="rect" id="node32" href="$notifier_8h.html" title="ion/base/notifier.h" alt="" coords="989,379,1115,405"/>
+<area shape="rect" id="node41" href="$nullptr_8h.html" title="ion/port/nullptr.h" alt="" coords="523,379,637,405"/>
+<area shape="rect" id="node33" href="$lockguards_8h.html" title="ion/base/lockguards.h" alt="" coords="475,603,623,629"/>
+<area shape="rect" id="node34" href="$readwritelock_8h.html" title="ion/base/readwritelock.h" alt="" coords="357,685,520,712"/>
+<area shape="rect" id="node35" href="$mutex_8h.html" title="ion/port/mutex.h" alt="" coords="487,768,603,795"/>
+<area shape="rect" id="node39" href="$weakreferent_8h.html" title="ion/base/weakreferent.h" alt="" coords="958,453,1119,480"/>
+<area shape="rect" id="node38" href="$spinmutex_8h.html" title="ion/base/spinmutex.h" alt="" coords="204,917,351,944"/>
+<area shape="rect" id="node37" href="$semaphore_8h.html" title="ion/port/semaphore.h" alt="" coords="780,768,924,795"/>
+<area shape="rect" id="node40" href="$referent_8h.html" title="ion/base/referent.h" alt="" coords="960,528,1089,555"/>
+<area shape="rect" id="node46" href="$base_2static__assert_8h.html" title="ion/base/static_assert.h" alt="" coords="2182,379,2343,405"/>
+<area shape="rect" id="node48" href="$stringutils_8h.html" title="ion/base/stringutils.h" alt="" coords="2419,379,2561,405"/>
+<area shape="rect" id="node50" href="$vectorutils_8h.html" title="ion/math/vectorutils.h" alt="" coords="2528,229,2675,256"/>
+<area shape="rect" id="node47" href="$port_2static__assert_8h.html" title="ion/port/static_assert.h" alt="" coords="2184,453,2337,480"/>
+<area shape="rect" id="node52" href="$utils_8h.html" title="ion/math/utils.h" alt="" coords="2470,768,2580,795"/>
+</map>

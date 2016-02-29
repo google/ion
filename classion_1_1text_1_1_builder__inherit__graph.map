@@ -1,0 +1,7 @@
+<map id="ion::text::Builder" name="ion::text::Builder">
+<area shape="rect" id="node5" href="$classion_1_1text_1_1_basic_builder.html" title="BasicBuilder is a derived Builder class that uses a very basic shader to render text. " alt="" coords="5,229,155,256"/>
+<area shape="rect" id="node6" href="$classion_1_1text_1_1_outline_builder.html" title="OutlineBuilder is a derived Builder class that can render text with outlines. " alt="" coords="179,229,337,256"/>
+<area shape="rect" id="node2" href="$classion_1_1base_1_1_referent.html" title="Thread&#45;safe abstract base class. " alt="" coords="103,80,236,107"/>
+<area shape="rect" id="node3" href="$classion_1_1base_1_1_allocatable.html" title="Allocatable is an abstract base class for classes whose memory is managed by an Allocator. " alt="" coords="12,5,159,32"/>
+<area shape="rect" id="node4" href="$classion_1_1base_1_1_shareable.html" title="Shareable is an abstract base class for any object that can be shared via the SharedPtr class..." alt="" coords="183,5,323,32"/>
+</map>

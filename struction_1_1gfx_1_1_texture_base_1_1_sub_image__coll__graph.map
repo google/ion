@@ -1,0 +1,5 @@
+<map id="ion::gfx::TextureBase::SubImage" name="ion::gfx::TextureBase::SubImage">
+<area shape="rect" id="node2" href="$classsize__t.html" title="size_t" alt="" coords="5,104,61,131"/>
+<area shape="rect" id="node4" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; Image \&gt;" alt="" coords="181,97,331,138"/>
+<area shape="rect" id="node5" href="$struction_1_1base_1_1_referent_ptr.html" title="A ReferentPtr is a smart shared pointer to an instance of some class derived from Referent..." alt="" coords="165,5,347,32"/>
+</map>

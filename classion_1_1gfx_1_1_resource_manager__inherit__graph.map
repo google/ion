@@ -1,0 +1,4 @@
+<map id="ion::gfx::ResourceManager" name="ion::gfx::ResourceManager">
+<area shape="rect" id="node3" title="The Renderer::ResourceManager class manages all OpenGL resources used by the Renderer, and is 1:1 with its owning Renderer. " alt="" coords="5,155,219,181"/>
+<area shape="rect" id="node2" href="$classion_1_1base_1_1_allocatable.html" title="Allocatable is an abstract base class for classes whose memory is managed by an Allocator. " alt="" coords="39,5,185,32"/>
+</map>

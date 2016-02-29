@@ -1,0 +1,5 @@
+<map id="ion::gfx::Attribute" name="ion::gfx::Attribute">
+<area shape="rect" id="node2" href="$classion_1_1gfx_1_1_shader_input.html" title="ion::gfx::ShaderInput\l\&lt; AttributeValueType,\l AttributeType \&gt;" alt="" coords="5,216,153,272"/>
+<area shape="rect" id="node3" href="$classion_1_1gfx_1_1_shader_input_base.html" title="ion::gfx::ShaderInputBase" alt="" coords="16,5,189,32"/>
+<area shape="rect" id="node4" href="$classion_1_1gfx_1_1_shader_input.html" title="A ShaderInput instance represents a general shader input. " alt="" coords="97,83,305,139"/>
+</map>

@@ -1,0 +1,5 @@
+<map id="ion::gfxutils::PlanarShapeSpec" name="ion::gfxutils::PlanarShapeSpec">
+<area shape="rect" id="node3" href="$struction_1_1gfxutils_1_1_rectangle_spec.html" title="Rectangle. " alt="" coords="5,155,192,181"/>
+<area shape="rect" id="node4" href="$struction_1_1gfxutils_1_1_regular_polygon_spec.html" title="Regular polygon. " alt="" coords="216,155,435,181"/>
+<area shape="rect" id="node2" href="$struction_1_1gfxutils_1_1_shape_spec.html" title="This struct contains specifications common to all basic shapes. " alt="" coords="130,5,293,32"/>
+</map>

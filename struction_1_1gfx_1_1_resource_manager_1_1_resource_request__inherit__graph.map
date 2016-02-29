@@ -1,0 +1,9 @@
+<map id="ion::gfx::ResourceManager::ResourceRequest&lt; HolderType, InfoType &gt;" name="ion::gfx::ResourceManager::ResourceRequest&lt; HolderType, InfoType &gt;">
+<area shape="rect" id="node2" href="$struction_1_1gfx_1_1_resource_manager_1_1_resource_request.html" title="ion::gfx::ResourceManager\l::ResourceRequest\&lt; ion\l::gfx::Sampler, ion::gfx\l::SamplerInfo \&gt;" alt="" coords="455,5,633,75"/>
+<area shape="rect" id="node3" href="$struction_1_1gfx_1_1_resource_manager_1_1_resource_request.html" title="ion::gfx::ResourceManager\l::ResourceRequest\&lt; ion\l::gfx::TextureBase, ion\l::gfx::TextureInfo \&gt;" alt="" coords="455,99,633,170"/>
+<area shape="rect" id="node4" href="$struction_1_1gfx_1_1_resource_manager_1_1_resource_request.html" title="ion::gfx::ResourceManager\l::ResourceRequest\&lt; ion\l::gfx::Shader, ion::gfx\l::ShaderInfo \&gt;" alt="" coords="455,194,633,265"/>
+<area shape="rect" id="node5" href="$struction_1_1gfx_1_1_resource_manager_1_1_resource_request.html" title="ion::gfx::ResourceManager\l::ResourceRequest\&lt; ion\l::gfx::AttributeArray, ion\l::gfx::ArrayInfo \&gt;" alt="" coords="455,289,633,359"/>
+<area shape="rect" id="node6" href="$struction_1_1gfx_1_1_resource_manager_1_1_resource_request.html" title="ion::gfx::ResourceManager\l::ResourceRequest\&lt; ion\l::gfx::ShaderProgram, ion\l::gfx::ProgramInfo \&gt;" alt="" coords="455,383,633,454"/>
+<area shape="rect" id="node7" href="$struction_1_1gfx_1_1_resource_manager_1_1_resource_request.html" title="ion::gfx::ResourceManager\l::ResourceRequest\&lt; ion\l::gfx::FramebufferObject,\l ion::gfx::FramebufferInfo \&gt;" alt="" coords="453,478,635,549"/>
+<area shape="rect" id="node8" href="$struction_1_1gfx_1_1_resource_manager_1_1_resource_request.html" title="ion::gfx::ResourceManager\l::ResourceRequest\&lt; ion\l::gfx::BufferObject, ion\l::gfx::BufferInfo \&gt;" alt="" coords="455,573,633,643"/>
+</map>

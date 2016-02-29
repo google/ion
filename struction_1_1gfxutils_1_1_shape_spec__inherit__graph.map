@@ -1,0 +1,9 @@
+<map id="ion::gfxutils::ShapeSpec" name="ion::gfxutils::ShapeSpec">
+<area shape="rect" id="node2" href="$struction_1_1gfxutils_1_1_box_spec.html" title="Box. " alt="" coords="250,5,401,32"/>
+<area shape="rect" id="node3" href="$struction_1_1gfxutils_1_1_cylinder_spec.html" title="Cylinder. " alt="" coords="238,56,413,83"/>
+<area shape="rect" id="node4" href="$struction_1_1gfxutils_1_1_ellipsoid_spec.html" title="Ellipsoid. " alt="" coords="237,107,413,133"/>
+<area shape="rect" id="node5" href="$struction_1_1gfxutils_1_1_external_shape_spec.html" title="External geometry formats. " alt="" coords="219,157,431,184"/>
+<area shape="rect" id="node6" href="$struction_1_1gfxutils_1_1_planar_shape_spec.html" title="Planar shape. " alt="" coords="225,208,426,235"/>
+<area shape="rect" id="node7" href="$struction_1_1gfxutils_1_1_rectangle_spec.html" title="Rectangle. " alt="" coords="496,183,683,209"/>
+<area shape="rect" id="node8" href="$struction_1_1gfxutils_1_1_regular_polygon_spec.html" title="Regular polygon. " alt="" coords="480,233,699,260"/>
+</map>

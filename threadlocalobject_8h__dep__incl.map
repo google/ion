@@ -1,0 +1,15 @@
+<map id="base/threadlocalobject.h" name="base/threadlocalobject.h">
+<area shape="rect" id="node2" href="$allocatable_8cc.html" title="base/allocatable.cc" alt="" coords="5,80,139,107"/>
+<area shape="rect" id="node3" href="$graphicsmanager_8cc.html" title="gfx/graphicsmanager.cc" alt="" coords="163,80,324,107"/>
+<area shape="rect" id="node4" href="$calltracemanager_8h.html" title="profile/calltracemanager.h" alt="" coords="349,80,520,107"/>
+<area shape="rect" id="node14" href="$visual_8cc.html" title="portgfx/visual.cc" alt="" coords="545,80,663,107"/>
+<area shape="rect" id="node5" href="$gpuprofiler_8h.html" title="gfxprofile/gpuprofiler.h" alt="" coords="177,229,327,256"/>
+<area shape="rect" id="node6" href="$gpuprofiler_8cc.html" title="gfxprofile/gpuprofiler.cc" alt="" coords="116,304,273,331"/>
+<area shape="rect" id="node7" href="$profiling_8h.html" title="profile/profiling.h" alt="" coords="289,155,405,181"/>
+<area shape="rect" id="node11" href="$calltracemanager_8cc.html" title="profile/calltracemanager.cc" alt="" coords="431,155,609,181"/>
+<area shape="rect" id="node12" href="$tracerecorder_8cc.html" title="profile/tracerecorder.cc" alt="" coords="633,155,787,181"/>
+<area shape="rect" id="node13" href="$vsyncprofiler_8h.html" title="profile/vsyncprofiler.h" alt="" coords="812,155,959,181"/>
+<area shape="rect" id="node8" href="$profiling_8cc.html" title="profile/profiling.cc" alt="" coords="550,229,673,256"/>
+<area shape="rect" id="node9" href="$vsyncprofiler_8cc.html" title="profile/vsyncprofiler.cc" alt="" coords="753,229,905,256"/>
+<area shape="rect" id="node10" href="$calltracehandler_8cc.html" title="remote/calltracehandler.cc" alt="" coords="351,229,525,256"/>
+</map>

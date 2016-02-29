@@ -1,0 +1,34 @@
+<map id="ion::base::ReferentPtr&lt; T &gt;" name="ion::base::ReferentPtr&lt; T &gt;">
+<area shape="rect" id="node2" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; GraphicsManager \&gt;" alt="" coords="454,22,605,63"/>
+<area shape="rect" id="node3" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; Sampler \&gt;" alt="" coords="454,87,605,129"/>
+<area shape="rect" id="node4" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; ShaderInputRegistry \&gt;" alt="" coords="447,153,612,194"/>
+<area shape="rect" id="node5" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; Node \&gt;" alt="" coords="454,218,605,259"/>
+<area shape="rect" id="node6" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; ion::gfx::BufferObject \&gt;" alt="" coords="444,283,615,325"/>
+<area shape="rect" id="node7" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; FontImage \&gt;" alt="" coords="454,349,605,390"/>
+<area shape="rect" id="node8" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; ion::gfx::Sampler \&gt;" alt="" coords="454,414,605,455"/>
+<area shape="rect" id="node9" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; ion::gfx::AttributeArray \&gt;" alt="" coords="441,479,618,521"/>
+<area shape="rect" id="node10" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; ion::base::WeakReferent\l::Proxy \&gt;" alt="" coords="440,544,619,600"/>
+<area shape="rect" id="node11" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; ion::gfx::TextureBase \&gt;" alt="" coords="444,623,615,665"/>
+<area shape="rect" id="node12" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; CubeMapTexture \&gt;" alt="" coords="454,689,605,730"/>
+<area shape="rect" id="node13" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; ShaderSourceComposer \&gt;" alt="" coords="435,754,623,795"/>
+<area shape="rect" id="node14" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; Websocket \&gt;" alt="" coords="454,819,605,861"/>
+<area shape="rect" id="node15" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; Image \&gt;" alt="" coords="454,885,605,926"/>
+<area shape="rect" id="node16" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; Texture \&gt;" alt="" coords="454,950,605,991"/>
+<area shape="rect" id="node17" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; DataContainer \&gt;" alt="" coords="454,1015,605,1057"/>
+<area shape="rect" id="node18" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; BufferObject \&gt;" alt="" coords="454,1081,605,1122"/>
+<area shape="rect" id="node19" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; TextureBase \&gt;" alt="" coords="454,1146,605,1187"/>
+<area shape="rect" id="node20" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; HolderType \&gt;" alt="" coords="454,1211,605,1253"/>
+<area shape="rect" id="node21" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; ResourceCallback\&lt; T \&gt; \&gt;" alt="" coords="437,1277,622,1318"/>
+<area shape="rect" id="node22" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; IndexBuffer \&gt;" alt="" coords="454,1342,605,1383"/>
+<area shape="rect" id="node23" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; AttributeArray \&gt;" alt="" coords="454,1407,605,1449"/>
+<area shape="rect" id="node24" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; ShaderProgram \&gt;" alt="" coords="454,1473,605,1514"/>
+<area shape="rect" id="node25" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; ion::gfx::ShaderProgram \&gt;" alt="" coords="436,1538,623,1579"/>
+<area shape="rect" id="node26" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; ion::gfx::FramebufferObject \&gt;" alt="" coords="427,1603,632,1645"/>
+<area shape="rect" id="node27" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; NodeGraphHandler \&gt;" alt="" coords="451,1669,608,1710"/>
+<area shape="rect" id="node28" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; Frame \&gt;" alt="" coords="454,1734,605,1775"/>
+<area shape="rect" id="node29" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; Renderer \&gt;" alt="" coords="454,1799,605,1841"/>
+<area shape="rect" id="node30" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; ion::gfx::Shader \&gt;" alt="" coords="454,1865,605,1906"/>
+<area shape="rect" id="node31" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; Font \&gt;" alt="" coords="454,1930,605,1971"/>
+<area shape="rect" id="node32" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; ShaderManager \&gt;" alt="" coords="454,1995,605,2037"/>
+<area shape="rect" id="node33" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; StateTable \&gt;" alt="" coords="454,2061,605,2102"/>
+</map>

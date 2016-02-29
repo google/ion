@@ -1,0 +1,4 @@
+<map id="ion::gfx::ResourceManager" name="ion::gfx::ResourceManager">
+<area shape="rect" id="node2" href="$classion_1_1base_1_1_allocatable.html" title="Allocatable is an abstract base class for classes whose memory is managed by an Allocator. " alt="" coords="5,5,152,32"/>
+<area shape="rect" id="node3" href="$classion_1_1port_1_1_mutex.html" title="A Mutex is used to ensure that only one thread or process can access a block of code at one time..." alt="" coords="177,5,289,32"/>
+</map>

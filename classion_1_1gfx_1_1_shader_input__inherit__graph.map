@@ -1,0 +1,7 @@
+<map id="ion::gfx::ShaderInput&lt; ValueHolderType, ValueEnumType &gt;" name="ion::gfx::ShaderInput&lt; ValueHolderType, ValueEnumType &gt;">
+<area shape="rect" id="node3" href="$classion_1_1gfx_1_1_shader_input.html" title="ion::gfx::ShaderInput\l\&lt; AttributeValueType,\l AttributeType \&gt;" alt="" coords="645,4,795,60"/>
+<area shape="rect" id="node5" href="$classion_1_1gfx_1_1_shader_input.html" title="ion::gfx::ShaderInput\l\&lt; UniformValueType, Uniform\lType \&gt;" alt="" coords="622,84,818,140"/>
+<area shape="rect" id="node2" href="$classion_1_1gfx_1_1_shader_input_base.html" title="ion::gfx::ShaderInputBase" alt="" coords="5,64,179,91"/>
+<area shape="rect" id="node4" href="$classion_1_1gfx_1_1_attribute.html" title="ion::gfx::Attribute" alt="" coords="869,19,992,45"/>
+<area shape="rect" id="node6" href="$classion_1_1gfx_1_1_uniform.html" title="A Uniform instance represents a uniform shader argument. " alt="" coords="871,99,990,125"/>
+</map>

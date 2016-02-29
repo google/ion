@@ -1,0 +1,21 @@
+<map id="port/timer.h" name="port/timer.h">
+<area shape="rect" id="node2" href="$benchmark_8h.html" title="analytics/benchmark.h" alt="" coords="791,80,944,107"/>
+<area shape="rect" id="node8" href="$gpuperformance_8cc.html" title="analytics/gpuperformance.cc" alt="" coords="1095,229,1284,256"/>
+<area shape="rect" id="node9" href="$calltracemanager_8h.html" title="profile/calltracemanager.h" alt="" coords="295,229,465,256"/>
+<area shape="rect" id="node19" href="$base_2logging_8cc.html" title="base/logging.cc" alt="" coords="1291,80,1404,107"/>
+<area shape="rect" id="node20" href="$timer_8cc.html" title="port/timer.cc" alt="" coords="1429,80,1523,107"/>
+<area shape="rect" id="node3" href="$benchmark_8cc.html" title="analytics/benchmark.cc" alt="" coords="417,155,576,181"/>
+<area shape="rect" id="node4" href="$benchmarkutils_8h.html" title="analytics/benchmarkutils.h" alt="" coords="779,155,956,181"/>
+<area shape="rect" id="node6" href="$calltracemanager_8cc.html" title="profile/calltracemanager.cc" alt="" coords="735,304,913,331"/>
+<area shape="rect" id="node7" href="$gpuperformance_8h.html" title="analytics/gpuperformance.h" alt="" coords="1033,155,1215,181"/>
+<area shape="rect" id="node18" href="$timelinemetric_8h.html" title="profile/timelinemetric.h" alt="" coords="602,155,755,181"/>
+<area shape="rect" id="node5" href="$benchmarkutils_8cc.html" title="analytics/benchmarkutils.cc" alt="" coords="773,229,957,256"/>
+<area shape="rect" id="node10" href="$gpuprofiler_8h.html" title="gfxprofile/gpuprofiler.h" alt="" coords="66,379,216,405"/>
+<area shape="rect" id="node11" href="$gpuprofiler_8cc.html" title="gfxprofile/gpuprofiler.cc" alt="" coords="5,453,163,480"/>
+<area shape="rect" id="node12" href="$profiling_8h.html" title="profile/profiling.h" alt="" coords="244,304,360,331"/>
+<area shape="rect" id="node16" href="$tracerecorder_8cc.html" title="profile/tracerecorder.cc" alt="" coords="556,304,709,331"/>
+<area shape="rect" id="node17" href="$vsyncprofiler_8h.html" title="profile/vsyncprofiler.h" alt="" coords="385,304,532,331"/>
+<area shape="rect" id="node13" href="$profiling_8cc.html" title="profile/profiling.cc" alt="" coords="241,379,364,405"/>
+<area shape="rect" id="node14" href="$vsyncprofiler_8cc.html" title="profile/vsyncprofiler.cc" alt="" coords="587,379,740,405"/>
+<area shape="rect" id="node15" href="$calltracehandler_8cc.html" title="remote/calltracehandler.cc" alt="" coords="389,379,563,405"/>
+</map>

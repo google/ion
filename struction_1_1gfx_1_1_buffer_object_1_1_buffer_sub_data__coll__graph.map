@@ -1,0 +1,5 @@
+<map id="ion::gfx::BufferObject::BufferSubData" name="ion::gfx::BufferObject::BufferSubData">
+<area shape="rect" id="node4" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; DataContainer \&gt;" alt="" coords="353,107,503,149"/>
+<area shape="rect" id="node5" href="$struction_1_1base_1_1_referent_ptr.html" title="A ReferentPtr is a smart shared pointer to an instance of some class derived from Referent..." alt="" coords="6,145,189,172"/>
+<area shape="rect" id="node6" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; BufferObject \&gt;" alt="" coords="353,173,503,214"/>
+</map>

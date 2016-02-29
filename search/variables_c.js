@@ -1,0 +1,22 @@
+var searchData=
+[
+  ['n',['n',['../classion_1_1gfx_1_1_graphics_manager.html#a1636b32f1708fec80b4f3b15114663ce',1,'ion::gfx::GraphicsManager::n()'],['../classion_1_1gfx_1_1_graphics_manager.html#a9e2e5c11339ce1dace60a2ea2528ac91',1,'ion::gfx::GraphicsManager::n()'],['../classion_1_1gfx_1_1_graphics_manager.html#ac06a006f6882206a38c1935379a68e39',1,'ion::gfx::GraphicsManager::n()'],['../classion_1_1gfx_1_1_graphics_manager.html#a78984f9cb976a9e6430a2ddeaae1be98',1,'ion::gfx::GraphicsManager::n()'],['../classion_1_1gfx_1_1_graphics_manager.html#a50d1fe2629abf98780911db27694a2a0',1,'ion::gfx::GraphicsManager::n()'],['../classion_1_1gfx_1_1_graphics_manager.html#a9ca4264dcbae85906bf74ece42efc800',1,'ion::gfx::GraphicsManager::n()']]],
+  ['name',['name',['../struction_1_1gfx_1_1_program_info_1_1_attribute.html#ac76fb56ef115a73023ea8c6e8229d73a',1,'ion::gfx::ProgramInfo::Attribute::name()'],['../struction_1_1gfx_1_1_program_info_1_1_uniform.html#a2ac71b808cbde1b78e21710868d5b370',1,'ion::gfx::ProgramInfo::Uniform::name()'],['../struction_1_1gfx_1_1_program_info_1_1_varying.html#a9295f7a9fd0ebc8c884cb928acbbfa2d',1,'ion::gfx::ProgramInfo::Varying::name()'],['../struction_1_1gfx_1_1_shader_input_registry_1_1_spec.html#a7b5b2a0a6e81508a005f9a31114a2aa6',1,'ion::gfx::ShaderInputRegistry::Spec::name()'],['../printer_8cc.html#a9b45b3e13bd9167aab02e17e08916231',1,'name():&#160;printer.cc']]],
+  ['no_5fdraw_5fcalls_5f',['no_draw_calls_',['../classion_1_1analytics_1_1_gpu_performance_tester.html#a7c6b6fad54065011231629f58fbb5388',1,'ion::analytics::GpuPerformanceTester']]],
+  ['node_5fcount',['node_count',['../gpuperformance_8cc.html#adb003027d73f3e3b7e9ec03a22d38535',1,'gpuperformance.cc']]],
+  ['normal',['normal',['../shapeutils_8cc.html#a1b8d96ad5ea7d8b704525d1efa3a3cb4',1,'shapeutils.cc']]],
+  ['normalized',['normalized',['../classion_1_1gfx_1_1_graphics_manager.html#aaae56250b236a7d2276169f314d4611b',1,'ion::gfx::GraphicsManager::normalized()'],['../struction_1_1gfx_1_1_array_info_1_1_attribute.html#af87d2c9f003ffa56c53569696437428c',1,'ion::gfx::ArrayInfo::Attribute::normalized()']]],
+  ['num_5fbind_5fshader_5f',['num_bind_shader_',['../classion_1_1analytics_1_1_gpu_performance_tester.html#a6734a7f04acd477ed9194d5b96de3dd2',1,'ion::analytics::GpuPerformanceTester']]],
+  ['num_5fbind_5ftexture_5f',['num_bind_texture_',['../classion_1_1analytics_1_1_gpu_performance_tester.html#aa3a0dd603e6b2fed757f2968c64171c8',1,'ion::analytics::GpuPerformanceTester']]],
+  ['num_5fcaps',['num_caps',['../shapeutils_8cc.html#a9666e6a6b61d3c6fed967efb57a8ce02',1,'shapeutils.cc']]],
+  ['num_5fdraws_5f',['num_draws_',['../classion_1_1analytics_1_1_gpu_performance_tester.html#af9a4ade299afdfb5248983c7b253cc7c',1,'ion::analytics::GpuPerformanceTester']]],
+  ['num_5flines_5f',['num_lines_',['../classion_1_1analytics_1_1_gpu_performance_tester.html#aabd1985aa20724a27198a0b7dccae189',1,'ion::analytics::GpuPerformanceTester']]],
+  ['num_5fnodes_5f',['num_nodes_',['../classion_1_1analytics_1_1_gpu_performance_tester.html#a7b3c7513d9d57ab1234032e9beeac253',1,'ion::analytics::GpuPerformanceTester']]],
+  ['num_5fpoints_5f',['num_points_',['../classion_1_1analytics_1_1_gpu_performance_tester.html#a45f4a036f034f503fee613c2ad441343',1,'ion::analytics::GpuPerformanceTester']]],
+  ['num_5fsamples',['num_samples',['../struction_1_1analytics_1_1_interval_discrepancy.html#afa7d5dbf9156f6f280a4d4e166dd5a72',1,'ion::analytics::IntervalDiscrepancy']]],
+  ['num_5fset_5funiform_5f',['num_set_uniform_',['../classion_1_1analytics_1_1_gpu_performance_tester.html#a2c0f182e8d104a3fcbd6b28f0d7c36ca',1,'ion::analytics::GpuPerformanceTester']]],
+  ['num_5fshapes_5f',['num_shapes_',['../classion_1_1analytics_1_1_gpu_performance_tester.html#a04797b15c139de4299a7727e4a71ea71',1,'ion::analytics::GpuPerformanceTester']]],
+  ['num_5ftriangles_5f',['num_triangles_',['../classion_1_1analytics_1_1_gpu_performance_tester.html#aa1a72038944bc3221351474af13c9646',1,'ion::analytics::GpuPerformanceTester']]],
+  ['num_5fvertices_5f',['num_vertices_',['../classion_1_1analytics_1_1_gpu_performance_tester.html#a2127db0e5ca4334a33034e4c2bae48f1',1,'ion::analytics::GpuPerformanceTester']]],
+  ['number_5fof_5ftrials_5f',['number_of_trials_',['../classion_1_1analytics_1_1_gpu_performance_tester.html#a882876dd6d3457f34926504a0a9c0138',1,'ion::analytics::GpuPerformanceTester']]]
+];

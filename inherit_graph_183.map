@@ -1,0 +1,7 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node1" href="$classion_1_1base_1_1_setting_base.html" title="Base class for Setting, which encapsulates the name of the setting and any functors that should be ca..." alt="" coords="5,64,160,91"/>
+<area shape="rect" id="node2" href="$classion_1_1base_1_1_setting.html" title="Forward references. " alt="" coords="209,5,365,32"/>
+<area shape="rect" id="node4" href="$classion_1_1base_1_1_setting_3_01std_1_1atomic_3_01_t_01_4_01_4.html" title="Specialize for std::atomic types. " alt="" coords="215,57,358,98"/>
+<area shape="rect" id="node5" href="$classion_1_1base_1_1_setting.html" title="ion::base::Setting\l\&lt; bool \&gt;" alt="" coords="225,122,349,163"/>
+<area shape="rect" id="node3" href="$classion_1_1base_1_1_environment_setting.html" title="An EnvironmentSetting is a Setting can take its initial value from the named system environment varia..." alt="" coords="413,5,643,32"/>
+</map>

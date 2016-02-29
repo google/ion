@@ -1,0 +1,21 @@
+var searchData=
+[
+  ['range',['range',['../struction_1_1gfx_1_1_buffer_object_1_1_buffer_sub_data.html#ace0a0ceb865385de2e5af36c168654d5',1,'ion::gfx::BufferObject::BufferSubData::range()'],['../struction_1_1gfx_1_1_graphics_manager_1_1_shader_precision.html#a105984cc8c15cca95c7e5e7823d6f935',1,'ion::gfx::GraphicsManager::ShaderPrecision::range()'],['../classion_1_1gfx_1_1_graphics_manager.html#a11dc97a32ec3b3ca8248adc1783e2889',1,'ion::gfx::GraphicsManager::range()']]],
+  ['read_5foffset',['read_offset',['../struction_1_1gfx_1_1_buffer_object_1_1_buffer_sub_data.html#acabad425fc2c8f29dc11965b5eb97c00',1,'ion::gfx::BufferObject::BufferSubData::read_offset()'],['../classion_1_1gfx_1_1_graphics_manager.html#ab2245c299c64362b3bfb2d03a86accab',1,'ion::gfx::GraphicsManager::read_offset()']]],
+  ['read_5ftarget',['read_target',['../classion_1_1gfx_1_1_graphics_manager.html#a9b2b454b9d2d7fcaf55191ffab7f4ff0',1,'ion::gfx::GraphicsManager']]],
+  ['rect_5fsize_5fin_5fpixels',['rect_size_in_pixels',['../struction_1_1text_1_1_text_size.html#ac630416b8582a5e95852b62c58ef6e45',1,'ion::text::TextSize']]],
+  ['red',['red',['../classion_1_1gfx_1_1_graphics_manager.html#a877018e9ccf480a546b5832cb9068d8c',1,'ion::gfx::GraphicsManager::red()'],['../classion_1_1gfx_1_1_graphics_manager.html#af85165712c6ec752a2308226cf86a137',1,'ion::gfx::GraphicsManager::red()']]],
+  ['red_5fsize',['red_size',['../struction_1_1gfx_1_1_renderbuffer_info.html#ae66e1937050044ee48a92f5636fc3432',1,'ion::gfx::RenderbufferInfo']]],
+  ['ref',['ref',['../classion_1_1gfx_1_1_graphics_manager.html#a98ff06d44a038717ddc3671afc3f0af2',1,'ion::gfx::GraphicsManager']]],
+  ['registry',['registry',['../struction_1_1gfx_1_1_shader_input_registry_1_1_spec.html#a4871f5fed8cef006a2aed5a2b468132b',1,'ion::gfx::ShaderInputRegistry::Spec']]],
+  ['registry_5fid',['registry_id',['../struction_1_1gfx_1_1_shader_input_registry_1_1_spec.html#ae133cfe0a04969e7132342db17fc61fd',1,'ion::gfx::ShaderInputRegistry::Spec']]],
+  ['renderbufferstorage',['RenderbufferStorage',['../classion_1_1gfx_1_1_graphics_manager.html#a61881475ee9ce0909f116a68608ff11f',1,'ion::gfx::GraphicsManager']]],
+  ['renderbufferstoragemultisample',['RenderbufferStorageMultisample',['../classion_1_1gfx_1_1_graphics_manager.html#abae9406d3a16c74866bd335dd5c2fd7c',1,'ion::gfx::GraphicsManager']]],
+  ['renderbuffertarget',['renderbuffertarget',['../classion_1_1gfx_1_1_graphics_manager.html#a5c57a5098061490c54367dd4bd1a73bd',1,'ion::gfx::GraphicsManager']]],
+  ['renderer',['renderer',['../struction_1_1gfx_1_1_resource_manager_1_1_platform_info.html#ab32eec3ed614d0f4030ea3f382808d7c',1,'ion::gfx::ResourceManager::PlatformInfo']]],
+  ['renderer_5f',['renderer_',['../resourcehandler_8cc.html#a0771a23a550f47ff4b9d83c86786bda3',1,'resourcehandler.cc']]],
+  ['request_5fmutex_5f',['request_mutex_',['../classion_1_1gfx_1_1_resource_manager.html#a78f7ca603c6a3a3f3d7eff1993bff562',1,'ion::gfx::ResourceManager']]],
+  ['resource_5f',['resource_',['../classion_1_1analytics_1_1_gpu_performance_tester.html#a93d1f96f50da9f3b5e4ce8c678293d7b',1,'ion::analytics::GpuPerformanceTester']]],
+  ['root_5fobjects_5f',['root_objects_',['../printer_8cc.html#a8af141af35f4d6f59a2a3bb4728afb46',1,'printer.cc']]],
+  ['rotation',['rotation',['../struction_1_1gfxutils_1_1_shape_spec.html#a13ab7c5f030ebfed529196ecaadc9d9f',1,'ion::gfxutils::ShapeSpec']]]
+];

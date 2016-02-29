@@ -1,0 +1,14 @@
+<map id="base/staticsafedeclare.h" name="base/staticsafedeclare.h">
+<area shape="rect" id="node5" href="$lockguards_8h.html" title="ion/base/lockguards.h" alt="" coords="408,80,556,107"/>
+<area shape="rect" id="node8" href="$atomic_8h.html" title="ion/port/atomic.h" alt="" coords="526,229,644,256"/>
+<area shape="rect" id="node10" href="$mutex_8h.html" title="ion/port/mutex.h" alt="" coords="193,229,308,256"/>
+<area shape="rect" id="node15" href="$shareable_8h.html" title="ion/base/shareable.h" alt="" coords="771,155,913,181"/>
+<area shape="rect" id="node22" href="$sharedptr_8h.html" title="ion/base/sharedptr.h" alt="" coords="882,80,1021,107"/>
+<area shape="rect" id="node24" href="$base_2static__assert_8h.html" title="ion/base/static_assert.h" alt="" coords="1090,80,1251,107"/>
+<area shape="rect" id="node7" href="$readwritelock_8h.html" title="ion/base/readwritelock.h" alt="" coords="312,155,475,181"/>
+<area shape="rect" id="node14" href="$spinmutex_8h.html" title="ion/base/spinmutex.h" alt="" coords="499,155,645,181"/>
+<area shape="rect" id="node12" href="$semaphore_8h.html" title="ion/port/semaphore.h" alt="" coords="333,229,477,256"/>
+<area shape="rect" id="node16" href="$base_2logging_8h.html" title="Copyright 2016 Google Inc. " alt="" coords="1014,229,1140,256"/>
+<area shape="rect" id="node21" href="$port_2logging_8h.html" title="ion/port/logging.h" alt="" coords="893,304,1013,331"/>
+<area shape="rect" id="node25" href="$port_2static__assert_8h.html" title="ion/port/static_assert.h" alt="" coords="1139,155,1292,181"/>
+</map>

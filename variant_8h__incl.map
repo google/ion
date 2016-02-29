@@ -1,0 +1,14 @@
+<map id="base/variant.h" name="base/variant.h">
+<area shape="rect" id="node3" href="$allocationmanager_8h.html" title="ion/base/allocationmanager.h" alt="" coords="251,80,441,107"/>
+<area shape="rect" id="node5" href="$allocator_8h.html" title="ion/base/allocator.h" alt="" coords="287,155,421,181"/>
+<area shape="rect" id="node8" href="$base_2logging_8h.html" title="Copyright 2016 Google Inc. " alt="" coords="530,453,656,480"/>
+<area shape="rect" id="node18" href="$invalid_8h.html" title="ion/base/invalid.h" alt="" coords="5,80,128,107"/>
+<area shape="rect" id="node19" href="$base_2static__assert_8h.html" title="ion/base/static_assert.h" alt="" coords="682,80,843,107"/>
+<area shape="rect" id="node21" href="$align_8h.html" title="ion/port/align.h" alt="" coords="868,80,975,107"/>
+<area shape="rect" id="node6" href="$allocationtracker_8h.html" title="ion/base/allocationtracker.h" alt="" coords="264,229,445,256"/>
+<area shape="rect" id="node7" href="$shareable_8h.html" title="ion/base/shareable.h" alt="" coords="362,379,504,405"/>
+<area shape="rect" id="node16" href="$sharedptr_8h.html" title="ion/base/sharedptr.h" alt="" coords="237,304,376,331"/>
+<area shape="rect" id="node14" href="$atomic_8h.html" title="ion/port/atomic.h" alt="" coords="345,453,463,480"/>
+<area shape="rect" id="node13" href="$port_2logging_8h.html" title="ion/port/logging.h" alt="" coords="667,528,788,555"/>
+<area shape="rect" id="node20" href="$port_2static__assert_8h.html" title="ion/port/static_assert.h" alt="" coords="685,155,839,181"/>
+</map>

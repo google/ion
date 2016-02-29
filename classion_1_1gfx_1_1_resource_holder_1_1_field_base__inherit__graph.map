@@ -1,0 +1,6 @@
+<map id="ion::gfx::ResourceHolder::FieldBase" name="ion::gfx::ResourceHolder::FieldBase">
+<area shape="rect" id="node2" href="$classion_1_1gfx_1_1_resource_holder_1_1_field.html" title="ion::gfx::ResourceHolder\l::Field\&lt; std::string \&gt;" alt="" coords="529,5,695,46"/>
+<area shape="rect" id="node3" href="$classion_1_1gfx_1_1_resource_holder_1_1_field.html" title="A generic field that represents some state in the resource. " alt="" coords="225,57,391,98"/>
+<area shape="rect" id="node5" href="$classion_1_1gfx_1_1_resource_holder_1_1_vector_field.html" title="A Field that holds a vector of up to some number of values. " alt="" coords="225,122,391,163"/>
+<area shape="rect" id="node4" href="$classion_1_1gfx_1_1_resource_holder_1_1_ranged_field.html" title="A Field that has a limited valid range of values. " alt="" coords="529,77,695,118"/>
+</map>

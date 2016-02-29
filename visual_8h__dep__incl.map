@@ -1,0 +1,6 @@
+<map id="portgfx/visual.h" name="portgfx/visual.h">
+<area shape="rect" id="node2" href="$renderer_8cc.html" title="gfx/renderer.cc" alt="" coords="5,80,115,107"/>
+<area shape="rect" id="node3" href="$isextensionsupported_8cc.html" title="portgfx/isextensionsupported.cc" alt="" coords="139,80,345,107"/>
+<area shape="rect" id="node4" href="$visual_8cc.html" title="portgfx/visual.cc" alt="" coords="370,80,488,107"/>
+<area shape="rect" id="node5" href="$visual__darwin_8mm.html" title="portgfx/visual_darwin.mm" alt="" coords="513,80,684,107"/>
+</map>

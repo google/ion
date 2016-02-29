@@ -1,0 +1,39 @@
+<map id="profile/profiling.h" name="profile/profiling.h">
+<area shape="rect" id="node2" href="$staticsafedeclare_8h.html" title="ion/base/staticsafedeclare.h" alt="" coords="2353,477,2537,504"/>
+<area shape="rect" id="node27" href="$calltracemanager_8h.html" title="ion/profile/calltracemanager.h" alt="" coords="1523,80,1715,107"/>
+<area shape="rect" id="node56" href="$tracerecorder_8h.html" title="ion/profile/tracerecorder.h" alt="" coords="643,229,812,256"/>
+<area shape="rect" id="node6" href="$lockguards_8h.html" title="ion/base/lockguards.h" alt="" coords="1944,560,2092,587"/>
+<area shape="rect" id="node9" href="$atomic_8h.html" title="ion/port/atomic.h" alt="" coords="2941,1024,3059,1051"/>
+<area shape="rect" id="node11" href="$mutex_8h.html" title="ion/port/mutex.h" alt="" coords="2105,725,2220,752"/>
+<area shape="rect" id="node16" href="$shareable_8h.html" title="ion/base/shareable.h" alt="" coords="2249,949,2391,976"/>
+<area shape="rect" id="node23" href="$sharedptr_8h.html" title="ion/base/sharedptr.h" alt="" coords="1699,875,1839,901"/>
+<area shape="rect" id="node25" href="$base_2static__assert_8h.html" title="ion/base/static_assert.h" alt="" coords="2551,560,2712,587"/>
+<area shape="rect" id="node8" href="$readwritelock_8h.html" title="ion/base/readwritelock.h" alt="" coords="2001,643,2164,669"/>
+<area shape="rect" id="node15" href="$spinmutex_8h.html" title="ion/base/spinmutex.h" alt="" coords="2820,875,2967,901"/>
+<area shape="rect" id="node13" href="$semaphore_8h.html" title="ion/port/semaphore.h" alt="" coords="1396,725,1540,752"/>
+<area shape="rect" id="node17" href="$base_2logging_8h.html" title="Copyright 2016 Google Inc. " alt="" coords="2271,1024,2397,1051"/>
+<area shape="rect" id="node22" href="$port_2logging_8h.html" title="ion/port/logging.h" alt="" coords="2287,1099,2408,1125"/>
+<area shape="rect" id="node26" href="$port_2static__assert_8h.html" title="ion/port/static_assert.h" alt="" coords="2508,643,2661,669"/>
+<area shape="rect" id="node29" href="$benchmark_8h.html" title="ion/analytics/benchmark.h" alt="" coords="1531,395,1705,421"/>
+<area shape="rect" id="node30" href="$timer_8h.html" title="ion/port/timer.h" alt="" coords="2168,477,2277,504"/>
+<area shape="rect" id="node31" href="$setting_8h.html" title="ion/base/setting.h" alt="" coords="2911,155,3036,181"/>
+<area shape="rect" id="node37" href="$allocvector_8h.html" title="ion/base/stlalloc/allocvector.h" alt="" coords="1261,395,1456,421"/>
+<area shape="rect" id="node47" href="$allocunorderedmap_8h.html" title="ion/base/stlalloc/allocunorderedmap.h" alt="" coords="997,395,1237,421"/>
+<area shape="rect" id="node49" href="$threadlocalobject_8h.html" title="ion/base/threadlocalobject.h" alt="" coords="1717,477,1901,504"/>
+<area shape="rect" id="node51" href="$timeline_8h.html" title="ion/profile/timeline.h" alt="" coords="491,312,629,339"/>
+<area shape="rect" id="node55" href="$timelinemetric_8h.html" title="ion/profile/timelinemetric.h" alt="" coords="866,229,1040,256"/>
+<area shape="rect" id="node33" href="$serialize_8h.html" title="ion/base/serialize.h" alt="" coords="3037,229,3171,256"/>
+<area shape="rect" id="node35" href="$stringutils_8h.html" title="ion/base/stringutils.h" alt="" coords="1950,312,2092,339"/>
+<area shape="rect" id="node46" href="$environment_8h.html" title="ion/port/environment.h" alt="" coords="3367,875,3517,901"/>
+<area shape="rect" id="node38" href="$allocatable_8h.html" title="ion/base/allocatable.h" alt="" coords="918,560,1065,587"/>
+<area shape="rect" id="node39" href="$allocationmanager_8h.html" title="ion/base/allocationmanager.h" alt="" coords="1115,643,1305,669"/>
+<area shape="rect" id="node43" href="$stlallocator_8h.html" title="ion/base/stlalloc/stlallocator.h" alt="" coords="1195,477,1389,504"/>
+<area shape="rect" id="node40" href="$allocator_8h.html" title="ion/base/allocator.h" alt="" coords="1639,725,1773,752"/>
+<area shape="rect" id="node41" href="$allocationtracker_8h.html" title="ion/base/allocationtracker.h" alt="" coords="1843,800,2024,827"/>
+<area shape="rect" id="node44" href="$type__structs_8h.html" title="ion/base/type_structs.h" alt="" coords="1323,560,1481,587"/>
+<area shape="rect" id="node45" href="$align_8h.html" title="ion/port/align.h" alt="" coords="1091,560,1197,587"/>
+<area shape="rect" id="node50" href="$threadutils_8h.html" title="ion/port/threadutils.h" alt="" coords="2613,725,2752,752"/>
+<area shape="rect" id="node52" href="$timelineevent_8h.html" title="ion/profile/timelineevent.h" alt="" coords="165,395,336,421"/>
+<area shape="rect" id="node53" href="$timelinenode_8h.html" title="ion/profile/timelinenode.h" alt="" coords="513,477,679,504"/>
+<area shape="rect" id="node57" href="$circularbuffer_8h.html" title="ion/base/circularbuffer.h" alt="" coords="1167,312,1328,339"/>
+</map>

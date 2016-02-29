@@ -1,0 +1,5 @@
+<map id="ion::gfx::ResourceHolder::Field&lt; T &gt;" name="ion::gfx::ResourceHolder::Field&lt; T &gt;">
+<area shape="rect" id="node3" href="$classion_1_1gfx_1_1_resource_holder_1_1_ranged_field.html" title="A Field that has a limited valid range of values. " alt="" coords="529,5,695,46"/>
+<area shape="rect" id="node4" href="$classion_1_1gfx_1_1_resource_holder_1_1_field.html" title="ion::gfx::ResourceHolder\l::Field\&lt; std::string \&gt;" alt="" coords="529,70,695,111"/>
+<area shape="rect" id="node2" href="$classion_1_1gfx_1_1_resource_holder_1_1_field_base.html" title="Base class for Fields (see below). " alt="" coords="6,38,173,79"/>
+</map>

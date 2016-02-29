@@ -1,0 +1,5 @@
+<map id="ion::base::Setting&lt; T &gt;" name="ion::base::Setting&lt; T &gt;">
+<area shape="rect" id="node3" href="$classion_1_1base_1_1_environment_setting.html" title="An EnvironmentSetting is a Setting can take its initial value from the named system environment varia..." alt="" coords="5,181,235,208"/>
+<area shape="rect" id="node4" href="$classion_1_1base_1_1_setting.html" title="ion::base::Setting\l\&lt; bool \&gt;" alt="" coords="259,174,383,215"/>
+<area shape="rect" id="node2" href="$classion_1_1base_1_1_setting_base.html" title="Base class for Setting, which encapsulates the name of the setting and any functors that should be ca..." alt="" coords="143,5,296,32"/>
+</map>

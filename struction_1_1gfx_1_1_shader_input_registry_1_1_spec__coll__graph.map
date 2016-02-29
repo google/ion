@@ -1,0 +1,12 @@
+<map id="ion::gfx::ShaderInputRegistry::Spec&lt; T &gt;" name="ion::gfx::ShaderInputRegistry::Spec&lt; T &gt;">
+<area shape="rect" id="node2" href="$classsize__t.html" title="size_t" alt="" coords="5,408,61,435"/>
+<area shape="rect" id="node4" title="STL class. " alt="" coords="179,408,257,435"/>
+<area shape="rect" id="node5" title="STL class. " alt="" coords="150,315,276,357"/>
+<area shape="rect" id="node6" href="$classion_1_1gfx_1_1_shader_input_registry.html" title="A ShaderInputRegistry is used to manage a collection of shader inputs to a specific ShaderProgram (bo..." alt="" coords="283,408,475,435"/>
+<area shape="rect" id="node7" href="$classion_1_1gfx_1_1_resource_holder.html" title="ResourceHolder is an internal base class for objects that hold resources managed by an outside entity..." alt="" coords="301,323,467,349"/>
+<area shape="rect" id="node8" href="$classion_1_1base_1_1_notifier.html" title="A Notifier both sends notifications to and receives notifications from other Notifiers. " alt="" coords="321,237,447,264"/>
+<area shape="rect" id="node9" href="$classion_1_1base_1_1_weak_referent.html" title="Abstract base class that inherits from Referent, and adds the ability for instances to be referenced ..." alt="" coords="301,160,467,187"/>
+<area shape="rect" id="node10" href="$classion_1_1base_1_1_referent.html" title="Thread&#45;safe abstract base class. " alt="" coords="317,83,451,109"/>
+<area shape="rect" id="node11" href="$classion_1_1base_1_1_allocatable.html" title="Allocatable is an abstract base class for classes whose memory is managed by an Allocator. " alt="" coords="227,5,373,32"/>
+<area shape="rect" id="node12" href="$classion_1_1base_1_1_shareable.html" title="Shareable is an abstract base class for any object that can be shared via the SharedPtr class..." alt="" coords="397,5,537,32"/>
+</map>

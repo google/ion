@@ -1,0 +1,29 @@
+<map id="gfx/renderer.h" name="gfx/renderer.h">
+<area shape="rect" id="node2" href="$gpuperformance_8h.html" title="analytics/gpuperformance.h" alt="" coords="9,88,191,115"/>
+<area shape="rect" id="node4" href="$hierarchy_8cc.html" title="doc/usersguide/examples\l/hierarchy.cc" alt="" coords="216,81,387,122"/>
+<area shape="rect" id="node5" href="$rectangle_8cc.html" title="doc/usersguide/examples\l/rectangle.cc" alt="" coords="411,81,581,122"/>
+<area shape="rect" id="node6" href="$shaders_8cc.html" title="doc/usersguide/examples\l/shaders.cc" alt="" coords="605,81,776,122"/>
+<area shape="rect" id="node7" href="$doc_2usersguide_2examples_2shape_8cc.html" title="doc/usersguide/examples\l/shape.cc" alt="" coords="800,81,971,122"/>
+<area shape="rect" id="node8" href="$text_8cc.html" title="doc/usersguide/examples\l/text.cc" alt="" coords="647,321,817,362"/>
+<area shape="rect" id="node9" href="$shadermanager_8h.html" title="gfxutils/shadermanager.h" alt="" coords="1045,88,1213,115"/>
+<area shape="rect" id="node17" href="$remoteserver_8h.html" title="remote/remoteserver.h" alt="" coords="1350,171,1503,197"/>
+<area shape="rect" id="node19" href="$shaderhandler_8h.html" title="remote/shaderhandler.h" alt="" coords="1167,171,1325,197"/>
+<area shape="rect" id="node21" href="$doc_2usersguide_2examples_2texture_8cc.html" title="doc/usersguide/examples\l/texture.cc" alt="" coords="1964,81,2135,122"/>
+<area shape="rect" id="node22" href="$renderer_8cc.html" title="gfx/renderer.cc" alt="" coords="2159,88,2268,115"/>
+<area shape="rect" id="node23" href="$renderutils_8h.html" title="image/renderutils.h" alt="" coords="1625,88,1756,115"/>
+<area shape="rect" id="node26" href="$resourcehandler_8h.html" title="remote/resourcehandler.h" alt="" coords="1431,88,1600,115"/>
+<area shape="rect" id="node27" href="$tracinghandler_8h.html" title="remote/tracinghandler.h" alt="" coords="1781,88,1939,115"/>
+<area shape="rect" id="node3" href="$gpuperformance_8cc.html" title="analytics/gpuperformance.cc" alt="" coords="5,171,195,197"/>
+<area shape="rect" id="node10" href="$builder_8h.html" title="text/builder.h" alt="" coords="994,171,1091,197"/>
+<area shape="rect" id="node16" href="$shadermanager_8cc.html" title="gfxutils/shadermanager.cc" alt="" coords="795,171,969,197"/>
+<area shape="rect" id="node20" href="$shaderhandler_8cc.html" title="remote/shaderhandler.cc" alt="" coords="1235,245,1399,272"/>
+<area shape="rect" id="node11" href="$outlinebuilder_8h.html" title="text/outlinebuilder.h" alt="" coords="795,245,929,272"/>
+<area shape="rect" id="node13" href="$basicbuilder_8h.html" title="text/basicbuilder.h" alt="" coords="1083,245,1211,272"/>
+<area shape="rect" id="node15" href="$builder_8cc.html" title="text/builder.cc" alt="" coords="955,245,1059,272"/>
+<area shape="rect" id="node12" href="$outlinebuilder_8cc.html" title="text/outlinebuilder.cc" alt="" coords="842,328,984,355"/>
+<area shape="rect" id="node14" href="$basicbuilder_8cc.html" title="text/basicbuilder.cc" alt="" coords="1079,328,1213,355"/>
+<area shape="rect" id="node18" href="$remoteserver_8cc.html" title="remote/remoteserver.cc" alt="" coords="1455,245,1613,272"/>
+<area shape="rect" id="node24" href="$renderutils_8cc.html" title="image/renderutils.cc" alt="" coords="1803,171,1941,197"/>
+<area shape="rect" id="node25" href="$resourcehandler_8cc.html" title="remote/resourcehandler.cc" alt="" coords="1603,171,1779,197"/>
+<area shape="rect" id="node28" href="$tracinghandler_8cc.html" title="remote/tracinghandler.cc" alt="" coords="2016,171,2180,197"/>
+</map>

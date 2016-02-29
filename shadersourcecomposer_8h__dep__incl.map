@@ -1,0 +1,16 @@
+<map id="gfxutils/shadersourcecomposer.h" name="gfxutils/shadersourcecomposer.h">
+<area shape="rect" id="node2" href="$shadermanager_8h.html" title="gfxutils/shadermanager.h" alt="" coords="369,80,537,107"/>
+<area shape="rect" id="node9" href="$builder_8cc.html" title="text/builder.cc" alt="" coords="803,229,907,256"/>
+<area shape="rect" id="node10" href="$shadermanager_8cc.html" title="gfxutils/shadermanager.cc" alt="" coords="631,155,805,181"/>
+<area shape="rect" id="node15" href="$shadersourcecomposer_8cc.html" title="gfxutils/shadersourcecomposer.cc" alt="" coords="881,80,1103,107"/>
+<area shape="rect" id="node3" href="$text_8cc.html" title="doc/usersguide/examples\l/text.cc" alt="" coords="331,305,501,346"/>
+<area shape="rect" id="node4" href="$builder_8h.html" title="text/builder.h" alt="" coords="510,155,607,181"/>
+<area shape="rect" id="node11" href="$remoteserver_8h.html" title="remote/remoteserver.h" alt="" coords="5,155,157,181"/>
+<area shape="rect" id="node13" href="$shaderhandler_8h.html" title="remote/shaderhandler.h" alt="" coords="206,155,364,181"/>
+<area shape="rect" id="node14" href="$shaderhandler_8cc.html" title="remote/shaderhandler.cc" alt="" coords="227,229,391,256"/>
+<area shape="rect" id="node5" href="$outlinebuilder_8h.html" title="text/outlinebuilder.h" alt="" coords="491,229,625,256"/>
+<area shape="rect" id="node7" href="$basicbuilder_8h.html" title="text/basicbuilder.h" alt="" coords="651,229,779,256"/>
+<area shape="rect" id="node6" href="$outlinebuilder_8cc.html" title="text/outlinebuilder.cc" alt="" coords="526,312,668,339"/>
+<area shape="rect" id="node8" href="$basicbuilder_8cc.html" title="text/basicbuilder.cc" alt="" coords="693,312,827,339"/>
+<area shape="rect" id="node12" href="$remoteserver_8cc.html" title="remote/remoteserver.cc" alt="" coords="9,229,168,256"/>
+</map>

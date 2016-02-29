@@ -1,0 +1,25 @@
+var jniutil_8cc =
+[
+    [ "FindClassGlobal", "jniutil_8cc.html#a46f74caf43cfba28253f8428e264762f", null ],
+    [ "GetBooleanMember", "jniutil_8cc.html#a047a8e88d7cc54694402a3a910893f5d", null ],
+    [ "GetIntArrayMember", "jniutil_8cc.html#aa7f1e916db72973174023fd3dd1a99c1", null ],
+    [ "GetIntMember", "jniutil_8cc.html#ac974744f59b3b2579b7b55b417d45244", null ],
+    [ "GetJVM", "jniutil_8cc.html#a030507d9c39cb7ca0ba49ec87622a85f", null ],
+    [ "GetLongMember", "jniutil_8cc.html#afe2143f67ff0851e121bae92d78fa57b", null ],
+    [ "GetMember", "jniutil_8cc.html#abcde7476369db7046cd0bc152535c610", null ],
+    [ "GetMethod", "jniutil_8cc.html#a182fa58efdb34592f2539aa3e5ce48d6", null ],
+    [ "GetStaticBooleanMember", "jniutil_8cc.html#ae27ce9e95edecb9357eddabdb7ab122c", null ],
+    [ "GetStaticIntMember", "jniutil_8cc.html#a1f0efb9c576b1553dadf659e33651a0a", null ],
+    [ "GetStaticLongMember", "jniutil_8cc.html#a31ff182ffcdf7c0f16fa1410aeab4711", null ],
+    [ "GetStaticMember", "jniutil_8cc.html#a3f5791343f30f60c8e287c00fe15efe6", null ],
+    [ "GetStaticMethod", "jniutil_8cc.html#abfb0afce5945a92b6ff68f8c68832fdf", null ],
+    [ "GetStaticStringMember", "jniutil_8cc.html#ab068c6b979793eabc2128473324d7b9f", null ],
+    [ "GetStringMember", "jniutil_8cc.html#a86f1eea6227c6317215b940bd1451f98", null ],
+    [ "JavaByteArray", "jniutil_8cc.html#a041484d3a3467f30f54bf246ca2502b2", null ],
+    [ "JavaByteArray", "jniutil_8cc.html#a9c0afcf16c092e267a06ae233d0174e0", null ],
+    [ "JavaGetByteArray", "jniutil_8cc.html#ae2534a7cc615944abfecdd50ff4f6e9f", null ],
+    [ "JavaString", "jniutil_8cc.html#a10a8d6402c44e39833765c0d6aad277b", null ],
+    [ "JavaStringArray", "jniutil_8cc.html#add8b8af83285bb73cf9a64a91e14ba56", null ],
+    [ "SetJVM", "jniutil_8cc.html#ace0b665e7f508a4b7f55f08796cddcb7", null ],
+    [ "s_jvm", "jniutil_8cc.html#a6bdf14a01064a3609514cbbf1fa818ed", null ]
+];

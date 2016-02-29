@@ -1,0 +1,5 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node1" href="$classion_1_1base_1_1_generic_lock_guard_base.html" title="This file contains utility classes for automatically locking and unlocking mutexes. " alt="" coords="6,38,197,79"/>
+<area shape="rect" id="node2" href="$classion_1_1base_1_1_generic_lock_guard.html" title="A LockGuard locks a mutex when created, and unlocks it when destroyed. " alt="" coords="246,5,437,46"/>
+<area shape="rect" id="node3" href="$classion_1_1base_1_1_generic_try_lock_guard.html" title="A TryLockGuard attempts to lock a mutex when created, and if successful, will unlock it when destroye..." alt="" coords="254,70,429,111"/>
+</map>

@@ -1,0 +1,15 @@
+<map id="profile/timeline.h" name="profile/timeline.h">
+<area shape="rect" id="node2" href="$calltracemanager_8h.html" title="profile/calltracemanager.h" alt="" coords="237,155,408,181"/>
+<area shape="rect" id="node12" href="$timelinemetric_8h.html" title="profile/timelinemetric.h" alt="" coords="303,80,456,107"/>
+<area shape="rect" id="node13" href="$timeline_8cc.html" title="profile/timeline.cc" alt="" coords="481,80,604,107"/>
+<area shape="rect" id="node14" href="$timelinesearch_8h.html" title="profile/timelinesearch.h" alt="" coords="629,80,784,107"/>
+<area shape="rect" id="node3" href="$gpuprofiler_8h.html" title="gfxprofile/gpuprofiler.h" alt="" coords="66,304,216,331"/>
+<area shape="rect" id="node4" href="$gpuprofiler_8cc.html" title="gfxprofile/gpuprofiler.cc" alt="" coords="5,379,163,405"/>
+<area shape="rect" id="node5" href="$profiling_8h.html" title="profile/profiling.h" alt="" coords="179,229,295,256"/>
+<area shape="rect" id="node9" href="$calltracemanager_8cc.html" title="profile/calltracemanager.cc" alt="" coords="320,229,499,256"/>
+<area shape="rect" id="node10" href="$tracerecorder_8cc.html" title="profile/tracerecorder.cc" alt="" coords="523,229,676,256"/>
+<area shape="rect" id="node11" href="$vsyncprofiler_8h.html" title="profile/vsyncprofiler.h" alt="" coords="701,229,848,256"/>
+<area shape="rect" id="node6" href="$profiling_8cc.html" title="profile/profiling.cc" alt="" coords="439,304,563,331"/>
+<area shape="rect" id="node7" href="$vsyncprofiler_8cc.html" title="profile/vsyncprofiler.cc" alt="" coords="642,304,795,331"/>
+<area shape="rect" id="node8" href="$calltracehandler_8cc.html" title="remote/calltracehandler.cc" alt="" coords="241,304,415,331"/>
+</map>

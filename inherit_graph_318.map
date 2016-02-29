@@ -1,0 +1,14 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node1" href="$class_t.html" title="T" alt="" coords="6,259,45,285"/>
+<area shape="rect" id="node2" href="$struction_1_1gfx_1_1_array_info.html" title="The below structs correspond to OpenGL &quot;objects.&quot; For example, a BufferObject corresponds to an OpenG..." alt="" coords="115,5,274,32"/>
+<area shape="rect" id="node3" href="$struction_1_1gfx_1_1_buffer_info.html" title="A BufferInfo corresponds to an OpenGL Buffer Object. " alt="" coords="113,56,276,83"/>
+<area shape="rect" id="node4" href="$struction_1_1gfx_1_1_framebuffer_info.html" title="A BufferInfo corresponds to an OpenGL Framebuffer Object. " alt="" coords="96,107,293,133"/>
+<area shape="rect" id="node5" href="$struction_1_1gfx_1_1_program_info.html" title="A ProgramInfo corresponds to an OpenGL Program Object. " alt="" coords="107,157,283,184"/>
+<area shape="rect" id="node6" href="$struction_1_1gfx_1_1_renderbuffer_info.html" title="A RenderbufferInfo corresponds to an OpenGL Renderbuffer Object. " alt="" coords="93,208,296,235"/>
+<area shape="rect" id="node7" href="$struction_1_1gfx_1_1_sampler_info.html" title="A SamplerInfo corresponds to an OpenGL Sampler Object. " alt="" coords="107,259,282,285"/>
+<area shape="rect" id="node8" href="$struction_1_1gfx_1_1_shader_info.html" title="A ShaderInfo corresponds to an OpenGL Shader Object. " alt="" coords="111,309,279,336"/>
+<area shape="rect" id="node9" href="$struction_1_1gfx_1_1_sync_info.html" title="A SyncInfo corresponds to an OpenGL Sync Object. " alt="" coords="116,360,273,387"/>
+<area shape="rect" id="node10" href="$struction_1_1gfx_1_1_texture_info.html" title="A TextureInfo corresponds to an OpenGL Texture Object. " alt="" coords="109,411,280,437"/>
+<area shape="rect" id="node11" href="$struction_1_1gfx_1_1_timer_info.html" title="A TimerInfo corresponds to an OpenGL Timer Query Object. " alt="" coords="115,461,275,488"/>
+<area shape="rect" id="node12" href="$struction_1_1gfx_1_1_transform_feedback_info.html" title="A TransformFeedbackInfo corresponds to an OpenGL TransformFeedback Object. " alt="" coords="100,513,289,554"/>
+</map>

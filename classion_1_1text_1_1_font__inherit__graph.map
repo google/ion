@@ -1,0 +1,7 @@
+<map id="ion::text::Font" name="ion::text::Font">
+<area shape="rect" id="node5" href="$classion_1_1text_1_1_core_text_font.html" title="This represents a single CoreText font. " alt="" coords="5,229,163,256"/>
+<area shape="rect" id="node6" href="$classion_1_1text_1_1_free_type_font.html" title="This derived Font class represents a FreeType2 font. " alt="" coords="187,229,345,256"/>
+<area shape="rect" id="node2" href="$classion_1_1base_1_1_referent.html" title="Thread&#45;safe abstract base class. " alt="" coords="108,80,241,107"/>
+<area shape="rect" id="node3" href="$classion_1_1base_1_1_allocatable.html" title="Allocatable is an abstract base class for classes whose memory is managed by an Allocator. " alt="" coords="17,5,164,32"/>
+<area shape="rect" id="node4" href="$classion_1_1base_1_1_shareable.html" title="Shareable is an abstract base class for any object that can be shared via the SharedPtr class..." alt="" coords="188,5,328,32"/>
+</map>

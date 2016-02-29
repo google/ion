@@ -1,0 +1,4 @@
+<map id="ion::base::AllocationSizeTracker" name="ion::base::AllocationSizeTracker">
+<area shape="rect" id="node2" href="$classion_1_1base_1_1_allocation_tracker.html" title="AllocationTracker is an abstract base class for objects that track memory. " alt="" coords="5,80,189,107"/>
+<area shape="rect" id="node3" href="$classion_1_1base_1_1_shareable.html" title="Shareable is an abstract base class for any object that can be shared via the SharedPtr class..." alt="" coords="27,5,167,32"/>
+</map>

@@ -1,0 +1,6 @@
+<map id="ion::gfx::ResourceManager::ResourceRequest&lt; HolderType, InfoType &gt;" name="ion::gfx::ResourceManager::ResourceRequest&lt; HolderType, InfoType &gt;">
+<area shape="rect" id="node2" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; HolderType \&gt;" alt="" coords="347,5,498,46"/>
+<area shape="rect" id="node3" href="$struction_1_1base_1_1_referent_ptr.html" title="A ReferentPtr is a smart shared pointer to an instance of some class derived from Referent..." alt="" coords="6,12,189,39"/>
+<area shape="rect" id="node4" href="$struction_1_1gfx_1_1_resource_manager_1_1_info_callback.html" title="ion::gfx::ResourceManager\l::InfoCallback\&lt; InfoType \&gt;" alt="" coords="333,70,512,111"/>
+<area shape="rect" id="node5" href="$struction_1_1gfx_1_1_resource_manager_1_1_info_callback.html" title="Callbacks called when requested resource information is available. " alt="" coords="8,70,187,111"/>
+</map>

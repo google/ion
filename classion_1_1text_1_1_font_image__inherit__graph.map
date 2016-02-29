@@ -1,0 +1,7 @@
+<map id="ion::text::FontImage" name="ion::text::FontImage">
+<area shape="rect" id="node5" href="$classion_1_1text_1_1_dynamic_font_image.html" title="DynamicFontImage is a derived FontImage that may contain any number of ImageData instances. " alt="" coords="5,229,195,256"/>
+<area shape="rect" id="node6" href="$classion_1_1text_1_1_static_font_image.html" title="StaticFontImage is a derived FontImage that contains a single ImageData instance that is created by t..." alt="" coords="220,229,393,256"/>
+<area shape="rect" id="node2" href="$classion_1_1base_1_1_referent.html" title="Thread&#45;safe abstract base class. " alt="" coords="136,80,269,107"/>
+<area shape="rect" id="node3" href="$classion_1_1base_1_1_allocatable.html" title="Allocatable is an abstract base class for classes whose memory is managed by an Allocator. " alt="" coords="45,5,192,32"/>
+<area shape="rect" id="node4" href="$classion_1_1base_1_1_shareable.html" title="Shareable is an abstract base class for any object that can be shared via the SharedPtr class..." alt="" coords="216,5,356,32"/>
+</map>

@@ -1,0 +1,6 @@
+<map id="ion::base::SettingBase" name="ion::base::SettingBase">
+<area shape="rect" id="node2" href="$classion_1_1base_1_1_setting.html" title="Forward references. " alt="" coords="211,33,367,60"/>
+<area shape="rect" id="node4" href="$classion_1_1base_1_1_setting.html" title="ion::base::Setting\l\&lt; bool \&gt;" alt="" coords="522,66,646,107"/>
+<area shape="rect" id="node5" href="$classion_1_1base_1_1_setting_3_01std_1_1atomic_3_01_t_01_4_01_4.html" title="Specialize for std::atomic types. " alt="" coords="218,135,361,177"/>
+<area shape="rect" id="node3" href="$classion_1_1base_1_1_environment_setting.html" title="An EnvironmentSetting is a Setting can take its initial value from the named system environment varia..." alt="" coords="469,5,699,32"/>
+</map>

@@ -1,0 +1,18 @@
+<map id="base/setting.h" name="base/setting.h">
+<area shape="rect" id="node7" href="$serialize_8h.html" title="ion/base/serialize.h" alt="" coords="346,80,480,107"/>
+<area shape="rect" id="node9" href="$stringutils_8h.html" title="ion/base/stringutils.h" alt="" coords="566,155,708,181"/>
+<area shape="rect" id="node18" href="$shareable_8h.html" title="ion/base/shareable.h" alt="" coords="1067,768,1209,795"/>
+<area shape="rect" id="node22" href="$atomic_8h.html" title="ion/port/atomic.h" alt="" coords="1327,843,1445,869"/>
+<area shape="rect" id="node24" href="$sharedptr_8h.html" title="ion/base/sharedptr.h" alt="" coords="937,693,1076,720"/>
+<area shape="rect" id="node31" href="$environment_8h.html" title="ion/port/environment.h" alt="" coords="5,544,155,571"/>
+<area shape="rect" id="node13" href="$allocvector_8h.html" title="ion/base/stlalloc/allocvector.h" alt="" coords="629,229,824,256"/>
+<area shape="rect" id="node14" href="$allocatable_8h.html" title="ion/base/allocatable.h" alt="" coords="582,379,729,405"/>
+<area shape="rect" id="node15" href="$allocationmanager_8h.html" title="ion/base/allocationmanager.h" alt="" coords="489,461,679,488"/>
+<area shape="rect" id="node27" href="$stlallocator_8h.html" title="ion/base/stlalloc/stlallocator.h" alt="" coords="893,304,1088,331"/>
+<area shape="rect" id="node16" href="$allocator_8h.html" title="ion/base/allocator.h" alt="" coords="882,544,1016,571"/>
+<area shape="rect" id="node19" href="$base_2logging_8h.html" title="Copyright 2016 Google Inc. " alt="" coords="757,843,883,869"/>
+<area shape="rect" id="node17" href="$allocationtracker_8h.html" title="ion/base/allocationtracker.h" alt="" coords="969,619,1151,645"/>
+<area shape="rect" id="node21" href="$port_2logging_8h.html" title="ion/port/logging.h" alt="" coords="529,917,649,944"/>
+<area shape="rect" id="node29" href="$type__structs_8h.html" title="ion/base/type_structs.h" alt="" coords="754,379,912,405"/>
+<area shape="rect" id="node30" href="$align_8h.html" title="ion/port/align.h" alt="" coords="937,379,1044,405"/>
+</map>

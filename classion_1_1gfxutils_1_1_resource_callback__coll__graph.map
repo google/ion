@@ -1,0 +1,8 @@
+<map id="ion::gfxutils::ResourceCallback&lt; T &gt;" name="ion::gfxutils::ResourceCallback&lt; T &gt;">
+<area shape="rect" id="node2" href="$classion_1_1base_1_1_referent.html" title="Thread&#45;safe abstract base class. " alt="" coords="389,52,523,79"/>
+<area shape="rect" id="node3" href="$classion_1_1base_1_1_allocatable.html" title="Allocatable is an abstract base class for classes whose memory is managed by an Allocator. " alt="" coords="24,5,171,32"/>
+<area shape="rect" id="node4" href="$classion_1_1base_1_1_shareable.html" title="Shareable is an abstract base class for any object that can be shared via the SharedPtr class..." alt="" coords="27,56,168,83"/>
+<area shape="rect" id="node5" href="$struction_1_1base_1_1_referent_ptr.html" title="ion::base::ReferentPtr\l\&lt; ResourceCallback\&lt; T \&gt; \&gt;" alt="" coords="363,103,549,145"/>
+<area shape="rect" id="node6" href="$struction_1_1base_1_1_referent_ptr.html" title="A ReferentPtr is a smart shared pointer to an instance of some class derived from Referent..." alt="" coords="6,111,189,137"/>
+<area shape="rect" id="node8" href="$classion_1_1port_1_1_semaphore.html" title="A Semaphore enables threads and process synchronization. " alt="" coords="385,220,527,247"/>
+</map>

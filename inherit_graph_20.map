@@ -1,0 +1,37 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node1" title="STL class. " alt="" coords="6,1119,122,1145"/>
+<area shape="rect" id="node2" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; Allocation \&gt;" alt="" coords="214,5,365,46"/>
+<area shape="rect" id="node3" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; AtomicSizeT \&gt;" alt="" coords="214,70,365,111"/>
+<area shape="rect" id="node4" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; BufferAttributeInfo \&gt;" alt="" coords="213,135,365,177"/>
+<area shape="rect" id="node5" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; const Uniform * \&gt;" alt="" coords="214,201,365,242"/>
+<area shape="rect" id="node6" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; DeferredUpdate \&gt;" alt="" coords="214,266,365,307"/>
+<area shape="rect" id="node7" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; double \&gt;" alt="" coords="214,331,365,373"/>
+<area shape="rect" id="node8" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; Entry \&gt;" alt="" coords="214,397,365,438"/>
+<area shape="rect" id="node9" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; FunctionGroup \&gt;" alt="" coords="214,462,365,503"/>
+<area shape="rect" id="node10" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; GLuint \&gt;" alt="" coords="214,527,365,569"/>
+<area shape="rect" id="node11" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; ImageDataWrapper \&gt;" alt="" coords="210,593,369,634"/>
+<area shape="rect" id="node12" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; ImageUnit \&gt;" alt="" coords="214,658,365,699"/>
+<area shape="rect" id="node13" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; Index \&gt;" alt="" coords="214,723,365,765"/>
+<area shape="rect" id="node14" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; int \&gt;" alt="" coords="214,789,365,830"/>
+<area shape="rect" id="node15" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; ion::base::SharedPtr \&gt;" alt="" coords="207,854,372,895"/>
+<area shape="rect" id="node16" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; ion::gfx::Attribute \&gt;" alt="" coords="214,919,365,961"/>
+<area shape="rect" id="node17" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; ion::gfx::BufferObject\l::BufferSubData \&gt;" alt="" coords="210,984,369,1040"/>
+<area shape="rect" id="node18" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; ion::gfx::BufferObject\l::Spec \&gt;" alt="" coords="210,1064,369,1120"/>
+<area shape="rect" id="node19" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; ion::gfx::ResourceHolder\l::FieldBase * \&gt;" alt="" coords="200,1144,379,1200"/>
+<area shape="rect" id="node20" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; ion::gfx::TextureBase\l::ion::gfx::TextureBase\l::SubImage \&gt;" alt="" coords="210,1225,369,1295"/>
+<area shape="rect" id="node21" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; ion::gfx::Uniform \&gt;" alt="" coords="214,1319,365,1361"/>
+<area shape="rect" id="node22" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; NotifierPtr \&gt;" alt="" coords="214,1385,365,1426"/>
+<area shape="rect" id="node23" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; Resource * \&gt;" alt="" coords="214,1450,365,1491"/>
+<area shape="rect" id="node24" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; StateTablePtr \&gt;" alt="" coords="214,1515,365,1557"/>
+<area shape="rect" id="node25" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; std::unique_ptr\&lt; ion\l::base::FunctionCallBase \&gt; \&gt;" alt="" coords="193,1580,386,1636"/>
+<area shape="rect" id="node26" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; std::unique_ptr\&lt; UniformStack \&gt; \&gt;" alt="" coords="171,1659,407,1701"/>
+<area shape="rect" id="node27" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; TraceRecorder * \&gt;" alt="" coords="214,1725,365,1766"/>
+<area shape="rect" id="node28" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; uint32 \&gt;" alt="" coords="214,1790,365,1831"/>
+<area shape="rect" id="node29" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; uint8 \&gt;" alt="" coords="214,1855,365,1897"/>
+<area shape="rect" id="node30" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; UniformCacheEntry \&gt;" alt="" coords="209,1921,370,1962"/>
+<area shape="rect" id="node31" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; VertexRange \&gt;" alt="" coords="214,1986,365,2027"/>
+<area shape="rect" id="node32" href="$classion_1_1base_1_1_alloc_vector.html" title="ion::base::AllocVector\l\&lt; WrapperBase * \&gt;" alt="" coords="214,2051,365,2093"/>
+<area shape="rect" id="node33" href="$classion_1_1base_1_1_inlined_alloc_vector.html" title="ion::base::InlinedAllocVector\l\&lt; ion::base::AllocUnorderedMap, 1 \&gt;" alt="" coords="171,2117,407,2158"/>
+<area shape="rect" id="node34" href="$classion_1_1base_1_1_alloc_vector.html" title="This class can be used in place of std::vector to allow an Ion Allocator to be used for memory alloca..." alt="" coords="198,2183,381,2209"/>
+<area shape="rect" id="node35" href="$classion_1_1base_1_1_inlined_alloc_vector.html" title="InlinedAllocVectoris a similar to AllocVector, but uses inlined storage for its first N elements..." alt="" coords="195,2234,383,2275"/>
+</map>

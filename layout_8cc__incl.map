@@ -1,0 +1,25 @@
+<map id="text/layout.cc" name="text/layout.cc">
+<area shape="rect" id="node2" href="$layout_8h.html" title="ion/text/layout.h" alt="" coords="584,80,699,107"/>
+<area shape="rect" id="node4" href="$invalid_8h.html" title="ion/base/invalid.h" alt="" coords="481,155,604,181"/>
+<area shape="rect" id="node6" href="$allocset_8h.html" title="ion/base/stlalloc/allocset.h" alt="" coords="107,453,283,480"/>
+<area shape="rect" id="node29" href="$range_8h.html" title="ion/math/range.h" alt="" coords="1027,155,1145,181"/>
+<area shape="rect" id="node37" href="$vector_8h.html" title="ion/math/vector.h" alt="" coords="927,304,1049,331"/>
+<area shape="rect" id="node8" href="$allocatable_8h.html" title="ion/base/allocatable.h" alt="" coords="121,603,268,629"/>
+<area shape="rect" id="node10" href="$allocationmanager_8h.html" title="ion/base/allocationmanager.h" alt="" coords="286,685,476,712"/>
+<area shape="rect" id="node25" href="$stlallocator_8h.html" title="ion/base/stlalloc/stlallocator.h" alt="" coords="395,528,589,555"/>
+<area shape="rect" id="node11" href="$allocator_8h.html" title="ion/base/allocator.h" alt="" coords="474,768,608,795"/>
+<area shape="rect" id="node14" href="$base_2logging_8h.html" title="Copyright 2016 Google Inc. " alt="" coords="758,1067,884,1093"/>
+<area shape="rect" id="node12" href="$allocationtracker_8h.html" title="ion/base/allocationtracker.h" alt="" coords="456,843,637,869"/>
+<area shape="rect" id="node13" href="$shareable_8h.html" title="ion/base/shareable.h" alt="" coords="457,992,599,1019"/>
+<area shape="rect" id="node22" href="$sharedptr_8h.html" title="ion/base/sharedptr.h" alt="" coords="549,917,688,944"/>
+<area shape="rect" id="node20" href="$atomic_8h.html" title="ion/port/atomic.h" alt="" coords="469,1067,587,1093"/>
+<area shape="rect" id="node19" href="$port_2logging_8h.html" title="ion/port/logging.h" alt="" coords="582,1141,703,1168"/>
+<area shape="rect" id="node27" href="$type__structs_8h.html" title="ion/base/type_structs.h" alt="" coords="399,603,557,629"/>
+<area shape="rect" id="node28" href="$align_8h.html" title="ion/port/align.h" alt="" coords="583,603,689,629"/>
+<area shape="rect" id="node32" href="$base_2static__assert_8h.html" title="ion/base/static_assert.h" alt="" coords="679,379,840,405"/>
+<area shape="rect" id="node34" href="$stringutils_8h.html" title="ion/base/stringutils.h" alt="" coords="967,379,1109,405"/>
+<area shape="rect" id="node38" href="$vectorutils_8h.html" title="ion/math/vectorutils.h" alt="" coords="1267,229,1413,256"/>
+<area shape="rect" id="node33" href="$port_2static__assert_8h.html" title="ion/port/static_assert.h" alt="" coords="683,453,836,480"/>
+<area shape="rect" id="node36" href="$allocvector_8h.html" title="ion/base/stlalloc/allocvector.h" alt="" coords="409,453,604,480"/>
+<area shape="rect" id="node40" href="$utils_8h.html" title="ion/math/utils.h" alt="" coords="1378,379,1488,405"/>
+</map>

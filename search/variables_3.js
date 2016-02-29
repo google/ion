@@ -1,0 +1,28 @@
+var searchData=
+[
+  ['data',['data',['../struction_1_1gfx_1_1_buffer_object_1_1_buffer_sub_data.html#a7d96c8e3c168f15bad6e66bcbdac0419',1,'ion::gfx::BufferObject::BufferSubData::data()'],['../classion_1_1gfx_1_1_graphics_manager.html#a488367fb735913150e723965869105a6',1,'ion::gfx::GraphicsManager::data()'],['../struction_1_1remote_1_1_http_client_1_1_response.html#ab10dfedb05b2de19a3bb58ef04149692',1,'ion::remote::HttpClient::Response::data()']]],
+  ['data_5f',['data_',['../classion_1_1gfxutils_1_1_resource_callback.html#a4d37fadbf9e0eb218c852d8f2c39bc9a',1,'ion::gfxutils::ResourceCallback']]],
+  ['debugmessagecallback',['DebugMessageCallback',['../classion_1_1gfx_1_1_graphics_manager.html#a9ae28011381cd47e067840f2670779b8',1,'ion::gfx::GraphicsManager']]],
+  ['debugmessageinsert',['DebugMessageInsert',['../classion_1_1gfx_1_1_graphics_manager.html#aeacc577e3b69ed5412d445d40e34df03',1,'ion::gfx::GraphicsManager']]],
+  ['delete_5fstatus',['delete_status',['../struction_1_1gfx_1_1_program_info.html#a19bcd7a94978b95be4f28e77009a3251',1,'ion::gfx::ProgramInfo::delete_status()'],['../struction_1_1gfx_1_1_shader_info.html#adace2151c561c41e926a4954e9ca60bc',1,'ion::gfx::ShaderInfo::delete_status()']]],
+  ['deletebuffers',['DeleteBuffers',['../classion_1_1gfx_1_1_graphics_manager.html#ad8b9bc171bac22e8232383ea8e5bfa9c',1,'ion::gfx::GraphicsManager']]],
+  ['deleted',['deleted',['../struction_1_1gfx_1_1_timer_info.html#aa320796d3d1f8c6da6ffb434f83648e1',1,'ion::gfx::TimerInfo']]],
+  ['deleterenderbuffers',['DeleteRenderbuffers',['../classion_1_1gfx_1_1_graphics_manager.html#a4dd41469811b8d2ffc17256478a12060',1,'ion::gfx::GraphicsManager']]],
+  ['deletetransformfeedbacks',['DeleteTransformFeedbacks',['../classion_1_1gfx_1_1_graphics_manager.html#a610b375bd1e0deb088f367662ca1aeaf',1,'ion::gfx::GraphicsManager']]],
+  ['depth',['depth',['../classion_1_1gfx_1_1_graphics_manager.html#aa4483cdcaf0b13644c4cac68af125ea9',1,'ion::gfx::GraphicsManager::depth()'],['../classion_1_1gfx_1_1_graphics_manager.html#a36f283c46d5e2aee210b59bf5151701b',1,'ion::gfx::GraphicsManager::depth()'],['../struction_1_1gfx_1_1_framebuffer_info.html#a691e87de81f155a6fb0314c72c798d71',1,'ion::gfx::FramebufferInfo::depth()']]],
+  ['depth_5frenderbuffer',['depth_renderbuffer',['../struction_1_1gfx_1_1_resource_manager_1_1_framebuffer_resource_info.html#a6f31df70f674863a1488cd8cabd58237',1,'ion::gfx::ResourceManager::FramebufferResourceInfo']]],
+  ['depth_5fsize',['depth_size',['../struction_1_1gfx_1_1_renderbuffer_info.html#a5f582242a031818f01673a72966f0d22',1,'ion::gfx::RenderbufferInfo']]],
+  ['description',['description',['../struction_1_1analytics_1_1_benchmark_1_1_descriptor.html#a4f7e74269811584ed6732601c6aef6c7',1,'ion::analytics::Benchmark::Descriptor']]],
+  ['descriptor',['descriptor',['../struction_1_1analytics_1_1_benchmark_1_1_constant.html#a0f18f08cf5bb6257dfa4b98a011333d8',1,'ion::analytics::Benchmark::Constant::descriptor()'],['../struction_1_1analytics_1_1_benchmark_1_1_sampled_variable.html#a0c0c45c9142c340b8fc7aba39899c46d',1,'ion::analytics::Benchmark::SampledVariable::descriptor()'],['../struction_1_1analytics_1_1_benchmark_1_1_accumulated_variable.html#a8b96b7e1564a0c9a0260b6c461a44e9f',1,'ion::analytics::Benchmark::AccumulatedVariable::descriptor()']]],
+  ['deviation',['deviation',['../struction_1_1analytics_1_1_gpu_performance_tester_1_1_measurement.html#a403d576bb1f0058c973c934b37a2ab51',1,'ion::analytics::GpuPerformanceTester::Measurement']]],
+  ['discrepancy',['discrepancy',['../struction_1_1analytics_1_1_interval_discrepancy.html#adaf744c85fe72d3203e20a49936c3b13',1,'ion::analytics::IntervalDiscrepancy']]],
+  ['distances',['distances',['../sdfutils_8cc.html#ad8d9fcf026f09351e8952504517d3b78',1,'sdfutils.cc']]],
+  ['distances_5fto_5fedges',['distances_to_edges',['../sdfutils_8cc.html#a23249b210d02d6ad59a3eaf06b5c65da',1,'sdfutils.cc']]],
+  ['divisor',['divisor',['../struction_1_1gfx_1_1_array_info_1_1_attribute.html#a90e479e138fa6e07769ffdec393e50e2',1,'ion::gfx::ArrayInfo::Attribute']]],
+  ['doc_5fstring',['doc_string',['../struction_1_1gfx_1_1_shader_input_registry_1_1_spec.html#ae45bacd40c12fe3e22a1c42c90b0e192',1,'ion::gfx::ShaderInputRegistry::Spec']]],
+  ['dpfail',['dpfail',['../classion_1_1gfx_1_1_graphics_manager.html#a5b6282d84fef44099f6312875f1d5165',1,'ion::gfx::GraphicsManager']]],
+  ['draw_5fcount',['draw_count',['../gpuperformance_8cc.html#a842497becdd48be3a104f4ca6291b769',1,'gpuperformance.cc']]],
+  ['drawarrays',['DrawArrays',['../classion_1_1gfx_1_1_graphics_manager.html#a5246a25c930cb557e23594e3330f46e0',1,'ion::gfx::GraphicsManager']]],
+  ['drawarraysinstanced',['DrawArraysInstanced',['../classion_1_1gfx_1_1_graphics_manager.html#a3f8b06edd3235e0410ce4749c6fc58d1',1,'ion::gfx::GraphicsManager']]],
+  ['duration',['duration',['../struction_1_1gfx_1_1_timer_info.html#a8624c67b5c2b889a658f9099d5ba4c5d',1,'ion::gfx::TimerInfo']]]
+];

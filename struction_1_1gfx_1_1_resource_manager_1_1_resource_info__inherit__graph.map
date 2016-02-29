@@ -1,0 +1,6 @@
+<map id="ion::gfx::ResourceManager::ResourceInfo" name="ion::gfx::ResourceManager::ResourceInfo">
+<area shape="rect" id="node2" href="$struction_1_1gfx_1_1_resource_manager_1_1_array_resource_info.html" title="The below info types contain additional informative fields about resources. " alt="" coords="232,5,411,46"/>
+<area shape="rect" id="node3" href="$struction_1_1gfx_1_1_resource_manager_1_1_buffer_target_info.html" title="ion::gfx::ResourceManager\l::BufferTargetInfo" alt="" coords="232,70,411,111"/>
+<area shape="rect" id="node4" href="$struction_1_1gfx_1_1_resource_manager_1_1_framebuffer_resource_info.html" title="ion::gfx::ResourceManager\l::FramebufferResourceInfo" alt="" coords="232,135,411,177"/>
+<area shape="rect" id="node5" href="$struction_1_1gfx_1_1_resource_manager_1_1_texture_resource_info.html" title="ion::gfx::ResourceManager\l::TextureResourceInfo" alt="" coords="232,201,411,242"/>
+</map>

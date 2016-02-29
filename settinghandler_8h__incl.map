@@ -1,0 +1,18 @@
+<map id="remote/settinghandler.h" name="remote/settinghandler.h">
+<area shape="rect" id="node3" href="$httpserver_8h.html" title="ion/remote/httpserver.h" alt="" coords="563,80,719,107"/>
+<area shape="rect" id="node5" href="$referent_8h.html" title="ion/base/referent.h" alt="" coords="576,155,705,181"/>
+<area shape="rect" id="node24" href="$mutex_8h.html" title="ion/port/mutex.h" alt="" coords="411,619,527,645"/>
+<area shape="rect" id="node8" href="$allocatable_8h.html" title="ion/base/allocatable.h" alt="" coords="989,229,1136,256"/>
+<area shape="rect" id="node12" href="$shareable_8h.html" title="ion/base/shareable.h" alt="" coords="853,619,995,645"/>
+<area shape="rect" id="node13" href="$base_2logging_8h.html" title="Copyright 2016 Google Inc. " alt="" coords="1113,693,1239,720"/>
+<area shape="rect" id="node18" href="$atomic_8h.html" title="ion/port/atomic.h" alt="" coords="73,693,191,720"/>
+<area shape="rect" id="node20" href="$sharedptr_8h.html" title="ion/base/sharedptr.h" alt="" coords="781,544,920,571"/>
+<area shape="rect" id="node22" href="$lockguards_8h.html" title="ion/base/lockguards.h" alt="" coords="404,469,552,496"/>
+<area shape="rect" id="node9" href="$allocationmanager_8h.html" title="ion/base/allocationmanager.h" alt="" coords="877,312,1067,339"/>
+<area shape="rect" id="node10" href="$allocator_8h.html" title="ion/base/allocator.h" alt="" coords="905,395,1039,421"/>
+<area shape="rect" id="node11" href="$allocationtracker_8h.html" title="ion/base/allocationtracker.h" alt="" coords="831,469,1012,496"/>
+<area shape="rect" id="node17" href="$port_2logging_8h.html" title="ion/port/logging.h" alt="" coords="955,768,1076,795"/>
+<area shape="rect" id="node23" href="$readwritelock_8h.html" title="ion/base/readwritelock.h" alt="" coords="264,544,427,571"/>
+<area shape="rect" id="node28" href="$spinmutex_8h.html" title="ion/base/spinmutex.h" alt="" coords="93,544,240,571"/>
+<area shape="rect" id="node26" href="$semaphore_8h.html" title="ion/port/semaphore.h" alt="" coords="219,619,363,645"/>
+</map>

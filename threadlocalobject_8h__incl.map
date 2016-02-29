@@ -1,0 +1,18 @@
+<map id="base/threadlocalobject.h" name="base/threadlocalobject.h">
+<area shape="rect" id="node3" href="$allocatable_8h.html" title="ion/base/allocatable.h" alt="" coords="369,80,516,107"/>
+<area shape="rect" id="node6" href="$allocator_8h.html" title="ion/base/allocator.h" alt="" coords="302,245,436,272"/>
+<area shape="rect" id="node20" href="$lockguards_8h.html" title="ion/base/lockguards.h" alt="" coords="784,320,932,347"/>
+<area shape="rect" id="node22" href="$mutex_8h.html" title="ion/port/mutex.h" alt="" coords="734,469,849,496"/>
+<area shape="rect" id="node27" href="$type__structs_8h.html" title="ion/base/type_structs.h" alt="" coords="835,80,993,107"/>
+<area shape="rect" id="node28" href="$threadutils_8h.html" title="ion/port/threadutils.h" alt="" coords="1169,469,1308,496"/>
+<area shape="rect" id="node5" href="$allocationmanager_8h.html" title="ion/base/allocationmanager.h" alt="" coords="414,163,604,189"/>
+<area shape="rect" id="node9" href="$base_2logging_8h.html" title="Copyright 2016 Google Inc. " alt="" coords="242,544,368,571"/>
+<area shape="rect" id="node7" href="$allocationtracker_8h.html" title="ion/base/allocationtracker.h" alt="" coords="275,320,456,347"/>
+<area shape="rect" id="node8" href="$shareable_8h.html" title="ion/base/shareable.h" alt="" coords="363,469,505,496"/>
+<area shape="rect" id="node17" href="$sharedptr_8h.html" title="ion/base/sharedptr.h" alt="" coords="201,395,340,421"/>
+<area shape="rect" id="node15" href="$atomic_8h.html" title="ion/port/atomic.h" alt="" coords="957,544,1075,571"/>
+<area shape="rect" id="node14" href="$port_2logging_8h.html" title="ion/port/logging.h" alt="" coords="458,619,579,645"/>
+<area shape="rect" id="node21" href="$readwritelock_8h.html" title="ion/base/readwritelock.h" alt="" coords="857,395,1020,421"/>
+<area shape="rect" id="node26" href="$spinmutex_8h.html" title="ion/base/spinmutex.h" alt="" coords="1049,395,1196,421"/>
+<area shape="rect" id="node24" href="$semaphore_8h.html" title="ion/port/semaphore.h" alt="" coords="875,469,1019,496"/>
+</map>

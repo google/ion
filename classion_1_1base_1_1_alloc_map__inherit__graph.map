@@ -1,0 +1,19 @@
+<map id="ion::base::AllocMap&lt; K, V, Compare &gt;" name="ion::base::AllocMap&lt; K, V, Compare &gt;">
+<area shape="rect" id="node3" href="$classion_1_1base_1_1_alloc_map.html" title="ion::base::AllocMap\l\&lt; std::string, Callback \&gt;" alt="" coords="637,14,800,55"/>
+<area shape="rect" id="node4" href="$classion_1_1base_1_1_alloc_map.html" title="ion::base::AllocMap\l\&lt; std::string, FontPtr \&gt;" alt="" coords="641,79,796,121"/>
+<area shape="rect" id="node5" href="$classion_1_1base_1_1_alloc_map.html" title="ion::base::AllocMap\l\&lt; std::string, unsigned int \&gt;" alt="" coords="627,145,810,186"/>
+<area shape="rect" id="node6" href="$classion_1_1base_1_1_alloc_map.html" title="ion::base::AllocMap\l\&lt; uint32, uint32 \&gt;" alt="" coords="650,210,787,251"/>
+<area shape="rect" id="node7" href="$classion_1_1base_1_1_alloc_map.html" title="ion::base::AllocMap\l\&lt; std::string, FontImagePtr \&gt;" alt="" coords="623,275,814,317"/>
+<area shape="rect" id="node8" href="$classion_1_1base_1_1_alloc_map.html" title="ion::base::AllocMap\l\&lt; void *, size_t \&gt;" alt="" coords="650,341,787,382"/>
+<area shape="rect" id="node9" href="$classion_1_1base_1_1_alloc_map.html" title="ion::base::AllocMap\l\&lt; GlyphIndex, GlyphGrid \&gt;" alt="" coords="629,406,808,447"/>
+<area shape="rect" id="node10" href="$classion_1_1base_1_1_alloc_map.html" title="ion::base::AllocMap\l\&lt; unsigned int, std\l::string \&gt;" alt="" coords="650,471,787,527"/>
+<area shape="rect" id="node11" href="$classion_1_1base_1_1_alloc_map.html" title="ion::base::AllocMap\l\&lt; const void *, size_t \&gt;" alt="" coords="639,550,798,591"/>
+<area shape="rect" id="node12" href="$classion_1_1base_1_1_alloc_map.html" title="ion::base::AllocMap\l\&lt; std::string, FileInfo \&gt;" alt="" coords="641,615,796,657"/>
+<area shape="rect" id="node13" href="$classion_1_1base_1_1_alloc_map.html" title="ion::base::AllocMap\l\&lt; GlyphIndex, GlyphMetaData \&gt;" alt="" coords="613,681,824,722"/>
+<area shape="rect" id="node14" href="$classion_1_1base_1_1_alloc_map.html" title="ion::base::AllocMap\l\&lt; std::string, ProgramInfo \&gt;" alt="" coords="627,746,810,787"/>
+<area shape="rect" id="node15" href="$classion_1_1base_1_1_alloc_map.html" title="ion::base::AllocMap\l\&lt; const std::string,\l SpecMapEntry \&gt;" alt="" coords="650,811,787,867"/>
+<area shape="rect" id="node16" href="$classion_1_1base_1_1_alloc_map.html" title="ion::base::AllocMap\l\&lt; GlyphIndex, math::\lRange2f \&gt;" alt="" coords="646,891,791,947"/>
+<area shape="rect" id="node17" href="$classion_1_1base_1_1_alloc_map.html" title="ion::base::AllocMap\l\&lt; uint16, CTFontRef \&gt;" alt="" coords="641,970,796,1011"/>
+<area shape="rect" id="node18" href="$classion_1_1base_1_1_alloc_map.html" title="ion::base::AllocMap\l\&lt; CTFontRef, uint16 \&gt;" alt="" coords="641,1035,796,1077"/>
+<area shape="rect" id="node2" title="STL class. " alt="" coords="5,507,181,563"/>
+</map>

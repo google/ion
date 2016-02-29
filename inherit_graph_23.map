@@ -1,0 +1,4 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node1" href="$struction_1_1base_1_1_bool_type.html" title="ion::base::BoolType\l\&lt; IsSameType\&lt; To, From\l \&gt;::value\|\|IsBaseOf\&lt; To,\l From \&gt;::value \&gt;" alt="" coords="5,5,179,75"/>
+<area shape="rect" id="node2" href="$struction_1_1base_1_1_is_convertible.html" title="IsConvertible is similar to std::is_convertible, except that it only looks at direct inheritance rela..." alt="" coords="227,19,387,61"/>
+</map>

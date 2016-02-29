@@ -1,0 +1,5 @@
+<map id="ion::gfx::Uniform" name="ion::gfx::Uniform">
+<area shape="rect" id="node2" href="$classion_1_1gfx_1_1_shader_input.html" title="ion::gfx::ShaderInput\l\&lt; UniformValueType, Uniform\lType \&gt;" alt="" coords="5,216,200,272"/>
+<area shape="rect" id="node3" href="$classion_1_1gfx_1_1_shader_input_base.html" title="ion::gfx::ShaderInputBase" alt="" coords="39,5,212,32"/>
+<area shape="rect" id="node4" href="$classion_1_1gfx_1_1_shader_input.html" title="A ShaderInput instance represents a general shader input. " alt="" coords="119,83,328,139"/>
+</map>

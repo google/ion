@@ -1,0 +1,8 @@
+<map id="ion::base::BoolType&lt; b &gt;" name="ion::base::BoolType&lt; b &gt;">
+<area shape="rect" id="node2" href="$struction_1_1base_1_1_bool_type.html" title="ion::base::BoolType\l\&lt; IsSameType\&lt; To, From\l \&gt;::value\|\|IsBaseOf\&lt; To,\l From \&gt;::value \&gt;" alt="" coords="381,5,555,75"/>
+<area shape="rect" id="node4" href="$struction_1_1base_1_1_bool_type.html" title="ion::base::BoolType\l\&lt; false \&gt;" alt="" coords="399,99,537,141"/>
+<area shape="rect" id="node6" href="$struction_1_1base_1_1_bool_type.html" title="ion::base::BoolType\l\&lt; true \&gt;" alt="" coords="399,165,537,206"/>
+<area shape="rect" id="node3" href="$struction_1_1base_1_1_is_convertible.html" title="IsConvertible is similar to std::is_convertible, except that it only looks at direct inheritance rela..." alt="" coords="605,19,765,61"/>
+<area shape="rect" id="node5" href="$struction_1_1base_1_1_is_same_type.html" title="IsSameType is similar to std::is_same. " alt="" coords="607,99,764,141"/>
+<area shape="rect" id="node7" href="$struction_1_1base_1_1_is_same_type_3_01_t_00_01_t_01_4.html" title="ion::base::IsSameType\l\&lt; T, T \&gt;" alt="" coords="607,165,764,206"/>
+</map>

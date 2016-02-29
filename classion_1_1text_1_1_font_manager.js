@@ -1,0 +1,26 @@
+var classion_1_1text_1_1_font_manager =
+[
+    [ "FontManager", "classion_1_1text_1_1_font_manager.html#a08ed637f5fc3c40a90a00948971b077f", null ],
+    [ "~FontManager", "classion_1_1text_1_1_font_manager.html#a71bb92061f54bdf289aac324c7e7f4c6", null ],
+    [ "AddFont", "classion_1_1text_1_1_font_manager.html#a10a8553ef5c2ee1d6b0aeafddb69b54f", null ],
+    [ "AddFont", "classion_1_1text_1_1_font_manager.html#a4e435184779729366fddfa5f8e38fac3", null ],
+    [ "AddFontFromZipasset", "classion_1_1text_1_1_font_manager.html#a42afa4d728c16b5320ac7fb591a6da67", null ],
+    [ "CacheFontImage", "classion_1_1text_1_1_font_manager.html#a1a34d739a3bbff737815d5f8ec300e30", null ],
+    [ "CacheFontImage", "classion_1_1text_1_1_font_manager.html#a71f792c0a1331212d95b17868c4799bf", null ],
+    [ "FindFont", "classion_1_1text_1_1_font_manager.html#ac763f7e9ad5f66e6fffc61dc82ef5560", null ],
+    [ "GetAllocator", "classion_1_1text_1_1_font_manager.html#abf64f94fc5627fd973153954cff6d8db", null ],
+    [ "GetAllocatorForLifetime", "classion_1_1text_1_1_font_manager.html#a0682f27004c4f1a332360d7878b351a7", null ],
+    [ "GetCachedFontImage", "classion_1_1text_1_1_font_manager.html#a8a1aeeec8b186b396b83deb680435ac7", null ],
+    [ "GetCachedFontImage", "classion_1_1text_1_1_font_manager.html#a098a6ee981022f3046cbe6c6803f32c2", null ],
+    [ "GetNonNullAllocator", "classion_1_1text_1_1_font_manager.html#a6e809807b095c4a2f3ce3a8de39f8793", null ],
+    [ "GetRefCount", "classion_1_1text_1_1_font_manager.html#a708e4bb577006e3e0f6f647abf42f5e2", null ],
+    [ "operator delete", "classion_1_1text_1_1_font_manager.html#ac011e838d42e277e7cc139e1ac23aae9", null ],
+    [ "operator delete", "classion_1_1text_1_1_font_manager.html#a06a1f82c20759cb781e104087eb9400f", null ],
+    [ "operator delete", "classion_1_1text_1_1_font_manager.html#a1766a42930a87e42a37d82108d033e72", null ],
+    [ "operator delete", "classion_1_1text_1_1_font_manager.html#a63fe049e57c8f42610cf49fcdab2c5a8", null ],
+    [ "operator new", "classion_1_1text_1_1_font_manager.html#ad8a8662b6cd9caa0492118b82b2c5c44", null ],
+    [ "operator new", "classion_1_1text_1_1_font_manager.html#a068284b2fbe2a9e19032b466858007ae", null ],
+    [ "operator new", "classion_1_1text_1_1_font_manager.html#af3b34b1e07c5f8ba42ab570d5bf96ec5", null ],
+    [ "operator new", "classion_1_1text_1_1_font_manager.html#a44d9858ce2b2b8271a2da8444c1b3b66", null ],
+    [ "operator new", "classion_1_1text_1_1_font_manager.html#a9c3026f50bb891fe194e3b0081caa012", null ]
+];

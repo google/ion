@@ -1,0 +1,4 @@
+<map id="ion::base::Referent" name="ion::base::Referent">
+<area shape="rect" id="node2" href="$classion_1_1base_1_1_allocatable.html" title="Allocatable is an abstract base class for classes whose memory is managed by an Allocator. " alt="" coords="5,5,152,32"/>
+<area shape="rect" id="node3" href="$classion_1_1base_1_1_shareable.html" title="Shareable is an abstract base class for any object that can be shared via the SharedPtr class..." alt="" coords="176,5,316,32"/>
+</map>
