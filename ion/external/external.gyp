@@ -305,6 +305,8 @@
         'NOCRYPT=1',
         'NOUNCRYPT=1',
         'STDC',
+        'NOCRYPT=1'
+        'NOUNCRYPT=1'
       ],
       'all_dependent_settings': {
         'include_dirs': [
