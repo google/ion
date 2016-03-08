@@ -29,7 +29,7 @@ uniform samplerCube uReflectionCubeMap;
 
 void main(void) {
   vec3 cube_coords = reflect(vFromEye, vNormal);
-  vec3 reflection = textureCube(uReflectionCubeMap, cube_coords);
-  vec3 ambient_color = vec3(0.5, 0.5, 0.5);
-  gl_FragColor.xyz = mix(ambient_color,  reflection, 0.4);
+  vec4 reflection = textureCube(uReflectionCubeMap, cube_coords);
+  vec4 ambient_color = vec4(0.5, 0.5, 0.5, 1.0);
+  gl_FragColor = mix(ambient_color, reflection, 0.4);
 }

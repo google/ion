@@ -43,15 +43,15 @@ class BufferObjectTest : public ::testing::Test {
     bo_.Reset(new BufferObject);
     resource_.reset(new MockBufferObjectResource);
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());
-    bo_->SetResource(0U, resource_.get());
-    EXPECT_EQ(resource_.get(), bo_->GetResource(0U));
+    bo_->SetResource(0U, 0, resource_.get());
+    EXPECT_EQ(resource_.get(), bo_->GetResource(0U, 0));
     EXPECT_TRUE(resource_->AnyModifiedBitsSet());
     resource_->ResetModifiedBits();
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());
   }
 
   // This is to ensure that the resource holder goes away before the resource.
-  void TearDown() override { bo_.Reset(NULL); }
+  void TearDown() override { bo_.Reset(nullptr); }
 
   BufferObjectPtr bo_;
   std::unique_ptr<MockBufferObjectResource> resource_;
@@ -145,7 +145,7 @@ TEST_F(BufferObjectTest, SetData) {
   }
 
   // Check initial state.
-  EXPECT_TRUE(bo_->GetData().Get() == NULL);
+  EXPECT_TRUE(bo_->GetData().Get() == nullptr);
   EXPECT_EQ(0U, bo_->GetStructSize());
   EXPECT_EQ(0U, bo_->GetCount());
   EXPECT_EQ(BufferObject::kArrayBuffer, bo_->GetTarget());
@@ -214,7 +214,7 @@ TEST_F(BufferObjectTest, ModifyRanges) {
   }
 
   base::DataContainerPtr data_null(base::DataContainer::Create<MyVertex>(
-      NULL, kNullFunction, false, bo_->GetAllocator()));
+      nullptr, kNullFunction, false, bo_->GetAllocator()));
   base::DataContainerPtr data4(base::DataContainer::Create<MyVertex>(
       &vertices[4], kNullFunction, false, bo_->GetAllocator()));
   base::DataContainerPtr data8(base::DataContainer::Create<MyVertex>(
@@ -261,27 +261,60 @@ TEST_F(BufferObjectTest, ModifyRanges) {
   EXPECT_FALSE(resource_->AnyModifiedBitsSet());
   bo_->SetSubData(math::Range1ui(0, 10), data_null);
   EXPECT_FALSE(resource_->AnyModifiedBitsSet());
+
+  // Expect CopySubData to set bit.
+  bo_->CopySubData(
+      bo_,
+      math::Range1ui(static_cast<uint32>(bo_->GetStructSize() * 8U),
+                     static_cast<uint32>(bo_->GetStructSize() * 14U)),
+      static_cast<uint32>(bo_->GetStructSize()));
+  EXPECT_TRUE(resource_->TestOnlyModifiedBit(BufferObject::kSubDataChanged));
+  resource_->ResetModifiedBits();
+  EXPECT_EQ(1U, sub_data.size());
+  EXPECT_EQ(math::Range1ui(static_cast<uint32>(bo_->GetStructSize() * 8U),
+                           static_cast<uint32>(bo_->GetStructSize() * 14U)),
+            sub_data[0].range);
+  EXPECT_EQ(static_cast<uint32>(bo_->GetStructSize()), sub_data[0].read_offset);
+
+  // Empty ranges do nothing.
+  bo_->CopySubData(bo_, math::Range1ui(), 0);
+  EXPECT_FALSE(resource_->AnyModifiedBitsSet());
+  bo_->CopySubData(bo_, math::Range1ui(10, 9), 0);
+  EXPECT_FALSE(resource_->AnyModifiedBitsSet());
+
+  // NULL source BufferObject does nothing.
+  bo_->CopySubData(BufferObjectPtr(), math::Range1ui(1, 2), 0);
+  EXPECT_FALSE(resource_->AnyModifiedBitsSet());
 }
 
 TEST_F(BufferObjectTest, MappedData) {
   EXPECT_TRUE(bo_->GetMappedData().range.IsEmpty());
-  EXPECT_TRUE(bo_->GetMappedPointer() == NULL);
+  EXPECT_TRUE(bo_->GetMappedPointer() == nullptr);
   void* data = bo_.Get();
-  bo_->SetMappedData(math::Range1ui(10, 1000), data, true);
+  bo_->SetMappedData(math::Range1ui(10, 1000), data,
+                     BufferObject::MappedBufferData::kGpuMapped, false);
   EXPECT_EQ(math::Range1ui(10, 1000), bo_->GetMappedData().range);
-  EXPECT_TRUE(bo_->GetMappedData().gpu_mapped);
+  EXPECT_EQ(BufferObject::MappedBufferData::kGpuMapped,
+            bo_->GetMappedData().data_source);
   EXPECT_EQ(data, bo_->GetMappedPointer());
+  EXPECT_FALSE(bo_->GetMappedData().read_only);
 
   data = resource_.get();
-  bo_->SetMappedData(math::Range1ui(), data, false);
+  bo_->SetMappedData(math::Range1ui(), data,
+                     BufferObject::MappedBufferData::kAllocated, true);
   EXPECT_TRUE(bo_->GetMappedData().range.IsEmpty());
   EXPECT_EQ(data, bo_->GetMappedPointer());
-  EXPECT_FALSE(bo_->GetMappedData().gpu_mapped);
+  EXPECT_EQ(BufferObject::MappedBufferData::kAllocated,
+            bo_->GetMappedData().data_source);
+  EXPECT_TRUE(bo_->GetMappedData().read_only);
 
-  bo_->SetMappedData(math::Range1ui(), NULL, false);
+  bo_->SetMappedData(math::Range1ui(), nullptr,
+                     BufferObject::MappedBufferData::kAllocated, true);
   EXPECT_TRUE(bo_->GetMappedData().range.IsEmpty());
-  EXPECT_TRUE(bo_->GetMappedPointer() == NULL);
-  EXPECT_FALSE(bo_->GetMappedData().gpu_mapped);
+  EXPECT_TRUE(bo_->GetMappedPointer() == nullptr);
+  EXPECT_EQ(BufferObject::MappedBufferData::kAllocated,
+            bo_->GetMappedData().data_source);
+  EXPECT_TRUE(bo_->GetMappedData().read_only);
 }
 
 TEST_F(BufferObjectTest, Notifications) {

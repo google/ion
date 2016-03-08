@@ -19,6 +19,24 @@ limitations under the License.
 
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
+TEST(Utils, IsFinite) {
+  using ion::math::IsFinite;
+
+  EXPECT_FALSE(IsFinite(std::numeric_limits<float>::quiet_NaN()));
+  EXPECT_FALSE(IsFinite(std::numeric_limits<float>::infinity()));
+  EXPECT_FALSE(IsFinite(-std::numeric_limits<float>::infinity()));
+  EXPECT_TRUE(IsFinite(0.0f));
+  EXPECT_TRUE(IsFinite(9999999999.0f));
+  EXPECT_TRUE(IsFinite(-9999999999.0f));
+
+  EXPECT_FALSE(IsFinite(std::numeric_limits<double>::quiet_NaN()));
+  EXPECT_FALSE(IsFinite(std::numeric_limits<double>::infinity()));
+  EXPECT_FALSE(IsFinite(-std::numeric_limits<double>::infinity()));
+  EXPECT_TRUE(IsFinite(0.0));
+  EXPECT_TRUE(IsFinite(9999999999.0));
+  EXPECT_TRUE(IsFinite(-9999999999.0));
+}
+
 TEST(Utils, Abs) {
   using ion::math::Abs;
 

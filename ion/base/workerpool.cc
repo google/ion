@@ -126,7 +126,7 @@ void WorkerPool::KillAllThreads() {
   }
 
   // Wait for all threads to finish.
-  for (auto thread_id : threads_) {
+  for (const auto& thread_id : threads_) {
     bool join_succeeded = port::JoinThread(thread_id);
     DCHECK(join_succeeded);
   }

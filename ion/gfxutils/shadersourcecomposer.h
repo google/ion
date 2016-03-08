@@ -143,6 +143,49 @@ typedef base::ReferentPtr<StringComposer>::Type StringComposerPtr;
 
 //-----------------------------------------------------------------------------
 //
+// Applies a fixed transformation to the output of another composer.
+// The transformation is specified as a C++11 functor.
+//
+//-----------------------------------------------------------------------------
+class ION_API FilterComposer : public ShaderSourceComposer {
+ public:
+  typedef std::function<std::string(const std::string)> StringFilter;
+  FilterComposer(const ShaderSourceComposerPtr& base,
+                    const StringFilter& transformer)
+      : base_(base),
+        transformer_(transformer) {}
+  const std::string GetSource() override {
+    return transformer_(base_->GetSource());
+  }
+  bool DependsOn(const std::string& dependency) const override {
+    return base_->DependsOn(dependency);
+  }
+  const std::string GetDependencySource(
+      const std::string& dependency) const override {
+    return base_->GetDependencySource(dependency);
+  }
+  bool SetDependencySource(const std::string& dependency,
+                           const std::string& source) override {
+    return base_->SetDependencySource(dependency, source);
+  }
+  const std::string GetDependencyName(unsigned int id) const override {
+    return base_->GetDependencyName(id);
+  }
+  const std::vector<std::string> GetDependencyNames() const override {
+    return base_->GetDependencyNames();
+  }
+  const std::vector<std::string> GetChangedDependencies() override {
+    return base_->GetChangedDependencies();
+  }
+
+ private:
+  ShaderSourceComposerPtr base_;
+  StringFilter transformer_;
+};
+typedef base::ReferentPtr<FilterComposer>::Type FilterComposerPtr;
+
+//-----------------------------------------------------------------------------
+//
 // Loads a shader source from a resource that may include other resources using
 // the special directive '$input "name"'. The function passed to the constructor
 // loads data given a resource name. Optionally injects #line directives in the

@@ -345,10 +345,10 @@ static const NodePtr BuildGraph(
 //
 //-----------------------------------------------------------------------------
 
-class ShapeDemo : public ViewerDemoBase {
+class IonShapeDemo : public ViewerDemoBase {
  public:
-  ShapeDemo(int width, int height);
-  ~ShapeDemo() override;
+  IonShapeDemo(int width, int height);
+  ~IonShapeDemo() override {}
   void Resize(int width, int height) override;
   void Update() override {}
   void RenderFrame() override;
@@ -406,7 +406,7 @@ class ShapeDemo : public ViewerDemoBase {
   ion::base::Setting<bool> use_cube_map_texture_;
 };
 
-ShapeDemo::ShapeDemo(int width, int height)
+IonShapeDemo::IonShapeDemo(int width, int height)
     : ViewerDemoBase(width, height),
 
       // Rectangle settings.
@@ -507,9 +507,7 @@ ShapeDemo::ShapeDemo(int width, int height)
   UpdateViewUniforms();
 }
 
-ShapeDemo::~ShapeDemo() {}
-
-void ShapeDemo::Resize(int width, int height) {
+void IonShapeDemo::Resize(int width, int height) {
   ViewerDemoBase::Resize(width, height);
 
   DCHECK(root_->GetStateTable().Get());
@@ -517,68 +515,68 @@ void ShapeDemo::Resize(int width, int height) {
       Range2i::BuildWithSize(Point2i(0, 0), Vector2i(width, height)));
 }
 
-void ShapeDemo::RenderFrame() {
+void IonShapeDemo::RenderFrame() {
   GetGraphicsManager()->EnableErrorChecking(check_errors_);
   GetRenderer()->DrawScene(root_);
 }
 
-void ShapeDemo::InitSettings() {
+void IonShapeDemo::InitSettings() {
   using std::bind;
   using std::placeholders::_1;
   // Set up listeners for settings that require rebuilding.
   ion::base::SettingManager::RegisterGroupListener(
       "shapedemo/rectangle", "ShapeDemo",
-      bind(&ShapeDemo::UpdateRectangle, this, _1));
+      bind(&IonShapeDemo::UpdateRectangle, this, _1));
   ion::base::SettingManager::RegisterGroupListener(
       "shapedemo/box", "ShapeDemo",
-      bind(&ShapeDemo::UpdateBox, this, _1));
+      bind(&IonShapeDemo::UpdateBox, this, _1));
   ion::base::SettingManager::RegisterGroupListener(
       "shapedemo/ellipsoid", "ShapeDemo",
-      bind(&ShapeDemo::UpdateEllipsoid, this, _1));
+      bind(&IonShapeDemo::UpdateEllipsoid, this, _1));
   ion::base::SettingManager::RegisterGroupListener(
       "shapedemo/cylinder", "ShapeDemo",
-      bind(&ShapeDemo::UpdateCylinder, this, _1));
+      bind(&IonShapeDemo::UpdateCylinder, this, _1));
 
   // Set up other listeners.
   draw_as_wireframe_.RegisterListener(
-      "ShapeDemo", bind(&ShapeDemo::EnableWireframe, this, _1));
+      "ShapeDemo", bind(&IonShapeDemo::EnableWireframe, this, _1));
   draw_normals_.RegisterListener(
-      "ShapeDemo", bind(&ShapeDemo::EnableNormals, this, _1));
+      "ShapeDemo", bind(&IonShapeDemo::EnableNormals, this, _1));
   enable_back_face_culling_.RegisterListener(
-      "ShapeDemo", bind(&ShapeDemo::EnableBackFaceCulling, this, _1));
+      "ShapeDemo", bind(&IonShapeDemo::EnableBackFaceCulling, this, _1));
   use_cube_map_texture_.RegisterListener(
-      "ShapeDemo", bind(&ShapeDemo::ChangeTexture, this, _1));
+      "ShapeDemo", bind(&IonShapeDemo::ChangeTexture, this, _1));
 
   // Set up strings for enum settings so they use dropboxes.
   rectangle_plane_normal_.SetTypeDescriptor("enum:+X|-X|+Y|-Y|+Z|-Z");
 }
 
-void ShapeDemo::ChangeTexture(ion::base::SettingBase*) {
+void IonShapeDemo::ChangeTexture(ion::base::SettingBase*) {
   const size_t index = root_->GetUniformIndex("uUseCubeMap");
   DCHECK_NE(index, ion::base::kInvalidIndex);
   root_->SetUniformValue<int>(index, use_cube_map_texture_);
 }
 
-void ShapeDemo::EnableBackFaceCulling(ion::base::SettingBase*) {
+void IonShapeDemo::EnableBackFaceCulling(ion::base::SettingBase*) {
   DCHECK(root_->GetStateTable().Get());
   root_->GetStateTable()->Enable(ion::gfx::StateTable::kCullFace,
                                  enable_back_face_culling_);
 }
 
-void ShapeDemo::EnableNormals(ion::base::SettingBase*) {
+void IonShapeDemo::EnableNormals(ion::base::SettingBase*) {
   normal_node_->Enable(draw_normals_);
 }
 
-void ShapeDemo::EnableWireframe(ion::base::SettingBase*) {
+void IonShapeDemo::EnableWireframe(ion::base::SettingBase*) {
   tri_node_->Enable(!draw_as_wireframe_);
   line_node_->Enable(draw_as_wireframe_);
 }
 
-void ShapeDemo::UpdateShape(size_t index, const ion::gfx::ShapePtr& shape) {
+void IonShapeDemo::UpdateShape(size_t index, const ion::gfx::ShapePtr& shape) {
   ReplaceShape(index, shape, tri_node_, line_node_, normal_node_);
 }
 
-void ShapeDemo::UpdateRectangle(ion::base::SettingBase*) {
+void IonShapeDemo::UpdateRectangle(ion::base::SettingBase*) {
   RectangleSpec rect_spec;
   rect_spec.usage_mode = kUsageMode;
   rect_spec.translation = s_grid.GetCenter(kRectangleShape);
@@ -587,7 +585,7 @@ void ShapeDemo::UpdateRectangle(ion::base::SettingBase*) {
   UpdateShape(kRectangleShape, ion::gfxutils::BuildRectangleShape(rect_spec));
 }
 
-void ShapeDemo::UpdateBox(ion::base::SettingBase*) {
+void IonShapeDemo::UpdateBox(ion::base::SettingBase*) {
   ion::gfxutils::BoxSpec box_spec;
   box_spec.usage_mode = kUsageMode;
   box_spec.translation = s_grid.GetCenter(kBoxShape);
@@ -595,7 +593,7 @@ void ShapeDemo::UpdateBox(ion::base::SettingBase*) {
   UpdateShape(kBoxShape, ion::gfxutils::BuildBoxShape(box_spec));
 }
 
-void ShapeDemo::UpdateEllipsoid(ion::base::SettingBase*) {
+void IonShapeDemo::UpdateEllipsoid(ion::base::SettingBase*) {
   ion::gfxutils::EllipsoidSpec ellipsoid_spec;
   ellipsoid_spec.usage_mode = kUsageMode;
   ellipsoid_spec.translation = s_grid.GetCenter(kEllipsoidShape);
@@ -615,7 +613,7 @@ void ShapeDemo::UpdateEllipsoid(ion::base::SettingBase*) {
               ion::gfxutils::BuildEllipsoidShape(ellipsoid_spec));
 }
 
-void ShapeDemo::UpdateCylinder(ion::base::SettingBase*) {
+void IonShapeDemo::UpdateCylinder(ion::base::SettingBase*) {
   ion::gfxutils::CylinderSpec cylinder_spec;
   cylinder_spec.usage_mode = kUsageMode;
   cylinder_spec.translation = s_grid.GetCenter(kCylinderShape);
@@ -631,5 +629,5 @@ void ShapeDemo::UpdateCylinder(ion::base::SettingBase*) {
 }
 
 DemoBase* CreateDemo(int w, int h) {
-  return new ShapeDemo(w, h);
+  return new IonShapeDemo(w, h);
 }

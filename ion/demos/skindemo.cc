@@ -126,10 +126,10 @@ static void LightingChanged(ion::base::SettingBase* setting) {
 //
 //-----------------------------------------------------------------------------
 
-class SkinDemo : public ViewerDemoBase {
+class IonSkinDemo : public ViewerDemoBase {
  public:
-  SkinDemo(int width, int height);
-  ~SkinDemo() override {}
+  IonSkinDemo(int width, int height);
+  ~IonSkinDemo() override {}
   void Keyboard(int key, int x, int y, bool is_press) override {}
   void Resize(int width, int height) override;
   void Update() override;
@@ -199,7 +199,7 @@ class SkinDemo : public ViewerDemoBase {
   Hud hud_;
 };
 
-SkinDemo::SkinDemo(int width, int height)
+IonSkinDemo::IonSkinDemo(int width, int height)
     : ViewerDemoBase(width, height),
 #if defined(ION_PLATFORM_LINUX) || defined(ION_PLATFORM_MAC) || \
     defined(ION_PLATFORM_WINDOWS)
@@ -579,7 +579,7 @@ SkinDemo::SkinDemo(int width, int height)
   InitRemoteHandlers(tracked_nodes);
 }
 
-void SkinDemo::Resize(int width, int height) {
+void IonSkinDemo::Resize(int width, int height) {
   ViewerDemoBase::Resize(width, height);
 
   hud_.Resize(width, height);
@@ -621,7 +621,7 @@ void SkinDemo::Resize(int width, int height) {
   irradiance_fbo_->SetLabel("Irradiance FBO");
 }
 
-void SkinDemo::Update() {
+void IonSkinDemo::Update() {
   if (show_hud_)
     hud_.Update();
   if (auto_rotate_light_) {
@@ -648,7 +648,7 @@ void SkinDemo::Update() {
   }
 }
 
-void SkinDemo::UpdateDepthMap() {
+void IonSkinDemo::UpdateDepthMap() {
   Point3f light_pos(0.f, 0.f, s_light_info.distance);
   light_pos = ion::math::RotationMatrixAxisAngleH(Vector3f::AxisX(),
                                                   s_light_info.tilt_angle) *
@@ -717,7 +717,7 @@ void SkinDemo::UpdateDepthMap() {
   }
 }
 
-void SkinDemo::RenderFrame() {
+void IonSkinDemo::RenderFrame() {
 #if defined(ION_PLATFORM_LINUX) || defined(ION_PLATFORM_MAC) || \
     (defined(ION_PLATFORM_WINDOWS) && !defined(ION_ANGLE))
   if (multisample_)
@@ -828,7 +828,7 @@ void SkinDemo::RenderFrame() {
     renderer->DrawScene(hud_.GetRootNode());
 }
 
-void SkinDemo::ProcessMotion(float x, float y, bool is_press) {
+void IonSkinDemo::ProcessMotion(float x, float y, bool is_press) {
   if (move_light_) {
     const Vector2f new_pos(x, y);
     if (!is_press) {
@@ -857,7 +857,7 @@ void SkinDemo::ProcessMotion(float x, float y, bool is_press) {
   }
 }
 
-void SkinDemo::ProcessScale(float scale) {
+void IonSkinDemo::ProcessScale(float scale) {
   if (move_light_) {
     s_light_info.distance = kBaseDistance * scale;
     s_update_depth_map = true;
@@ -867,5 +867,5 @@ void SkinDemo::ProcessScale(float scale) {
 }
 
 DemoBase* CreateDemo(int w, int h) {
-  return new SkinDemo(w, h);
+  return new IonSkinDemo(w, h);
 }

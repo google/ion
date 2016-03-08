@@ -18,6 +18,7 @@ limitations under the License.
 uniform mat4 uProjectionMatrix;
 uniform mat4 uModelviewMatrix;
 uniform vec3 uSpherePosition;
+uniform vec3 uCameraPosition;
 
 attribute vec3 aVertex;
 attribute vec3 aNormal;
@@ -25,9 +26,8 @@ varying vec3 vNormal;
 varying vec3 vFromEye;
 
 void main(void) {
-  vec3 camera_pos = inverse(uModelviewMatrix)[3];
   vNormal = aNormal;
-  vFromEye = aVertex + uSpherePosition - camera_pos;
+  vFromEye = aVertex + uSpherePosition - uCameraPosition;
   gl_Position = uProjectionMatrix * uModelviewMatrix *
       vec4(aVertex + uSpherePosition, 1);
 }

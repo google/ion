@@ -161,6 +161,15 @@ TEST(Utf8Iterator, NulInString) {
   EXPECT_EQ(Utf8Iterator::kInvalidCharIndex, it.Next());
 }
 
+TEST(Utf8Iterator, OverlongEncoding) {
+  TestInvalidString("Overlong space (2 bytes instead of 1)",
+                    " \xc0\xa0 ");
+  TestInvalidString("Overlong cent (3 bytes instead of 2)",
+                    " \xe0\x82\xa2 ");
+  TestInvalidString("Overlong euro sign (4 bytes instead of 3)",
+                    " \xf0\x82\x82\xac ");
+}
+
 TEST(Utf8Iterator, Invalid) {
   TestInvalidString("Continuation byte as 1st byte",
                     " \x80  ");

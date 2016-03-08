@@ -19,6 +19,7 @@ limitations under the License.
 #define ION_GFX_BUFFEROBJECT_H_
 
 #include "ion/base/datacontainer.h"
+#include "ion/base/invalid.h"
 #include "ion/base/referent.h"
 #include "ion/base/stlalloc/allocvector.h"
 #include "ion/external/gtest/gunit_prod.h"  // For FRIEND_TEST().
@@ -27,6 +28,9 @@ limitations under the License.
 
 namespace ion {
 namespace gfx {
+class BufferObject;
+// Convenience typedef for shared pointer to a BufferObject.
+typedef base::ReferentPtr<BufferObject>::Type BufferObjectPtr;
 
 // A BufferObject describes a generic array of data used, for example, to
 // describe the vertices in a Shape or data retrieved from a framebuffer. It is
@@ -89,6 +93,8 @@ class ION_API BufferObject : public ResourceHolder {
   enum Target {
     kArrayBuffer,
     kElementBuffer,
+    kCopyReadBuffer,
+    kCopyWriteBuffer
   };
 
   enum UsageMode {
@@ -97,18 +103,32 @@ class ION_API BufferObject : public ResourceHolder {
     kStreamDraw,
   };
 
-  // Wrapper for a data container and the byte range of the buffer it
-  // represents.
+  // Specifies a destination byte range, read byte offset, and source
+  // BufferObject or DataContainer for BufferSubData and CopyBufferSubData.
   struct BufferSubData {
-    BufferSubData() {}
+    BufferSubData() : read_offset(0) {}
 
     BufferSubData(const math::Range1ui& range_in,
                   const base::DataContainerPtr& data_in)
-        : range(range_in),
-          data(data_in) {}
+        : range(range_in), data(data_in), read_offset(0) {
+      DCHECK(data_in.Get());
+    }
+    BufferSubData(const BufferObjectPtr& src_in,
+                  const math::Range1ui& range_in,
+                  uint32 read_offset_in)
+        : range(range_in), read_offset(read_offset_in), src(src_in) {}
+    // See comment in .cc file.
+    ~BufferSubData();
 
+    // Destination byte range of copy.
     math::Range1ui range;
+    // Source data for copy. If NULL source data is taken from src.
     base::DataContainerPtr data;
+    // Read offset in bytes into data or src.
+    uint32 read_offset;
+    // Source BufferObject for CopySubData, NULL is interpreted as this
+    // BufferObject.
+    BufferObjectPtr src;
   };
 
   // Creates a BufferObject of type kArrayBuffer.
@@ -168,7 +188,10 @@ class ION_API BufferObject : public ResourceHolder {
   // Sets data container, the size of the structure in bytes, and the number of
   // structures. The DataContainer will only be destroyed when the last client
   // ReferentPtr to the DataContainer goes away _and_ the BufferObject is
-  // destroyed or a new DataContainer is set with SetData().
+  // destroyed or a new DataContainer is set with SetData(). data may be NULL
+  // in which case the BufferObject is sized to struct_size * count, but its
+  // contents are undefined and it is expected that the BufferObject will
+  // be populated later with SetSubData().
   void SetData(const base::DataContainerPtr& data, const size_t struct_size,
                const size_t count, UsageMode usage) {
     if (base::DataContainer* old_data = GetData().Get())
@@ -189,6 +212,25 @@ class ION_API BufferObject : public ResourceHolder {
                   const base::DataContainerPtr& data) {
     if (!byte_range.IsEmpty() && data.Get() && data->GetData()) {
       sub_data_.push_back(BufferSubData(byte_range, data));
+      // Set twice so that the bit can be flipped again on the next call.
+      sub_data_changed_.Set(true);
+      sub_data_changed_.Set(false);
+    }
+  }
+  // Adds a byte range of data that should be copied from src to this
+  // BufferObject.  read_offset specifies the byte offset within the src
+  // BufferObject data from which to copy the data. dst_byte_range specifies the
+  // destination range. The source and destination ranges should not overlap
+  // if src == this. Note that all subdatas in src are applied to to src before
+  // the copy to this BufferObject.
+  void CopySubData(const BufferObjectPtr& src,
+                   const math::Range1ui& dst_byte_range,
+                   uint32 read_offset) {
+    if (src.Get() && !dst_byte_range.IsEmpty()) {
+      sub_data_.push_back(BufferSubData(
+          // Don't keep ref to this in sub_data_ to avoid Ptr cycle.
+          src.Get() == this ? BufferObjectPtr() : src,
+          dst_byte_range, read_offset));
       // Set twice so that the bit can be flipped again on the next call.
       sub_data_changed_.Set(true);
       sub_data_changed_.Set(false);
@@ -230,7 +272,7 @@ class ION_API BufferObject : public ResourceHolder {
   struct BufferData {
     // Default constructor for containers.
     BufferData()
-        : data(NULL),
+        : data(nullptr),
           struct_size(0U),
           count(0U),
           usage(kStaticDraw) {}
@@ -263,15 +305,25 @@ class ION_API BufferObject : public ResourceHolder {
 
   // Wrapper for mapped buffer data.
   struct MappedBufferData {
+    enum DataSource {
+      kGpuMapped,  // Data is mapped by GPU.
+      kAllocated,  // Data is allocated from Allocator, needs free.
+      kDataContainer  // Data comes from BufferObject's DataContainer, no free.
+    };
     MappedBufferData()
-        : range(math::Range1ui()), pointer(NULL), gpu_mapped(false) {}
-
+        : range(math::Range1ui()),
+          pointer(nullptr),
+          data_source(base::InvalidEnumValue<
+                      BufferObject::MappedBufferData::DataSource>()),
+          read_only(true) {}
     // The range of data mapped.
     math::Range1ui range;
     // A pointer that is either client allocated or GPU mapped.
     void* pointer;
-    // Whether pointer is GPU mapped or not.
-    bool gpu_mapped;
+    // Indicates the source of data returned by MapBuffer.
+    DataSource data_source;
+    // Don't need to upload if read_only is true.
+    bool read_only;
   };
 
   // Called when the DataContainer this depends on changes.
@@ -279,10 +331,11 @@ class ION_API BufferObject : public ResourceHolder {
 
   // Called by a Renderer to set mapped data.
   void SetMappedData(const math::Range1ui& range, void* pointer,
-                     bool gpu_mapped) {
+                     MappedBufferData::DataSource data_source, bool read_only) {
     mapped_data_.range = range;
     mapped_data_.pointer = pointer;
-    mapped_data_.gpu_mapped = gpu_mapped;
+    mapped_data_.data_source = data_source;
+    mapped_data_.read_only = read_only;
   }
 
   // Returns the mapped data struct. Called by a Renderer.
@@ -320,15 +373,12 @@ class ION_API BufferObject : public ResourceHolder {
   FRIEND_TEST(RendererTest, MappedBuffer);
 };
 
-// Convenience typedef for shared pointer to a BufferObject.
-typedef base::ReferentPtr<BufferObject>::Type BufferObjectPtr;
-
 // Structure for clients to use to encapsulate Elements.  This is passed to
 // Attribute to link a BufferObjectElement with a shader attribute.
 struct BufferObjectElement {
   // Default constructor for templates.
   BufferObjectElement()
-      : buffer_object(NULL),
+      : buffer_object(nullptr),
         spec_index(0U) {}
 
   BufferObjectElement(const BufferObjectPtr& buffer_in,

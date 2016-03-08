@@ -21,18 +21,18 @@ limitations under the License.
 #include <bitset>
 
 #include "ion/base/logging.h"
-#include "ion/gfx/iresource.h"
+#include "ion/gfx/resourcebase.h"
 
 namespace ion {
 namespace gfx {
 namespace testing {
 
-// MockResource implements IResource to allow testing of change bits. Test
+// MockResource implements ResourceBase to allow testing of change bits. Test
 // programs can instantiate it with the right number of bits.
 template<int NumModifiedBits>
-class MockResource : public IResource {
+class MockResource : public ResourceBase {
  public:
-  MockResource() {}
+  explicit MockResource(ResourceKey key = 0) : ResourceBase(nullptr, key) {}
   ~MockResource() override {}
 
   void OnDestroyed() override {}

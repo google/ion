@@ -110,7 +110,8 @@ limitations under the License.
 // avoid these in new code.
 //
 // When building with C++11 toolchains, users should instead prefer the
-// language supported "= delete" syntax.
+// language supported "= delete" syntax and place those lines in the
+// public: declaration of the class.
 #if LANG_CXX11
 #define DISALLOW_COPY_AND_ASSIGN(TypeName) \
   TypeName(const TypeName&) = delete;      \

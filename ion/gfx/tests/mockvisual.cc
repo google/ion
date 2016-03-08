@@ -962,6 +962,8 @@ class MockVisual::ShadowState {
           draw_framebuffer(0U),
           read_framebuffer(0U),
           index_buffer(0U),
+          read_buffer(0U),
+          write_buffer(0U),
           program(0U),
           renderbuffer(0U),
           transform_feedback(0U) {}
@@ -971,6 +973,8 @@ class MockVisual::ShadowState {
     GLuint draw_framebuffer;
     GLuint read_framebuffer;
     GLuint index_buffer;
+    GLuint read_buffer;
+    GLuint write_buffer;
     GLuint program;
     GLuint renderbuffer;
     GLuint transform_feedback;
@@ -1166,13 +1170,18 @@ class MockVisual::ShadowState {
   }
   bool CheckBufferTarget(GLenum target) {
     return CheckGlEnum(target == GL_ARRAY_BUFFER ||
-                       target == GL_ELEMENT_ARRAY_BUFFER);
+                       target == GL_ELEMENT_ARRAY_BUFFER ||
+                       target == GL_COPY_READ_BUFFER ||
+                       target == GL_COPY_WRITE_BUFFER);
   }
   bool CheckBufferZeroNotBound(GLenum target) {
     return CheckGlOperation(
         (target == GL_ARRAY_BUFFER && active_objects_.buffer != 0U) ||
         (target == GL_ELEMENT_ARRAY_BUFFER &&
-         active_objects_.index_buffer != 0U));
+         active_objects_.index_buffer != 0U) ||
+        (target == GL_COPY_READ_BUFFER && active_objects_.read_buffer != 0U) ||
+        (target == GL_COPY_WRITE_BUFFER &&
+         active_objects_.write_buffer != 0U));
   }
   bool CheckColorChannelEnum(GLenum channel) {
     return CheckGlEnum(channel == GL_RED || channel == GL_GREEN ||
@@ -1371,8 +1380,14 @@ class MockVisual::ShadowState {
                        wrap == GL_MIRRORED_REPEAT);
   }
   GLuint GetBufferIndex(GLenum target) {
-    return target == GL_ARRAY_BUFFER ? active_objects_.buffer
-                                     : active_objects_.index_buffer;
+    switch (target) {
+      case GL_ARRAY_BUFFER: return active_objects_.buffer;
+      case GL_ELEMENT_ARRAY_BUFFER: return active_objects_.index_buffer;
+      case GL_COPY_READ_BUFFER: return active_objects_.read_buffer;
+      case GL_COPY_WRITE_BUFFER: return active_objects_.write_buffer;
+    }
+    LOG(FATAL) << "Unknown target";
+    return 0;
   }
   bool CheckTextureFormatTypeAndInternalTypeAreValid(GLenum format, GLenum type,
                                                      GLenum internal_format) {
@@ -1741,11 +1756,20 @@ class MockVisual::ShadowState {
     if (CheckBufferTarget(target) &&
         CheckGlValue(object_state_->buffers.count(buffer)) &&
         CheckFunction("BindBuffer")) {
-      if (target == GL_ARRAY_BUFFER) {
-        active_objects_.buffer = buffer;
-      } else {
-        active_objects_.index_buffer = buffer;
-        object_state_->arrays[active_objects_.array].element_array = buffer;
+      switch (target) {
+        case GL_ARRAY_BUFFER:
+          active_objects_.buffer = buffer;
+          break;
+        case GL_ELEMENT_ARRAY_BUFFER:
+          active_objects_.index_buffer = buffer;
+          object_state_->arrays[active_objects_.array].element_array = buffer;
+          break;
+        case GL_COPY_READ_BUFFER:
+          active_objects_.read_buffer = buffer;
+          break;
+        case GL_COPY_WRITE_BUFFER:
+          active_objects_.write_buffer = buffer;
+          break;
       }
       object_state_->buffers[buffer].bindings.push_back(GetCallCount());
     }
@@ -1900,6 +1924,42 @@ class MockVisual::ShadowState {
               reinterpret_cast<uint8*>(object_state_->buffers[index].data);
           std::memcpy(&int_data[offset], data, size);
         }
+      }
+    }
+  }
+  void CopyBufferSubData(GLenum read_target, GLenum write_target,
+                         GLintptr read_offset, GLintptr write_offset,
+                         GLsizeiptr size) {
+    // GL_INVALID_ENUM is generated if target is not GL_ARRAY_BUFFER or
+    // GL_ELEMENT_ARRAY_BUFFER.
+    // GL_INVALID_VALUE is generated if offsets or size is negative, or if
+    // together they define a region of memory that extends beyond the buffer
+    // object's allocated data store or if the read/write ranges overlap.
+    // GL_INVALID_OPERATION is generated if the reserved buffer object name 0 is
+    // bound to either target or if either read/write bufferobjects are mapped.
+    if (CheckBufferTarget(read_target) &&
+        CheckBufferTarget(write_target) &&
+        CheckGlValue(write_offset >= 0) &&
+        CheckGlValue(size >= 0) &&
+        CheckGlValue(read_offset >= 0) &&
+        CheckBufferZeroNotBound(read_target) &&
+        CheckBufferZeroNotBound(write_target)) {
+      const GLuint read_index = GetBufferIndex(read_target);
+      const GLuint write_index = GetBufferIndex(write_target);
+      BufferObject& src = object_state_->buffers[read_index];
+      BufferObject& dst = object_state_->buffers[write_index];
+      if (CheckGlOperation(src.mapped_data == nullptr) &&
+          CheckGlOperation(dst.mapped_data == nullptr) &&
+          CheckGlValue(dst.size >= write_offset + size) &&
+          CheckGlValue(src.size >= read_offset + size) &&
+          (read_index != write_index ||
+           CheckGlValue(read_offset + size <= write_offset ||
+                        write_offset + size <= read_offset)) &&
+          CheckFunction("CopyBufferSubData")) {
+        // Copy the data.
+        uint8* int_data = reinterpret_cast<uint8*>(dst.data);
+        std::memcpy(int_data + write_offset,
+                    reinterpret_cast<uint8*>(src.data) + read_offset, size);
       }
     }
   }
@@ -2259,6 +2319,10 @@ class MockVisual::ShadowState {
               active_objects_.buffer = 0U;
           if (buffers[i] == active_objects_.index_buffer)
             active_objects_.index_buffer = 0U;
+          if (buffers[i] == active_objects_.read_buffer)
+            active_objects_.read_buffer = 0U;
+          if (buffers[i] == active_objects_.write_buffer)
+            active_objects_.write_buffer = 0U;
         }
       }
     }
@@ -5252,7 +5316,7 @@ class MockVisual::ShadowState {
       GLuint index = GetBufferIndex(target);
       BufferObject& bo = object_state_->buffers[index];
       if (CheckGlOperation(bo.mapped_data == NULL) &&
-          CheckGlValue(offset + length < bo.size)) {
+          CheckGlValue(offset + length <= bo.size)) {
         uint8* int_data = reinterpret_cast<uint8*>(bo.data);
         data = bo.mapped_data = &int_data[offset];
         bo.access = access;
@@ -6715,8 +6779,10 @@ MockVisual::ShadowState::ShadowState(int window_width, int window_height)
   kImplementationColorReadType = GL_RGB;
   kMax3dTextureSize = 4096;
   kMaxArrayTextureLayers = 4096;
+  kMaxColorAttachments = 4;
   kMaxCombinedTextureImageUnits = 32;
   kMaxCubeMapTextureSize = 8192;
+  kMaxDrawBuffers = 4;
   kMaxFragmentUniformComponents = 256;
   kMaxFragmentUniformVectors = 512;
   kMaxRenderbufferSize = 4096;
@@ -6901,10 +6967,14 @@ void MockVisual::ShadowState::Getv(GLenum pname, T* params) {
       ION_SET(kMax3dTextureSize);
     case GL_MAX_ARRAY_TEXTURE_LAYERS:
       ION_SET(kMaxArrayTextureLayers);
+    case GL_MAX_COLOR_ATTACHMENTS:
+      ION_SET(kMaxColorAttachments);
     case GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS:
       ION_SET(kMaxCombinedTextureImageUnits);
     case GL_MAX_CUBE_MAP_TEXTURE_SIZE:
       ION_SET(kMaxCubeMapTextureSize);
+    case GL_MAX_DRAW_BUFFERS:
+      ION_SET(kMaxDrawBuffers);
     case GL_MAX_DEBUG_LOGGED_MESSAGES:
       ION_SET(kMaxDebugLoggedMessages);
     case GL_MAX_DEBUG_MESSAGE_LENGTH:

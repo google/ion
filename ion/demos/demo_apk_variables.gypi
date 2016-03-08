@@ -22,7 +22,7 @@
   'variables': {
     # This is the package under which the generated file below
     # (IonDemo.java.in) will be put.
-    'apk_package_name_param': 'com.google.ion.demo',
+    'apk_package_name_param': 'com.google.ion.<(apk_class_name_param)',
   },
 
   'conditions': [

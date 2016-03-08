@@ -77,7 +77,7 @@ limitations under the License.
   };                                                                       \
                                                                            \
   /* Instance of the wrapper class. */                                     \
-  name ## _Wrapper name ## _wrapper_
+  name ## _Wrapper name ## _wrapper_;
 
 #if ION_PRODUCTION
 #define ION_WRAP_GL_FUNC(group, name, return_type, typed_args, args, trace) \

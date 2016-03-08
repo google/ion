@@ -15,30 +15,26 @@ limitations under the License.
 
 */
 
-#extension GL_EXT_draw_instanced : enable
-
-uniform mat4 uProjectionMatrix;
-uniform mat4 uModelviewMatrix;
-
-// Each gear is rotated around the Y axis and then translated.
-attribute vec3 aInstancePosition;
-attribute float aInstanceRotation;
-uniform uint uGearCount;
-
 attribute vec3 aVertex;
 attribute vec3 aNormal;
+attribute vec3 aInstancePosition;
+attribute float aInstanceRotation;
 
 varying vec3 vPosition;
 varying vec3 vNormal;
 varying vec3 vToLight;
 varying vec3 vDiffuseColor;
 
+uniform mat4 uProjectionMatrix;
+uniform mat4 uModelviewMatrix;
+uniform uint uGearCount;
+
 vec3 HueToRGB(float hue) {
   vec3 h = vec3(hue, hue + 1.0/3.0, hue + 2.0/3.0);
   return clamp(6.0 * abs(h - floor(h) - 0.5) - 1.0, 0.0, 1.0);
 }
 
-void main(void) {
+void main() {
   vec3 light_pos = vec3(100., 100., 100.);
   float cos_rot = cos(aInstanceRotation);
   float sin_rot = sin(aInstanceRotation);
@@ -54,5 +50,6 @@ void main(void) {
       vec4(vertex_worldspace, 1);
   gl_Position = position;
   vPosition = position.xyz;
-  vDiffuseColor = 0.8 * HueToRGB(gl_InstanceID / float(uGearCount)) + 0.2;
+  vec3 rainbow_color = HueToRGB(float(gl_InstanceID) / float(uGearCount));
+  vDiffuseColor = 0.8 * rainbow_color + 0.2;
 }

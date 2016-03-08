@@ -51,7 +51,7 @@ MockGraphicsManager::MockGraphicsManager() : GraphicsManager(this) {
 
 void MockGraphicsManager::InitMockFunctions() {
 #define ION_WRAP_GL_FUNC(group, name, return_type, typed_args, args, trace) \
-  functions_["gl" #name] = reinterpret_cast<void*>(&MockVisual::Wrapped##name)
+  functions_["gl" #name] = reinterpret_cast<void*>(&MockVisual::Wrapped##name);
 
 #include "ion/gfx/glfunctions.inc"
 

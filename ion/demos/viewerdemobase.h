@@ -130,7 +130,9 @@ class ViewerDemoBase : public DemoBase {
   enum UniformIndex {
     kViewportSizeIndex,
     kProjectionMatrixIndex,
-    kModelviewMatrixIndex
+    kModelviewMatrixIndex,
+    kCameraPositionIndex,
+    kNumIndices
   };
 
   const ion::math::Matrix4f GetMatrixFromUniform(UniformIndex which) const;
@@ -151,7 +153,7 @@ class ViewerDemoBase : public DemoBase {
   ion::gfx::NodePtr view_node_;
 
   // Indices of uniforms in view_node_.
-  size_t uniform_indices_[3];
+  size_t uniform_indices_[kNumIndices];
 };
 
 #endif  // ION_DEMOS_VIEWERDEMOBASE_H_

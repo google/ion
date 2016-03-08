@@ -120,7 +120,7 @@ class MockVisual : public portgfx::Visual {
   // the entry points for the MockGraphicsManager.
 
 #define ION_WRAP_GL_FUNC(group, name, return_type, typed_args, args, trace) \
-  static return_type ION_APIENTRY Wrapped##name typed_args
+  static return_type ION_APIENTRY Wrapped##name typed_args;
 
 #include "ion/gfx/glfunctions.inc"
 

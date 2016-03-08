@@ -106,11 +106,11 @@
         }],
       ],
       'cflags_cc': [
-        '-Wno-unused-local-typedef',
+        '-Wno-unused-local-typedefs',
       ],
       'all_dependent_settings': {
         'cflags_cc': [
-          '-Wno-unused-local-typedef',
+          '-Wno-unused-local-typedefs',
         ],
       },
       'dependencies': [
@@ -139,12 +139,12 @@
         'image.h',
         'indexbuffer.cc',
         'indexbuffer.h',
-        'iresource.h',
         'node.cc',
         'node.h',
         'openglobjects.h',
         'renderer.cc',
         'renderer.h',
+        'resourcebase.h',
         'resourceholder.cc',
         'resourceholder.h',
         'resourcemanager.cc',

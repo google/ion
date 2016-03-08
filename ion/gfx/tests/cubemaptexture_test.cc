@@ -43,8 +43,8 @@ class CubeMapTextureTest : public ::testing::Test {
     texture_.Reset(new CubeMapTexture());
     resource_.reset(new MockCubeMapTextureResource);
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());
-    texture_->SetResource(0U, resource_.get());
-    EXPECT_EQ(resource_.get(), texture_->GetResource(0U));
+    texture_->SetResource(0U, 0, resource_.get());
+    EXPECT_EQ(resource_.get(), texture_->GetResource(0U, 0));
     EXPECT_TRUE(resource_->AnyModifiedBitsSet());
     resource_->ResetModifiedBits();
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());

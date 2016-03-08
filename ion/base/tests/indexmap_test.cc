@@ -17,6 +17,10 @@ limitations under the License.
 
 #include "ion/base/indexmap.h"
 
+#include "ion/base/invalid.h"
+#include "ion/base/logchecker.h"
+#include "ion/base/logging.h"
+#include "ion/port/nullptr.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
 // The ordered index type.
@@ -42,4 +46,18 @@ TEST(IndexMap, Basic) {
   EXPECT_EQ(kOne, m.GetOrderedIndex(kDog));
   EXPECT_EQ(kTwo, m.GetOrderedIndex(kPig));
   EXPECT_EQ(kThree, m.GetOrderedIndex(kWolf));
+}
+
+TEST(IndexMap, Invalid) {
+  static const UnorderedIndex u[] = { kCat, kDog, kPig, kWolf };
+  ion::base::IndexMap<OrderedIndex, UnorderedIndex> m(u, 4);
+
+  ion::base::LogChecker logchecker;
+  ion::base::SetBreakHandler(kNullFunction);
+  EXPECT_EQ(-1,
+            m.GetOrderedIndex(ion::base::InvalidEnumValue<UnorderedIndex>()));
+  ion::base::RestoreDefaultBreakHandler();
+#if ION_DEBUG
+  EXPECT_TRUE(logchecker.HasMessage("DFATAL", "Invalid unordered index"));
+#endif
 }

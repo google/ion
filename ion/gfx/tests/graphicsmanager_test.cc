@@ -206,12 +206,20 @@ TEST_F(GraphicsManagerTest, Capabilities) {
                         GraphicsManager::kImplementationColorReadType));
   VERIFY_TRUE(verifier.VerifyOneCall("GetIntegerv"));
   verifier.Reset();
+  EXPECT_EQ(4, mgr_->GetCapabilityValue<int>(
+                   GraphicsManager::kMaxColorAttachments));
+  VERIFY_TRUE(verifier.VerifyOneCall("GetIntegerv"));
+  verifier.Reset();
   EXPECT_EQ(32, mgr_->GetCapabilityValue<int>(
                     GraphicsManager::kMaxCombinedTextureImageUnits));
   VERIFY_TRUE(verifier.VerifyOneCall("GetIntegerv"));
   verifier.Reset();
   EXPECT_EQ(8192, mgr_->GetCapabilityValue<int>(
                       GraphicsManager::kMaxCubeMapTextureSize));
+  VERIFY_TRUE(verifier.VerifyOneCall("GetIntegerv"));
+  verifier.Reset();
+  EXPECT_EQ(4, mgr_->GetCapabilityValue<int>(
+                   GraphicsManager::kMaxDrawBuffers));
   VERIFY_TRUE(verifier.VerifyOneCall("GetIntegerv"));
   verifier.Reset();
   EXPECT_EQ(256, mgr_->GetCapabilityValue<int>(

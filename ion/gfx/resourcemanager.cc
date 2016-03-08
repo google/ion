@@ -616,6 +616,9 @@ static void FillPlatformInfo(const GraphicsManagerPtr& gm,
     gm->GetFloatv(GL_ALIASED_POINT_SIZE_RANGE, info->aliased_point_size_range);
 
   // Maximum capabilities.
+  info->max_color_attachments = -1;
+  gm->GetIntegerv(GL_MAX_COLOR_ATTACHMENTS,
+                  &info->max_color_attachments);
   info->max_combined_texture_image_units = -1;
   gm->GetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
                   &info->max_combined_texture_image_units);
@@ -625,6 +628,9 @@ static void FillPlatformInfo(const GraphicsManagerPtr& gm,
   info->max_cube_map_texture_size = -1;
   gm->GetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE,
                   &info->max_cube_map_texture_size);
+  info->max_draw_buffers = -1;
+  gm->GetIntegerv(GL_MAX_DRAW_BUFFERS,
+                  &info->max_draw_buffers);
   info->max_fragment_uniform_vectors = -1;
   gm->GetIntegerv(GL_MAX_FRAGMENT_UNIFORM_VECTORS,
                   &info->max_fragment_uniform_vectors);

@@ -61,19 +61,23 @@ class MockResourceTest : public ::testing::Test {
  protected:
   void SetUp() override {
     holder_.Reset(new MyHolder);
-    resource_.reset(new MyMockResource);
+    resource_.reset(new MyMockResource(0));
+    resource2_.reset(new MyMockResource(2));
+    resource3_.reset(new MyMockResource(3));
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());
-    holder_->SetResource(0U, resource_.get());
-    EXPECT_EQ(resource_.get(), holder_->GetResource(0U));
+    holder_->SetResource(0U, 0U, resource_.get());
+    EXPECT_EQ(resource_.get(), holder_->GetResource(0U, 0U));
     resource_->ResetModifiedBits();
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());
   }
 
   // This is to ensure that the resource holder goes away before the resource.
-  void TearDown() override { holder_.Reset(NULL); }
+  void TearDown() override { holder_.Reset(nullptr); }
 
   MyHolderPtr holder_;
   std::unique_ptr<MyMockResource> resource_;
+  std::unique_ptr<MyMockResource> resource2_;
+  std::unique_ptr<MyMockResource> resource3_;
 };
 
 }  // anonymous namespace
@@ -133,79 +137,110 @@ TEST_F(MockResourceTest, MockResource) {
 
 TEST_F(MockResourceTest, SetResource) {
   // SetUp() sets the initial resource.
-  EXPECT_EQ(resource_.get(), holder_->GetResource(0U));
+  EXPECT_EQ(resource_.get(), holder_->GetResource(0U, 0));
   EXPECT_EQ(1, holder_->GetResourceCount());
 
-  // Setting the resource to a non-NULL value shouldn't increase the count.
-  holder_->SetResource(0U, resource_.get());
-  EXPECT_EQ(resource_.get(), holder_->GetResource(0U));
+  // Setting the resource to a non-nullptr value shouldn't increase the count.
+  holder_->SetResource(0U, 0, resource_.get());
+  EXPECT_EQ(resource_.get(), holder_->GetResource(0U, 0));
   EXPECT_EQ(1, holder_->GetResourceCount());
 
-  // Setting the resource to NULL should decrease it.
-  holder_->SetResource(0U, resource_.get());
-  EXPECT_EQ(resource_.get(), holder_->GetResource(0U));
+  // Setting the resource to nullptr should decrease it.
+  holder_->SetResource(0U, 0, resource_.get());
+  EXPECT_EQ(resource_.get(), holder_->GetResource(0U, 0));
   EXPECT_EQ(1, holder_->GetResourceCount());
 
-  // Repeatedly setting NULL should not affect the count.
-  holder_->SetResource(0U, NULL);
-  EXPECT_TRUE(holder_->GetResource(0U) == NULL);
+  // Repeatedly setting nullptr should not affect the count.
+  holder_->SetResource(0U, 0, nullptr);
+  EXPECT_TRUE(holder_->GetResource(0U, 0) == nullptr);
   EXPECT_EQ(0, holder_->GetResourceCount());
-  holder_->SetResource(0U, NULL);
-  EXPECT_TRUE(holder_->GetResource(0U) == NULL);
+  holder_->SetResource(0U, 0, nullptr);
+  EXPECT_TRUE(holder_->GetResource(0U, 0) == nullptr);
   EXPECT_EQ(0, holder_->GetResourceCount());
 
-  // Setting the resource to non-NULL should increase the count.
-  holder_->SetResource(0U, resource_.get());
-  EXPECT_EQ(resource_.get(), holder_->GetResource(0U));
+  // Setting the resource to non-nullptr should increase the count.
+  holder_->SetResource(0U, 0, resource_.get());
+  EXPECT_EQ(resource_.get(), holder_->GetResource(0U, 0));
   EXPECT_EQ(1, holder_->GetResourceCount());
 
   // Same.
-  holder_->SetResource(1U, resource_.get());
-  EXPECT_EQ(resource_.get(), holder_->GetResource(1U));
+  holder_->SetResource(1U, 0, resource_.get());
+  EXPECT_EQ(resource_.get(), holder_->GetResource(1U, 0));
   EXPECT_EQ(2, holder_->GetResourceCount());
 
-  // Setting a new index to NULL shouldn't increase or decrease the count.
-  holder_->SetResource(2U, NULL);
-  EXPECT_TRUE(holder_->GetResource(2U) == NULL);
+  // Setting a new index to nullptr shouldn't increase or decrease the count.
+  holder_->SetResource(2U, 0, nullptr);
+  EXPECT_TRUE(holder_->GetResource(2U, 0) == nullptr);
   EXPECT_EQ(2, holder_->GetResourceCount());
 
   // Should decrease the count.
-  holder_->SetResource(1U, NULL);
-  EXPECT_TRUE(holder_->GetResource(1U) == NULL);
+  holder_->SetResource(1U, 0, nullptr);
+  EXPECT_TRUE(holder_->GetResource(1U, 0) == nullptr);
   EXPECT_EQ(1, holder_->GetResourceCount());
 
   // Should increase it again.
-  holder_->SetResource(2U, resource_.get());
-  EXPECT_EQ(resource_.get(), holder_->GetResource(2U));
+  holder_->SetResource(2U, 0, resource_.get());
+  EXPECT_EQ(resource_.get(), holder_->GetResource(2U, 0));
   EXPECT_EQ(2, holder_->GetResourceCount());
 
   // Should decrease the count.
-  holder_->SetResource(2U, NULL);
-  EXPECT_TRUE(holder_->GetResource(2U) == NULL);
+  holder_->SetResource(2U, 0, nullptr);
+  EXPECT_TRUE(holder_->GetResource(2U, 0) == nullptr);
   EXPECT_EQ(1, holder_->GetResourceCount());
 
   // Remove the last one.
-  holder_->SetResource(0U, NULL);
-  EXPECT_TRUE(holder_->GetResource(0U) == NULL);
-  EXPECT_TRUE(holder_->GetResource(1U) == NULL);
-  EXPECT_TRUE(holder_->GetResource(2U) == NULL);
+  holder_->SetResource(0U, 0, nullptr);
+  EXPECT_TRUE(holder_->GetResource(0U, 0) == nullptr);
+  EXPECT_TRUE(holder_->GetResource(1U, 0) == nullptr);
+  EXPECT_TRUE(holder_->GetResource(2U, 0) == nullptr);
   EXPECT_EQ(0, holder_->GetResourceCount());
+}
 
-  // Just to be sure, add at non-zero indices and then remove.
-  holder_->SetResource(1U, resource_.get());
-  EXPECT_EQ(resource_.get(), holder_->GetResource(1U));
+TEST_F(MockResourceTest, SetResourceNonzeroStart) {
+  holder_.Reset(new MyHolder);
+
+  // Start adding resources at non-zero indices and then remove.
+  holder_->SetResource(2U, 0, resource_.get());
+  EXPECT_EQ(resource_.get(), holder_->GetResource(2U, 0));
   EXPECT_EQ(1, holder_->GetResourceCount());
 
-  holder_->SetResource(2U, resource_.get());
-  EXPECT_EQ(resource_.get(), holder_->GetResource(2U));
+  holder_->SetResource(1U, 0, resource_.get());
+  EXPECT_EQ(resource_.get(), holder_->GetResource(1U, 0));
   EXPECT_EQ(2, holder_->GetResourceCount());
 
-  holder_->SetResource(1U, NULL);
-  EXPECT_TRUE(holder_->GetResource(1U) == NULL);
+  holder_->SetResource(1U, 0, nullptr);
+  EXPECT_TRUE(holder_->GetResource(1U, 0) == nullptr);
   EXPECT_EQ(1, holder_->GetResourceCount());
 
-  holder_->SetResource(2U, NULL);
-  EXPECT_TRUE(holder_->GetResource(2U) == NULL);
+  holder_->SetResource(2U, 0, nullptr);
+  EXPECT_TRUE(holder_->GetResource(2U, 0) == nullptr);
+  EXPECT_EQ(0, holder_->GetResourceCount());
+
+  // Test setting multiple keys on the same index.
+  holder_->SetResource(3U, 0, resource_.get());
+  holder_->SetResource(3U, 2, resource2_.get());
+  holder_->SetResource(3U, 3, resource3_.get());
+  EXPECT_EQ(resource_.get(), holder_->GetResource(3U, 0));
+  EXPECT_EQ(resource2_.get(), holder_->GetResource(3U, 2));
+  EXPECT_EQ(resource3_.get(), holder_->GetResource(3U, 3));
+  EXPECT_EQ(3, holder_->GetResourceCount());
+
+  holder_->SetResource(3U, 2, nullptr);
+  EXPECT_EQ(resource_.get(), holder_->GetResource(3U, 0));
+  EXPECT_TRUE(holder_->GetResource(3U, 2) == nullptr);
+  EXPECT_EQ(resource3_.get(), holder_->GetResource(3U, 3));
+  EXPECT_EQ(2, holder_->GetResourceCount());
+
+  holder_->SetResource(3U, 0, nullptr);
+  EXPECT_TRUE(holder_->GetResource(3U, 0) == nullptr);
+  EXPECT_TRUE(holder_->GetResource(3U, 2) == nullptr);
+  EXPECT_EQ(resource3_.get(), holder_->GetResource(3U, 3));
+  EXPECT_EQ(1, holder_->GetResourceCount());
+
+  holder_->SetResource(3U, 3, nullptr);
+  EXPECT_TRUE(holder_->GetResource(3U, 0) == nullptr);
+  EXPECT_TRUE(holder_->GetResource(3U, 2) == nullptr);
+  EXPECT_TRUE(holder_->GetResource(3U, 3) == nullptr);
   EXPECT_EQ(0, holder_->GetResourceCount());
 }
 

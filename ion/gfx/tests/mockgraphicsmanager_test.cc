@@ -721,6 +721,8 @@ TEST(MockGraphicsManagerTest, InitialState) {
   EXPECT_EQ(32, GetInt(gm, GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS));
   EXPECT_EQ(8192, GetInt(gm, GL_MAX_CUBE_MAP_TEXTURE_SIZE));
   EXPECT_EQ(8192, GetInt(gm, GL_MAX_TEXTURE_SIZE));
+  EXPECT_EQ(4, GetInt(gm, GL_MAX_COLOR_ATTACHMENTS));
+  EXPECT_EQ(4, GetInt(gm, GL_MAX_DRAW_BUFFERS));
   // Test type conversion from int to float.
   EXPECT_EQ(32.f, GetFloat(gm, GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS));
   EXPECT_EQ(16.f, GetFloat(gm, GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT));
@@ -2986,6 +2988,37 @@ TEST(MockGraphicsManagerTest, ArraysBuffersDrawFunctions) {
   GM_ERROR_CALL(BufferSubData(GL_ARRAY_BUFFER, 1020, 10, NULL),
                 GL_INVALID_VALUE);
   GM_CALL(BufferSubData(GL_ARRAY_BUFFER, 128, 10, NULL));
+
+  // void CopyBufferSubData(enum readtarget, enum writetarget,
+  //                        intptr readoffset, intptr writeoffset,
+  //                        sizeiptr size);
+  GM_ERROR_CALL(CopyBufferSubData(
+      GL_TEXTURE_2D, GL_ARRAY_BUFFER, 16, 10, 4), GL_INVALID_ENUM);
+  GM_ERROR_CALL(CopyBufferSubData(
+      GL_ARRAY_BUFFER, GL_TEXTURE_2D, 16, 10, 4), GL_INVALID_ENUM);
+  // "any of readoffset, writeoffset, or size are negative."
+  GM_ERROR_CALL(CopyBufferSubData(
+      GL_ARRAY_BUFFER, GL_ARRAY_BUFFER, -16, 10, 4), GL_INVALID_VALUE);
+  GM_ERROR_CALL(CopyBufferSubData(
+      GL_ARRAY_BUFFER, GL_ARRAY_BUFFER, 16, -10, 4), GL_INVALID_VALUE);
+  GM_ERROR_CALL(CopyBufferSubData(
+      GL_ARRAY_BUFFER, GL_ARRAY_BUFFER, 16, 10, -4), GL_INVALID_VALUE);
+  // "readoffset + size exceeds the size of the buffer object"
+  GM_ERROR_CALL(CopyBufferSubData(
+      GL_ARRAY_BUFFER, GL_ARRAY_BUFFER, 1000, 10, 25), GL_INVALID_VALUE);
+  // "writeoffset + size exceeds the size of the buffer object"
+  GM_ERROR_CALL(CopyBufferSubData(
+      GL_ARRAY_BUFFER, GL_ARRAY_BUFFER, 0, 1000, 25), GL_INVALID_VALUE);
+  // "ranges [readoffset, readoffset +size) and
+  // [writeoffset, writeoffset + size) overlap"
+  GM_ERROR_CALL(CopyBufferSubData(
+      GL_ARRAY_BUFFER, GL_ARRAY_BUFFER, 0, 10, 25), GL_INVALID_VALUE);
+  // "the buffer objects bound to either readtarget or writetarget are mapped".
+  GM_CALL(MapBuffer(GL_ARRAY_BUFFER, GL_READ_WRITE));
+  GM_ERROR_CALL(CopyBufferSubData(
+      GL_ARRAY_BUFFER, GL_ARRAY_BUFFER, 0, 10, 4), GL_INVALID_OPERATION);
+  GM_CALL(UnmapBuffer(GL_ARRAY_BUFFER));
+  GM_CALL(CopyBufferSubData(GL_ARRAY_BUFFER, GL_ARRAY_BUFFER, 0, 25, 25));
 
   // Check that a vertex array tracks the buffer binding.
   EXPECT_EQ(0, GetAttribInt(gm, 5, GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING));

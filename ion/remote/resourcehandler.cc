@@ -472,10 +472,14 @@ const std::string ConvertInfoToJson(const Indent& indent,
   str << indent << "\"aliased_point_size_range\": \""
       << info.aliased_point_size_range[0] << " - "
       << info.aliased_point_size_range[1] << "\",\n";
+  str << indent << "\"max_color_attachments\": "
+      << info.max_color_attachments << ",\n";
   str << indent << "\"max_combined_texture_image_units\": "
       << info.max_combined_texture_image_units << ",\n";
   str << indent << "\"max_cube_map_texture_size\": "
       << info.max_cube_map_texture_size << ",\n";
+  str << indent << "\"max_draw_buffers\": "
+      << info.max_draw_buffers << ",\n";
   str << indent << "\"max_fragment_uniform_vectors\": "
       << info.max_fragment_uniform_vectors << ",\n";
   str << indent << "\"max_renderbuffer_size\": " << info.max_renderbuffer_size

@@ -278,6 +278,11 @@
         'ogles20': '1',
       },
       'target_defaults' : {
+        'link_settings': {
+          'libraries': [
+            '-lgnustl_static',
+          ],
+        },
         'default_configuration': 'dbg',
         'configurations': {
           'dbg': {

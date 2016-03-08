@@ -1,0 +1,64 @@
+digraph {
+  fontcolor = "black"
+  fontname = "Helvetica-Bold";
+  rankdir = LR
+  nodesep = .8
+  ranksep = .02
+  fixedsize = true
+  subgraph cluster_all_libs {
+    penwidth = 2
+    rankdir = BT
+    fontsize = 14;
+    fillcolor = "#bbccff"
+    label = "Ion Library Suite"
+    style = "filled"
+    node [
+          fontname = "Helvetica-Bold"
+          fontsize = 12
+          fillcolor = "#dddddd"
+          style = "filled"
+          shape = box
+    ];
+    edge [style = "invis"]
+    subgraph cluster_optional_libs {
+      penwidth = 2
+      rankdir = BT
+      fontsize = 13;
+      fillcolor = "#ffdddd"
+      label = "Optional Libraries"
+      labeljust = l
+      style = "filled"
+      node [] gfxutils;
+      node [] image;
+      node [] text;
+      node [] profile;
+      node [] analytics;
+      node [] remote;
+      // Enforce ordering.
+      gfxutils -> image;
+      image -> text;
+      text -> profile;
+      profile -> analytics;
+      analytics -> remote;
+    }
+    subgraph cluster_core_libs {
+      rankdir = BT
+      fontsize = 13;
+      fillcolor = "#ffffdd"
+      label = "Core Libraries"
+      labeljust = l
+      style = "filled"
+      penwidth = 2
+      node [] port;
+      node [] base;
+      node [] portgfx;
+      node [] math;
+      node [] gfx;
+      // Enforce ordering.
+      port -> base;
+      base -> portgfx;
+      portgfx -> math;
+      math -> gfx;
+    }
+  }
+}

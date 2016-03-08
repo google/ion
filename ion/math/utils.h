@@ -29,6 +29,14 @@ limitations under the License.
 namespace ion {
 namespace math {
 
+// Tests whether a numeric value is finite.
+template <typename T>
+inline bool IsFinite(T x) {
+  return (x == x &&
+          x != std::numeric_limits<T>::infinity() &&
+          x != -std::numeric_limits<T>::infinity());
+}
+
 // Returns the absolute value of a number in a type-safe way.
 template <typename T>
 inline const T Abs(const T& val) {

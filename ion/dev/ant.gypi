@@ -17,7 +17,7 @@
   # Note that ../common.gypi should already be in the included context to have
   # paths set correctly.
   'variables': {
-    'ant': '<!(P=${PWD}; echo $P/third_party/apache_ant/v1_9_2/bin/ant',
+    'ant': '/path/to/ant.bin',
 
     # TODO(user): This is terrible, but I can't figure out how to "spell"
     # this in Gyp.  This mess is essentially 'arch_tag_arm' = <(android_abi)

@@ -439,10 +439,10 @@ static void UpdateParticles(ion::base::SettingBase* setting) {
 //
 //-----------------------------------------------------------------------------
 
-class Particles : public ViewerDemoBase {
+class IonParticlesDemo : public ViewerDemoBase {
  public:
-  Particles(int width, int height);
-  ~Particles() override;
+  IonParticlesDemo(int width, int height);
+  ~IonParticlesDemo() override;
   void Resize(int width, int height) override;
   void Update() override;
   void RenderFrame() override;
@@ -459,7 +459,7 @@ class Particles : public ViewerDemoBase {
   ion::base::Setting<float> exposure_;
 };
 
-Particles::Particles(int width, int height)
+IonParticlesDemo::IonParticlesDemo(int width, int height)
     : ViewerDemoBase(width, height),
       point_size_("particles/point size", 32.f, "Particle size"),
       time_factor_("particles/time factor", .00075f, "Simulation time scale"),
@@ -513,7 +513,7 @@ Particles::Particles(int width, int height)
   InitRemoteHandlers(tracked_nodes);
 }
 
-Particles::~Particles() {
+IonParticlesDemo::~IonParticlesDemo() {
   s_fbo.Reset(NULL);
   s_plane.Reset(NULL);
   s_plane_texture.Reset(NULL);
@@ -523,7 +523,7 @@ Particles::~Particles() {
   s_particles_buffer_object.Reset(NULL);
 }
 
-void Particles::Resize(int width, int height) {
+void IonParticlesDemo::Resize(int width, int height) {
   ViewerDemoBase::Resize(width, height);
 
   root_->GetStateTable()->SetViewport(
@@ -533,7 +533,7 @@ void Particles::Resize(int width, int height) {
                              Vector2i(kHudWidth, kHudHeight)));
 }
 
-void Particles::Update() {
+void IonParticlesDemo::Update() {
   static float s_last_time = 0;
   static float s_time = 0.f;
   const float current_time = static_cast<float>(s_timer->GetInMs());
@@ -567,7 +567,7 @@ void Particles::Update() {
   demoutils::SetUniformInNode(3, point_size_, s_flying_particles);
 }
 
-void Particles::RenderFrame() {
+void IonParticlesDemo::RenderFrame() {
   const ion::gfx::RendererPtr& renderer = GetRenderer();
   // Draw to fbo.
   renderer->BindFramebuffer(s_fbo);
@@ -579,5 +579,5 @@ void Particles::RenderFrame() {
 }
 
 DemoBase* CreateDemo(int w, int h) {
-  return new Particles(w, h);
+  return new IonParticlesDemo(w, h);
 }

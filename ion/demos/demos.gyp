@@ -179,7 +179,7 @@
       'target_name': 'particles',
       'includes': [ 'demobase.gypi', ],
       'variables': {
-        'demo_class_name': 'Particles'
+        'demo_class_name': 'IonParticlesDemo'
       },
       'sources': [
         'particles.cc',
@@ -192,7 +192,7 @@
     {
       'variables': {
         'make_this_target_into_an_app_param': 'particles',
-        'apk_class_name_param': 'Particles',
+        'apk_class_name_param': 'IonParticlesDemo',
       },
       'includes': [
         'demo_apk_variables.gypi',
@@ -203,7 +203,7 @@
       'target_name': 'gearsdemo',
       'includes': [ 'demobase.gypi', ],
       'variables': {
-        'demo_class_name': 'GearsDemo'
+        'demo_class_name': 'IonGearsDemo'
       },
       'sources': [
         'gearsdemo.cc',
@@ -215,7 +215,7 @@
     {
       'variables': {
         'make_this_target_into_an_app_param': 'gearsdemo',
-        'apk_class_name_param': 'GearsDemo',
+        'apk_class_name_param': 'IonGearsDemo',
       },
       'includes': [
         'demo_apk_variables.gypi',
@@ -226,7 +226,7 @@
       'target_name': 'shapedemo',
       'includes': [ 'demobase.gypi', ],
       'variables': {
-        'demo_class_name': 'ShapeDemo'
+        'demo_class_name': 'IonShapeDemo'
       },
       'sources': [
         'shapedemo.cc',
@@ -238,7 +238,7 @@
     {
       'variables': {
         'make_this_target_into_an_app_param': 'shapedemo',
-        'apk_class_name_param': 'ShapeDemo',
+        'apk_class_name_param': 'IonShapeDemo',
       },
       'includes': [
         'demo_apk_variables.gypi',
@@ -250,7 +250,7 @@
       'target_name': 'skindemo',
       'includes': [ 'demobase.gypi', ],
       'variables': {
-        'demo_class_name': 'SkinDemo'
+        'demo_class_name': 'IonSkinDemo'
       },
       'sources': [
         'hud.cc',
@@ -266,7 +266,7 @@
     {
       'variables': {
         'make_this_target_into_an_app_param': 'skindemo',
-        'apk_class_name_param': 'SkinDemo',
+        'apk_class_name_param': 'IonSkinDemo',
       },
       'includes': [
         'demo_apk_variables.gypi',
@@ -277,7 +277,7 @@
       'target_name': 'textdemo',
       'includes': [ 'demobase.gypi', ],
       'variables': {
-        'demo_class_name': 'TextDemo'
+        'demo_class_name': 'IonTextDemo'
       },
       'sources': [
         'textdemo.cc',
@@ -291,7 +291,7 @@
     {
       'variables': {
         'make_this_target_into_an_app_param': 'textdemo',
-        'apk_class_name_param': 'TextDemo',
+        'apk_class_name_param': 'IonTextDemo',
       },
       'includes': [
         'demo_apk_variables.gypi',
@@ -302,7 +302,7 @@
       'target_name': 'threadingdemo',
       'includes': [ 'demobase.gypi', ],
       'variables': {
-        'demo_class_name': 'ThreadingDemo'
+        'demo_class_name': 'IonThreadingDemo'
       },
       'sources': [
         'threadingdemo.cc',
@@ -314,7 +314,7 @@
     {
       'variables': {
         'make_this_target_into_an_app_param': 'threadingdemo',
-        'apk_class_name_param': 'ThreadingDemo',
+        'apk_class_name_param': 'IonThreadingDemo',
       },
       'includes': [
         'demo_apk_variables.gypi',
@@ -325,7 +325,7 @@
       'target_name': 'volatilescene',
       'includes': [ 'demobase.gypi', ],
       'variables': {
-        'demo_class_name': 'VolatileScene'
+        'demo_class_name': 'IonVolatileScene'
       },
       'sources': [
         'volatilescene.cc',
@@ -334,7 +334,7 @@
     {
       'variables': {
         'make_this_target_into_an_app_param': 'volatilescene',
-        'apk_class_name_param': 'VolatileScene',
+        'apk_class_name_param': 'IonVolatileScene',
       },
       'includes': [
         'demo_apk_variables.gypi',

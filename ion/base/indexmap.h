@@ -70,7 +70,9 @@ class IndexMap {
         break;
       }
     }
-    DCHECK_GE(ordered_index, 0);
+    DCHECK_GE(ordered_index, 0) << "IndexMap: Invalid unordered index "
+                                << unordered_index << " does not match any "
+                                << "ordered index.";
     return static_cast<OrderedIndexType>(ordered_index);
   }
 

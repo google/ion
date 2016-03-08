@@ -345,15 +345,16 @@ TEST(VectorUtils, Swizzle) {
   EXPECT_TRUE(Swizzle(v4_in, "xyz", &v2));
 }
 
-TEST(VectorUtils, IsFinite) {
-  EXPECT_TRUE(IsFinite(Point3d(1.0, 2.0, 3.0)));
-  EXPECT_TRUE(IsFinite(Vector4d(1.0, 2.0, 3.0, 4.0)));
-  EXPECT_FALSE(IsFinite(Point3d(1.0, std::numeric_limits<double>::infinity(),
-                                3.0)));
-  EXPECT_FALSE(IsFinite(Vector4d(1.0, 2.0,
+TEST(VectorUtils, IsVectorFinite) {
+  EXPECT_TRUE(IsVectorFinite(Point3d(1.0, 2.0, 3.0)));
+  EXPECT_TRUE(IsVectorFinite(Vector4d(1.0, 2.0, 3.0, 4.0)));
+  EXPECT_FALSE(
+      IsVectorFinite(Point3d(1.0, std::numeric_limits<double>::infinity(),
+                             3.0)));
+  EXPECT_FALSE(IsVectorFinite(Vector4d(1.0, 2.0,
                                  -std::numeric_limits<double>::infinity(),
                                  4.0)));
-  EXPECT_FALSE(IsFinite(Vector2d(sqrt(-1.0f), 1.0)));
+  EXPECT_FALSE(IsVectorFinite(Vector2d(sqrt(-1.0f), 1.0)));
 }
 
 }  // namespace math

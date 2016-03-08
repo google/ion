@@ -342,7 +342,8 @@
         ],
         'cflags_cc': [
           '-Wall',
-          '-Werror',  # Treat warnings as errors.
+          '-Werror',  # Treat warnings as errors...
+          '-Wno-error=unknown-warning-option', # Except the ones we don't know about.
           '-Wno-deprecated',
           '-Wno-unknown-pragmas',
           '-fno-exceptions',

@@ -294,11 +294,9 @@ bool Swizzle(const VectorBase<InDimension, T>& input,
 
 // Returns true if all components of VectorBase v are finite, otherwise false.
 template <int Dimension, typename T>
-bool IsFinite(const VectorBase<Dimension, T> v) {
+bool IsVectorFinite(const VectorBase<Dimension, T>& v) {
   for (int i = 0; i < Dimension; ++i) {
-    if (v[i] != v[i] ||
-        v[i] == std::numeric_limits<T>::infinity() ||
-        v[i] == -std::numeric_limits<T>::infinity())
+    if (!IsFinite(v[i]))
       return false;
   }
   return true;

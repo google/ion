@@ -28,8 +28,8 @@ limitations under the License.
 #include "ion/gfxutils/shapeutils.h"
 #include "ion/math/transformutils.h"
 #include "ion/port/barrier.h"
-#include "ion/port/timer.h"
 #include "ion/port/threadutils.h"
+#include "ion/port/timer.h"
 #include "ion/portgfx/visual.h"
 
 ION_REGISTER_ASSETS(IonThreadingResources);
@@ -201,10 +201,10 @@ static ion::gfx::NodePtr BuildTemple() {
 //
 //-----------------------------------------------------------------------------
 
-class ThreadingDemo : public ViewerDemoBase {
+class IonThreadingDemo : public ViewerDemoBase {
  public:
-  ThreadingDemo(int width, int height);
-  ~ThreadingDemo() override {}
+  IonThreadingDemo(int width, int height);
+  ~IonThreadingDemo() override {}
   void Update() override;
   void RenderFrame() override;
   void Keyboard(int key, int x, int y, bool is_press) override {}
@@ -227,7 +227,7 @@ class ThreadingDemo : public ViewerDemoBase {
   std::list<std::unique_ptr<ion::portgfx::Visual>> visuals_;
 };
 
-ThreadingDemo::ThreadingDemo(int width, int height)
+IonThreadingDemo::IonThreadingDemo(int width, int height)
     : ViewerDemoBase(width, height),
       gm_(new ion::gfx::GraphicsManager),
       draw_root_(new ion::gfx::Node),
@@ -362,7 +362,7 @@ ThreadingDemo::ThreadingDemo(int width, int height)
   start_barrier_.Wait();
 }
 
-void ThreadingDemo::Update() {
+void IonThreadingDemo::Update() {
   static ion::port::Timer timer;
   const double delta = timer.GetInS();
 
@@ -372,7 +372,7 @@ void ThreadingDemo::Update() {
   sphere_position_ = Vector3f(x, y, z);
 }
 
-void ThreadingDemo::RenderFrame() {
+void IonThreadingDemo::RenderFrame() {
   // Tell the auxiliary threads to start rendering.
   start_barrier_.Wait();
 
@@ -391,5 +391,5 @@ void ThreadingDemo::RenderFrame() {
 }
 
 DemoBase* CreateDemo(int w, int h) {
-  return new ThreadingDemo(w, h);
+  return new IonThreadingDemo(w, h);
 }

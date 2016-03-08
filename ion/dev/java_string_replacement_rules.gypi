@@ -27,6 +27,10 @@
 #  ],
 
 {
+  'variables': {
+    'apk_package_name_jni' : '<!(<(python) -c "print \'<(apk_package_name_param)\'.replace(\'_\', \'_1\').replace(\'.\', \'_\')")',
+  },
+
   'inputs': [
   ],
 
@@ -42,6 +46,9 @@
 
     '--from=__package_name__',
     '--to=<(apk_package_name_param)',
+
+    '--from=__jni_name__',
+    '--to=<(apk_package_name_jni)',
 
     '--from=__sdk_dir__',
     # The path to the sdk dir, as written in the build.xml file, should be absolute.

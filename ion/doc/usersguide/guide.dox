@@ -1,0 +1,1054 @@
+namespace ion {  // Avoids putting "ion::" in front of all types.
+
+// -----------------------------------------------------------------------------
+//
+// Main file for the Ion Users Guide.
+//
+// -----------------------------------------------------------------------------
+
+/*! \page UsersGuide Ion Users Guide
+
+\section UG_TOC Table of Contents
+<ul>
+  <li>\ref UG_Intro</li>
+  <ul>
+    <li>\ref UG_WhatIsIon
+    <li>\ref UG_AboutThisGuide
+  </ul>
+  <li>\ref UG_Libraries</li>
+  <ul>
+    <li>\ref UG_CoreLibraries
+    <li>\ref UG_OptionalLibraries
+  </ul>
+  <li>\ref UG_Building
+  <li>\ref UG_MainClasses</li>
+  <ul>
+    <li>\ref UG_SceneConstruction
+    <li>\ref UG_SceneRendering
+    <li>\ref UG_SmartPointers
+  </ul>
+  <li>\ref UG_Rectangle_Example</li>
+  <li>\ref UG_Shaders_Example</li>
+  <li>\ref UG_Texture_Example</li>
+  <li>\ref UG_Shape_Example</li>
+  <li>\ref UG_Hierarchy_Example</li>
+  <li>\ref UG_Multipass_Example</li>
+  <li>\ref UG_Mapped_Example</li>
+  <li>\ref UG_Sharing_Example</li>
+  <li>\ref UG_Text_Example</li>
+  <li>\ref UG_DevelopmentTools</li>
+</ul>
+
+<hr> <!------------------------------------------------------------------------>
+\section UG_Intro Introduction
+
+\subsection UG_WhatIsIon What Is Ion?
+
+Ion is a set of C++ libraries that make it easier to develop cross-platform
+applications, especially those that use 3D graphics. Ion exposes most of the
+power and flexibility of <a href="http://www.opengl.org/">OpenGL</a> while
+presenting a friendlier programming model.  Ion also includes several run-time
+tools that make developing applications easier and faster.
+
+\subsection UG_AboutThisGuide About This Guide
+
+This users guide is intended to help you get started using Ion in your
+projects.  It assumes that you are reasonably familiar with C++, OpenGL
+(especially the <a href="http://www.khronos.org/opengles">OpenGL ES</a>
+variants), and 3D graphics in general. It also assumes that you are comfortable
+with the basics of creating applications for your platform(s), as Ion is
+focused heavily on the graphics components.
+
+The guide begins with a brief description of the various Ion libraries and the
+main classes in it. Following that are programming examples illustrating how
+the classes are used and how everything fits together in applications.
+
+Note that all classes and functions mentioned in this guide are assumed to be
+in the "ion" namespace. For example, the gfx::Shader class is fully
+namespace-qualified as ion::gfx::Shader.
+
+<hr> <!------------------------------------------------------------------------>
+\section UG_Libraries Ion Libraries
+
+Ion is organized into a set of core libraries that provide the main
+functionality and some additional higher-level libraries that provide optional
+conveniences and development aids. Ion also uses several third-party libraries,
+which are not discussed further here.
+
+Each Ion library has its own source subdirectory (under the main "ion"
+directory) and its own namespace. For example, the \em math library is found in
+the \c "ion/math" subdirectory and its classes and functions are in the
+ion::math namespace.
+
+\dotfile ./libraries.dot
+
+\subsection UG_CoreLibraries Core Ion Libraries
+
+The core libraries are as follows:
+
+\li \b port is the lowest-level Ion library. It contains only types and
+functions that implement platform-dependent operations through a
+platform-independent API.
+
+\li \b base contains some basic types and functions that enrich the programming
+environment and reduce complexity and redundancy in the rest of the code
+base. Included in this library are memory management helpers, data containers,
+string utility functions, error message logging, threading utilities, and lots
+more.
+
+\li \b portgfx is similar to the \c port library in that it hides
+platform-dependent details behind a platform-independent API, but it is
+specifically for graphics functions. That is, it hides OpenGL implementation
+details that vary between platforms.
+
+\li \b math contains classes and functions that implement algebraic and
+geometric operations. Examples include vectors and matrices of different
+dimensions, along with angles, ranges, and rotations. These classes and
+functions form the basis for many of the geometric entities in a graphics
+application.
+
+\li \b gfx is the principal Ion library. It provides classes that are used to
+represent graphical scenes and the operations used to render and interact with
+them in your application. This library is the primary focus of this guide.
+
+\subsection UG_OptionalLibraries Optional Ion Libraries
+
+The optional, higher-level libraries all depend on the core libraries. They are
+as follows:
+
+\li \b gfxutils contains a set of utility classes and functions that make it
+easier to create and operate on graphics objects. For example, there are
+utilities for creating objects that represent basic types of shapes.
+
+\li \b image provides a minimal set of utilities for operating on images, such
+as converting between formats and rendering textures to images.
+
+\li \b text contains classes and functions that help you insert 3D text into
+your scene.
+
+\li \b profile contains types and functions to help with collecting run-time
+performance data. Note that profiling requires specialized build flags and is
+not available by default.
+
+\li \b analytics
+provides some classes and functions for benchmarking and analyzing performance
+of your applications.
+
+\li \b remote contains several run-time handlers that you can include in your
+application to facilitate development. Each handler provides a browser-based
+user interface that lets you interact with your application. For example, you
+can modify application-specific settings, examine OpenGL resource use, and edit
+shader code on the fly.
+
+<hr> <!------------------------------------------------------------------------>
+\section UG_Building Building an Application with Ion
+\todo Fill this in with open-source building info.
+
+<hr> <!------------------------------------------------------------------------>
+\section UG_MainClasses The Main Ion Classes
+
+This section provides a brief overview of the main Ion classes. It is not
+intended to be thorough; there is just enough information to make it easier to
+understand the examples in the rest of the guide.
+
+\subsection UG_SceneConstruction Scene Construction
+
+One of the main ways Ion makes application development easier is by storing
+objects that represent graphics data. OpenGL is primarily an <em>immediate
+mode</em> library, meaning that commands issued through it are typically
+handled immediately by the hardware driver implementation. It also allows you
+to create certain run-time objects (such as vertex buffer objects and
+framebuffer objects) that represent the results of issuing those commands, but
+these objects are usually opaque to the caller and cannot be modified easily.
+Ion, on the other hand, is a <em>retained mode</em> library, meaning that it
+stores persistent run-time objects that represent the graphics data. Having
+these editable run-time objects makes it easier for you to examine the data
+and to make changes. The Ion objects are designed to be very thin wrappers
+around the actual OpenGL commands, so there is minimal overhead in using them.
+
+The main classes involved in scene construction are as follows:
+
+\li gfx::Node is the basic unit of scene representation. A Node may
+contain any number of shapes to render, along with a shader program, uniform
+values, and other state to apply to those shapes. A Node may also have other
+Nodes as children, allowing Node hierarchies to be created. Graphics state is
+inherited from parent Nodes to child Nodes, so structuring scenes in this way
+can result in very efficient rendering traversals.
+
+\li gfx::Shape represents a visible geometric object in a scene, specified
+as a collection of vertices and (optionally) indices into the vertices.
+
+\li gfx::AttributeArray stores vertex information as a collection of
+<tt>gfx::Attribute</tt>s for use in a Shape.
+
+\li gfx::IndexBuffer stores an array of vertex indices for use in a Shape.
+
+\li gfx::ShaderProgram represents an OpenGL shader program, referring to
+both a vertex shader and fragment shader (each as a gfx::Shader). Ion
+requires that every ShaderProgram makes all of its inputs (uniforms and
+attributes) known ahead of time through the use of an
+gfx::ShaderInputRegistry.
+
+\li gfx::Uniform and gfx::UniformBlock are used to set values for
+OpenGL shader uniforms.
+
+\li gfx::Texture and gfx::CubeMapTexture represent textures that can
+be applied to Shapes. A texture uses a gfx::Sampler to specify its
+texture parameters and is stored in a gfx::Uniform.
+
+\li gfx::StateTable represents global graphical state that affects
+rendering, such as blend functions, line width, stenciling, and so on.
+
+\subsection UG_SceneRendering Scene Rendering
+
+Once you have constructed a scene from one or more Nodes, you would probably
+like to render that scene onto the screen or into an image. These classes are
+used to do just that:
+
+\li gfx::Renderer provides the interface for rendering Ion data with
+OpenGL. The gfx::Renderer::DrawScene() function renders whatever scene is
+represented by the Node passed to it. You can call this function any number of
+times to render multiple scenes or parts of scenes.
+
+\li gfx::FramebufferObject represents an off-screen framebuffer that can
+be used as a target for rendering instead of the display screen. You can call
+gfx::Renderer::BindFramebuffer() to change the rendering target.
+
+\li gfx::GraphicsManager is used by the Renderer as an intermediary to all
+OpenGL functions. It permits OpenGL extensions to be used easily and can also
+trace all OpenGL calls and detect errors. Applications typically do not have to
+use this class directly.
+
+\subsection UG_SmartPointers Smart Pointers
+
+As a result of Ion's very general scene construction model, ownership of
+several types objects can be shared. Here are some examples:
+
+\li A Node may be added as a child of several other Nodes.
+\li Several ShaderPrograms may use the same ShaderInputRegistry.
+\li A ShaderProgram or Shape may be shared by any number of Nodes.
+\li Several Shapes may share an AttributeArray or IndexBuffer.
+
+To make these operations easier, most shareable objects in Ion are derived from
+base::Referent, which is an abstract base class that implements intrusive
+thread-safe reference counting. Each derived class has a corresponding \c
+typedef for a base::SharedPtr to itself. For example, the gfx::Shader class
+header defines gfx::ShaderPtr for convenience.
+
+You may notice that many functions in Ion receive objects by const reference to
+smart pointers, as in this member function in the gfx::Node class:
+\code
+void AddChild(const gfx::NodePtr& child);
+\endcode
+This convention provides the advantage of using smart pointers for safety while
+avoiding unnecessary increments and decrements to the reference count just to
+pass parameters.
+
+There is also an base::WeakReferentPtr for situations in which a weak
+pointer to a derived Referent class is needed.
+
+\note
+base::SharedPtr may be replaced with <tt>std::shared_ptr</tt> in the
+future. However, if you use the typedefs, this change should not be very
+noticeable.
+
+<hr> <!------------------------------------------------------------------------>
+<img style="float: right; width: 180px; margin-left: 20px"
+ src="rectangle_thumbnail.png" alt="Rectangle Thumbnail">
+
+\section UG_Rectangle_Example Example 1: Drawing a Rectangle
+<br>
+
+Time for the first example: drawing a rectangle on the screen (source file
+<tt>examples/rectangle.cc</tt>). This can be considered a "hello world" program
+for Ion. It creates a Node with a Shape that represents a yellow rectangle,
+along with the minimum state necessary to make the rectangle show up correctly.
+
+\note
+All of these examples use the
+<a href="http://freeglut.sourceforge.net">FreeGLUT</a> library to create and
+manage a window, establish an OpenGL context, and provide (minimal)
+interaction. FreeGLUT has a very simple callback-based API, making the examples
+small and easy to understand.
+
+\dontinclude rectangle.cc
+
+Here are all the system and Ion headers used in the example:
+
+\skip #include
+\until freeglut.h
+
+Next we define a \c GlobalState struct, which encapsulates all of the state
+required by our FreeGLUT callbacks. We maintain an instance as a global
+variable, since there is no way to pass any user-defined data to the callbacks:
+
+\skip struct GlobalState {
+\until s_global_state;
+
+The \c BuildGraph() function creates and returns the gfx::Node that represents
+the rectangle. It starts by creating the (root) node. Note the use of
+gfx::NodePtr, which is a base::SharedPtr typedef:
+
+\skip BuildGraph
+\until root
+
+It next uses the convenient gfxutils::BuildRectangleShape() function to create
+the Shape. Since we are not doing any complicated shading, we request just
+vertex positions to be created. (Other optional components are surface normals
+and texture coordinates.) We also set the size of the rectangle to 2x2 units so
+it ranges from -1 to 1 in X and Y. The Shape is added to the node:
+
+\skip RectangleSpec
+\until BuildRectangleShape
+
+The next step is to set up a gfx::StateTable with the state needed to render
+correctly. The window sizes are used to set up the viewport. We also set the
+clear color and depth-clear values, and enable depth test and back-face
+culling. (The latter two settings are not really needed for a single rectangle,
+but they are typically enabled for most 3D scenes). The StateTable is set in
+the node:
+
+\skip StateTablePtr
+\until SetStateTable
+
+Next we need to set some uniform values in the node. You may notice that we did
+not specify a gfx::ShaderProgram for the node, meaning that Ion will use the
+<em>default shader program</em> when rendering its contents. The default
+program defines a vertex shader that just transforms each vertex by projection
+and modelview matrices and a fragment shader that just sets each fragment to a
+base color. The matrices and color are defined as uniform values in the
+<em>global shader input registry</em>, which is used by the default
+program. (Uniforms are specified by name; in this case, the three we care about
+are called \c "uProjectionMatrix", \c "uModelviewMatrix", and \c "uBaseColor".)
+Therefore, we first access the global registry, then use it to create
+gfx::Uniform values, which we then add to the node:
+
+\skip global_reg
+\until uBaseColor
+
+All that is left to do is return the node we built:
+
+\skip return
+\until }
+
+We define a FreeGLUT display function callback, which is called \c Render(). It
+just calls the gfx::Renderer::DrawScene() function, passing the node we
+created, then asks FreeGLUT to swap buffers:
+
+\skip Render()
+\until }
+
+The mainline for the program is mostly concerned with initializing and running
+FreeGLUT. The first chunk of Ion-specific code involves setting up the
+GlobalState:
+
+\skip new GlobalState
+\until window_height);
+
+After initializing FreeGLUT, we set up the gfx::Renderer in the GlobalState
+along with a gfx::GraphicsManager (which requires a FreeGLUT context for proper
+initialization):
+
+\skip GraphicsManager
+\until renderer.Reset
+
+Running this program should result in a dark blue 800x800 pixel window with a
+yellow rectangle in the middle. Pressing the escape button should cause the
+program to terminate.
+
+We will modify this program in the subsequent sections to illustrate more Ion
+features.
+
+<hr> <!------------------------------------------------------------------------>
+<img style="float: right; width: 180px; margin-left: 20px"
+ src="shaders_thumbnail.png" alt="Shaders Thumbnail">
+
+\section UG_Shaders_Example Example 2: Specifying Shaders
+<br>
+
+In this example, we define and use a gfx::ShaderProgram with custom vertex and
+fragment shaders (source code in <tt>examples/shaders.cc</tt>) applied to the
+rectangle from the previous example. For brevity and clarity, we describe only
+the code differences from that example in this section.
+
+\dontinclude shaders.cc
+
+The only additional header file we need is:
+
+\skipline shaderprogram.h
+
+Next we specify the source code for the vertex and fragment shaders. We define
+the code here as C++ strings for simplicity, but writing the code this way can
+be tedious and error-prone. See the \ref UG_DevelopmentTools section for better
+options.
+
+The example shaders apply a color gradient from the top to the bottom of the
+rectangle and also simulate diffuse illumination of a wavy surface from left to
+right. The vertex shader takes care of computing the color gradient (using two
+colors passed as uniforms) and passes that along with the object-space position
+to the fragment shader as \c varying variables (\c vColor and \c vPosition,
+respectively). It also takes care of transforming the object-space vertex
+position to clip space as usual:
+
+\skip kVertexShaderString
+\until "}
+
+Note that the gradient computation relies on the fact that the Y coordinates of
+the rectangle range from -1 to 1; this is done purely to keep the example
+simple.
+
+The fragment shader simulates the wavy surface illumination by generating a
+surface normal based on a sine wave applied to the X coordinate of the
+rectangle (again, assumed to range from -1 to 1). The frequency of the wave is
+passed to the shader as a uniform:
+
+\skip kFragmentShaderString
+\until "}
+
+You may notice that there are a few lines at the beginning of the fragment
+shader source that deal with precision. This code is unfortunately necessary at
+present if you plan to run your application on platforms that use
+<a href="http://www.khronos.org/opengles">OpenGL ES</a> (typically mobile
+devices).
+
+The next chunk of new code is in the \c BuildGraph() function. It creates a new
+gfx::ShaderInputRegistry for the custom shader program. A
+gfx::ShaderInputRegistry, as its name suggests, registers the inputs that will
+be used for a shader program. Each input is specified with its name, value
+type, and a description string. You may recall that in the preceding \ref
+UG_Rectangle_Example "rectangle example" we relied on the global shader input
+registry, which defines inputs used for the default shader program. We want to
+use some of those inputs (namely \c uProjectionMatrix and \c uModelviewMatrix)
+here as well, so we make sure to include the global registry in the new one,
+which makes those inputs accessible in our new registry. (Note that you can
+also use the gfx::ShaderInputRegistry::Include() function to include any
+registry in any other registry, as long as their inputs are distinct.) Then we
+add our three new uniforms to the registry:
+
+\skip ShaderInputRegistry
+\until "Frequency
+
+Next we use a convenience function that constructs a gfx::Shader instance for
+each of the two shaders and installs them in a new gfx::ShaderProgram, which we
+then install in the node:
+
+\skip SetShaderProgram
+\until kFragmentShaderString
+
+Finally, we add uniforms with reasonable values to the node. Note that we use
+our new registry to create the uniforms:
+
+\skip AddUniform
+\until uWaveFrequency
+
+The rest of the code is identical to that in the previous example.
+
+<hr> <!------------------------------------------------------------------------>
+<img style="float: right; width: 180px; margin-left: 20px"
+ src="texture_thumbnail.png" alt="Texture Thumbnail">
+
+\section UG_Texture_Example Example 3: Adding a Texture
+<br>
+
+In this example, we modify the shaders from the previous example to apply a
+simple RGB texture to the rectangle instead of a color gradient, while still
+simulating the wavy illumination. We also demonstrate a little bit of matrix
+math to set up a texture matrix.  The source code is in
+<tt>examples/texture.cc</tt>.
+
+\dontinclude texture.cc
+
+We need some additional header files for this example:
+
+\skipline datacontainer.h
+\skipline sampler.h
+\skipline texture.h
+\skipline angle.h
+\skipline transformutils.h
+
+The vertex shader is similar to that in the previous example, except that it
+sets up varying texture coordinates (\c vTexCoords) instead of a color. The
+texture coordinates are modified by a matrix that is passed in as a uniform
+(\c uTextureMatrix):
+
+\skip kVertexShaderString
+\until "}
+
+The fragment shader uses the texture coordinates to access the correct fragment
+color from the texture, which is passed in as the \c uSampler uniform. (Note
+that the word "sampler" is used here in a GLSL sense to mean a way to sample
+values, as opposed to its upcoming use in an OpenGL sense, where it is an
+object that stores sampling parameters for a texture. Sorry for the confusion.)
+The rest of the shader is the same as before:
+
+\skip kFragmentShaderString
+\until "}
+
+Next comes the code to set up the texture. First we define a function that
+creates and returns a 4x4 texture matrix to pass as the \c uTextureMatrix
+uniform. It rotates the texture by a specific angle around the center of the
+texture (which is .5 in both dimensions) using some of the handy Ion matrix
+utilities, solely for illustrative purposes:
+
+\skip BuildTextureRotationMatrix
+\until }
+
+Note that Ion matrices are defined so that the translation by (-.5, -5) is
+first, followed by the rotation, followed by the translation by (.5, .5). See
+the comments at the beginning of \c ion/math/transformutils.h for more details.
+
+Next we define a function that builds and returns a gfx::Texture. Again, note
+the use of the gfx::TexturePtr smart pointer typedef as the return type:
+
+\skipline BuildTexture
+
+First, we define the data for the pixels of the texture image. The image is a
+very simple 2x2 square of RGB pixels, for a total of 2x2x3 = 12 bytes. Since
+OpenGL defines images starting with the bottom row, the first 6 bytes specify
+the bottom row and the next 6 specify the top row:
+
+\skip 2x2
+\until };
+
+While using an explicit array of pixel data is a convenient way to set up an
+image in an example, it is not really that useful in real-world
+applications. More likely, you will want to create the image using data read
+from a file; the image::ConvertFromExternalImageData() function can help with
+that. Also, you may find the base::ZipAssetManager class handy for embedding
+image data files and other assets directly in your application.
+
+Next we create a gfx::Image that represents the texture image. The gfx::Image
+does not store the data directly. Instead, it uses a base::DataContainer, which
+provides a very thin wrapper to encapsulate the data. The container provides
+three flexible but well-defined mechanisms for specifying the wrapped data; see
+the class documentation for details. We use the simplest form, which tells the
+container to copy our data into an allocated chunk of memory. Once we have the
+base::DataContainer set up, we store it in the gfx::Image:
+
+\skip ImagePtr
+\until Set(
+
+The \c true parameter passed to base::DataContainer::CreateAndCopy() tells the
+container that the data is <em>wipeable</em>, meaning that Ion can deallocate
+the memory once it is no longer needed. For a gfx::Image, this can happen as
+soon as an OpenGL texture object representing the texture that uses the image
+has been uploaded to the GPU. If you need to keep the data around for any
+reason, such as making modifications to it later on that cannot be done with
+gfx::Texture::SetSubImage(), do not set this flag to true.
+
+Next we create a gfx::Sampler that indicates how the texture is to be applied:
+
+\skip SamplerPtr
+\until SetWrapT
+
+Finally, we create a Texture using the image and sampler and return it:
+
+\skip TexturePtr
+\until }
+
+The \c BuildGraph() function in this example is very similar to the one in the
+previous example. The first difference is that we have to tell the
+gfxutils::BuildRectangleShape() function that we require texture coordinates in
+addition to vertex positions:
+
+\skipline kPositionTexCoords
+
+Since we are using a different set of uniforms in our shaders, we no longer
+need to add the \c uTopColor and \c uBottomColor entries to the registry.
+Instead, we add the new uniforms used in the texture shaders:
+
+\skip reg->Add
+\until Texture sampler
+
+We define a local variable holding the texture matrix:
+
+\skipline BuildTextureRotationMatrix
+
+Then we add uniforms to the node:
+
+\skipline uTextureMatrix
+\skipline uSampler
+
+<hr> <!------------------------------------------------------------------------>
+<img style="float: right; width: 180px; margin-left: 20px"
+ src="shape_thumbnail.png" alt="Shape Thumbnail">
+
+\section UG_Shape_Example Example 4: Creating a Shape Explicitly
+
+In the previous examples, we used the gfxutils::BuildRectangleShape() function
+to create a gfx::Shape to add to our node. If your application uses only basic
+shapes (such as rectangles, boxes, ellipsoids, cylinders) with only the
+predefined attributes (vertex positions, surface normals, and texture
+coordinates), feel free to use just this function and its kin. However, if you
+want to create more complex shapes, or if you need other types of attributes,
+you will need to write code to do that explicitly.
+
+In this example, we modify the code from the previous example to explicitly
+create a simple pyramid shape. Each vertex of the pyramid has a position, a
+surface normal, and texture coordinates. For illustrative purposes, we also
+define an additional attribute for each vertex, a distance that is used to
+offset the vertex along the surface normal. For simplicity, we no longer apply
+the wavy illumination code. The source code is in <tt>examples/shape.cc</tt>.
+
+\dontinclude shape.cc
+
+As usual, we start with some additional header files:
+
+\skipline attributearray.h
+\skipline bufferobject.h
+\skipline indexbuffer.h
+\skipline buffertoattributebinder.h
+
+However, we no longer need to include <tt>ion/gfxutils/shapeutils.h</tt>.
+
+The vertex shader now uses the \c aNormal attribute from the global shader
+registry, so we declare that here. In addition, we create a custom attribute
+for the offset and a variable to pass the surface normal to the fragment
+shader. The new declarations are:
+
+\skipline aNormal
+\skipline aOffsetAlongNormal
+\skipline vNormal
+
+The new contents of the vertex shader are:
+
+\skip vPosition
+\until vec4(vPosition
+
+In the fragment shader, we no longer declare the \c uWaveFrequency variable,
+but now we need the normal:
+
+\skipline vNormal;
+
+The shader code is pretty straightforward:
+
+\skip dir_to_light
+\until gl_FragColor
+
+Note that we use the absolute value of the dot product instead of clamping it,
+allowing the back faces to be illuminated. We also turn the intensity down a
+bit to make things look a little more subdued.
+
+You may also have noticed that the normals are not transformed along with the
+vertex positions. To do so properly would require using the inverse transpose
+of the object-to-world-space matrix. For clarity and brevity, we avoid doing
+that here by just computing the lighting in object space.
+
+Now to the code. We start by declaring a \c Vertex structure that contains all
+of the items to appear in each vertex. Note that the coordinates are declared
+as points and the normal as a vector; the Ion math library distinguishes
+between the two types to make operations safer and more self-documenting.
+
+\skip Vertex
+\until };
+
+Next we define a function that builds and returns a gfx::BufferObject storing
+the vertex data for the pyramid. The pyramid consists of four triangles, one
+for each side. (We don't bother with the base; feel free to add it yourself.)
+We have to define distinct vertices for all of the sides, since each has
+different normals and texture coordinates, not to mention that we are going to
+offset them individually. The function header is:
+
+\skipline BuildPyramidBufferObject
+
+We begin the function by defining the five coordinate points of the pyramid for
+convenience:
+
+\skip apex
+\until front_right
+
+Next we declare a local variable to hold the 12 vertices of the pyramid (4
+sides, each with 3 vertices) and set the positions manually:
+
+\skip kVertexCount
+\until vertices[11]
+
+Next we loop over the four faces to compute surface normals and set the texture
+coordinates. It would be fairly easy to just set the surface normals to known
+values, but this way lets us demonstrate how to use some of Ion's math library:
+
+\skip for (
+\until }
+
+Next we set the offsets in each of the vertices. Their values don't matter too
+much, so we just do something stupid and easy:
+
+\skip for (
+\until vertices
+
+Finally, we copy the vertex data into a base::DataContainer and set that in a
+gfx::BufferObject, which we then return:
+
+\skip data_container
+\until }
+
+The next function builds and returns a gfx::AttributeArray to represent the
+vertices stored in the gfx::BufferObject as attributes. Each gfx::Attribute in
+the array defines a binding of vertex data in a gfx::BufferObject to attribute
+inputs to a vertex shader. For example, we want to bind the \c position field
+for the vertices to the \c aVertex attribute input to the vertex shader.  The
+gfxutils::BufferToAttributeBinder makes this process pretty easy - you just
+bind each of the registered attributes to the corresponding member field in a
+sample \c Vertex:
+
+\skip BuildPyramidAttributeArray
+\until }
+
+The next function builds and returns a gfx::IndexBuffer that stores vertex
+indices. We actually don't need to use indices for this very simple shape, as
+Ion will just use all of the vertices in order to create the pyramid triangles,
+but this shows how to create and use indices if you need to:
+
+\skip BuildPyramidIndexBuffer
+\until }
+
+This code is similar to creating the vertex buffer, except that we copy a
+simple array of index values into the base::DataContainer. One other difference
+is the explicit call to gfx::BufferObject::AddSpec(), which was done for us in
+the vertex buffer case by the gfxutils::BufferToAttributeBinder class.
+
+Creating the shape is relatively easy, now that we have the above functions:
+
+\skip BuildPyramidShape
+\until }
+
+All that is left to do is to update the \c BuildGraph() function to set up the
+pyramid shape. The first modification is to set the back-face culling state to
+false in the gfx::StateTable, which will allow all four pyramid faces to be
+displayed. Since this flag is disabled by default, we could instead just remove
+the line that sets it:
+
+\skipline kCullFace
+
+We no longer need to set up the \c uWaveFrequency uniform, but we do need to
+register the custom vertex attribute:
+
+\skip AttributeSpec
+\until Offset of
+
+Adding the shape is easy:
+
+\skipline AddShape
+
+This example also uses some Ion math utilities to set up the projection and
+modelview matrix values to create a different view:
+
+\skip proj
+\until AxisY
+
+<hr> <!------------------------------------------------------------------------>
+<img style="float: right; width: 180px; margin-left: 20px"
+ src="hierarchy_thumbnail.png" alt="Hierarchy Thumbnail">
+
+\section UG_Hierarchy_Example Example 5: Creating a Node Hierarchy
+
+All of the previous examples used a single gfx::Node containing a single
+gfx::Shape, but real-world applications typically need more than that. Ion
+provides the flexibility to structure your scenes to balance ease of
+construction and rendering performance.
+
+For example, if you wish to render a collection of different primitive objects
+that all share the same state (shaders, uniform settings, global state), you
+can just add a gfx::Shape for each of them to a single gfx::Node. But if the
+objects do not share the same state, you need to use multiple gfx::Node
+instances. If you completely define the proper state for each node
+individually, you can just call gfx::Renderer::DrawScene() for each of them in
+your application's rendering loop. However, if the nodes share any common
+state, it will usually be more efficient to create a hierarchy in which the
+nodes can share some of the state. The example in this section shows how to do
+that (source code in <tt>examples/hierarchy.cc</tt>).
+
+The scene is this example consists of three nodes, pictured in yellow in the
+below diagram. \c Node2 and \c Node3 are children of \c Node1, meaning that
+they will inherit state from it. All of the nodes have some state associated
+with them: state tables, shaders, and uniform values. Each node also has one
+shape (magenta) that illustrate the effects of the state present at the node.
+
+\diafile hierarchy.dia
+
+Here are some rules about how state is inherited through a scene:
+
+\li A gfx::ShaderProgram in a node is used for that node and all of its
+descendents that do not have their own shaders. A shader program in a
+descendent overrides an inherited shader for that descendent and all of its
+descendents. In the example, the shader program in \c Node1 is used for both \c
+Node1 and \c Node2. The shader program in \c Node3 is used for \c Node3 and
+would also be used for any program-less children of \c Node3.
+
+\li A gfx::StateTable sets the global state for a node and all of its
+descendents.  However, there are lots of values in a StateTable, and each can
+be set independently. Only the values that are set explicitly in a StateTable
+instance will modify the state during rendering. For example, if the only
+change you make to a newly-constructed StateTable is to enable depth testing,
+that is the only change it will make to the state. In the example, whatever
+state is set by the table in \c Node1 will be present in all three nodes,
+whereas the state set by the table in \c Node2 will be present only for \c
+Node2.
+
+\li gfx::Uniform values are a bit more complex. If a node inherits its shader
+program from a parent or other ancestor, it also inherits all uniform
+values. If the child node defines any of the same uniforms, those values
+override those in the parent for the child and any of its descendents that
+inherit the shader program. Any node that has shapes in it <em>must</em> define
+or inherit values for all uniforms used by the shader program applied to that
+node.
+
+\li Almost all uniform values override inherited uniform values. The notable
+exception to this rule is the \c uModelviewMatrix uniform, which is defined in
+the global registry. This uniform <em>accumulates</em> its value by multiplying
+the inherited matrix and the new one. This feature is extremely important, as
+it allows you to easily create transformation hierarchies. (Note that you can
+define any new uniform to accumulate its values in any way you choose by
+specifying a gfx::ShaderInputRegistry::CombineFunction when you create a
+gfx::ShaderInputRegistry::UniformSpec.)
+
+The vertex shader for \c Node1 in the example applies a gradient from top to
+bottom (as in \ref UG_Shaders_Example) and passes the surface normal to the
+fragment shader:
+
+\dontinclude hierarchy.cc
+
+\skip void main
+\until }
+
+\c Node1's fragment shader just applies the same basic lighting as before:
+
+\skip void main
+\until }
+
+\c Node3's vertex shader just updates the position and passes the surface
+normal to the fragment shader. The fragment shader compares the surface normal
+and the \c uOpenDirection vector uniform and discards the fragment if they are
+similar enough:
+
+\skipline uOpenDirection
+
+\skip void main
+\until }
+
+The code contains a function to build each of the three nodes individually.
+Most of the code is similar to that of previous examples, so we will highlight
+only the important differences.
+
+In the \c BuildNode1() function, we create a sphere shape using the
+gfxutils::BuildEllipsoidShape() function and add it to the node. Then we set up
+a gfx::StateTable and gfx::ShaderProgram as before. We need to add all four of
+the uniforms required by the shader program to the node:
+
+\skip AddUniform
+\until uBottomColor
+
+In the \c BuildNode2() function, we create and add a box shape using
+gfxutils::BuildBoxShape() and also add a new StateTable that culls front faces
+instead of back faces. The rest of the state is inherited from \c Node1.  Note
+that we use the default constructor for gfx::StateTable that does not take the
+window size parameters. They are not needed because we are not setting the
+viewport (or scissor box).
+
+\skip StateTablePtr
+\until SetStateTable
+
+Then we set new values for the color and model-view uniforms. Note that we do
+not specify a new value for the \c uProjectionMatrix uniform, so that is
+inherited. Also note that the value for \c uModelviewMatrix is accumulated with
+the inherited value, which results in an extra translation applied to the box
+to position it at the lower left.
+
+\skip AddUniform
+\until TranslationMatrix
+
+In \c BuildNode3(), we add a cylinder shape with
+gfxutils::BuildCylinderShape(). Then we set up and add a new registry and
+shader program to override the one in \c Node1:
+
+\skip ShaderInputRegistryPtr
+\until kNode3FragmentShaderString
+
+We then set values for uniforms. Again, we do not have to set a value for the
+\c uProjectionMatrix uniform, as it is inherited from \c Node1, even though we
+are using a different shader. This is possible because the shaders in both \c
+Node1 and \c Node3 include the global registry, which defines that uniform.
+
+\skip AddUniform
+\until uOpenDirection
+
+Finally, we put all the pieces together in the \c BuildGraph() function:
+
+\skip BuildGraph
+\until }
+
+<hr> <!------------------------------------------------------------------------>
+\section UG_Multipass_Example Example 6: Using Framebuffer Objects for Multipass Rendering
+\todo Write this!
+
+<hr> <!------------------------------------------------------------------------>
+\section UG_Mapped_Example Example 7: Using Mapped Buffers
+\todo Write this!
+
+<hr> <!------------------------------------------------------------------------>
+\section UG_Sharing_Example Example 8: Sharing Objects
+\todo Write this!
+
+<hr> <!------------------------------------------------------------------------>
+<img style="float: right; width: 180px; margin-left: 20px"
+ src="text_thumbnail.png" alt="Text Thumbnail">
+
+\section UG_Text_Example Example 9: Adding Text
+
+Earlier we called \ref UG_Rectangle_Example the "hello world" program for Ion.
+This example shows how you can really show the words as text in your
+application. The source code is in <tt>examples/text.cc</tt>.
+
+The Ion text library draws text as texture-mapped geometry. Specifically, it
+uses signed-distance field (SDF) textures to represent the character glyphs,
+along with shaders that display those glyphs nicely. The library makes it easy
+to display basic text and also makes it possible to create more complex
+representations. The main text classes are:
+
+\li text::Font represents a specific font, specified by name, size in pixels,
+and an SDF padding value. For best results you should try to use a font size
+that is relatively close to the the size at which the text will be displayed.
+Of course, larger sizes consume more resources, so be careful. The SDF padding
+value is used to allow the signed distances to fall off gradually outside the
+glyph edges, rather than being cut off. Values between 4 and 8 pixels are
+typical.
+
+\li A text::FontImage stores one or more gfx::Texture instances that are used
+to display the glyphs of a text::Font. The text::StaticFontImage class stores
+all glyphs in a single texture, so it is useful when the full set of glyphs to
+be used is known ahead of time and the cost of setting up a single image
+containing them is not too great. The text::DynamicFontImage class, on the
+other hand, stores any number of fixed-size textures, each representing some
+subset of glyphs. It allows you to incrementally build the textures as you
+discover which glyphs are required. The cost of using dynamic images is that
+there can be a lot of glyph duplication: if each text string to display
+requires a single texture, then the same glyph may appear in multiple textures.
+
+\li The text::FontManager class provides a way to cache text::Font and
+text::FontImage instances so that different parts of your application can share
+them.
+
+\li A text::Layout specifies how character glyphs are arranged to form text. It
+is a very flexible class: each glyph can be mapped onto any 3D quadrilateral.
+You can use the text::Font::BuildLayout() method to create a layout for
+conventional straight-line, left-to-right text in the XY-plane, with options
+for alignment, spacing, and so on. (See the code below for examples.)
+
+\li The text::Builder class is a convenience base class that does most of the
+work of setting up a gfx::Node to representing a text object. You give it a
+text::FontImage when you create an instance, then pass a text::Layout to the
+text::Builder::Build() function. The resulting node will contain everything
+needed to draw text: a shape, shader program, uniforms, and state table. The
+derived text::BasicBuilder class creates text with a single color, while the
+text::OutlineBuilder class (used in the example below) also adds customizable
+outlines. Both classes allow you to modify the uniforms to customize the text
+display after the text node has been built. They also allow you to rebuild text
+using a different layout, reusing existing objects as much as possible.
+
+\dontinclude text.cc
+
+We need these additional header files:
+
+\skipline <string>
+
+\skipline fontimage.h
+\skipline freetypefont.h
+\skipline layout.h
+\skipline outlinebuilder.h
+
+The data for the font is stored in a header file created from a public-domain
+TrueType font. This is typically not the way you want to load font data, but it
+makes the example code simple and does not require any platform-specific file
+handling:
+
+\skip kFontData
+\until };
+
+The \c CreateFont() function creates and returns a text::Font built from the
+data. We use a font size of 64 pixels, which is large enough to make the text
+look reasonably good:
+
+\skip CreateFont
+\until }
+
+The example builds two text nodes to display. The first one says "Hello,
+World!" on two lines. It is created by this function:
+
+\skip BuildTextNode
+\until {
+
+First, we set up a text::LayoutOptions instance that specifies how we want the
+text to be laid out. We set the size to be 0 units wide and 2 units high. This
+means that the text width will be computed proportionally to match the size-2
+height. We specify that the text is to be aligned about the center in both
+dimensions, and the spacing between the lines is to be 1.5 times the maximum
+font glyph height.  Then we build the text::Layout using the font, the desired
+string, and the options:
+
+\skip layout =
+\until BuildLayout
+
+Then we set up a text::OutlineBuilder to build the text node. We specify some
+color and outlining options to make things look the way we want and return the
+resulting node:
+
+\skip OutlineBuilderPtr
+\until }
+
+The other text node in our example will be forced to be aligned with the
+screen. We set it up the same way, but with different size, alignment, and
+colors. We also set the target point to offset the text a little bit from the
+left side of the window:
+
+\skip BuildScreenAlignedTextNode
+\until }
+
+In the BuildGraph() function we build a root node and add the two text nodes to
+it as children. The shader created by the text::OutlineBuilder requires the \c
+uViewportSize uniform (defined in the global registry) to be specified so that
+it can figure out how big font pixels are. We create a variable to store the
+window size:
+
+\skipline window_size
+
+And we use this when setting up the viewport in the state table:
+
+\skip SetViewport
+\until window_size
+
+And then we use it to set the \c uViewportSize uniform in the root node. We
+could store this uniform in both of the text nodes, where it is really needed,
+but this is more convenient and efficient:
+
+\skip AddUniform
+\until uViewportSize
+
+Next we create a text::Font and text::DynamicFontImage:
+
+\skip FontPtr
+\until new ion::text::DynamicFontImage
+
+We next build and add the text node for the "Hello, World!" text. We set up an
+arbitrary perspective view for this text:
+
+\skip BuildTextNode
+\until AddChild
+
+Then we do the same for the screen-aligned text. Note that we set up an
+orthographic projection matrix to make the text (which is in the XY-plane)
+remain parallel to the screen.
+
+\skip BuildScreenAlignedTextNode
+\until AddChild
+
+In a real, interactive application, you may want to keep the text::Builder
+instance around to be able to make modifications to the text, such as changing
+its color or changing what string is displayed.
+
+<hr> <!------------------------------------------------------------------------>
+\section UG_DevelopmentTools Development Tools
+\todo Write this!
+
+*/
+
+}  // namespace ion

@@ -41,8 +41,8 @@ class SamplerTest : public ::testing::Test {
     sampler_.Reset(new Sampler());
     resource_.reset(new MockSamplerResource);
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());
-    sampler_->SetResource(0U, resource_.get());
-    EXPECT_EQ(resource_.get(), sampler_->GetResource(0U));
+    sampler_->SetResource(0U, 0, resource_.get());
+    EXPECT_EQ(resource_.get(), sampler_->GetResource(0U, 0));
     EXPECT_TRUE(resource_->AnyModifiedBitsSet());
     resource_->ResetModifiedBits();
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());

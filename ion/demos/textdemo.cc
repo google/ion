@@ -431,10 +431,10 @@ static size_t ClampSetting(const size_t min, const size_t max,
 //
 //-----------------------------------------------------------------------------
 
-class TextDemo : public ViewerDemoBase {
+class IonTextDemo : public ViewerDemoBase {
  public:
-  TextDemo(int width, int height);
-  ~TextDemo() override;
+  IonTextDemo(int width, int height);
+  ~IonTextDemo() override;
   void Resize(int width, int height) override;
   void Update() override {}
   void RenderFrame() override;
@@ -490,7 +490,7 @@ class TextDemo : public ViewerDemoBase {
   ion::base::Setting<bool> check_errors_;
 };
 
-TextDemo::TextDemo(int width, int height)
+IonTextDemo::IonTextDemo(int width, int height)
     : ViewerDemoBase(width, height),
       font_manager_(new ion::text::FontManager),
       text_info_(new TextInfo),
@@ -562,9 +562,9 @@ TextDemo::TextDemo(int width, int height)
   UpdateText(NULL);
 }
 
-TextDemo::~TextDemo() {}
+IonTextDemo::~IonTextDemo() {}
 
-void TextDemo::Resize(int width, int height) {
+void IonTextDemo::Resize(int width, int height) {
   ViewerDemoBase::Resize(width, height);
 
   DCHECK(root_->GetStateTable().Get());
@@ -572,14 +572,14 @@ void TextDemo::Resize(int width, int height) {
       Range2i::BuildWithSize(Point2i(0, 0), Vector2i(width, height)));
 }
 
-void TextDemo::RenderFrame() {
+void IonTextDemo::RenderFrame() {
   origin_node_->Enable(display_origin_);
   GetGraphicsManager()->EnableErrorChecking(check_errors_);
   UpdateTextUniforms();
   GetRenderer()->DrawScene(root_);
 }
 
-bool TextDemo::InitTextInfo(TextInfo* text_info) {
+bool IonTextDemo::InitTextInfo(TextInfo* text_info) {
   text_info->font = CreateFont(font_manager_, font_size_, sdf_padding_);
   text_info->font_image =
       CreateFontImage(text_info->font, FontImageTypeFromInt(font_image_type_));
@@ -600,19 +600,19 @@ bool TextDemo::InitTextInfo(TextInfo* text_info) {
   return text_info->font.Get();
 }
 
-void TextDemo::InitSettings() {
+void IonTextDemo::InitSettings() {
   using std::bind;
   using std::placeholders::_1;
 
   // Set up listeners for settings that require rebuilding.
   ion::base::SettingManager::RegisterGroupListener(
-      "textdemo/font", "TextDemo", bind(&TextDemo::UpdateFont, this, _1));
+      "textdemo/font", "TextDemo", bind(&IonTextDemo::UpdateFont, this, _1));
   ion::base::SettingManager::RegisterGroupListener(
-      "textdemo/layout", "TextDemo", bind(&TextDemo::UpdateText, this, _1));
+      "textdemo/layout", "TextDemo", bind(&IonTextDemo::UpdateText, this, _1));
   font_image_type_.RegisterListener(
-      "TextDemo", bind(&TextDemo::UpdateFontImageType, this, _1));
+      "TextDemo", bind(&IonTextDemo::UpdateFontImageType, this, _1));
   text_style_.RegisterListener(
-      "TextDemo", bind(&TextDemo::UpdateTextStyle, this, _1));
+      "TextDemo", bind(&IonTextDemo::UpdateTextStyle, this, _1));
 
   // Set up strings for enum settings so they use dropboxes.
   font_image_type_.SetTypeDescriptor("enum:Dynamic|Static");
@@ -621,7 +621,7 @@ void TextDemo::InitSettings() {
   text_style_.SetTypeDescriptor("enum:Basic|Outlined");
 }
 
-void TextDemo::UpdateFont(ion::base::SettingBase*) {
+void IonTextDemo::UpdateFont(ion::base::SettingBase*) {
   // Clamp the font size and SDF padding settings to reasonable values.
   static const size_t kMinFontSize = 2U;
   static const size_t kMaxFontSize = 128U;
@@ -645,7 +645,7 @@ void TextDemo::UpdateFont(ion::base::SettingBase*) {
   }
 }
 
-void TextDemo::UpdateText(ion::base::SettingBase*) {
+void IonTextDemo::UpdateText(ion::base::SettingBase*) {
   TextInfo& text_info = *text_info_;
   text_info.text_strings = ParseInputStrings(string_);
 
@@ -663,7 +663,7 @@ void TextDemo::UpdateText(ion::base::SettingBase*) {
   UpdateTextNodes();
 }
 
-void TextDemo::UpdateTextUniforms() {
+void IonTextDemo::UpdateTextUniforms() {
   const size_t num_builders = builders_.size();
   if (text_info_->style == kBasic) {
     for (size_t i = 0; i < num_builders; ++i) {
@@ -685,14 +685,14 @@ void TextDemo::UpdateTextUniforms() {
   }
 }
 
-void TextDemo::UpdateFontImageType(ion::base::SettingBase*) {
+void IonTextDemo::UpdateFontImageType(ion::base::SettingBase*) {
   text_info_->font_image =
       CreateFontImage(text_info_->font, FontImageTypeFromInt(font_image_type_));
   UpdateBuilders();
   UpdateTextNodes();
 }
 
-void TextDemo::UpdateTextStyle(ion::base::SettingBase*) {
+void IonTextDemo::UpdateTextStyle(ion::base::SettingBase*) {
   TextInfo& text_info = *text_info_;
   const TextStyle new_style = TextStyleFromInt(text_style_);
   if (text_info.style != new_style) {
@@ -704,7 +704,7 @@ void TextDemo::UpdateTextStyle(ion::base::SettingBase*) {
   }
 }
 
-void TextDemo::UpdateBuilders() {
+void IonTextDemo::UpdateBuilders() {
   TextInfo& text_info = *text_info_;
   const size_t num_builders_needed = text_info_->text_strings.size();
   const size_t num_builders_existing = builders_.size();
@@ -731,7 +731,7 @@ void TextDemo::UpdateBuilders() {
     builders_[i]->SetFontImage(text_info.font_image);
 }
 
-void TextDemo::UpdateTextNodes() {
+void IonTextDemo::UpdateTextNodes() {
   if (BuildTextNodes(builders_, BuildLayouts(*text_info_), text_root_)) {
     // Since the node changed, have to update the uniform values.
     UpdateViewUniforms();
@@ -741,5 +741,5 @@ void TextDemo::UpdateTextNodes() {
 }
 
 DemoBase* CreateDemo(int w, int h) {
-  return new TextDemo(w, h);
+  return new IonTextDemo(w, h);
 }

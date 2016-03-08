@@ -16,6 +16,7 @@ limitations under the License.
 */
 
 #include <algorithm>
+#include <array>
 #include <bitset>
 #include <limits>
 #include <memory>
@@ -40,8 +41,8 @@ limitations under the License.
 #include "ion/gfx/cubemaptexture.h"
 #include "ion/gfx/framebufferobject.h"
 #include "ion/gfx/image.h"
-#include "ion/gfx/iresource.h"
 #include "ion/gfx/renderer.h"
+#include "ion/gfx/resourcebase.h"
 #include "ion/gfx/shaderinputregistry.h"
 #include "ion/gfx/shape.h"
 #include "ion/gfx/texture.h"
@@ -54,6 +55,7 @@ limitations under the License.
 #include "ion/math/utils.h"
 #include "ion/math/vector.h"
 #include "ion/port/atomic.h"
+#include "ion/port/macros.h"
 #include "ion/port/mutex.h"
 #include "ion/portgfx/glheaders.h"
 #include "ion/portgfx/visual.h"
@@ -70,9 +72,6 @@ using math::Range1ui;
 namespace {
 
 static const GLuint kInvalidGluint = static_cast<GLuint>(-1);
-
-// A number associated with a particular Resource of a ResourceHolder.
-typedef size_t ResourceKey;
 
 //-----------------------------------------------------------------------------
 //
@@ -252,7 +251,7 @@ static GLuint CompileShader(const std::string& id_string, GLenum shader_type,
   if (id) {
     // Send the source to OpenGL and compile the shader.
     const char* source_string = source.c_str();
-    gm->ShaderSource(id, 1, &source_string, NULL);
+    gm->ShaderSource(id, 1, &source_string, nullptr);
     gm->CompileShader(id);
 
     // Test for problems.
@@ -261,7 +260,7 @@ static GLuint CompileShader(const std::string& id_string, GLenum shader_type,
     if (!ok) {
       char log[2048];
       log[0] = 0;
-      gm->GetShaderInfoLog(id, 2047, NULL, log);
+      gm->GetShaderInfoLog(id, 2047, nullptr, log);
       *info_log = log;
       LOG(ERROR) << "***ION: Unable to compile "
                  << GetShaderTypeString(shader_type) << " shader for '"
@@ -293,7 +292,7 @@ static GLuint RelinkShaderProgram(const std::string& id_string,
   if (!ok) {
     char log[2048];
     log[0] = 0;
-    gm->GetProgramInfoLog(program_id, 2047, NULL, log);
+    gm->GetProgramInfoLog(program_id, 2047, nullptr, log);
     *info_log = log;
     LOG(ERROR) << "***ION: Unable to link shader program for '" << id_string
                << "': " << log;
@@ -327,7 +326,7 @@ static GLuint LinkShaderProgram(const std::string& id_string,
 }
 
 // The following two functions return an Image from a CubeMapTexture or a
-// Texture, returning a NULL pointer if there is no valid Image.
+// Texture, returning a nullptr if there is no valid Image.
 const ImagePtr GetCubeMapTextureImageOrMipmap(const CubeMapTexture& tex,
                                               CubeMapTexture::CubeFace face) {
   // Find a valid mipmap image.
@@ -388,6 +387,33 @@ static Image::PixelFormat GetCompatiblePixelFormat(Image::PixelFormat pf,
   // All other OpenGL versions (e.g., OpenGL ES 3.x) support both luminance and
   // red textures.
   return pf;
+}
+
+typedef void (GraphicsManager::*UniformMatrixSetter)(
+    GLint, GLsizei, GLboolean, const GLfloat*);
+
+template <int Dimension>
+inline static void SendMatrixUniform(const Uniform& uniform,
+                                     GraphicsManager*gm,
+                                     GLint location,
+                                     UniformMatrixSetter setter) {
+  typedef math::Matrix<Dimension, float> Matrix;
+  if (uniform.IsArrayOf<Matrix>()) {
+    // We have to transpose each matrix.
+    const GLint count = static_cast<GLint>(uniform.GetCount());
+    const base::AllocatorPtr& allocator =
+        base::AllocationManager::GetDefaultAllocatorForLifetime(
+            base::kShortTerm);
+    Matrix* mats = static_cast<Matrix*>(allocator->AllocateMemory(
+        sizeof(Matrix) * count));
+    for (GLint i = 0; i < count; ++i)
+      mats[i] = math::Transpose(uniform.GetValueAt<Matrix>(i));
+    (gm->*setter)(location, count, GL_FALSE, reinterpret_cast<float*>(mats));
+    allocator->DeallocateMemory(mats);
+  } else {
+    (gm->*setter)(location, 1, GL_FALSE,
+                math::Transpose(uniform.GetValue<Matrix>()).Data());
+  }
 }
 
 }  // anonymous namespace
@@ -462,11 +488,9 @@ struct Renderer::HolderToResource<Texture> {
 
 class Renderer::ResourceManager : public gfx::ResourceManager {
  public:
-  class ResourceGroup;
-
   // This is an abstract base class for all resources that can be managed by
   // this manager. It adds an index that makes some operations more efficient.
-  class Resource : public IResource, public Allocatable {
+  class Resource : public ResourceBase, public Allocatable {
    public:
     // Returns the ResourceManager that owns this Resource.
     ResourceManager* GetResourceManager() const { return resource_manager_; }
@@ -475,10 +499,10 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
     size_t GetGpuMemoryUsed() const override { return gpu_memory_used_.load(); }
 
    protected:
-    explicit Resource(ResourceManager* rm)
-        : index_(0),
-          key_(0),
-          group_(NULL),
+    explicit Resource(ResourceManager* rm, const ResourceHolder* holder,
+                      ResourceKey key)
+        : ResourceBase(holder, key),
+          index_(0),
           resource_manager_(rm),
           gpu_memory_used_(0U) {}
 
@@ -488,9 +512,6 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
     virtual void Update(ResourceBinder* rb) = 0;
     virtual void Unbind(ResourceBinder* rb) = 0;
     virtual ResourceType GetType() const = 0;
-
-    size_t GetKey() const { return key_; }
-    ResourceGroup* GetGroup() const { return group_; }
 
     // Sets the amount of memory used by this Resource. Also updates the running
     // totals in the ResourceManager and optional GPU memory tracker.
@@ -546,14 +567,8 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
     }
 
    private:
-    // Always returns this Resource. A derived class that holds more than one
-    // Resource can choose a Resource to return based on key.
-    virtual Resource* GetResource(ResourceKey key) { return this; }
-
-    void SetGroup(ResourceGroup* group) { group_ = group; }
     void SetIndex(size_t index) { index_ = index; }
     size_t GetIndex() const { return index_; }
-    void SetKey(ResourceKey key) { key_ = key; }
 
     // Updates the AllocationSizeTracker. Both allocation and de-allocation are
     // tracked.
@@ -566,12 +581,6 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
 
     // This is the index within the resources vector in the manager.
     size_t index_;
-
-    // The key associated with this Resource.
-    ResourceKey key_;
-
-    // The ResourceGroup, if any, that holds this Resource.
-    ResourceGroup* group_;
 
     // The ResourceManager that owns this resource. It by definition has a
     // longer lifetime than this.
@@ -631,106 +640,6 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
     bool owns_lock_;
   };
 
-  // A ResourceGroup contains a set of resources of the same type, held for a
-  // single ResourceHolder. It forwards IResource calls to its contained
-  // resources, but their lifetimes are managed by the owning ResourceManager.
-  // Multiple resources might be needed if the same holder is rendered by
-  // multiple Renderers, or if more than one ShaderProgram uses the same
-  // AttributeArray.
-  //
-  // ResourceGroups are only created when a holder already has a regular
-  // Resource but a new one is requested. They destroy themselves when they
-  // contain only one Resource. Example types that require groups are
-  // VertexArray(Emulator)Resources, which are keyed by the active
-  // ShaderProgram. Since ResourceGroups are _not_ shared among multiple
-  // Renderers they do not have to be thread-safe.
-  class ResourceGroup : public Resource {
-   public:
-    ResourceGroup(ResourceManager* rm, const ResourceHolder* holder)
-        : Resource(rm), holder_(holder), resources_(*this) {}
-    ~ResourceGroup() override {
-      // Resources will be destroyed by the ResourceManager.
-    }
-
-    ResourceType GetType() const override {
-      return static_cast<ResourceType>(base::kInvalidIndex);
-    }
-
-    // These are just noops.
-    void Release(bool can_make_gl_calls) override {}
-    void Update(ResourceBinder* rb) override {}
-    void Unbind(ResourceBinder* rb) override {}
-
-    // Forward IResource calls to resources.
-    void OnDestroyed() override {
-      for (ResourceMap::iterator it = resources_.begin();
-           it != resources_.end(); ++it) {
-        it->second->SetGroup(NULL);
-        it->second->OnDestroyed();
-      }
-      // OnDestroyed() is called then the holder is being deleted.
-      holder_ = NULL;
-      delete this;
-    }
-    void OnChanged(const int bit) override {
-      for (ResourceMap::iterator it = resources_.begin();
-           it != resources_.end(); ++it)
-        it->second->OnChanged(bit);
-    }
-
-    // Returns the amount of memory used by all Resources in this group.
-    size_t GetGpuMemoryUsed() const override {
-      size_t total = 0U;
-      for (ResourceMap::const_iterator it = resources_.begin();
-           it != resources_.end(); ++it)
-        total += it->second->GetGpuMemoryUsed();
-      return total;
-    }
-
-   private:
-    // Returns the resource associated with key.
-    Resource* GetResource(ResourceKey key) override {
-      ResourceMap::const_iterator it = resources_.find(key);
-      return it == resources_.end() ? NULL : it->second;
-    }
-
-    // Associates the passed resource with the passed key.
-    void SetResource(ResourceKey key, Resource* resource) {
-      resources_[key] = resource;
-      resource->SetGroup(this);
-    }
-
-    // Removes the resource associated with the passed key, and deletes this
-    // ResourceGroup if there is only one Resource left. Notifies the holder
-    // of the change if it is not NULL.
-    void RemoveResource(ResourceKey key, Resource* resource) {
-      resources_.erase(key);
-      resource->SetGroup(NULL);
-      // If there is only one resource left then there is no need for a group.
-      DCHECK(!resources_.empty());
-      if (resources_.size() == 1U) {
-        Resource* last_resource = resources_.begin()->second;
-        if (holder_) {
-          const size_t index = GetResourceManager()->GetResourceIndex();
-          holder_->SetResource(index, last_resource);
-        }
-        last_resource->SetGroup(NULL);
-        // A noop, but helps coverage.
-        Release(true);
-        delete this;
-      }
-    }
-
-    // The holder of the group.
-    const ResourceHolder* holder_;
-
-    typedef base::AllocUnorderedMap<ResourceKey, Resource*> ResourceMap;
-    ResourceMap resources_;
-
-    friend class ResourceBinder;
-    friend class Renderer::ResourceManager;
-  };
-
   // The constructor is passed a GraphicsManager to use for querying resource
   // information.
   explicit ResourceManager(const GraphicsManagerPtr& gm)
@@ -774,12 +683,12 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
                              const ResourceHolder* holder) {
     return reinterpret_cast<ResourceKey>(this);
   }
-  template <typename T>
 
   // Returns all keys that may have resources assigned. This is required
   // to make info requests work correctly. The key may depend on the state
   // of holders in the scene graph (which is the case for shader programs),
   // and the scene graph is not available when processing info requests.
+  template <typename T>
   std::vector<ResourceKey> GetAllResourceKeys(ResourceBinder* resource_binder) {
     std::vector<ResourceKey> keys;
     keys.push_back(GetResourceKey<T>(resource_binder, nullptr));
@@ -857,18 +766,26 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
   // Marks the Resources contained in the passed holder for release. A current
   // binder is necessary to retrieve the resource since its type is unknown.
   template <typename HolderType>
-  void ReleaseResources(const HolderType* holder, ResourceBinder* binder);
+  void ReleaseResources(const HolderType* holder, ResourceBinder* binder) {
+    typedef typename HolderToResource<HolderType>::ResourceType ResourceType;
+    if (holder) {
+      const std::vector<ResourceKey> keys =
+          GetAllResourceKeys<ResourceType>(binder);
+      for (ResourceKey key : keys) {
+        if (ResourceBase* resource =
+            holder->GetResource(resource_index_, key)) {
+          resource->OnDestroyed();
+        }
+      }
+      ReleaseAll(binder);
+    }
+  }
 
   // Marks all Resources of the passed type for release.
   void ReleaseTypedResources(ResourceType type) {
     ResourceAccessor accessor(resources_[type]);
     ResourceVector& resources = accessor.GetResources();
-    const size_t num_resources = resources.size();
-    for (size_t j = 0; j < num_resources; ++j) {
-      Resource* resource = resources[j];
-      if (ResourceGroup* group = resource->GetGroup())
-        group->RemoveResource(resource->GetKey(), resource);
-      DCHECK(resource->GetGroup() == NULL);
+    for (auto resource : resources) {
       resource->OnDestroyed();
     }
   }
@@ -883,12 +800,7 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
       ResourceVector resources_to_destroy(*this);
       {
         base::LockGuard locker(&release_mutex_);
-        const size_t num_to_release = resources_to_release_.size();
-        for (size_t i = 0; i < num_to_release; ++i) {
-          Resource* resource = resources_to_release_[i];
-          // To be in the release list the resource must have already been
-          // detached from its holder and group.
-          DCHECK(resource->GetGroup() == NULL);
+        for (Resource* resource : resources_to_release_) {
           resource->Release(can_make_gl_calls);
           // Add the resource to the to-be-destroyed vector.
           resources_to_destroy.push_back(resource);
@@ -903,9 +815,8 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
       // happen, for example, when a ShaderProgram is destroyed: it releases
       // it's list of Uniforms, which can trigger a Texture to be marked for
       // release, which requires a mutex lock.
-      const size_t num_to_destroy = resources_to_destroy.size();
-      for (size_t i = 0; i < num_to_destroy; ++i)
-        delete resources_to_destroy[i];
+      for (Resource* resource : resources_to_destroy)
+        delete resource;
 
       {
         base::LockGuard locker(&release_mutex_);
@@ -923,12 +834,7 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
     for (int i = 0; i < kNumResourceTypes; ++i) {
       ResourceAccessor accessor(resources_[i]);
       ResourceVector& resources = accessor.GetResources();
-      const size_t num_resources = resources.size();
-      for (size_t j = 0; j < num_resources; ++j) {
-        Resource* resource = resources[j];
-        if (ResourceGroup* group = resource->GetGroup()) {
-          group->RemoveResource(resource->GetKey(), resource);
-        }
+      for (Resource* resource : resources) {
         resource->Release(can_make_gl_calls);
         delete resource;
       }
@@ -978,6 +884,9 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
     std::vector<InfoType> infos;
     if (request.holder.Get()) {
       // Get the resource for the holder and its info.
+      // TODO(user): This will create the resource if it doesn't exist.
+      // Instead, we should simply do nothing for holders that do not have
+      // any resources assigned to them yet.
       if (ResourceType* resource =
               GetResource(request.holder.Get(), resource_binder))
         AppendResourceInfo(&infos, resource, resource_binder);
@@ -985,16 +894,13 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
       // Add an info for each Resource for the current renderer.
       ResourceAccessor accessor(*resource_container);
       ResourceVector& resources = accessor.GetResources();
-      const size_t resource_count = resources.size();
-      std::vector<ResourceKey> keys =
+      const std::vector<ResourceKey> keys =
           GetAllResourceKeys<ResourceType>(resource_binder);
-      for (size_t i = 0; i < resource_count; ++i) {
-        for (size_t j = 0; j < keys.size(); ++j) {
-          Resource *resource = resources[i]->GetResource(keys[j]);
-          if (resource && resource->GetKey() == keys[j]) {
-            ResourceType* typed_resource = static_cast<ResourceType*>(resource);
-            AppendResourceInfo(&infos, typed_resource, resource_binder);
-          }
+      std::unordered_set<ResourceKey> key_set(keys.begin(), keys.end());
+      for (Resource* resource : resources) {
+        if (key_set.find(resource->GetKey()) != key_set.end()) {
+          ResourceType* typed_resource = static_cast<ResourceType*>(resource);
+          AppendResourceInfo(&infos, typed_resource, resource_binder);
         }
       }
     }
@@ -1004,14 +910,14 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
 
   // Fills an info struct with information about the passed resource and
   // appends it to the passed vector of infos.
-  template <typename InfoType, typename IResourceType>
+  template <typename InfoType, typename ResourceType>
   void AppendResourceInfo(std::vector<InfoType>* infos,
-                          IResourceType* resource, ResourceBinder* rb) {
+                          ResourceType* resource, ResourceBinder* rb) {
     InfoType info;
     resource->Bind(rb);
     // Fill info that is stored in the Resource itself.
     info.id = resource->GetId();
-    info.label = resource->GetHolder().GetLabel();
+    info.label = resource->GetHolder()->GetLabel();
     FillInfoFromResource(&info, resource, rb);
     // Get the rest of the information directly from OpenGL.
     FillInfoFromOpenGL(&info);
@@ -1020,8 +926,8 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
   }
 
   // Fills in resource info fields from a resource.
-  template <typename InfoType, typename IResourceType>
-  void FillInfoFromResource(InfoType* info, IResourceType* resource,
+  template <typename InfoType, typename ResourceType>
+  void FillInfoFromResource(InfoType* info, ResourceType* resource,
                             ResourceBinder* rb) {}
 
   // Fills in data info fields from the renderer.
@@ -1111,14 +1017,14 @@ class Renderer::ResourceBinder : public Allocatable {
 
   // Tracks which buffers have been bound.
   struct BufferBinding {
-    BufferBinding() : buffer(0U), resource(NULL) {}
+    BufferBinding() : buffer(0U), resource(nullptr) {}
     GLuint buffer;
     BufferResource* resource;
   };
 
   // An ImageUnit represents an OpenGL image unit.
   struct ImageUnit {
-    ImageUnit() : sampler(0U), resource(NULL) {}
+    ImageUnit() : sampler(0U), resource(nullptr) {}
     GLuint sampler;
     TextureResource* resource;
   };
@@ -1192,12 +1098,12 @@ class Renderer::ResourceBinder : public Allocatable {
         texture_last_bindings_(*this),
         active_image_unit_(kInvalidGluint),
         active_framebuffer_(kInvalidGluint),
-        active_framebuffer_resource_(NULL),
+        active_framebuffer_resource_(nullptr),
         active_shader_id_(0U),
-        active_shader_resource_(NULL),
+        active_shader_resource_(nullptr),
         active_vertex_array_(0U),
-        active_vertex_array_resource_(NULL),
-        current_shader_program_(NULL),
+        active_vertex_array_resource_(nullptr),
+        current_shader_program_(nullptr),
         vertex_array_keys_(*this),
         gl_state_table_(new (GetAllocator()) StateTable(0, 0)),
         client_state_table_(new (GetAllocator()) StateTable(0, 0)),
@@ -1354,7 +1260,7 @@ class Renderer::ResourceBinder : public Allocatable {
   void ClearBufferBinding(BufferObject::Target target, GLuint id) {
     if (!id || id == active_buffers_[target].buffer) {
       active_buffers_[target].buffer = 0;
-      active_buffers_[target].resource = NULL;
+      active_buffers_[target].resource = nullptr;
     }
   }
 
@@ -1362,7 +1268,7 @@ class Renderer::ResourceBinder : public Allocatable {
   void ClearFramebufferBinding(GLuint id) {
     if (!id || id == active_framebuffer_) {
       active_framebuffer_ = kInvalidGluint;
-      active_framebuffer_resource_ = NULL;
+      active_framebuffer_resource_ = nullptr;
     }
   }
 
@@ -1370,7 +1276,7 @@ class Renderer::ResourceBinder : public Allocatable {
   void ClearProgramBinding(GLuint id) {
     if (!id || id == active_shader_id_) {
       active_shader_id_ = 0;
-      active_shader_resource_ = NULL;
+      active_shader_resource_ = nullptr;
     }
   }
 
@@ -1546,6 +1452,11 @@ class Renderer::ResourceBinder : public Allocatable {
     texture_manager_->SetUnitRange(units);
   }
 
+  void MapBufferObjectDataRange(const BufferObjectPtr& buffer,
+                                BufferObjectDataMapMode mode,
+                                const math::Range1ui& range_in);
+  void UnmapBufferObjectData(const BufferObjectPtr& buffer);
+
   // Draws the scene rooted at node.
   void DrawScene(const NodePtr& node, const Flags& flags,
                  ShaderProgram* default_shader);
@@ -1626,7 +1537,7 @@ class Renderer::ResourceBinder : public Allocatable {
   GLuint active_image_unit_;
 
   // Tracks which buffer objects are currently bound.
-  BufferBinding active_buffers_[2];
+  std::array<BufferBinding, 4> active_buffers_;
 
   // Tracks which framebuffer is currently bound.
   // Please note that if active_framebuffer_ equals
@@ -1812,15 +1723,13 @@ class Renderer::Resource : public Renderer::ResourceManager::Resource {
   class ScopedResourceLabel : public ScopedLabel {
    public:
     ScopedResourceLabel(Resource* resource, ResourceBinder* binder)
-        : ScopedLabel(binder, &resource->GetHolder(),
-                      resource->GetHolder().GetLabel()) {}
+        : ScopedLabel(binder, resource->GetHolder(),
+                      resource->GetHolder()->GetLabel()) {}
   };
 
   ~Resource() override { DetachFromHolder(); }
 
   bool AnyModifiedBitsSet() const { return modified_bits_.any(); }
-
-  const ResourceHolder& GetHolder() const { return *holder_; }
 
   void OnDestroyed() override {
     // Detach the containing object from the object holding it.
@@ -1835,12 +1744,11 @@ class Renderer::Resource : public Renderer::ResourceManager::Resource {
  protected:
   typedef Renderer::Resource<NumModifiedBits> BaseResourceType;
 
-  Resource(ResourceManager* rm, const ResourceHolder& holder, GLuint id)
-      : Renderer::ResourceManager::Resource(rm),
+  Resource(ResourceManager* rm, const ResourceHolder& holder, ResourceKey key,
+           GLuint id)
+      : Renderer::ResourceManager::Resource(rm, &holder, key),
         id_(id),
-        resource_owns_gl_id_(id == 0U),
-        holder_(&holder) {
-    DCHECK(holder_);
+        resource_owns_gl_id_(id == 0U) {
     // Mark that this resource needs to be Update()d by setting all bits to 1.
     SetModifiedBits();
     // We don't need the resource changed bit set when a resource is new; it
@@ -1853,7 +1761,7 @@ class Renderer::Resource : public Renderer::ResourceManager::Resource {
   }
 
   // Returns whether the resource has a valid holder.
-  bool HasHolder() const { return holder_; }
+  bool HasHolder() const { return GetHolder() != nullptr; }
 
   void Release(bool can_make_gl_calls) override { DetachFromHolder(); }
 
@@ -1899,21 +1807,20 @@ class Renderer::Resource : public Renderer::ResourceManager::Resource {
 
  private:
   void DetachFromHolder() {
-    if (holder_) {
+    if (HasHolder()) {
+      const ResourceHolder* holder = GetHolder();
       const size_t index = GetResourceManager()->GetResourceIndex();
       // Only change the holder's resource if this is the resource it holds. We
       // always obtain a write lock to prevent any readers from getting the
       // wrong value. This only happens when Resources are being destroyed.
-      if (holder_->GetResource(index) == this) {
+      if (holder->GetResource(index, GetKey()) == this) {
         // Notify any listeners of the holder that something is changing.
-        holder_->Notify();
-        holder_->SetResource(index, NULL);
+        holder->Notify();
+        holder->SetResource(index, GetKey(), nullptr);
       }
-      holder_ = NULL;
     }
   }
 
-  const ResourceHolder* holder_;
   std::bitset<NumModifiedBits> modified_bits_;
 };
 
@@ -1926,8 +1833,8 @@ class Renderer::Resource : public Renderer::ResourceManager::Resource {
 class Renderer::SamplerResource : public Resource<Sampler::kNumChanges> {
  public:
   SamplerResource(ResourceBinder* rb, ResourceManager* rm,
-                  const Sampler& sampler, GLuint id)
-      : Renderer::Resource<Sampler::kNumChanges>(rm, sampler, id) {}
+                  const Sampler& sampler, ResourceKey key, GLuint id)
+      : Renderer::Resource<Sampler::kNumChanges>(rm, sampler, key, id) {}
 
   ~SamplerResource() override {
     DCHECK(id_ == 0U || !portgfx::Visual::GetCurrent());
@@ -1946,7 +1853,7 @@ class Renderer::SamplerResource : public Resource<Sampler::kNumChanges> {
   void BindToUnit(GLuint unit, ResourceBinder* rb);
 
   const Sampler& GetSampler() const {
-    return static_cast<const Sampler&>(GetHolder());
+    return static_cast<const Sampler&>(*GetHolder());
   }
 };
 
@@ -2049,8 +1956,8 @@ void Renderer::SamplerResource::Release(bool can_make_gl_calls) {
 class Renderer::TextureResource : public Resource<CubeMapTexture::kNumChanges> {
  public:
   TextureResource(ResourceBinder* rb, ResourceManager* rm,
-                  const TextureBase& texture, GLuint id)
-      : Renderer::Resource<CubeMapTexture::kNumChanges>(rm, texture, id),
+                  const TextureBase& texture, ResourceKey key, GLuint id)
+      : Renderer::Resource<CubeMapTexture::kNumChanges>(rm, texture, key, id),
         gl_target_(0),
         last_uploaded_components_(0U),
         auto_mipmapping_enabled_(false),
@@ -2082,7 +1989,7 @@ class Renderer::TextureResource : public Resource<CubeMapTexture::kNumChanges> {
   GLenum GetGlTarget() const { return gl_target_; }
 
   template <typename T> const T& GetTexture() const {
-    return static_cast<const T&>(this->GetHolder());
+    return static_cast<const T&>(*(this->GetHolder()));
   }
 
   // Binds the texture object in OpenGL to a new unit.  Use BindToUnit() when
@@ -2093,8 +2000,8 @@ class Renderer::TextureResource : public Resource<CubeMapTexture::kNumChanges> {
   void Unbind(ResourceBinder* rb) override;
 
   void OnDestroyed() override {
-    Renderer::Resource<CubeMapTexture::kNumChanges>::OnDestroyed();
     UnbindAll();
+    Renderer::Resource<CubeMapTexture::kNumChanges>::OnDestroyed();
   }
 
   // Determines an image unit number to use to bind this.
@@ -2333,7 +2240,7 @@ void Renderer::TextureResource::UploadImage(const Image& image, GLenum target,
   last_uploaded_components_ = component_count;
 
   const DataContainerPtr& container = image.GetData();
-  const void* data = container.Get() ? container->GetData() : NULL;
+  const void* data = container.Get() ? container->GetData() : nullptr;
   gm->PixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
   const bool multisample = (samples > 0) &&
@@ -2351,7 +2258,7 @@ void Renderer::TextureResource::UploadImage(const Image& image, GLenum target,
   } else if (image.GetWidth() > 0U && image.GetHeight() > 0U &&
              image.GetDepth() > 0U) {
     // Don't actually call a TexImage function if the dimensions of the texture
-    // are zero. Even if data is NULL we will still set the texture size and
+    // are zero. Even if data is nullptr we will still set the texture size and
     // format.
     if (image.IsCompressed() && data) {
       if (image.GetDimensions() == Image::k2d) {
@@ -2961,8 +2868,8 @@ void Renderer::TextureResource::UpdateCubeMapImageState(GraphicsManager* gm) {
 class Renderer::ShaderResource : public Resource<Shader::kNumChanges> {
  public:
   ShaderResource(ResourceBinder* rb, ResourceManager* rm, const Shader& shader,
-                 GLuint id)
-      : Renderer::Resource<Shader::kNumChanges>(rm, shader, id),
+                 ResourceKey key, GLuint id)
+      : Renderer::Resource<Shader::kNumChanges>(rm, shader, key, id),
         shader_type_(GL_INVALID_ENUM) {}
 
   ~ShaderResource() override {
@@ -2978,7 +2885,7 @@ class Renderer::ShaderResource : public Resource<Shader::kNumChanges> {
   void SetShaderType(GLenum type) { shader_type_ = type; }
 
   const Shader& GetShader() const {
-    return static_cast<const Shader&>(GetHolder());
+    return static_cast<const Shader&>(*GetHolder());
   }
 
   void Bind(ResourceBinder* rb) {}
@@ -3048,8 +2955,9 @@ class Renderer::ShaderInputRegistryResource
     : public Resource<ShaderInputRegistry::kNumChanges> {
  public:
   ShaderInputRegistryResource(ResourceBinder* rb, ResourceManager* rm,
-                              const ShaderInputRegistry& reg, GLuint id)
-      : Renderer::Resource<ShaderInputRegistry::kNumChanges>(rm, reg, id),
+                              const ShaderInputRegistry& reg,
+                              ResourceKey key, GLuint id)
+      : Renderer::Resource<ShaderInputRegistry::kNumChanges>(rm, reg, key, id),
         uniform_stacks_(reg.GetAllocator()) {
     uniform_stacks_.reserve(reg.GetSpecs<Uniform>().size());
   }
@@ -3232,7 +3140,7 @@ class Renderer::ShaderInputRegistryResource
   };
 
   const ShaderInputRegistry& GetRegistry() const {
-    return static_cast<const ShaderInputRegistry&>(GetHolder());
+    return static_cast<const ShaderInputRegistry&>(*GetHolder());
   }
 
   base::AllocVector<std::unique_ptr<UniformStack>> uniform_stacks_;
@@ -3248,12 +3156,14 @@ class Renderer::ShaderProgramResource
     : public Resource<ShaderProgram::kNumChanges> {
  public:
   ShaderProgramResource(ResourceBinder* rb, ResourceManager* rm,
-                        const ShaderProgram& shader_program, GLuint id)
-      : Renderer::Resource<ShaderProgram::kNumChanges>(rm, shader_program, id),
+                        const ShaderProgram& shader_program, ResourceKey key,
+                        GLuint id)
+      : Renderer::Resource<ShaderProgram::kNumChanges>(rm, shader_program, key,
+                                                       id),
         attribute_index_map_(shader_program.GetAllocator()),
         uniforms_(shader_program.GetAllocator()),
-        vertex_resource_(NULL),
-        fragment_resource_(NULL) {}
+        vertex_resource_(nullptr),
+        fragment_resource_(nullptr) {}
 
   GLint GetAttributeIndex(
       const ShaderInputRegistry::AttributeSpec* spec) const {
@@ -3274,7 +3184,7 @@ class Renderer::ShaderProgramResource
   void Unbind(ResourceBinder* rb) override;
 
   const ShaderProgram& GetShaderProgram() const {
-    return static_cast<const ShaderProgram&>(GetHolder());
+    return static_cast<const ShaderProgram&>(*GetHolder());
   }
 
   // Return the resources of the shader stages.
@@ -3285,7 +3195,7 @@ class Renderer::ShaderProgramResource
   struct UniformCacheEntry {
     UniformCacheEntry()
         : location(-1),
-          spec(NULL),
+          spec(nullptr),
           uniform_stamp(base::kInvalidIndex),
           unit_associations(
               base::AllocationManager::GetDefaultAllocatorForLifetime(
@@ -3647,9 +3557,9 @@ void Renderer::ShaderProgramResource::UpdateUniformValues(ResourceBinder* rb) {
 void Renderer::ShaderProgramResource::Update(ResourceBinder* rb) {
   // If shaders have changed then we need to reset their cached resources.
   if (TestModifiedBit(ShaderProgram::kVertexShaderChanged))
-    vertex_resource_ = NULL;
+    vertex_resource_ = nullptr;
   if (TestModifiedBit(ShaderProgram::kFragmentShaderChanged))
-    fragment_resource_ = NULL;
+    fragment_resource_ = nullptr;
   // Allow shaders to Update().
   const bool vertex_updated =
       vertex_resource_ && vertex_resource_->UpdateShader(rb);
@@ -3774,8 +3684,9 @@ void Renderer::ShaderProgramResource::Release(bool can_make_gl_calls) {
 class Renderer::BufferResource : public Resource<BufferObject::kNumChanges> {
  public:
   BufferResource(ResourceBinder* rb, ResourceManager* rm,
-                 const BufferObject& buffer_object, GLuint id)
-      : Renderer::Resource<BufferObject::kNumChanges>(rm, buffer_object, id),
+                 const BufferObject& buffer_object, ResourceKey key, GLuint id)
+      : Renderer::Resource<BufferObject::kNumChanges>(rm, buffer_object, key,
+                                                      id),
         target_(buffer_object.GetTarget()),
         gl_target_(base::EnumHelper::GetConstant(target_)) {}
 
@@ -3793,19 +3704,23 @@ class Renderer::BufferResource : public Resource<BufferObject::kNumChanges> {
 
   GLuint GetGlTarget() const { return gl_target_; }
 
-  void UploadData(const void* data);
+  void UploadData();
   void UploadSubData(const Range1ui& range, const void* data) const;
+  void CopySubData(ResourceBinder* rb,
+                   BufferResource* src_resource,
+                   const Range1ui& range,
+                   uint32 read_offset);
 
   void OnDestroyed() override {
-    Renderer::Resource<BufferObject::kNumChanges>::OnDestroyed();
     if (target_ == BufferObject::kElementBuffer)
       GetResourceManager()->DisassociateElementBufferFromArrays(this);
     UnbindAll();
+    Renderer::Resource<BufferObject::kNumChanges>::OnDestroyed();
   }
 
  private:
   const BufferObject& GetBufferObject() const {
-    return static_cast<const BufferObject&>(GetHolder());
+    return static_cast<const BufferObject&>(*GetHolder());
   }
 
   BufferObject::Target target_;
@@ -3820,85 +3735,170 @@ void Renderer::BufferResource::Bind(ResourceBinder* rb) {
   }
 }
 
-void Renderer::BufferResource::UploadData(const void* data) {
+void Renderer::BufferResource::UploadData() {
   const BufferObject& bo = GetBufferObject();
   const size_t size = bo.GetStructSize() * bo.GetCount();
   SetUsedGpuMemory(size);
   GetGraphicsManager()->BufferData(
-      gl_target_, size, bo.GetData()->GetData(),
+      gl_target_, size, bo.GetData().Get() ? bo.GetData()->GetData() : nullptr,
       base::EnumHelper::GetConstant(bo.GetUsageMode()));
 }
 
 void Renderer::BufferResource::UploadSubData(const Range1ui& range,
                                              const void* data) const {
-  GetGraphicsManager()->BufferSubData(gl_target_, range.GetMinPoint(),
-                                      range.GetSize(), data);
+  GetGraphicsManager()->BufferSubData(
+      gl_target_, range.GetMinPoint(), range.GetSize(), data);
+}
+
+void Renderer::BufferResource::CopySubData(ResourceBinder* rb,
+                                           BufferResource* src_resource,
+                                           const Range1ui& range,
+                                           uint32 read_offset) {
+  if (!src_resource || src_resource == this) {
+    // Copy within same BufferObject.
+    GetGraphicsManager()->CopyBufferSubData(
+        gl_target_, gl_target_, read_offset, range.GetMinPoint(),
+        range.GetSize());
+  } else {
+    // Copy between 2 BufferObjects.
+    // Bind src/dst to read/write targets and then copy.
+    GLuint src_id = src_resource->GetId();
+    rb->BindBuffer(BufferObject::kCopyReadBuffer, src_id, src_resource);
+    rb->BindBuffer(BufferObject::kCopyWriteBuffer, id_, this);
+    GetGraphicsManager()->CopyBufferSubData(
+        GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER,
+        read_offset, range.GetMinPoint(), range.GetSize());
+  }
 }
 
 void Renderer::BufferResource::Update(ResourceBinder* rb) {
-  if (AnyModifiedBitsSet()) {
-    ScopedResourceLabel label(this, rb);
+  if (!AnyModifiedBitsSet()) {
+    return;
+  }
+  ScopedResourceLabel label(this, rb);
 
-    // Generate the VBO.
-    GraphicsManager* gm = GetGraphicsManager();
-    DCHECK(gm);
-    if (!id_)
-      gm->GenBuffers(1, &id_);
-    if (id_) {
-      // If the resource was changed elsewhere then we need to ensure that it is
-      // bound again.
-      if (TestModifiedBit(ResourceHolder::kResourceChanged))
-        rb->ClearBufferBinding(target_, id_);
+  // Generate the VBO.
+  GraphicsManager* gm = GetGraphicsManager();
+  DCHECK(gm);
+  if (!id_)
+    gm->GenBuffers(1, &id_);
+  if (!id_) {
+    LOG(ERROR) << "***ION: Unable to create buffer object";
+    return;
+  }
+  // If the resource was changed elsewhere then we need to ensure that it is
+  // bound again.
+  if (TestModifiedBit(ResourceHolder::kResourceChanged))
+    rb->ClearBufferBinding(target_, id_);
 
-      // Send the vertex data.
-      const BufferObject& bo = GetBufferObject();
-      if (!bo.GetStructSize()) {
-        LOG(WARNING) << "***ION: Unable to update buffer object \""
-                     << bo.GetLabel() << "\": BufferObject's"
-                     << " struct size is 0";
-        return;
-      }
-      if (!bo.GetCount()) {
-        LOG(WARNING) << "***ION: Unable to update buffer object \""
-                     << bo.GetLabel() << "\": BufferObject's"
-                     << " struct count is 0";
-        return;
-      }
-      DCHECK_LT(0U, bo.GetCount());
-      rb->BindBuffer(target_, id_, this);
+  // Send the vertex data.
+  const BufferObject& bo = GetBufferObject();
+  if (!bo.GetStructSize()) {
+    LOG(WARNING) << "***ION: Unable to update buffer object \""
+                 << bo.GetLabel() << "\": BufferObject's"
+                 << " struct size is 0";
+    return;
+  }
+  if (!bo.GetCount()) {
+    LOG(WARNING) << "***ION: Unable to update buffer object \""
+                 << bo.GetLabel() << "\": BufferObject's"
+                 << " struct count is 0";
+    return;
+  }
+  DCHECK_LT(0U, bo.GetCount());
+  rb->BindBuffer(target_, id_, this);
 
-      if (TestModifiedBit(BufferObject::kDataChanged)) {
-        if (bo.GetData().Get()) {
-          UploadData(bo.GetData()->GetData());
-          // Notify the data container that the data has been used and can be
-          // deleted if requested.
-          bo.GetData()->WipeData();
-        } else {
-          LOG(WARNING) << "***ION: Unable to update buffer object \""
-                       << bo.GetLabel() << "\": BufferObject"
-                       << " DataContainer is NULL";
-        }
+  const bool data_changed = TestModifiedBit(BufferObject::kDataChanged);
+  const bool label_changed = TestModifiedBit(ResourceHolder::kLabelChanged);
+  const bool subdata_changed = TestModifiedBit(BufferObject::kSubDataChanged);
+  // Reset modified bits here in case following code caues re-entrant Update()
+  // call, otherwise we get infinite recursion trying to reset modified bits.
+  ResetModifiedBits();
+
+  if (data_changed) {
+    UploadData();
+    // Notify the data container that the data has been used and can be
+    // deleted if requested.
+    if (bo.GetData().Get())
+      bo.GetData()->WipeData();
+  }
+  if (label_changed)
+    SetObjectLabel(gm, GL_BUFFER_OBJECT, id_, bo.GetLabel());
+
+  if (subdata_changed) {
+    const base::AllocVector<BufferObject::BufferSubData>& sub_data =
+        bo.GetSubData();
+    const size_t count = sub_data.size();
+    for (size_t i = 0; i < count; ++i) {
+      const BufferObject::BufferSubData& sdata = sub_data[i];
+      if (sdata.data.Get() && sdata.data->GetData()) {
+        UploadSubData(
+            sdata.range, sdata.data->GetData<uint8>() + sdata.read_offset);
+        // Notify the data container that the data has been used and can
+        // be deleted if requested.
+        sdata.data->WipeData();
+        continue;
       }
-      if (TestModifiedBit(BufferObject::kSubDataChanged)) {
-        const base::AllocVector<BufferObject::BufferSubData>& sub_data =
-            bo.GetSubData();
-        const size_t count = sub_data.size();
-        for (size_t i = 0; i < count; ++i) {
-          if (sub_data[i].data.Get() && sub_data[i].data->GetData()) {
-            UploadSubData(sub_data[i].range, sub_data[i].data->GetData());
-            // Notify the data container that the data has been used and can
-            // be deleted if requested.
-            sub_data[i].data->WipeData();
+      // At this point we have a CopySubData operation. Treat a null
+      // sdata.src as a copy within the single BufferObject, bo.
+      BufferResource* src_resource = nullptr;
+      if (sdata.src.Get()) {
+        src_resource = GetResource(sdata.src.Get(), rb);
+        DCHECK(src_resource);
+        // Update src BufferObject.
+        src_resource->Update(rb);
+      }
+      if (gm->IsFunctionGroupAvailable(GraphicsManager::kCopyBufferSubData)) {
+        CopySubData(rb, src_resource, sdata.range, sdata.read_offset);
+        continue;
+      }
+      // Emulate CopyBufferSubData by mapping the data and then
+      // using BufferSubData to perform the copy.
+      Range1ui read_range;
+      read_range.SetWithSize(sdata.read_offset, sdata.range.GetSize());
+      const Range1ui& write_range = sdata.range;
+      BufferObjectPtr dst(const_cast<BufferObject*>(&bo));
+      BufferObjectPtr src(sdata.src.Get() ? sdata.src : dst);
+      Range1ui union_range;
+      if (src == dst) {
+        union_range = read_range;
+        union_range.ExtendByRange(write_range);
+        rb->MapBufferObjectDataRange(src, kReadWrite, union_range);
+      } else {
+        rb->MapBufferObjectDataRange(src, kReadOnly, read_range);
+      }
+      switch (src->GetMappedData().data_source) {
+        case BufferObject::MappedBufferData::kGpuMapped:
+        case BufferObject::MappedBufferData::kDataContainer:
+          if (src == dst) {
+            uint8* data = static_cast<uint8*>(src->GetMappedPointer());
+            memcpy(data +
+                   write_range.GetMinPoint() - union_range.GetMinPoint(),
+                   data +
+                   read_range.GetMinPoint() - union_range.GetMinPoint(),
+                   write_range.GetSize());
+          } else {
+            rb->MapBufferObjectDataRange(dst, kWriteOnly, write_range);
+            memcpy(dst->GetMappedPointer(), src->GetMappedPointer(),
+                   write_range.GetSize());
+            // Unmap will upload the copied bytes into dst.
+            rb->UnmapBufferObjectData(dst);
           }
-        }
-        bo.ClearSubData();
+          break;
+        case BufferObject::MappedBufferData::kAllocated:
+          LOG(WARNING) << "***ION: Unable to copy buffer object \""
+                       << src->GetLabel() << "\": BufferObject's"
+                       << " DataContainer has been wiped and "
+                       << " glCopyBufferSubData is not supported.";
+          break;
+        default:
+          LOG(FATAL) << ION_PRETTY_FUNCTION <<
+              "Invalid source for mapped BufferObject data";
+          break;
       }
-      if (TestModifiedBit(ResourceHolder::kLabelChanged))
-        SetObjectLabel(gm, GL_BUFFER_OBJECT, id_, bo.GetLabel());
-      ResetModifiedBits();
-    } else {
-      LOG(ERROR) << "***ION: Unable to create buffer object";
+      rb->UnmapBufferObjectData(src);
     }
+    bo.ClearSubData();
   }
 }
 
@@ -3932,8 +3932,8 @@ class Renderer::FramebufferResource
     : public Resource<FramebufferObject::kNumChanges> {
  public:
   FramebufferResource(ResourceBinder* rb, ResourceManager* rm,
-                      const FramebufferObject& fbo, GLuint id)
-      : Renderer::Resource<FramebufferObject::kNumChanges>(rm, fbo, id),
+                      const FramebufferObject& fbo, ResourceKey key, GLuint id)
+      : Renderer::Resource<FramebufferObject::kNumChanges>(rm, fbo, key, id),
         color0_id_(0U),
         depth_id_(0U),
         stencil_id_(0U) {}
@@ -3951,6 +3951,10 @@ class Renderer::FramebufferResource
   // Binds or unbinds the FBO in OpenGL.
   virtual void Bind(ResourceBinder* rb);
   void Unbind(ResourceBinder* rb) override;
+  void OnDestroyed() override {
+    Resource<FramebufferObject::kNumChanges>::OnDestroyed();
+    UnbindAll();
+  }
 
   GLuint GetColor0Id() const { return color0_id_; }
   GLuint GetDepthId() const { return depth_id_; }
@@ -3958,7 +3962,7 @@ class Renderer::FramebufferResource
 
  private:
   const FramebufferObject& GetFramebufferObject() const {
-    return static_cast<const FramebufferObject&>(GetHolder());
+    return static_cast<const FramebufferObject&>(*GetHolder());
   }
 
   void UpdateAttachment(GraphicsManager* gm, ResourceBinder* rb, GLuint* id,
@@ -4054,7 +4058,7 @@ void Renderer::FramebufferResource::UpdateAttachment(
       // OpenGL how to set up its own backing store. Passing a NULL pointer to
       // TexImage2D() is an acceptable OpenGL operation.
       image->Set(format, fbo.GetWidth(), fbo.GetHeight(),
-                 DataContainerPtr(NULL));
+                 DataContainerPtr(nullptr));
       tex->SetImage(face, mip_level, image);
     }
     tr->Bind(rb);
@@ -4092,7 +4096,7 @@ void Renderer::FramebufferResource::UpdateAttachment(
       // OpenGL how to set up its own backing store. Passing a NULL pointer to
       // TexImage2D() is an acceptable OpenGL operation.
       image->Set(format, fbo.GetWidth(), fbo.GetHeight(),
-                 DataContainerPtr(NULL));
+                 DataContainerPtr(nullptr));
       tex->SetImage(mip_level, image);
     }
     tr->Bind(rb);
@@ -4205,9 +4209,10 @@ class Renderer::VertexArrayResource
     : public Resource<AttributeArray::kNumChanges> {
  public:
   VertexArrayResource(ResourceBinder* rb, ResourceManager* rm,
-                      const AttributeArray& attribute_array, GLuint id)
+                      const AttributeArray& attribute_array, ResourceKey key,
+                      GLuint id)
       : Renderer::Resource<AttributeArray::kNumChanges>(rm, attribute_array,
-                                                        id),
+                                                        key, id),
         buffer_attribute_infos_(attribute_array.GetAllocator()),
         simple_attribute_indices_(attribute_array.GetAllocator()),
         vertex_count_(0U) {
@@ -4242,7 +4247,7 @@ class Renderer::VertexArrayResource
 
  protected:
   const AttributeArray& GetAttributeArray() const {
-    return static_cast<const AttributeArray&>(GetHolder());
+    return static_cast<const AttributeArray&>(*GetHolder());
   }
 
   virtual bool UpdateAndCheckBuffers(ResourceBinder* rb);
@@ -4252,7 +4257,7 @@ class Renderer::VertexArrayResource
 
   // Binds a BufferObjectElement attribute. Returns if the binding was
   // successful. Binding might fail if a buffer object contained in an Attribute
-  // or its data container are NULL, or if a resource cannot be created by
+  // or its data container are nullptr, or if a resource cannot be created by
   // OpenGL. The number of slots that the attribute requires is also assigned
   // if the binding is successful.
   bool BindBufferObjectElementAttribute(GLuint attribute_index,
@@ -4376,10 +4381,10 @@ bool Renderer::VertexArrayResource::BindBufferObjectElementAttribute(
 
   // Get the BufferResource that contains the VBO and check its validity.
   const BufferObjectPtr& bo = a.GetValue<BufferObjectElement>().buffer_object;
-  if (!bo.Get() || !bo->GetData().Get()) {
-    // We cannot draw a shape with a NULL buffer.
+  if (!bo.Get()) {
+    // We cannot draw a shape with a nullptr buffer.
     LOG(WARNING) << "***ION: Unable to draw shape: "
-                 << "BufferObject or BufferObject DataContainer is NULL";
+                 << "BufferObject or BufferObject DataContainer is nullptr";
     return false;
   }
 
@@ -4565,8 +4570,9 @@ class Renderer::VertexArrayEmulatorResource
     : public Renderer::VertexArrayResource {
  public:
   VertexArrayEmulatorResource(ResourceBinder* rb, ResourceManager* rm,
-                              const AttributeArray& attribute_array, GLuint id)
-      : VertexArrayResource(rb, rm, attribute_array, id) {}
+                              const AttributeArray& attribute_array,
+                              ResourceKey key, GLuint id)
+      : VertexArrayResource(rb, rm, attribute_array, key, id) {}
   ~VertexArrayEmulatorResource() override {}
 
   void Release(bool can_make_gl_calls) override;
@@ -4640,7 +4646,7 @@ void Renderer::VertexArrayEmulatorResource::Unbind(ResourceBinder* rb) {
         info.enabled = false;
       }
     }
-    rb->SetActiveVertexArray(NULL);
+    rb->SetActiveVertexArray(nullptr);
   }
 }
 
@@ -4768,7 +4774,7 @@ Renderer::ResourceBinder* Renderer::GetInternalResourceBinder(
   ResourceBinderMap::iterator it = binders.find(*visual_id);
 
   if (it == binders.end())
-    return NULL;
+    return nullptr;
 
   ResourceBinder* rb = it->second.get();
   DCHECK(rb);
@@ -4784,7 +4790,7 @@ Renderer::GetOrCreateInternalResourceBinder(int line) const {
     LOG(WARNING) << "***ION: renderer.cc:" << line
                  << ": No Visual ID (invalid GL Context?)";
     DCHECK(!rb) << "Unexpected ResourceBinder for visual 0.";
-    return NULL;
+    return nullptr;
   }
   if (!rb) {
     ResourceBinderMap& binders = GetResourceBinderMap();
@@ -4807,7 +4813,7 @@ void Renderer::BindFramebuffer(const FramebufferObjectPtr& fbo) {
     resource_binder->ClearNonFramebufferCachedBindings();
     if (!fbo.Get() || fbo->GetWidth() == 0 || fbo->GetHeight() == 0) {
       resource_binder->BindFramebuffer(
-          *resource_binder->GetSavedId(kSaveFramebuffer), NULL);
+          *resource_binder->GetSavedId(kSaveFramebuffer), nullptr);
     } else {
       FramebufferResource* fbr =
           resource_manager_->GetResource(fbo.Get(), resource_binder);
@@ -5163,6 +5169,113 @@ void Renderer::ResourceBinder::MarkAttachmentImplicitlyChanged(
   }
 }
 
+void Renderer::ResourceBinder::MapBufferObjectDataRange(
+    const BufferObjectPtr& buffer,
+    BufferObjectDataMapMode mode,
+    const math::Range1ui& range_in) {
+  BufferObject* bo = buffer.Get();
+  if (!bo)
+    return;
+  if (bo->GetMappedPointer()) {
+    LOG(WARNING) << "A buffer that is already mapped was passed to"
+                 << ION_PRETTY_FUNCTION;
+    return;
+  }
+  if (range_in.IsEmpty()) {
+    LOG(WARNING) << "Ignoring empty range passed to"
+                 << ION_PRETTY_FUNCTION << ", nothing will be mapped";
+    return;
+  }
+  const Range1ui entire_range(
+      0U, static_cast<uint32>(bo->GetStructSize() * bo->GetCount()));
+  Range1ui range = range_in;
+  void* data = nullptr;
+  BufferObject::MappedBufferData::DataSource data_source =
+      BufferObject::MappedBufferData::kGpuMapped;
+  GraphicsManager* gm = GetGraphicsManager().Get();
+  // Prefer MapBufferRange since it has more features.
+  if (gm->IsFunctionGroupAvailable(GraphicsManager::kMapBufferRange)) {
+    BufferResource* br = resource_manager_->GetResource(bo, this);
+    br->Bind(this);
+    GLenum access_mode;
+    if (mode == kReadOnly)
+      access_mode = GL_MAP_READ_BIT;
+    else if (mode == kWriteOnly)
+      access_mode = GL_MAP_WRITE_BIT;
+    else
+      access_mode = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT;
+    data = gm->MapBufferRange(br->GetGlTarget(), range.GetMinPoint(),
+                              range.GetSize(), access_mode);
+  } else if (gm->IsFunctionGroupAvailable(GraphicsManager::kMapBuffer) &&
+             range == entire_range) {
+    BufferResource* br = resource_manager_->GetResource(bo, this);
+    br->Bind(this);
+    GLenum access_mode;
+    if (mode == kReadOnly)
+      access_mode = GL_READ_ONLY;
+    else if (mode == kWriteOnly)
+      access_mode = GL_WRITE_ONLY;
+    else
+      access_mode = GL_READ_WRITE;
+    data = gm->MapBuffer(br->GetGlTarget(), access_mode);
+  } else if (range.GetSize() <= entire_range.GetSize()) {
+    // Reuse bo's data if it hasn't been wiped.
+    if (bo->GetData().Get() && bo->GetData()->GetData() &&
+        bo->GetCount() * bo->GetStructSize() >= range_in.GetMaxPoint()) {
+      data = static_cast<void*>(
+          bo->GetData()->GetMutableData<uint8>() + range_in.GetMinPoint());
+      data_source = BufferObject::MappedBufferData::kDataContainer;
+    } else {
+      data = bo->GetAllocator()->AllocateMemory(range.GetSize());
+      data_source = BufferObject::MappedBufferData::kAllocated;
+      if (mode != kWriteOnly) {
+        LOG(WARNING) << "MapBufferObjectDataRange() glMapBufferRange not "
+            "supported and BufferObject's DataContainer has been wiped so "
+            "mapped bytes are uninitialized, i.e., garbage.";
+      }
+    }
+  }
+  if (data)
+    bo->SetMappedData(range, data, data_source, mode == kReadOnly);
+  else
+    LOG(ERROR) << "Failed to allocate data for "
+               << ION_PRETTY_FUNCTION;
+}
+
+void Renderer::ResourceBinder::UnmapBufferObjectData(
+    const BufferObjectPtr& buffer) {
+  BufferObject* bo = buffer.Get();
+  if (!bo)
+    return;
+  if (void* ptr = bo->GetMappedPointer()) {
+    BufferResource* br = resource_manager_->GetResource(bo, this);
+    br->Bind(this);
+    if (bo->GetMappedData().data_source ==
+        BufferObject::MappedBufferData::kGpuMapped &&
+        graphics_manager_->IsFunctionGroupAvailable(
+            GraphicsManager::kMapBufferBase)) {
+      graphics_manager_->UnmapBuffer(br->GetGlTarget());
+    } else {
+      if (!bo->GetMappedData().read_only)
+        br->UploadSubData(bo->GetMappedData().range, ptr);
+      if (bo->GetMappedData().data_source ==
+          BufferObject::MappedBufferData::kAllocated) {
+        // Free the data.
+        bo->GetAllocator()->DeallocateMemory(ptr);
+      }
+    }
+    // Clear the data in the BufferObject.
+    bo->SetMappedData(
+        Range1ui(),
+        nullptr,
+        base::InvalidEnumValue<BufferObject::MappedBufferData::DataSource>(),
+        true);
+  } else {
+    LOG(WARNING) << "An unmapped BufferObject was passed to"
+                 << ION_PRETTY_FUNCTION;
+  }
+}
+
 void Renderer::ResourceBinder::DrawScene(const NodePtr& node,
                                          const Flags& flags,
                                          ShaderProgram* default_shader) {
@@ -5230,28 +5343,28 @@ void Renderer::ResourceBinder::DrawScene(const NodePtr& node,
     // Array buffer.
     if (flags.test(kRestoreArrayBuffer))
       BindBuffer(BufferObject::kArrayBuffer, *GetSavedId(kSaveArrayBuffer),
-                 NULL);
+                 nullptr);
     else if (flags.test(kClearArrayBuffer))
-      BindBuffer(BufferObject::kArrayBuffer, 0U, NULL);
+      BindBuffer(BufferObject::kArrayBuffer, 0U, nullptr);
     // Element array buffer.
     if (flags.test(kRestoreElementArrayBuffer))
       BindBuffer(BufferObject::kElementBuffer,
-                 *GetSavedId(kSaveElementArrayBuffer), NULL);
+                 *GetSavedId(kSaveElementArrayBuffer), nullptr);
     else if (flags.test(kClearElementArrayBuffer))
-      BindBuffer(BufferObject::kElementBuffer, 0U, NULL);
+      BindBuffer(BufferObject::kElementBuffer, 0U, nullptr);
     // Framebuffer.
     if (flags.test(kRestoreFramebuffer)) {
-      BindFramebuffer(*GetSavedId(kSaveFramebuffer), NULL);
+      BindFramebuffer(*GetSavedId(kSaveFramebuffer), nullptr);
       SetCurrentFramebuffer(FramebufferObjectPtr());
     } else if (flags.test(kClearFramebuffer)) {
-      BindFramebuffer(0U, NULL);
+      BindFramebuffer(0U, nullptr);
       SetCurrentFramebuffer(FramebufferObjectPtr());
     }
     // Shader program.
     if (flags.test(kRestoreShaderProgram))
-      BindProgram(*GetSavedId(kSaveShaderProgram), NULL);
+      BindProgram(*GetSavedId(kSaveShaderProgram), nullptr);
     else if (flags.test(kClearShaderProgram))
-      BindProgram(0U, NULL);
+      BindProgram(0U, nullptr);
     // StateTable.
     if (flags.test(kRestoreStateTable)) {
       UpdateFromStateTable(*saved_state_table_, gl_state_table_.Get(), gm);
@@ -5261,9 +5374,9 @@ void Renderer::ResourceBinder::DrawScene(const NodePtr& node,
     // Vertex array.
     if (gm->IsFunctionGroupAvailable(GraphicsManager::kVertexArrays)) {
       if (flags.test(kRestoreVertexArray))
-        BindVertexArray(*GetSavedId(kSaveVertexArray), NULL);
+        BindVertexArray(*GetSavedId(kSaveVertexArray), nullptr);
       else if (flags.test(kClearVertexArray))
-        BindVertexArray(0U, NULL);
+        BindVertexArray(0U, nullptr);
     }
 
     // Other clear flags.
@@ -5346,101 +5459,35 @@ void Renderer::MapBufferObjectData(const BufferObjectPtr& buffer,
     const Range1ui range(
         0U, static_cast<uint32>(bo->GetStructSize() * bo->GetCount()));
     MapBufferObjectDataRange(buffer, mode, range);
+  } else {
+    LOG(WARNING) << "A NULL BufferObject was passed to"
+                 << ION_PRETTY_FUNCTION;
   }
 }
 
 void Renderer::MapBufferObjectDataRange(const BufferObjectPtr& buffer,
                                         BufferObjectDataMapMode mode,
                                         const math::Range1ui& range_in) {
-  if (BufferObject* bo = buffer.Get()) {
-    if (bo->GetMappedPointer()) {
-      LOG(WARNING) << "A buffer that is already mapped was passed to"
-                   << " Renderer::MapBufferObjectData(Range)()";
-    } else if (!range_in.IsEmpty()) {
-      const Range1ui entire_range(
-          0U, static_cast<uint32>(bo->GetStructSize() * bo->GetCount()));
-      Range1ui range = range_in;
-      void* data = NULL;
-      bool gpu_mapped = true;
-      GraphicsManager* gm = GetGraphicsManager().Get();
-      // Prefer MapBufferRange since it has more features.
-      if (gm->IsFunctionGroupAvailable(GraphicsManager::kMapBufferRange)) {
-        ResourceBinder* resource_binder =
-            GetOrCreateInternalResourceBinder(__LINE__);
-        if (resource_binder) {
-          BufferResource* br =
-              resource_manager_->GetResource(bo, resource_binder);
-          br->Bind(resource_binder);
-          GLenum access_mode;
-          if (mode == kReadOnly)
-            access_mode = GL_MAP_READ_BIT;
-          else if (mode == kWriteOnly)
-            access_mode = GL_MAP_WRITE_BIT;
-          else
-            access_mode = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT;
-          data = gm->MapBufferRange(br->GetGlTarget(), range.GetMinPoint(),
-                                    range.GetSize(), access_mode);
-        }
-      } else if (gm->IsFunctionGroupAvailable(GraphicsManager::kMapBuffer) &&
-                 range == entire_range) {
-        ResourceBinder* resource_binder =
-            GetOrCreateInternalResourceBinder(__LINE__);
-        if (resource_binder) {
-          BufferResource* br =
-            resource_manager_->GetResource(bo, resource_binder);
-          br->Bind(resource_binder);
-          GLenum access_mode;
-          if (mode == kReadOnly)
-            access_mode = GL_READ_ONLY;
-          else if (mode == kWriteOnly)
-            access_mode = GL_WRITE_ONLY;
-          else
-            access_mode = GL_READ_WRITE;
-          data = gm->MapBuffer(br->GetGlTarget(), access_mode);
-        }
-      } else if (range.GetSize() <= entire_range.GetSize()) {
-        gpu_mapped = false;
-        data = bo->GetAllocator()->AllocateMemory(range.GetSize());
-      }
-      if (data)
-        bo->SetMappedData(range, data, gpu_mapped);
-      else
-        LOG(ERROR) << "Failed to allocate data for "
-                   << " Renderer::MapBufferObjectData(Range)()";
-    } else {
-      LOG(WARNING) << "Ignoring empty range passed to"
-                   << " Renderer::MapBufferObjectData(Range)(), nothing will be"
-                   << " mapped";
+  if (buffer.Get()) {
+    if (ResourceBinder* resource_binder =
+        GetOrCreateInternalResourceBinder(__LINE__)) {
+      resource_binder->MapBufferObjectDataRange(buffer, mode, range_in);
     }
+  } else {
+    LOG(WARNING) << "A NULL BufferObject was passed to"
+                 << ION_PRETTY_FUNCTION;
   }
 }
 
 void Renderer::UnmapBufferObjectData(const BufferObjectPtr& buffer) {
-  if (BufferObject* bo = buffer.Get()) {
-    if (void* ptr = bo->GetMappedPointer()) {
-      ResourceBinder* resource_binder =
-          GetOrCreateInternalResourceBinder(__LINE__);
-      if (resource_binder) {
-        BufferResource* br =
-            resource_manager_->GetResource(bo, resource_binder);
-        br->Bind(resource_binder);
-        if (bo->GetMappedData().gpu_mapped &&
-            GetGraphicsManager()->IsFunctionGroupAvailable(
-                GraphicsManager::kMapBufferBase)) {
-          GetGraphicsManager()->UnmapBuffer(br->GetGlTarget());
-        } else {
-          // Memory must be a client-side pointer, which we will have to free.
-          br->UploadSubData(bo->GetMappedData().range, ptr);
-          // Free the data.
-          bo->GetAllocator()->DeallocateMemory(ptr);
-        }
-        // Clear the data in the BufferObject.
-        bo->SetMappedData(Range1ui(), NULL, false);
-      }
-    } else {
-      LOG(WARNING) << "An unmapped BufferObject was passed to"
-                   << " Renderer::UnmapBufferObjectData()";
+  if (buffer.Get()) {
+    if (ResourceBinder* resource_binder =
+        GetOrCreateInternalResourceBinder(__LINE__)) {
+      resource_binder->UnmapBufferObjectData(buffer);
     }
+  } else {
+    LOG(WARNING) << "A NULL BufferObject was passed to"
+                 << ION_PRETTY_FUNCTION;
   }
 }
 
@@ -5713,79 +5760,73 @@ void Renderer::ResourceBinder::DrawShape(const Shape& shape,
 void Renderer::ResourceBinder::DrawIndexedShape(const Shape& shape,
                                                 const IndexBuffer& ib,
                                                 GraphicsManager* gm) {
-  if (ib.GetData().Get()) {
-    // Bind the index buffer.
-    BufferResource* br = resource_manager_->GetResource(&ib, this);
-    DCHECK(br);
-    br->Bind(this);
+  // Bind the index buffer.
+  BufferResource* br = resource_manager_->GetResource(&ib, this);
+  DCHECK(br);
+  br->Bind(this);
 
-    // The index type is in the first spec.
-    // TODO(user): Just have the type in the IndexBuffer once the
-    // BufferObject::Spec is finalized.
-    const BufferObject::Spec& spec = ib.GetSpec(0);
-    DCHECK(!base::IsInvalidReference(spec));
-    const GLenum data_type = base::EnumHelper::GetConstant(spec.type);
-    if (gm->GetGlApiStandard() == GraphicsManager::kEs &&
-        gm->GetGlVersion() < 30 &&
-        (data_type == GL_INT || data_type == GL_UNSIGNED_INT)) {
-      LOG(ERROR) << "***ION: Unable to draw shape " << shape.GetLabel()
-                 << " using index buffer: "
-                 << "The component type is not supported on this platform";
-    }
-    const GLenum prim_type =
-        base::EnumHelper::GetConstant(shape.GetPrimitiveType());
-    if (const size_t range_count = shape.GetVertexRangeCount()) {
-      // Draw all enabled ranges.
-      for (size_t i = 0; i < range_count; ++i) {
-        if (shape.IsVertexRangeEnabled(i)) {
-          const Range1i& range = shape.GetVertexRange(i);
-          const int start_index = range.GetMinPoint()[0];
-          const int count = range.GetSize();
-          DCHECK_GT(count, 0);
-          const int instance_count = shape.GetVertexRangeInstanceCount(i);
-          // The start_index is taken into account as an offset into the buffer.
-          if (instance_count &&
-              gm->IsFunctionGroupAvailable(
-                  GraphicsManager::kInstancedDrawing)) {
-            gm->DrawElementsInstanced(prim_type, count, data_type,
-                                      reinterpret_cast<const GLvoid*>(
-                                          start_index * ib.GetStructSize()),
-                                      instance_count);
-          } else {
-            if (instance_count) {
-              LOG_ONCE(WARNING) << "***ION: Instanced drawing is not "
-                                   "available. The vertex ranges in Shape: "
-                                << shape.GetLabel()
-                                << " will be drawn only once.";
-            }
-            gm->DrawElements(prim_type, count, data_type,
-                             reinterpret_cast<const GLvoid*>(
-                                 start_index * ib.GetStructSize()));
+  // The index type is in the first spec.
+  // TODO(user): Just have the type in the IndexBuffer once the
+  // BufferObject::Spec is finalized.
+  const BufferObject::Spec& spec = ib.GetSpec(0);
+  DCHECK(!base::IsInvalidReference(spec));
+  const GLenum data_type = base::EnumHelper::GetConstant(spec.type);
+  if (gm->GetGlApiStandard() == GraphicsManager::kEs &&
+      gm->GetGlVersion() < 30 &&
+      (data_type == GL_INT || data_type == GL_UNSIGNED_INT)) {
+    LOG(ERROR) << "***ION: Unable to draw shape " << shape.GetLabel()
+               << " using index buffer: "
+               << "The component type is not supported on this platform";
+  }
+  const GLenum prim_type =
+      base::EnumHelper::GetConstant(shape.GetPrimitiveType());
+  if (const size_t range_count = shape.GetVertexRangeCount()) {
+    // Draw all enabled ranges.
+    for (size_t i = 0; i < range_count; ++i) {
+      if (shape.IsVertexRangeEnabled(i)) {
+        const Range1i& range = shape.GetVertexRange(i);
+        const int start_index = range.GetMinPoint()[0];
+        const int count = range.GetSize();
+        DCHECK_GT(count, 0);
+        const int instance_count = shape.GetVertexRangeInstanceCount(i);
+        // The start_index is taken into account as an offset into the buffer.
+        if (instance_count &&
+            gm->IsFunctionGroupAvailable(
+                GraphicsManager::kInstancedDrawing)) {
+          gm->DrawElementsInstanced(prim_type, count, data_type,
+                                    reinterpret_cast<const GLvoid*>(
+                                        start_index * ib.GetStructSize()),
+                                    instance_count);
+        } else {
+          if (instance_count) {
+            LOG_ONCE(WARNING) << "***ION: Instanced drawing is not "
+                "available. The vertex ranges in Shape: "
+                              << shape.GetLabel()
+                              << " will be drawn only once.";
           }
+          gm->DrawElements(prim_type, count, data_type,
+                           reinterpret_cast<const GLvoid*>(
+                               start_index * ib.GetStructSize()));
         }
-      }
-    } else {
-      // No vertex ranges, so draw all indices.
-      const int instance_count = shape.GetInstanceCount();
-      if (instance_count &&
-          gm->IsFunctionGroupAvailable(GraphicsManager::kInstancedDrawing)) {
-        gm->DrawElementsInstanced(
-            prim_type, static_cast<GLsizei>(ib.GetCount()), data_type,
-            reinterpret_cast<const GLvoid*>(0), instance_count);
-      } else {
-        if (instance_count) {
-          LOG_ONCE(WARNING)
-              << "***ION: Instanced drawing is not available. Shape: "
-              << shape.GetLabel() << " will be drawn only once.";
-        }
-        gm->DrawElements(prim_type, static_cast<GLsizei>(ib.GetCount()),
-                         data_type, reinterpret_cast<const GLvoid*>(0));
       }
     }
   } else {
-    LOG(WARNING) << "***ION: Unable to draw shape " << shape.GetLabel()
-                 << " using index buffer: "
-                 << "IndexBuffer DataContainer is NULL";
+    // No vertex ranges, so draw all indices.
+    const int instance_count = shape.GetInstanceCount();
+    if (instance_count &&
+        gm->IsFunctionGroupAvailable(GraphicsManager::kInstancedDrawing)) {
+      gm->DrawElementsInstanced(
+          prim_type, static_cast<GLsizei>(ib.GetCount()), data_type,
+          reinterpret_cast<const GLvoid*>(0), instance_count);
+    } else {
+      if (instance_count) {
+        LOG_ONCE(WARNING)
+            << "***ION: Instanced drawing is not available. Shape: "
+            << shape.GetLabel() << " will be drawn only once.";
+      }
+      gm->DrawElements(prim_type, static_cast<GLsizei>(ib.GetCount()),
+                       data_type, reinterpret_cast<const GLvoid*>(0));
+    }
   }
 }
 
@@ -5926,7 +5967,7 @@ void Renderer::ResourceBinder::ClearVertexArrayBinding(GLuint id) {
           BufferObject::kElementBuffer,
           active_vertex_array_resource_->GetElementArrayBinding().buffer);
     }
-    active_vertex_array_resource_ = NULL;
+    active_vertex_array_resource_ = nullptr;
   }
 }
 
@@ -5957,7 +5998,7 @@ const ImagePtr Renderer::ResourceBinder::ReadImage(
       GetCompatiblePixelFormat(Image::GetPixelFormat(format), gm);
   const size_t data_size = Image::ComputeDataSize(format, width, height);
   DataContainerPtr data = DataContainer::CreateOverAllocated<uint8>(
-      data_size, NULL, image->GetAllocator());
+      data_size, nullptr, image->GetAllocator());
   memset(data->GetMutableData<uint8>(), 0, data_size);
 
   gm->PixelStorei(GL_PACK_ALIGNMENT, 1);
@@ -6007,18 +6048,6 @@ void Renderer::ResourceBinder::SendUniform(const Uniform& uniform, int location,
     gm->Uniform1i(location, GetLastBoundUnit(txr));                 \
   }
 
-#define SEND_MATRIX_UNIFORM(type, setter)                              \
-  if (uniform.IsArrayOf<type>()) {                                     \
-    /* We have to transpose each matrix. */                            \
-    const GLint count = static_cast<GLint>(uniform.GetCount());        \
-    for (GLint i = 0; i < count; ++i)                                  \
-      gm->setter(location + i, 1, GL_FALSE,                            \
-                 math::Transpose(uniform.GetValueAt<type>(i)).Data()); \
-  } else {                                                             \
-    gm->setter(location, 1, GL_FALSE,                                  \
-               math::Transpose(uniform.GetValue<type>()).Data());      \
-  }
-
   // Ion stores matrices in row-major order and OpenGL expects column-major, so
   // transpose when sending them. Note that passing GL_TRUE as the transpose
   // argument to OpenGL does not work in GLES2.
@@ -6066,14 +6095,18 @@ void Renderer::ResourceBinder::SendUniform(const Uniform& uniform, int location,
       SEND_VECTOR_UNIFORM(math::VectorBase4ui, uint32, 4, Uniform4uiv);
       break;
     case kMatrix2x2Uniform:
-      SEND_MATRIX_UNIFORM(math::Matrix2f, UniformMatrix2fv);
+      SendMatrixUniform<2>(uniform, gm, location,
+                           &GraphicsManager::UniformMatrix2fv);
       break;
     case kMatrix3x3Uniform:
-      SEND_MATRIX_UNIFORM(math::Matrix3f, UniformMatrix3fv);
+      SendMatrixUniform<3>(uniform, gm, location,
+                           &GraphicsManager::UniformMatrix3fv);
       break;
-    case kMatrix4x4Uniform:
-      SEND_MATRIX_UNIFORM(math::Matrix4f, UniformMatrix4fv);
+    case kMatrix4x4Uniform: {
+      SendMatrixUniform<4>(uniform, gm, location,
+                           &GraphicsManager::UniformMatrix4fv);
       break;
+    }
 #if !defined(ION_COVERAGE)  // COV_NF_START
     // A Uniform type is explicitly set to a valid type.
     default:
@@ -6082,7 +6115,6 @@ void Renderer::ResourceBinder::SendUniform(const Uniform& uniform, int location,
   }
 #undef SEND_VECTOR_UNIFORM
 #undef SEND_TEXTURE_UNIFORM
-#undef SEND_MATRIX_UNIFORM
 }
 
 void Renderer::ResourceManager::DisassociateElementBufferFromArrays(
@@ -6094,7 +6126,7 @@ void Renderer::ResourceManager::DisassociateElementBufferFromArrays(
     VertexArrayResource* res =
         reinterpret_cast<VertexArrayResource*>(resources[i]);
     if (res->GetElementArrayBinding().resource == resource)
-      res->SetElementArrayBinding(0, NULL);
+      res->SetElementArrayBinding(0, nullptr);
   }
 }
 
@@ -6130,8 +6162,7 @@ Renderer::ResourceManager::CreateResource(const HolderType* holder,
       holder->GetAllocator().Get() ? holder->GetAllocator()
                                    : GetAllocatorForLifetime(base::kMediumTerm);
   ResourceType* new_resource =
-      new (allocator) ResourceType(binder, this, *holder, gl_id);
-  new_resource->SetKey(key);
+      new (allocator) ResourceType(binder, this, *holder, key, gl_id);
   AddResource(new_resource);
   return new_resource;
 }
@@ -6144,58 +6175,20 @@ Renderer::ResourceManager::GetResource(
   typedef typename HolderToResource<HolderType>::ResourceType ResourceType;
 
   DCHECK(holder);
-  ResourceType* resource = NULL;
+  ResourceType* resource = nullptr;
   if (holder) {
-    // There are five possibilities here:
-    // 1) holder_resource is a regular resource, and will return itself from
-    // GetResource().
-    // 2) holder_resource is a ResourceGroup and returns the resource
-    // associated with expected_key.
-    // 3) The holder has a regular resource, but it isn't the one we're looking
-    // for; create a ResourceGroup.
-    // 4) holder_resource is a ResourceGroup but doesn't contain a resource
-    // associated with expected_key (it will return NULL).
-    // 5) The holder has no resource and we need to create one.
-    const ResourceKey expected_key =
+    // There are two possibilities here:
+    // 1) holder_resource is the resource we want.
+    // 2) holder_resource is null, and we must create a resource.
+    const ResourceKey key =
         GetResourceKey<ResourceType>(resource_binder, holder);
-    if (Resource* holder_resource_container =
-            static_cast<Resource*>(holder->GetResource(resource_index_))) {
-      if (Resource* holder_resource =
-              holder_resource_container->GetResource(expected_key)) {
-        // Cases 1, 2, or 3.
-        const ResourceKey holder_key = holder_resource->GetKey();
-        // If the keys do not match, then we need to create a new resource.
-        if (holder_key != expected_key) {
-          // Case 3. We have to create a new group and a new resource, and add
-          // the old and new resources to the group.
-          resource =
-              CreateResource(holder, resource_binder, expected_key, gl_id);
-          // Create a new resource group and add both resources to it.
-          ResourceManager::ResourceGroup* group =
-              new(GetAllocatorForLifetime(base::kMediumTerm))
-                  ResourceManager::ResourceGroup(this, holder);
-          // These are noops, but help coverage.
-          group->Update(resource_binder);
-          group->GetType();
-          // Set the group as the holder's resource.
-          holder->SetResource(resource_index_, group);
-          group->SetResource(holder_key, holder_resource);
-          group->SetResource(expected_key, resource);
-        } else {
-          // Cases 1 or 2. This is the resource we are looking for.
-          resource = static_cast<ResourceType*>(holder_resource);
-        }
-      } else {
-        // Case 4. Create a new resource and add it to the group.
-        resource = CreateResource(holder, resource_binder, expected_key, gl_id);
-        ResourceGroup* group =
-            static_cast<ResourceGroup*>(holder_resource_container);
-        group->SetResource(expected_key, resource);
-      }
+    if (Resource* holder_resource =
+            static_cast<Resource*>(holder->GetResource(resource_index_, key))) {
+      resource = static_cast<ResourceType*>(holder_resource);
     } else {
-      // Case 5. Create a new resource and set it as the holder's resource.
-      resource = CreateResource(holder, resource_binder, expected_key, gl_id);
-      holder->SetResource(resource_index_, resource);
+      // The holder does not have any resources associated with it.
+      resource = CreateResource(holder, resource_binder, key, gl_id);
+      holder->SetResource(resource_index_, key, resource);
     }
   }
   return resource;
@@ -6274,7 +6267,7 @@ void Renderer::ResourceManager::FillInfoFromResource(
       resource->GetTexture<TextureBase>().GetTextureType();
   info->width = info->height = 0U;
   info->format = base::InvalidEnumValue<Image::Format>();
-  Image* image = NULL;
+  Image* image = nullptr;
   if (type == TextureBase::kTexture) {
     const Texture& tex = resource->GetTexture<Texture>();
     if (tex.HasImage(0U))
@@ -6309,21 +6302,6 @@ template Renderer::TextureResource* Renderer::ResourceManager::GetResource(
     const Texture*, Renderer::ResourceBinder*, GLuint);
 template Renderer::VertexArrayResource* Renderer::ResourceManager::GetResource(
     const AttributeArray*, Renderer::ResourceBinder*, GLuint);
-
-template <typename HolderType>
-void Renderer::ResourceManager::ReleaseResources(
-    const HolderType* holder, Renderer::ResourceBinder* binder) {
-  typedef typename HolderToResource<HolderType>::ResourceType ResourceType;
-  if (holder && holder->GetResource(resource_index_)) {
-    if (ResourceType* resource = GetResource(holder, binder)) {
-      if (ResourceGroup* group = resource->GetGroup())
-        group->RemoveResource(resource->GetKey(), resource);
-      DCHECK(resource->GetGroup() == NULL);
-      resource->OnDestroyed();
-      ReleaseAll(binder);
-    }
-  }
-}
 
 }  // namespace gfx
 }  // namespace ion

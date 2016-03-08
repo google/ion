@@ -63,8 +63,13 @@ std::vector<FontPtr> SimpleTestFonts(size_t sdf_padding) {
 std::vector<FontPtr> ComplexTestFonts() {
   std::vector<FontPtr> fonts;
 #if defined(ION_USE_ICU)
-  fonts.push_back(
-      testing::BuildTestFreeTypeFont("NotoSansDevanagari-Regular", 32U, 4U));
+  auto test = testing::BuildTestFreeTypeFont("Test", 32U, 4U);
+  auto devangari =
+      testing::BuildTestFreeTypeFont("NotoSansDevanagari-Regular", 32U, 4U);
+  // With a proper fallback set even a simple FreeType font should work.
+  test->AddFallbackFont(devangari);
+  fonts.push_back(test);
+  fonts.push_back(devangari);
 #endif
 #if defined(ION_PLATFORM_MAC) || defined(ION_PLATFORM_IOS)
   fonts.push_back(
@@ -360,6 +365,7 @@ TEST(PlatformFontTest, FontAdvancedLayout) {
     ASSERT_EQ(4U, no_reph.GetGlyphCount());
     ASSERT_EQ(4U, with_reph.GetGlyphCount());
     ASSERT_NE(no_reph_glyphs, with_reph_glyphs);
+
     // Expect that |with_reph| is no more than this times |no_reph|'s width.
     // Note that this constant has been chosen to be just large enough to pass
     // for all the available platform fonts.

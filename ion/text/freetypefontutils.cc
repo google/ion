@@ -34,7 +34,7 @@ limitations under the License.
 #include "ion/port/memorymappedfile.h"
 #include "ion/text/freetypefont.h"
 
-#if ION_USE_ICU
+#if defined(ION_USE_ICU)
 #include "third_party/icu/icu4c/source/common/unicode/udata.h"
 #include "third_party/icu/icu4c/source/common/unicode/uloc.h"
 #include "third_party/icu/icu4c/source/common/unicode/unistr.h"
@@ -319,7 +319,7 @@ static void AddGlyphToLayout(GlyphIndex glyph_index, size_t line_index,
                     tight_bounds, offset)));
 }
 
-#if ION_USE_ICU
+#if defined(ION_USE_ICU)
 
 std::once_flag icu_initialize_once_flag;
 
@@ -346,7 +346,7 @@ static void TryInitializeIcu(bool* success) {
   // Elsewhere, assume we're a developer and assume an environment variable
   // (set in a test or manually) will tell us where to look.
   const std::string icu_data_directory =
-#ifdef ION_PLATFORM_ANDROID
+#if defined(ION_PLATFORM_ANDROID)
       "/system/usr/icu/";
 #elif defined(ION_PLATFORM_MAC)
       "/usr/share/icu/";
@@ -396,12 +396,11 @@ static void GetGlyphFromRun(const iculx::ParagraphLayout::VisualRun& run,
 // the total X advance used or 0 in case of error.
 static float IcuLayoutEngineLayoutLine(
     const FreeTypeFont& font,
-    icu::LEFontInstance* icu_font,
     const std::string& text,
     size_t line_index,
     const FreeTypeFontTransformData& transform_data,
     Layout* layout) {
-  if (!InitializeIcu() || !icu_font) {
+  if (!InitializeIcu()) {
     return 0.0f;
   }
 
@@ -413,9 +412,8 @@ static float IcuLayoutEngineLayoutLine(
   }
 
   // Generate a ParagraphLayout from the text.
-  // TODO(user): Create a FontRuns that respects the fallback fonts in |font|
-  iculx::FontRuns runs(1);
-  runs.add(icu_font, chars.length());
+  iculx::FontRuns runs(0);
+  font.GetFontRunsForText(chars, &runs);
   LEErrorCode status = LE_NO_ERROR;
   std::unique_ptr<iculx::ParagraphLayout> icu_layout(new iculx::ParagraphLayout(
       chars.getBuffer(), chars.length(), &runs, NULL, NULL, NULL,
@@ -434,7 +432,7 @@ static float IcuLayoutEngineLayoutLine(
   }
 
   enum { kImpossibleGlyphIndex = -1 };
-  int32 glyph_index = kImpossibleGlyphIndex;
+  int32 glyph_id = kImpossibleGlyphIndex;
   float glyph_x = -1;
   float glyph_y = -1;
 
@@ -442,10 +440,12 @@ static float IcuLayoutEngineLayoutLine(
     layout->Reserve(chars.length());
     for (int i = 0; i < line->countRuns(); ++i) {
       const iculx::ParagraphLayout::VisualRun *run = line->getVisualRun(i);
+      const icu::LEFontInstance* run_font = run->getFont();
       for (int j = 0; j < run->getGlyphCount(); ++j) {
-        GetGlyphFromRun(*run, j, &glyph_index, &glyph_x, &glyph_y);
-        if (glyph_index == 0 || glyph_index >= 0xffff)
+        GetGlyphFromRun(*run, j, &glyph_id, &glyph_x, &glyph_y);
+        if (glyph_id == 0 || glyph_id >= 0xffff)
           continue;
+        GlyphIndex glyph_index = font.GlyphIndexForICUFont(run_font, glyph_id);
         const FreeTypeFont::GlyphMetrics& metrics =
             font.GetGlyphMetrics(glyph_index);
         if (base::IsInvalidReference(metrics))
@@ -462,24 +462,24 @@ static float IcuLayoutEngineLayoutLine(
   } else {
     // Just find the final glyph to determine total advance
     for (int i = line->countRuns() - 1;
-         i >= 0 && glyph_index == kImpossibleGlyphIndex; --i) {
+         i >= 0 && glyph_id == kImpossibleGlyphIndex; --i) {
       const iculx::ParagraphLayout::VisualRun *run = line->getVisualRun(i);
       for (int j = run->getGlyphCount() - 1; j >= 0; --j) {
         if (run->getGlyphs()[j] < 0xffff) {
-          GetGlyphFromRun(*run, j, &glyph_index, &glyph_x, &glyph_y);
+          GetGlyphFromRun(*run, j, &glyph_id, &glyph_x, &glyph_y);
           break;
         }
       }
     }
   }
 
-  if (glyph_index == kImpossibleGlyphIndex) {
+  if (glyph_id == kImpossibleGlyphIndex) {
     return 0.0f;
   }
 
   // Compute the total advance ourselves since ICU is known to lie.
   LEPoint advance_p;
-  runs.getFont(runs.getCount() - 1)->getGlyphAdvance(glyph_index, advance_p);
+  runs.getFont(runs.getCount() - 1)->getGlyphAdvance(glyph_id, advance_p);
   float final_advance = advance_p.fX;
   float final_position = glyph_x;
   return final_advance + final_position;
@@ -525,8 +525,7 @@ static bool IsInFastUnicodeRange(const std::string& text) {
 // path.
 static bool IsInFastUnicodeRange(const std::string& text) { return true; }
 static float IcuLayoutEngineLayoutLine(
-    const Font& font,
-    icu::LEFontInstance* icu_font,
+    const FreeTypeFont& font,
     const std::string& text,
     size_t line_index,
     const FreeTypeFontTransformData& transform_data,
@@ -574,8 +573,7 @@ static void SimpleLayOutLine(
 }
 
 // Returns a Layout populated by glyphs representing |lines| of text.
-const Layout LayOutText(const FreeTypeFont& font,
-                        icu::LEFontInstance* icu_font,
+const Layout LayOutText(const FreeTypeFont& font, bool use_icu,
                         const Lines& lines,
                         const FreeTypeFontTransformData& transform_data) {
   const size_t num_lines = lines.size();
@@ -583,9 +581,9 @@ const Layout LayOutText(const FreeTypeFont& font,
   layout.SetLineAdvanceHeight(transform_data.scale[1] *
                               -transform_data.line_y_offset_in_pixels);
   for (size_t i = 0; i < num_lines; ++i) {
-    if (icu_font && !IsInFastUnicodeRange(lines[i])) {
+    if (use_icu && !IsInFastUnicodeRange(lines[i])) {
       IcuLayoutEngineLayoutLine(
-          font, icu_font, lines[i], i, transform_data, &layout);
+          font, lines[i], i, transform_data, &layout);
     } else {
       SimpleLayOutLine(font, lines[i], i, transform_data, &layout);
     }

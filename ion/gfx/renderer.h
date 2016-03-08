@@ -147,8 +147,9 @@ class ION_API Renderer : public base::Referent {
   // Binds the passed FramebufferObject; all future calls to DrawScene() will be
   // drawn into it. Passing a NULL pointer or an incomplete FramebufferObject
   // will bind the default framebuffer. The default framebuffer is the one bound
-  // in OpenGL when the Renderer is created. Note that the Renderer does not
-  // store a strong reference to the framebuffer.
+  // in OpenGL when the Renderer is created. Note that the Renderer stores only
+  // a weak reference to the framebuffer object, so if all FramebufferObjectPtrs
+  // to it are destroyed, the Renderer will revert to the default framebuffer.
   void BindFramebuffer(const FramebufferObjectPtr& fbo);
 
   // Returns the currently bound FramebufferObject. Note that this is related to

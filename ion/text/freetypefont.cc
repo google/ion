@@ -41,7 +41,7 @@ limitations under the License.
 #include "ion/port/mutex.h"
 #include "ion/text/freetypefontutils.h"
 #include "ion/text/layout.h"
-#if ION_USE_ICU
+#if defined(ION_USE_ICU)
 #include "third_party/icu/icu4c/source/common/unicode/udata.h"
 #include "third_party/iculehb/src/src/LEFontInstance.h"
 #include "third_party/iculx_hb/include/layout/ParagraphLayout.h"
@@ -299,7 +299,7 @@ static GlyphIndex BuildGlyphIndex(uint32 glyph, uint32 face) {
 //-----------------------------------------------------------------------------
 
 class FreeTypeFont::Helper
-#ifdef ION_USE_ICU
+#if defined(ION_USE_ICU)
     : public icu::LEFontInstance
 #endif
 {
@@ -320,7 +320,7 @@ class FreeTypeFont::Helper
       : glyph_metadata_map_(owning_font->GetAllocator()),
         owning_font_(owning_font),
         allocator_(owning_font_->GetAllocator()),
-#ifdef ION_USE_ICU
+#if defined(ION_USE_ICU)
         font_tables_(allocator_),
 #endif  // ION_USE_ICU
         ft_face_(NULL),
@@ -362,7 +362,7 @@ class FreeTypeFont::Helper
   // fallbacks, not just glyph loading.
   void AddFallbackFace(const std::weak_ptr<Helper>& fallback);
 
-#ifdef ION_USE_ICU
+#if defined(ION_USE_ICU)
   // icu::LEFontInstance implementation.
   const void* getFontTable(LETag tableTag, size_t& length) const override;
   le_int32 getUnitsPerEM() const override;
@@ -377,6 +377,10 @@ class FreeTypeFont::Helper
   le_int32 getAscent() const override;
   le_int32 getDescent() const override;
   le_int32 getLeading() const override;
+
+  const icu::LEFontInstance* GetFace(uint32 index) const;
+  GlyphIndex GlyphIndexForICUFont(const icu::LEFontInstance* icu_font,
+                                  int32 glyph_id) const;
 #endif
 
  private:
@@ -420,7 +424,7 @@ class FreeTypeFont::Helper
 
   FreeTypeFont* owning_font_;
   base::AllocatorPtr allocator_;
-#ifdef ION_USE_ICU
+#if defined(ION_USE_ICU)
   // pair::second is the size of pair::first.
   mutable base::AllocMap<LETag, std::pair<base::DataContainerPtr, size_t>>
       font_tables_;
@@ -632,7 +636,7 @@ void FreeTypeFont::Helper::AddFallbackFace(
   fallback_helpers_.push_back(fallback);
 }
 
-#ifdef ION_USE_ICU
+#if defined(ION_USE_ICU)
 const void* FreeTypeFont::Helper::getFontTable(LETag tableTag,
                                                size_t& length) const {
   auto it = font_tables_.find(tableTag);
@@ -739,6 +743,29 @@ le_int32 FreeTypeFont::Helper::getLeading() const {
                 static_cast<FT_Int32>(ft_face_->size->metrics.y_scale)) /
       64);
 }
+
+const icu::LEFontInstance* FreeTypeFont::Helper::GetFace(uint32 index) const {
+  if (index == 0) {
+    return this;
+  }
+  auto helper = fallback_helpers_[index - 1].lock();
+  if (helper) {
+    return helper.get();
+  }
+  return nullptr;
+}
+
+GlyphIndex FreeTypeFont::Helper::GlyphIndexForICUFont(
+    const icu::LEFontInstance* icu_font, int32 glyph_id) const {
+  for (uint32 i = 0, n = static_cast<uint32>(fallback_helpers_.size()); i <= n;
+       ++i) {
+    if (icu_font == GetFace(i)) {
+      return BuildGlyphIndex(glyph_id, i);
+    }
+  }
+  return BuildGlyphIndex(glyph_id, 0);
+}
+
 #endif  // ION_USE_ICU
 
 //-----------------------------------------------------------------------------
@@ -776,6 +803,27 @@ const math::Vector2f FreeTypeFont::GetKerning(CharIndex char_index0,
   return helper_->GetKerning(char_index0, char_index1);
 }
 
+#if defined(ION_USE_ICU)
+void FreeTypeFont::GetFontRunsForText(icu::UnicodeString chars,
+                                      iculx::FontRuns* runs) const {
+  uint32 current_face = GlyphIndexToFaceId(GetDefaultGlyphForChar(chars[0]));
+  for (int i = 1; i < chars.length(); ++i) {
+    uint32 this_face = GlyphIndexToFaceId(GetDefaultGlyphForChar(chars[i]));
+    if (this_face != current_face) {
+      runs->add(helper_->GetFace(current_face), i);
+      current_face = this_face;
+    }
+  }
+  runs->add(helper_->GetFace(current_face), chars.length());
+  return;
+}
+
+GlyphIndex FreeTypeFont::GlyphIndexForICUFont(
+    const icu::LEFontInstance* icu_font, int32 glyph_id) const {
+  return helper_->GlyphIndexForICUFont(icu_font, glyph_id);
+}
+#endif  // ION_USE_ICU
+
 GlyphIndex FreeTypeFont::GetDefaultGlyphForChar(CharIndex char_index) const {
   return helper_->GetDefaultGlyphForChar(char_index);
 }
@@ -795,13 +843,13 @@ const Layout FreeTypeFont::BuildLayout(const std::string& text,
       ComputeTransformData(*this, options, text_size);
 
 // Lay out the text using all the data.
-#ifdef ION_USE_ICU
-  icu::LEFontInstance* icu_font = helper_.get();
+#if defined(ION_USE_ICU)
+  bool use_icu = true;
 #else   // ION_USE_ICU
-  icu::LEFontInstance* icu_font = NULL;
+  bool use_icu = false;
 #endif  // ION_USE_ICU
 
-  return LayOutText(*this, icu_font, lines, transform_data);
+  return LayOutText(*this, use_icu, lines, transform_data);
 }
 
 void FreeTypeFont::AddFallbackFont(const FontPtr& fallback) {

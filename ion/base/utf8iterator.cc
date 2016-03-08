@@ -55,22 +55,25 @@ static bool IsContinuationByte(uint8 byte) {
 }
 
 static uint32 Compute2ByteUnicode(uint8 byte1, uint8 byte2) {
-  return (static_cast<uint32>(byte1 & 0x1f) << 6) |
+  const uint32 codepoint = (static_cast<uint32>(byte1 & 0x1f) << 6) |
       static_cast<uint32>(byte2 & 0x3f);
+  return codepoint <= 0x7f ? Utf8Iterator::kInvalidCharIndex : codepoint;
 }
 
 static uint32 Compute3ByteUnicode(uint8 byte1, uint8 byte2, uint8 byte3) {
-  return (static_cast<uint32>(byte1 & 0x0f) << 12) |
+  const uint32 codepoint = (static_cast<uint32>(byte1 & 0x0f) << 12) |
       (static_cast<uint32>(byte2 & 0x3f) << 6) |
       static_cast<uint32>(byte3 & 0x3f);
+  return codepoint <= 0x7ff ? Utf8Iterator::kInvalidCharIndex : codepoint;
 }
 
 static uint32 Compute4ByteUnicode(uint8 byte1, uint8 byte2,
                                   uint8 byte3, uint8 byte4) {
-  return (static_cast<uint32>(byte1 & 0x07) << 18) |
+  const uint32 codepoint = (static_cast<uint32>(byte1 & 0x07) << 18) |
       (static_cast<uint32>(byte2 & 0x3f) << 12) |
       (static_cast<uint32>(byte3 & 0x3f) << 6) |
       static_cast<uint32>(byte4 & 0x3f);
+  return codepoint <= 0xffff ? Utf8Iterator::kInvalidCharIndex : codepoint;
 }
 
 }  // anonymous namespace

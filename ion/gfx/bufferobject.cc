@@ -87,13 +87,20 @@ void BufferObject::OnNotify(const base::Notifier* notifier) {
   }
 }
 
+// This destructor is in the .cc file because BufferSubData contains
+// a BufferObjectPtr. Putting this destructor in the .h file would trigger
+// the generation of a destructor for BufferObjectPtr at a point where
+// BufferObject is still an incomplete type, which would cause either
+// a compiler error or undefined behavior at runtime.
+BufferObject::BufferSubData::~BufferSubData() {}
+
 }  // namespace gfx
 
 namespace base {
 
 using gfx::BufferObject;
 
-// Specialize for BufferObject::Target.
+// Specialize for BufferObject::ComponentType.
 template <> ION_API const EnumHelper::EnumData<BufferObject::ComponentType>
 EnumHelper::GetEnumData() {
   static const GLenum kValues[] = {
@@ -112,11 +119,19 @@ EnumHelper::GetEnumData() {
       kStrings);
 }
 
-// Specialize for BufferObject::Target.
 template <> ION_API const EnumHelper::EnumData<BufferObject::Target>
 EnumHelper::GetEnumData() {
-  static const GLenum kValues[] = { GL_ARRAY_BUFFER, GL_ELEMENT_ARRAY_BUFFER };
-  static const char* kStrings[] = { "ArrayBuffer", "Elementbuffer" };
+  static const GLenum kValues[] = { GL_ARRAY_BUFFER,
+                                    GL_ELEMENT_ARRAY_BUFFER,
+                                    GL_COPY_READ_BUFFER,
+                                    GL_COPY_WRITE_BUFFER
+  };
+  static const char* kStrings[] = {
+    "ArrayBuffer",
+    "Elementbuffer",
+    "CopyReadBuffer",
+    "CopyWriteBuffer"
+  };
   ION_STATIC_ASSERT(ARRAYSIZE(kValues) == ARRAYSIZE(kStrings),
                     "EnumHelper size mismatch");
   return EnumData<BufferObject::Target>(

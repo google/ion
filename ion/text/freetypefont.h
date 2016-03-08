@@ -24,6 +24,10 @@ limitations under the License.
 #include "ion/math/vector.h"
 #include "ion/text/font.h"
 
+#if defined(ION_USE_ICU)
+#include "third_party/iculx_hb/include/layout/ParagraphLayout.h"
+#endif  // ION_USE_ICU
+
 namespace ion {
 namespace text {
 
@@ -68,6 +72,15 @@ class ION_API FreeTypeFont : public Font {
   // beyond the metrics above.
   const math::Vector2f GetKerning(CharIndex char_index0,
                                   CharIndex char_index1) const;
+
+#if defined(ION_USE_ICU)
+  // Compute the FontRuns which will cover the string |chars| taking fallbacks
+  // into account.
+  void GetFontRunsForText(icu::UnicodeString chars,
+                          iculx::FontRuns* runs) const;
+  GlyphIndex GlyphIndexForICUFont(const icu::LEFontInstance* icu_font,
+                                  int32 glyph_id) const;
+#endif  // ION_USE_ICU
 
   // Font overrides.
   GlyphIndex GetDefaultGlyphForChar(CharIndex char_index) const override;

@@ -147,10 +147,13 @@ class GraphicsManager::CapabilityHelper {
                    GL_IMPLEMENTATION_COLOR_READ_FORMAT, GetInt);
     ION_SINGLE_CAP(kImplementationColorReadType,
                    GL_IMPLEMENTATION_COLOR_READ_TYPE, GetInt);
+    ION_SINGLE_CAP(kMaxColorAttachments,
+                   GL_MAX_COLOR_ATTACHMENTS, GetInt);
     ION_SINGLE_CAP(kMaxCombinedTextureImageUnits,
                    GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, GetInt);
     ION_SINGLE_CAP(kMaxCubeMapTextureSize, GL_MAX_CUBE_MAP_TEXTURE_SIZE,
                    GetInt);
+    ION_SINGLE_CAP(kMaxDrawBuffers, GL_MAX_DRAW_BUFFERS, GetInt);
     ION_SINGLE_CAP(kMaxFragmentUniformComponents,
                    GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, GetInt);
     ION_SINGLE_CAP(kMaxFragmentUniformVectors, GL_MAX_FRAGMENT_UNIFORM_VECTORS,
@@ -486,6 +489,8 @@ void GraphicsManager::InitGlInfo() {
   valid_statetable_caps_.flip();
 
   // Ensure that extension function groups are really supported.
+  EnableFunctionGroupIfAvailable(kCopyBufferSubData, GlVersions(31U, 30U, 0U),
+                                 "copy_buffer", "");
   EnableFunctionGroupIfAvailable(kDebugLabel, GlVersions(0U, 0U, 0U),
                                  "debug_label", "");
   EnableFunctionGroupIfAvailable(kDebugMarker, GlVersions(0U, 0U, 0U),

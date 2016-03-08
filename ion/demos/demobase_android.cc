@@ -34,33 +34,33 @@ limitations under the License.
 
 static DemoBase* demo = NULL;
 
-JNI_EXPORT void Java_com_google_ion_demo_IonRenderer_nativeInit(
+JNI_EXPORT void Java___jni_name___IonRenderer_nativeInit(
     JNIEnv* env, jobject thiz, jint w, jint h) {
   demo = CreateDemo(w, h);
 }
 
-JNI_EXPORT void Java_com_google_ion_demo_IonRenderer_nativeResize(
+JNI_EXPORT void Java___jni_name___IonRenderer_nativeResize(
     JNIEnv* env, jobject thiz, jint w, jint h) {
   demo->Resize(w, h);
 }
 
-JNI_EXPORT void Java_com_google_ion_demo_IonRenderer_nativeRender(
+JNI_EXPORT void Java___jni_name___IonRenderer_nativeRender(
     JNIEnv* env, jobject thiz) {
   demo->Update();
   demo->Render();
 }
 
-JNI_EXPORT void Java_com_google_ion_demo_IonRenderer_nativeMotion(
+JNI_EXPORT void Java___jni_name___IonRenderer_nativeMotion(
     JNIEnv* env, jobject thiz, jfloat x, jfloat y, jboolean is_press) {
   demo->ProcessMotion(x, y, is_press);
 }
 
-JNI_EXPORT void Java_com_google_ion_demo_IonRenderer_nativeScale(
+JNI_EXPORT void Java___jni_name___IonRenderer_nativeScale(
     JNIEnv* env, jobject thiz, jfloat scale) {
   demo->ProcessScale(scale);
 }
 
-JNI_EXPORT void Java_com_google_ion_demo_IonRenderer_nativeDone(
+JNI_EXPORT void Java___jni_name___IonRenderer_nativeDone(
     JNIEnv* env, jobject thiz) {
   delete demo;
 }

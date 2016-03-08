@@ -1,0 +1,88 @@
+// -----------------------------------------------------------------------------
+//
+// This file contains documentation for the main Ion Doxygen page.
+//
+// This used some macros processed by doxygen_macro_filter.py; see it for their
+// definitions.
+//
+// -----------------------------------------------------------------------------
+
+/*! \mainpage Ion Project Documentation
+
+\section TOC Table of Contents
+<ul>
+  <li>\ref Intro</li>
+  <li>\ref Libraries</li>
+  <ul>
+    <li>\ref CoreLibraries</li>
+    <li>\ref OptionalLibraries</li>
+  </ul>
+  <li>\ref GettingStarted</li>
+</ul>
+
+<hr>
+\section Intro Introduction
+
+The Ion project consists of a small and efficient set of libraries for building
+cross-platform client or server applications that use 3D graphics. It has
+strong support for dealing with OpenGL, including abstracting out differences
+in platforms.
+
+See <a href="{ION_URL}"> the Ion home page</a> for more information
+about the Ion project in general.
+
+The <a href="{ION_UG_URL}">Ion Users Guide</a> contains several simple examples
+that build upon one another to build familiarity with the API.
+
+<hr>
+\section Libraries Libraries
+
+The Ion code base consists of a set of required core libraries and some
+optional higher-level libraries. Each library has a corresponding namespace.
+For example, the <i>base</i> library uses namespace \c ion::base.
+
+\subsection CoreLibraries Core Libraries
+
+\li <a href="{CODE_URL}/port"><i>port</i></a>:
+Platform-dependent types and functions.
+\li <a href="{CODE_URL}/base"><i>base</i></a>:
+Basic types and functions for features such as memory management, string
+manipulation, and so on.
+\li <a href="{CODE_URL}/portgfx"><i>portgfx</i></a>:
+Platform-dependent graphics functions.
+\li <a href="{CODE_URL}/math"><i>math</i></a>:
+Types and functions for algebraic and geometric entities (such as vectors,
+matrices, and angles).
+
+\subsection OptionalLibraries Optional Libraries
+
+\li <a href="{CODE_URL}/gfxutils"><i>gfxutils</i></a>:
+Various higher-level utility types and functions for operating on graphics
+objects.
+\li <a href="{CODE_URL}/image"><i>image</i></a>:
+Functions operating on images.
+\li <a href="{CODE_URL}/text"><i>text</i></a>:
+Types and functions for displaying text as graphics.
+\li <a href="{CODE_URL}/remote"><i>remote</i></a>:
+Classes providing interaction with Ion applications via an external browser.
+\li <a href="{CODE_URL}/profile"><i>profile</i></a>:
+Types and functions for profiling run-time performance.
+\li <a href="{CODE_URL}/analytics"><i>analytics</i></a>:
+Types and functions for analyzing run-time performance.
+
+<hr>
+\section GettingStarted Getting Started With Ion
+
+The <a href="{CODE_URL}/demos">ion/demos</a> directory contains source code for
+some programs that demonstrate various features of Ion. This section
+illustrates these features using code snippets modified from code in those
+programs.
+
+Note that Ion does not provide any public platform-dependent windowing or user
+interface functions. However, the demo programs linked above show examples of
+how to implement these functions for various platforms.
+
+The best way to get started using Ion is to look at the examples in the
+<a href="{ION_UG_URL}">Ion Users Guide</a>.
+
+*/

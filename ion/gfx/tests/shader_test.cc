@@ -33,8 +33,8 @@ class ShaderTest : public ::testing::Test {
     resource_.reset(new MockShaderResource);
     shader_.Reset(new Shader());
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());
-    shader_->SetResource(0U, resource_.get());
-    EXPECT_EQ(resource_.get(), shader_->GetResource(0U));
+    shader_->SetResource(0U, 0U, resource_.get());
+    EXPECT_EQ(resource_.get(), shader_->GetResource(0U, 0U));
     EXPECT_TRUE(resource_->AnyModifiedBitsSet());
     resource_->ResetModifiedBits();
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());

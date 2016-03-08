@@ -29,10 +29,6 @@ limitations under the License.
 #include "ion/math/vector.h"
 #include "ion/text/layout.h"
 
-namespace icu {
-class LEFontInstance;
-}
-
 namespace ion {
 namespace text {
 
@@ -87,8 +83,7 @@ const FreeTypeFontTransformData ComputeTransformData(
     const Font& font, const LayoutOptions& options, const TextSize& text_size);
 
 // Returns a Layout populated by glyphs representing |lines| of text.
-const Layout LayOutText(const FreeTypeFont& font,
-                        icu::LEFontInstance* icu_font,
+const Layout LayOutText(const FreeTypeFont& font, bool use_icu,
                         const Lines& lines,
                         const FreeTypeFontTransformData& transform_data);
 

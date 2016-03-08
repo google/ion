@@ -39,8 +39,8 @@ class ShaderProgramTest : public ::testing::Test {
     fragment_.Reset(new Shader());
     program_.Reset(new ShaderProgram(registry_));
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());
-    program_->SetResource(0U, resource_.get());
-    EXPECT_EQ(resource_.get(), program_->GetResource(0U));
+    program_->SetResource(0U, 0, resource_.get());
+    EXPECT_EQ(resource_.get(), program_->GetResource(0U, 0));
     EXPECT_TRUE(resource_->AnyModifiedBitsSet());
     resource_->ResetModifiedBits();
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());

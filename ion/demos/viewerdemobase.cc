@@ -181,6 +181,9 @@ void ViewerDemoBase::SetNodeWithViewUniforms(const ion::gfx::NodePtr& node) {
   uniform_indices_[kModelviewMatrixIndex] =
       demoutils::AddUniformToNode(global_reg, "uModelviewMatrix",
                                   Matrix4f::Identity(), node);
+  uniform_indices_[kCameraPositionIndex] =
+      demoutils::AddUniformToNode(global_reg, "uCameraPosition",
+                                  Vector3f::Zero(), node);
   view_node_ = node;
 }
 
@@ -233,6 +236,11 @@ void ViewerDemoBase::UpdateViewUniforms() {
       ion::math::TranslationMatrix(-scene_center);
   demoutils::SetUniformInNode(uniform_indices_[kModelviewMatrixIndex],
                               view, view_node_);
+  ion::math::Matrix4f view_inverse = ion::math::Inverse(view);
+  auto camera_position = ion::math::Vector3f(
+      view_inverse(0, 3), view_inverse(1, 3), view_inverse(2, 3));
+  demoutils::SetUniformInNode(uniform_indices_[kCameraPositionIndex],
+                              camera_position, view_node_);
 }
 
 const Matrix4f ViewerDemoBase::GetMatrixFromUniform(UniformIndex which) const {

@@ -138,8 +138,10 @@ class ION_API ResourceManager : public base::Allocatable {
     GLfloat aliased_point_size_range[2];
 
     // Maximum capabilities.
+    GLint max_color_attachments;
     GLint max_combined_texture_image_units;
     GLint max_cube_map_texture_size;
+    GLint max_draw_buffers;
     GLint max_fragment_uniform_vectors;
     GLint max_renderbuffer_size;
     GLint max_texture_image_units;

@@ -28,6 +28,6 @@ varying vec3 vCubeMapVector;
 
 void main(void) {
   // Correct horizontal flip
-  vCubeMapVector.x = -vCubeMapVector.x;
-  gl_FragColor = textureCube(uCubeMap, vCubeMapVector);
+  vec3 cube_coords = vCubeMapVector * vec3(-1, 1, 1);
+  gl_FragColor = textureCube(uCubeMap, cube_coords);
 }

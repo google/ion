@@ -73,7 +73,7 @@ TEST(TimelineSearch, FindInSimpleTimeline) {
                         std::string("InTimeline"));
   auto iter = search.begin();
   EXPECT_NE(iter, search.end());
-  EXPECT_EQ((*iter)->GetName(), string("InTimeline"));
+  EXPECT_EQ((*iter)->GetName(), std::string("InTimeline"));
   ++iter;
   EXPECT_EQ(iter, search.end());
 }

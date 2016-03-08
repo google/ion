@@ -79,8 +79,10 @@ class ION_API GraphicsManager : public base::Referent {
     kCompressedTextureFormats,                   // std::vector<int>
     kImplementationColorReadFormat,              // int
     kImplementationColorReadType,                // int
+    kMaxColorAttachments,                        // int
     kMaxCombinedTextureImageUnits,               // int
     kMaxCubeMapTextureSize,                      // int
+    kMaxDrawBuffers,                             // int
     kMaxFragmentUniformComponents,               // int
     kMaxFragmentUniformVectors,                  // int
     kMaxRenderbufferSize,                        // int
@@ -140,6 +142,7 @@ class ION_API GraphicsManager : public base::Referent {
     kMapBuffer,
     kMapBufferBase,
     kMapBufferRange,
+    kCopyBufferSubData,
     kPointSize,
     kRaw,
     kSamplerObjects,

@@ -41,8 +41,8 @@ class AttributeArrayTest : public ::testing::Test {
     va_.Reset(new AttributeArray());
     resource_.reset(new MockVertexArrayResource);
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());
-    va_->SetResource(0U, resource_.get());
-    EXPECT_EQ(resource_.get(), va_->GetResource(0U));
+    va_->SetResource(0U, 0U, resource_.get());
+    EXPECT_EQ(resource_.get(), va_->GetResource(0U, 0U));
     EXPECT_TRUE(resource_->AnyModifiedBitsSet());
     resource_->ResetModifiedBits();
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());
@@ -286,7 +286,7 @@ TEST_F(AttributeArrayTest, AddReplaceAttributes) {
   resource_->ResetModifiedBits();
   {
     std::unique_ptr<MockBufferResource> bo_resource(new MockBufferResource);
-    vb->SetResource(0U, bo_resource.get());
+    vb->SetResource(0U, 0U, bo_resource.get());
 
     // Modifying vb's data should also trigger a notification. Calling
     // GetMutableData() will start the chain.
@@ -297,7 +297,7 @@ TEST_F(AttributeArrayTest, AddReplaceAttributes) {
         resource_->TestModifiedBit(AttributeArray::kAttributeChanged + 1));
     resource_->ResetModifiedBits();
 
-    vb->SetResource(0U, NULL);
+    vb->SetResource(0U, 0U, nullptr);
   }
 
   // Replace a buffer attribute with a simple attribute.

@@ -17,6 +17,8 @@ limitations under the License.
 
 #include "ion/gfx/resourceholder.h"
 
+#include <algorithm>
+
 namespace ion {
 namespace gfx {
 
@@ -31,58 +33,97 @@ ResourceHolder::~ResourceHolder() {
   // must be a reference to this, in which case the destructor would not have
   // been called.
   //
-  // We are done when all entries in resources_ are NULL. It is, however,
-  // possible for the vector to resize smaller when OnDestroyed() is called, so
-  // don't cache the size of the vector.
-  for (size_t i = 0; i < resources_.size(); ++i)
-    if (resources_[i])
-      resources_[i]->OnDestroyed();
+  // Do the destruction in two stages: first, set holder_ to null in all
+  // resources, then call their OnDestroyed() functions. If we don't unset the
+  // holder_, the resource will try to remove itself from the holder (which is
+  // the correct thing to do when the ResourceManager initiates the
+  // destruction). This would cause modifications to resources_ while we iterate
+  // over them, leading to crashes.
+  for (const auto& group : resources_)
+    for (const auto& entry : group)
+      entry.second->holder_ = nullptr;
+
+  for (const auto& group : resources_)
+    for (const auto& entry : group)
+      entry.second->OnDestroyed();
 }
 
-void ResourceHolder::SetResource(size_t index, IResource* resource) const {
+void ResourceHolder::SetResource(size_t index, ResourceKey key,
+                                 ResourceBase* resource) const {
   if (resource) {
+    DCHECK_EQ(resource->GetKey(), key);
+    DCHECK(resource->holder_ == nullptr || resource->holder_ == this);
     // Trigger all changes for this new resource.
     const size_t num_fields = fields_.size();
     for (size_t i = 0; i < num_fields; ++i)
       resource->OnChanged(fields_[i]->GetBit());
   }
 
-  IResource* old_resource = NULL;
-
-  // Add or remove the resource.
+  ResourceBase* old_resource = nullptr;
   base::WriteLock write_lock(&lock_);
   base::WriteGuard guard(&write_lock);
-  const size_t count = resources_.size();
+
   // Increase the size of resources_ if necessary, or reduce its size if
   // possible.
-  if (index >= count) {
-    // Only resize the vector if we are actually setting a non-NULL resource.
+  if (index >= resources_.size()) {
     if (resource) {
-      resources_.resize(index + 1U);
-      resources_[index] = resource;
-    }
-  } else if (count) {
-    // Replace the old resource.
-    old_resource = resources_[index];
-    resources_[index] = resource;
-    if (!resource) {
-      // Attempt to shorten the vector if we are removing a resource. Find the
-      // last index that contains a resource.
-      size_t last = count - 1U;
-      for (; last > index; --last)
-        if (resources_[last])
-          break;
-      resources_.resize(last + 1U);
+      // Only resize the vector if we are actually setting a non-NULL resource.
+      resources_.resize(index + 1U, ResourceGroup(*this));
+    } else {
+      // If resource is null and the index is out of current range,
+      // there is nothing to unset, so we can return early.
+      return;
     }
   }
 
+  // Look up the previously set value at this index and key, if any.
+  auto found = resources_[index].find(key);
+  old_resource = (found == resources_[index].end() ? nullptr : found->second);
+
+  // Add or remove the resource.
+  if (resource) {
+    // We are adding a resource to the holder or replacing an existing one.
+    resource->holder_ = this;
+    if (old_resource) {
+      // Remove the old resource. We can reuse the found iterator to avoid
+      // a second hash map lookup.
+      old_resource->holder_ = nullptr;
+      found->second = resource;
+    } else {
+      // No resource was previously set here.
+      resources_[index].emplace(key, resource);
+    }
+  } else if (old_resource) {
+    // We are removing a resource from the holder.
+    old_resource->holder_ = nullptr;
+    resources_[index].erase(found);
+    if (index + 1 == resources_.size()) {
+      // Removing a resource could have caused the
+      auto first_nonempty = std::find_if(resources_.rbegin(), resources_.rend(),
+          [](const ResourceGroup& group) { return !group.empty(); });
+      resources_.resize(std::distance(first_nonempty, resources_.rend()),
+                        ResourceGroup(*this));
+    }
+  }
+  // If both resource and old_resource are null, there is nothing to do.
+
   // Increase the count if we are setting a new resource at this index, and
   // didn't have one there before. Decrease it if we are setting to NULL an
-  // index that didn't have a resource.
+  // index that had a resource.
   if (resource && !old_resource)
     ++resource_count_;
   else if (!resource && old_resource)
     --resource_count_;
+
+  // Sanity check: the group with the highest index must be non-empty.
+  DCHECK(resources_.empty() || !resources_.back().empty());
+}
+
+ResourceBase* ResourceHolder::GetResource(size_t index, ResourceKey key) const {
+  const size_t count = resources_.size();
+  if (index >= count) return nullptr;
+  auto found = resources_[index].find(key);
+  return found == resources_[index].end() ? nullptr : found->second;
 }
 
 ResourceHolder::FieldBase::~FieldBase() {}

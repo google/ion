@@ -44,8 +44,8 @@ class FramebufferObjectTest : public ::testing::Test {
     fbo_.Reset(new FramebufferObject(512, 512));
     resource_.reset(new MockFramebufferObjectResource);
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());
-    fbo_->SetResource(0U, resource_.get());
-    EXPECT_EQ(resource_.get(), fbo_->GetResource(0U));
+    fbo_->SetResource(0U, 0, resource_.get());
+    EXPECT_EQ(resource_.get(), fbo_->GetResource(0U, 0));
     EXPECT_TRUE(resource_->AnyModifiedBitsSet());
     resource_->ResetModifiedBits();
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());

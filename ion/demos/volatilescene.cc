@@ -101,16 +101,16 @@ static const ion::gfx::NodePtr BuildGraph(int width, int height) {
 //
 //-----------------------------------------------------------------------------
 
-class VolatileScene : public DemoBase {
+class IonVolatileScene : public DemoBase {
  public:
-  VolatileScene(int width, int height)
+  IonVolatileScene(int width, int height)
       : width_(width),
         height_(height) {
     graphics_manager_.Reset(new ion::gfx::GraphicsManager);
     renderer_.Reset(new ion::gfx::Renderer(graphics_manager_));
     root_ = BuildGraph(width_, height_);
   }
-  ~VolatileScene() override {}
+  ~IonVolatileScene() override {}
 
   void Resize(int width, int height) override {
     width_ = width;
@@ -138,5 +138,5 @@ class VolatileScene : public DemoBase {
 };
 
 DemoBase* CreateDemo(int w, int h) {
-  return new VolatileScene(w, h);
+  return new IonVolatileScene(w, h);
 }

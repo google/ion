@@ -174,7 +174,7 @@
         '../../third_party/openctm/files/lib',
         '../../third_party/openctm/files/tools',
         '../../third_party/openctm/files/tools/rply',
-        '../../third_party/openctm/files/tools/tinyxml',
+        '../../third_party/tinyxml',
       ],
       'all_dependent_settings': {
         'defines': [
@@ -220,13 +220,13 @@
         '../../third_party/openctm/files/tools/rply/rply.h',
         '../../third_party/openctm/files/tools/stl.cpp',
         '../../third_party/openctm/files/tools/stl.h',
-        '../../third_party/openctm/files/tools/tinyxml/tinystr.cpp',
-        '../../third_party/openctm/files/tools/tinyxml/tinystr.h',
-        '../../third_party/openctm/files/tools/tinyxml/tinyxml.cpp',
-        '../../third_party/openctm/files/tools/tinyxml/tinyxml.h',
-        '../../third_party/openctm/files/tools/tinyxml/tinyxmlerror.cpp',
-        '../../third_party/openctm/files/tools/tinyxml/tinyxmlparser.cpp',
         '../../third_party/openctm/files/tools/wrl.h',
+        '../../third_party/tinyxml/tinystr.cpp',
+        '../../third_party/tinyxml/tinystr.h',
+        '../../third_party/tinyxml/tinyxml.cpp',
+        '../../third_party/tinyxml/tinyxml.h',
+        '../../third_party/tinyxml/tinyxmlerror.cpp',
+        '../../third_party/tinyxml/tinyxmlparser.cpp',
       ],
     },  # target: ionopenctm
 
@@ -302,6 +302,8 @@
         '../../third_party/zlib/src/zutil.h',
       ],
       'defines': [
+        'NOCRYPT=1',
+        'NOUNCRYPT=1',
         'STDC',
       ],
       'all_dependent_settings': {
@@ -329,6 +331,11 @@
              '-Wno-parentheses',      # Ambiguous-looking if-else statements.
              '-Wno-unused-function',  # Func declared static but never defined.
              '-w',  # Turn on other warnings.
+          ],
+        }],
+        ['OS == "android"', {
+          'defines': [
+            'USE_FILE32API=1',
           ],
         }],
         ['OS == "windows"', {
@@ -453,6 +460,9 @@
     ['OS == "android"', {
       'targets': [
         {
+          'includes' : [
+            '../dev/os.gypi',
+          ],
           'cflags': [
              '-Wno-unused-function',
              '-Wno-unused-variable',
@@ -460,12 +470,12 @@
           'target_name': 'ionandroid_cpufeatures',
           'type': 'static_library',
           'sources': [
-              '../../third_party/java/android/android_ndk_linux/r9/sources/android/cpufeatures/cpu-features.c',
-              '../../third_party/java/android/android_ndk_linux/r9/sources/android/cpufeatures/cpu-features.h',
+              '<(android_ndk_sources_dir)/android/cpufeatures/cpu-features.c',
+              '<(android_ndk_sources_dir)/android/cpufeatures/cpu-features.h',
           ],
           'all_dependent_settings': {
             'include_dirs': [
-              '../../third_party/java/android/android_ndk_linux/r9/sources/android/cpufeatures',
+              '<(android_ndk_sources_dir)/android/cpufeatures',
             ],
           },
         },  # target: ionandroid_cpufeatures

@@ -27,21 +27,28 @@ limitations under the License.
 #include "ion/base/logging.h"
 #include "ion/base/notifier.h"
 #include "ion/base/readwritelock.h"
+#include "ion/base/stlalloc/allocunorderedmap.h"
 #include "ion/base/stlalloc/allocvector.h"
-#include "ion/gfx/iresource.h"
+#include "ion/gfx/resourcebase.h"
 #include "ion/port/atomic.h"
 
 namespace ion {
 namespace gfx {
 
 // ResourceHolder is an internal base class for objects that hold resources
-// managed by an outside entity, allowing the resources to be associated
-// opaquely with an instance of the object. This association is done explicitly
-// with a size_t index. For example, a BufferObject may opaquely contain a
-// derived IResource managing a VBO; when the BufferObject instance is
-// destroyed, the VBO can be released to OpenGL at some point in the future.
-// Similarly, if the contents of the BufferObject are modified, the BufferObject
-// can call its IResources' OnChanged() methods so that they can respond.
+// managed by an outside entity, such as ResourceManager, allowing the
+// resources to be associated opaquely with an instance of the object. This
+// association is done explicitly with a globally unique size_t index.
+// Additionally, the outside entity can manage multiple resources for a single
+// ResourceHolder by giving them ResourceKeys that are unique within a given
+// index. Note that the internal mapping between indices and sets of resources
+// is not sparse, so using large indices will needlessly waste memory.
+//
+// For example, a BufferObject may opaquely contain a derived ResourceBase
+// managing a VBO; when the BufferObject instance is destroyed, the VBO can be
+// released to OpenGL at some point in the future. Similarly, if the contents
+// of the BufferObject are modified, the BufferObject can call its
+// ResourceBases' OnChanged() methods so that they can respond.
 class ION_API ResourceHolder : public base::Notifier {
  public:
   // All ResourceHolders derived from this should start their own change enums
@@ -52,20 +59,15 @@ class ION_API ResourceHolder : public base::Notifier {
     kNumBaseChanges
   };
 
-  // Sets the resource at the passed index. If index is larger than the current
-  // size of the resource vector, it is increased in size. If resource is NULL
-  // and the vector can be reduced in size without moving any resources, it is
-  // resized.
-  void SetResource(size_t index, IResource* resource) const;
+  // Sets the resource at the passed index and key. The size of the internal
+  // vector is automatically managed so that it has the smallest possible size.
+  void SetResource(size_t index, ResourceKey key, ResourceBase* resource) const;
 
-  // Returns the IResource at index or NULL if index is invalid.
-  IResource* GetResource(size_t index) const {
-    base::ReadLock read_lock(&lock_);
-    base::ReadGuard guard(&read_lock);
-    return index < resources_.size() ? resources_[index] : NULL;
-  }
+  // Returns the Resource at the given index and key, or NULL if no resource
+  // was previously set at that location.
+  ResourceBase* GetResource(size_t index, ResourceKey key) const;
 
-  // Returns the number of IResources that this holder holds. Note that this is
+  // Returns the number of resources that this holder holds. Note that this is
   // not necessarily the number of indices that have non-NULL resources. This
   // can be used as a fast trivial check to see if the holder has any resources.
   int GetResourceCount() const {
@@ -77,10 +79,9 @@ class ION_API ResourceHolder : public base::Notifier {
     base::ReadLock read_lock(&lock_);
     base::ReadGuard guard(&read_lock);
     size_t total = 0U;
-    const size_t count = resources_.size();
-    for (size_t i = 0; i < count; ++i)
-      if (resources_[i])
-        total += resources_[i]->GetGpuMemoryUsed();
+    for (const auto& group : resources_)
+      for (const auto& entry : group)
+        total += entry.second->GetGpuMemoryUsed();
     return total;
   }
 
@@ -327,10 +328,9 @@ class ION_API ResourceHolder : public base::Notifier {
     // threads simultaneously.
     base::ReadLock read_lock(&lock_);
     base::ReadGuard guard(&read_lock);
-    const size_t count = resources_.size();
-    for (size_t i = 0; i < count; ++i)
-      if (resources_[i])
-        resources_[i]->OnChanged(bit);
+    for (const auto& group : resources_)
+      for (const auto& entry : group)
+        entry.second->OnChanged(bit);
   }
 
  private:
@@ -342,10 +342,12 @@ class ION_API ResourceHolder : public base::Notifier {
   // Adds a field to the field list.
   void AddField(FieldBase* field) { fields_.push_back(field); }
 
+  typedef base::AllocUnorderedMap<ResourceKey, ResourceBase*> ResourceGroup;
+
   // The resource vector is declared as mutable because it is really a cache
   // of some external state. This allows SetResource() to be const, meaning
   // that a const ResourceHolder instance can have resources cached in it.
-  mutable base::InlinedAllocVector<IResource*, 1> resources_;
+  mutable base::InlinedAllocVector<ResourceGroup, 1> resources_;
   // Protect access to resources_. The lock is mutable so that we can lock in
   // const functions.
   mutable base::ReadWriteLock lock_;

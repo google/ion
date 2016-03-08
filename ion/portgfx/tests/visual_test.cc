@@ -31,8 +31,12 @@ TEST(Visual, Visual) {
       ion::portgfx::Visual::CreateVisual());
   ion::portgfx::Visual::MakeCurrent(visual.get());
   const size_t id = ion::portgfx::Visual::GetCurrentId();
-  if (visual->IsValid())
+  if (visual->IsValid()) {
     EXPECT_EQ(visual.get(), ion::portgfx::Visual::GetCurrent());
+    EXPECT_TRUE(visual->IsCurrent());
+  } else {
+    EXPECT_FALSE(visual->IsCurrent());
+  }
   EXPECT_EQ(id, visual->GetId());
   EXPECT_GE(id, 0U);
 

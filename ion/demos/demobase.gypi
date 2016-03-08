@@ -63,7 +63,7 @@
       ],
       'actions': [
         {
-          'action_name': 'replace_strings',
+          'action_name': 'replace_demobase_strings',
           'inputs': [
             '<(ion_dir)/demos/demobase.html',
           ],
@@ -134,10 +134,30 @@
       # included (see make_this_target_into_an_app_param.gypi) in an APK.
       'type': 'shared_library',
 
+      # For string replacements in demobase_android.cc.
+      'variables' : {
+        'make_this_target_into_an_app_param': '', # unused
+        'apk_package_name_param': 'com.google.ion.<(demo_class_name)',
+        'apk_class_name_param': '<(demo_class_name)',
+      },
+
       'product_dir=': '<(SHARED_INTERMEDIATE_DIR)',
 
       'sources' : [
-        'demobase_android.cc',
+        '<(INTERMEDIATE_DIR)/demobase_android.cc',
+      ],
+
+      'actions' : [
+        {
+          'action_name': 'gen_demobase',
+          'message': 'Generating native stub',
+          'includes': [ '../dev/java_string_replacement_rules.gypi' ],
+
+          'inputs': [
+            'demobase_android.cc',
+          ],
+          'outputs': [ '<(INTERMEDIATE_DIR)/demobase_android.cc'],
+        },
       ],
     }],
 

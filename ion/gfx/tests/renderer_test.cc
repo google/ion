@@ -79,6 +79,12 @@ struct SpecInfo {
 struct Vertex {
   math::Vector3f point_coords;
   math::Vector2f tex_coords;
+  bool operator==(const Vertex& other) const {
+    return point_coords == other.point_coords && tex_coords == other.tex_coords;
+  }
+  bool operator!=(const Vertex& other) const {
+    return !(*this == other);
+  }
 };
 
 static const size_t kVboSize = 4U * sizeof(Vertex);
@@ -356,7 +362,7 @@ static void Build1dArrayImage() {
     s_data.image = new Image;
   if (!s_data.image_container.Get()) {
     s_data.image_container = base::DataContainer::CreateOverAllocated<char>(
-        65536, NULL, s_data.image->GetAllocator());
+        65536, nullptr, s_data.image->GetAllocator());
   }
   s_data.image->SetArray(s_options.image_format, 32, 32,
                          s_data.image_container);
@@ -368,7 +374,7 @@ static void Build2dImage() {
     s_data.image = new Image;
   if (!s_data.image_container.Get()) {
     s_data.image_container = base::DataContainer::CreateOverAllocated<char>(
-        65536, NULL, s_data.image->GetAllocator());
+        65536, nullptr, s_data.image->GetAllocator());
   }
   s_data.image->Set(s_options.image_format, 32, 32, s_data.image_container);
   SetImages();
@@ -379,7 +385,7 @@ static void Build2dArrayImage() {
     s_data.image = new Image;
   if (!s_data.image_container.Get()) {
     s_data.image_container = base::DataContainer::CreateOverAllocated<char>(
-        65536, NULL, s_data.image->GetAllocator());
+        65536, nullptr, s_data.image->GetAllocator());
   }
   s_data.image->SetArray(s_options.image_format, 8, 8, 16,
                          s_data.image_container);
@@ -391,7 +397,7 @@ static void Build3dImage() {
     s_data.image = new Image;
   if (!s_data.image_container.Get()) {
     s_data.image_container = base::DataContainer::CreateOverAllocated<char>(
-        65536, NULL, s_data.image->GetAllocator());
+        65536, nullptr, s_data.image->GetAllocator());
   }
   s_data.image->Set(s_options.image_format, 8, 8, 16, s_data.image_container);
   SetImages();
@@ -707,7 +713,7 @@ template <typename TextureType>
 static ImagePtr CreateNullImage(uint32 width, uint32 height,
                                 Image::Format format) {
   ImagePtr image(new Image);
-  image->Set(format, width, height, base::DataContainerPtr(NULL));
+  image->Set(format, width, height, base::DataContainerPtr(nullptr));
   return image;
 }
 
@@ -797,7 +803,7 @@ static ::testing::AssertionResult VerifySaveAndRestoreFlag(
   // Framebuffer handling is special, we want to test without the requested fbo
   // first, and bind it again before restoring.
   FramebufferObjectPtr fbo = renderer->GetCurrentFramebuffer();
-  if (fbo.Get() != NULL)
+  if (fbo.Get() != nullptr)
     renderer->BindFramebuffer(FramebufferObjectPtr());
 
   // Test that saving alone works.
@@ -832,7 +838,7 @@ static ::testing::AssertionResult VerifySaveAndRestoreFlag(
   renderer->DrawScene(root);
 
   // Test that restoring works.
-  if (fbo.Get() != NULL)
+  if (fbo.Get() != nullptr)
     renderer->BindFramebuffer(fbo);
   trace_verifier->Reset();
   renderer->SetFlag(restore_flag);
@@ -1055,23 +1061,23 @@ class RendererTest : public ::testing::Test {
   }
 
   void TearDown() override {
-    s_data.index_container = NULL;
-    s_data.image_container = NULL;
-    s_data.vertex_container = NULL;
-    s_data.attribute_array = NULL;
-    s_data.vertex_buffer = NULL;
-    s_data.fbo = NULL;
-    s_data.index_buffer = NULL;
-    s_data.sampler = NULL;
-    s_data.shader = NULL;
-    s_data.shape = NULL;
-    s_data.texture = NULL;
-    s_data.cubemap = NULL;
-    s_data.image = NULL;
-    s_data.rect = NULL;
+    s_data.index_container = nullptr;
+    s_data.image_container = nullptr;
+    s_data.vertex_container = nullptr;
+    s_data.attribute_array = nullptr;
+    s_data.vertex_buffer = nullptr;
+    s_data.fbo = nullptr;
+    s_data.index_buffer = nullptr;
+    s_data.sampler = nullptr;
+    s_data.shader = nullptr;
+    s_data.shape = nullptr;
+    s_data.texture = nullptr;
+    s_data.cubemap = nullptr;
+    s_data.image = nullptr;
+    s_data.rect = nullptr;
     delete trace_verifier_;
     EXPECT_EQ(static_cast<GLenum>(GL_NO_ERROR), gm_->GetError());
-    gm_.Reset(NULL);
+    gm_.Reset(nullptr);
     visual_.reset();
     s_options = Options();
     // Clear singly logged messages.
@@ -1343,7 +1349,7 @@ TEST_F(RendererTest, GetGraphicsManager) {
 
 TEST_F(RendererTest, GetDefaultShaderProgram) {
   RendererPtr renderer(new Renderer(gm_));
-  EXPECT_TRUE(renderer->GetDefaultShaderProgram().Get() != NULL);
+  EXPECT_TRUE(renderer->GetDefaultShaderProgram().Get() != nullptr);
 }
 
 TEST_F(RendererTest, UpdateDefaultFramebufferFromOpenGL) {
@@ -1835,14 +1841,14 @@ TEST_F(RendererTest, NoScene) {
     Reset();
     Renderer::DestroyStateCache(portgfx::Visual::GetCurrent());
     RendererPtr renderer(new Renderer(gm_));
-    renderer->DrawScene(NodePtr(NULL));
+    renderer->DrawScene(NodePtr(nullptr));
     EXPECT_EQ(3U, trace_verifier_->GetCallCount());
     EXPECT_EQ(3U, MockGraphicsManager::GetCallCount());
     EXPECT_EQ(1U, trace_verifier_->GetCountOf("Enable(GL_POINT_SPRITE"));
     EXPECT_EQ(1U, trace_verifier_->GetCountOf("Enable(GL_PROGRAM_POINT_SIZE"));
     EXPECT_EQ(1U, trace_verifier_->GetCountOf(
         "GetIntegerv(GL_FRAMEBUFFER_BINDING"));
-    renderer->DrawScene(NodePtr(NULL));
+    renderer->DrawScene(NodePtr(nullptr));
     EXPECT_TRUE(VerifyGpuMemoryUsage(renderer, 0U, 0U, 0U));
     Reset();
   }
@@ -2325,7 +2331,7 @@ TEST_F(RendererTest, BufferAttributeTypes) {
   }
 
   // Reset data.
-  s_data.rect = NULL;
+  s_data.rect = nullptr;
   BuildRectangle();
 
   // Some of the specs are technically invalid, but are tested for coverage.
@@ -2343,11 +2349,11 @@ TEST_F(RendererTest, PreventZombieUpdates) {
   renderer->DrawScene(root);
   Reset();
   // Force resource destruction.
-  s_data.vertex_buffer = NULL;
-  s_data.rect = NULL;
-  s_data.attribute_array = NULL;
-  s_data.shape = NULL;
-  root = NULL;
+  s_data.vertex_buffer = nullptr;
+  s_data.rect = nullptr;
+  s_data.attribute_array = nullptr;
+  s_data.shape = nullptr;
+  root = nullptr;
   // Clearing cached bindings causes the active buffer to be put on the update
   // list.
   renderer->ClearCachedBindings();
@@ -2650,7 +2656,7 @@ TEST_F(RendererTest, NonBufferAttributes) {
 
   gm_->EnableFunctionGroup(GraphicsManager::kVertexArrays, true);
   // Reset data.
-  s_data.rect = NULL;
+  s_data.rect = nullptr;
   BuildRectangle();
   {
     NodePtr root = BuildGraph(kWidth, kHeight);
@@ -2670,7 +2676,7 @@ TEST_F(RendererTest, NonBufferAttributes) {
   }
 
   // Reset data.
-  s_data.rect = NULL;
+  s_data.rect = nullptr;
   BuildRectangle();
   {
     NodePtr root = BuildGraph(kWidth, kHeight);
@@ -2874,7 +2880,7 @@ TEST_F(RendererTest, MissingInputFromRegistry) {
   }
 
   // Reset data.
-  s_data.rect = NULL;
+  s_data.rect = nullptr;
   BuildRectangle();
 }
 
@@ -2985,7 +2991,7 @@ TEST_F(RendererTest, RegistryHasWrongUniformType) {
   }
 
   // Reset data.
-  s_data.rect = NULL;
+  s_data.rect = nullptr;
   BuildRectangle();
 }
 
@@ -3037,7 +3043,7 @@ TEST_F(RendererTest, RegistryHasAliasedInputs) {
   }
 
   // Reset data.
-  s_data.rect = NULL;
+  s_data.rect = nullptr;
   BuildRectangle();
 }
 
@@ -3090,7 +3096,7 @@ TEST_F(RendererTest, AttributeArraysShareIndexBuffer) {
             trace_verifier_->GetCountOf("BindBuffer(GL_ELEMENT_ARRAY_BUFFER"));
 
   // Reset data.
-  s_data.rect = NULL;
+  s_data.rect = nullptr;
   BuildRectangle();
 }
 
@@ -3173,7 +3179,7 @@ TEST_F(RendererTest, AttributeArrayHasAttributeShaderDoesnt) {
   }
 
   // Reset data.
-  s_data.rect = NULL;
+  s_data.rect = nullptr;
   BuildRectangle();
 }
 
@@ -3294,7 +3300,7 @@ TEST_F(RendererTest, UniformPushAndPop) {
   // here.
   s_data.rect->ClearUniforms();
   s_data.rect->AddUniform(reg->Create<Uniform>("uInt", 1));
-  s_data.shape->SetAttributeArray(AttributeArrayPtr(NULL));
+  s_data.shape->SetAttributeArray(AttributeArrayPtr(nullptr));
 
   NodePtr node(new Node);
   node->AddShape(s_data.shape);
@@ -3307,7 +3313,7 @@ TEST_F(RendererTest, UniformPushAndPop) {
   EXPECT_EQ(2U, trace_verifier_->GetCountOf("Uniform1i"));
 
   // Reset.
-  s_data.rect = NULL;
+  s_data.rect = nullptr;
   s_data.shape->SetAttributeArray(s_data.attribute_array);
   BuildRectangle();
 }
@@ -3372,7 +3378,7 @@ TEST_F(RendererTest, UniformsShareTextureUnits) {
   EXPECT_EQ(1U, trace_verifier_->GetCountOf("ActiveTexture(GL_TEXTURE2)"));
 
   // Reset data.
-  s_data.rect = NULL;
+  s_data.rect = nullptr;
   BuildRectangle();
 }
 
@@ -3415,7 +3421,7 @@ TEST_F(RendererTest, UniformAreSentCorrectly) {
   s_data.rect->SetShaderProgram(program);
   // Remove attribute array to prevent warnings; we are only testing uniforms
   // here.
-  s_data.shape->SetAttributeArray(AttributeArrayPtr(NULL));
+  s_data.shape->SetAttributeArray(AttributeArrayPtr(nullptr));
 
   {
     // Verify that the uniforms were sent only once, since there is only one
@@ -3490,7 +3496,7 @@ TEST_F(RendererTest, UniformAreSentCorrectly) {
   }
 
   // Reset.
-  s_data.rect = NULL;
+  s_data.rect = nullptr;
   s_data.shape->SetAttributeArray(s_data.attribute_array);
   BuildRectangle();
 }
@@ -3590,7 +3596,7 @@ TEST_F(RendererTest, SetTextureImageUnitRange) {
   EXPECT_EQ(0U, trace_verifier_->GetCountOf("ActiveTexture(GL_TEXTURE6)"));
 
   // Reset data.
-  s_data.rect = NULL;
+  s_data.rect = nullptr;
   BuildRectangle();
 }
 
@@ -3647,7 +3653,7 @@ TEST_F(RendererTest, ArrayUniforms) {
   s_data.rect->SetShaderProgram(program);
   // Remove attribute array to prevent warnings; we are only testing uniforms
   // here.
-  s_data.shape->SetAttributeArray(AttributeArrayPtr(NULL));
+  s_data.shape->SetAttributeArray(AttributeArrayPtr(nullptr));
 
   root->AddUniform(reg->Create<Uniform>("uInt", 13));
   root->AddUniform(reg->Create<Uniform>("uFloat", 1.5f));
@@ -3804,16 +3810,13 @@ TEST_F(RendererTest, ArrayUniforms) {
         trace_verifier_->VerifyCallAt(trace_verifier_->GetNthIndexOf(
                                           1U, i_name + "v(")).HasArg(2, "2"));
 
-    EXPECT_EQ(3U, trace_verifier_->GetCountOf(mat_name));
+    EXPECT_EQ(2U, trace_verifier_->GetCountOf(mat_name));
     EXPECT_TRUE(
         trace_verifier_->VerifyCallAt(trace_verifier_->GetNthIndexOf(
                                           0U, mat_name)).HasArg(2, "1"));
     EXPECT_TRUE(
         trace_verifier_->VerifyCallAt(trace_verifier_->GetNthIndexOf(
-                                          1U, mat_name)).HasArg(2, "1"));
-    EXPECT_TRUE(
-        trace_verifier_->VerifyCallAt(trace_verifier_->GetNthIndexOf(
-                                          2U, mat_name)).HasArg(2, "1"));
+                                          1U, mat_name)).HasArg(2, "2"));
   }
 
   Reset();
@@ -3890,7 +3893,7 @@ TEST_F(RendererTest, ArrayUniforms) {
   renderer->DrawScene(root);
   // Expect all uniforms to be sent because they have different ids because
   // now s_data.rect uniforms replace those of root.
-  EXPECT_EQ(25U, trace_verifier_->GetCountOf("Uniform"));
+  EXPECT_EQ(22U, trace_verifier_->GetCountOf("Uniform"));
 }
 
 TEST_F(RendererTest, VertexArraysAndEmulator) {
@@ -4051,12 +4054,13 @@ TEST_F(RendererTest, VertexBufferUsage) {
   EXPECT_TRUE(VerifyRenderCalls(verify_data, trace_verifier_, renderer, root));
 
   Reset();
-  renderer = NULL;
+  renderer = nullptr;
   EXPECT_TRUE(VerifyReleases(1));
 }
 
 TEST_F(RendererTest, VertexBufferNoData) {
-  // Test handling of NULL, nonexistent, or empty buffer object data containers.
+  // Test handling of nullptr, nonexistent, or empty buffer object
+  // data containers.
   RendererPtr renderer(new Renderer(gm_));
   NodePtr root = BuildGraph(kWidth, kHeight);
   base::LogChecker log_checker;
@@ -4064,12 +4068,13 @@ TEST_F(RendererTest, VertexBufferNoData) {
   Reset();
   renderer->DrawScene(root);
   EXPECT_EQ(1U, trace_verifier_->GetCountOf("BindBuffer(GL_ARRAY_BUFFER"));
-  s_data.vertex_buffer->SetData(base::DataContainerPtr(NULL), sizeof(Vertex),
+  s_data.vertex_buffer->SetData(base::DataContainerPtr(nullptr), sizeof(Vertex),
                                 s_num_vertices, s_options.vertex_buffer_usage);
   Reset();
   renderer->DrawScene(root);
+  // Buffer is already bound.
   EXPECT_EQ(0U, trace_verifier_->GetCountOf("BindBuffer(GL_ARRAY_BUFFER"));
-  EXPECT_TRUE(log_checker.HasMessage("WARNING", "DataContainer is NULL"));
+  EXPECT_FALSE(log_checker.HasMessage("WARNING", "DataContainer is NULL"));
 
   Vertex* vertices = new Vertex[2];
   vertices[0].point_coords.Set(-1, 0,  1);
@@ -4095,7 +4100,7 @@ TEST_F(RendererTest, VertexBufferNoData) {
   EXPECT_TRUE(log_checker.HasMessage("WARNING", "struct count is 0"));
 
   // Reset data.
-  s_data.rect = NULL;
+  s_data.rect = nullptr;
   BuildRectangle();
 }
 
@@ -4106,6 +4111,7 @@ TEST_F(RendererTest, VertexBufferSubData) {
 
   Reset();
   renderer->DrawScene(root);
+  DCHECK_EQ(static_cast<GLenum>(GL_NO_ERROR), gm_->GetError());
   EXPECT_EQ(1U, trace_verifier_->GetCountOf("BindBuffer(GL_ARRAY_BUFFER"));
   EXPECT_EQ(1U, trace_verifier_->GetCountOf("BufferData(GL_ARRAY_BUFFER"));
 
@@ -4119,8 +4125,8 @@ TEST_F(RendererTest, VertexBufferSubData) {
           vertices, base::DataContainer::ArrayDeleter<Vertex>, true,
           s_data.vertex_buffer->GetAllocator());
 
-  math::Range1ui range(0, static_cast<unsigned int>(sizeof(vertices[0]) * 2));
-  s_data.vertex_buffer->SetSubData(range, sub_data);
+  int vert_size = static_cast<uint32>(sizeof(Vertex));
+  s_data.vertex_buffer->SetSubData(math::Range1ui(0, vert_size * 2), sub_data);
   Reset();
   renderer->DrawScene(root);
   // Buffer sub-data does not affect memory usage.
@@ -4129,7 +4135,156 @@ TEST_F(RendererTest, VertexBufferSubData) {
   EXPECT_EQ(1U, trace_verifier_->GetCountOf("BufferSubData(GL_ARRAY_BUFFER"));
 
   // Reset data.
-  s_data.rect = NULL;
+  s_data.rect = nullptr;
+  BuildRectangle();
+}
+
+TEST_F(RendererTest, VertexBufferCopySubData) {
+  // Test handling of BufferObject sub-data.
+  RendererPtr renderer(new Renderer(gm_));
+  NodePtr root = BuildGraph(kWidth, kHeight);
+
+  Reset();
+  renderer->DrawScene(root);
+  DCHECK_EQ(static_cast<GLenum>(GL_NO_ERROR), gm_->GetError());
+  EXPECT_EQ(1U, trace_verifier_->GetCountOf("BindBuffer(GL_ARRAY_BUFFER"));
+  EXPECT_EQ(1U, trace_verifier_->GetCountOf("BufferData(GL_ARRAY_BUFFER"));
+
+  // Copy second vertex into first vertex.
+  uint32 vert_size = static_cast<uint32>(sizeof(Vertex));
+  s_data.vertex_buffer->CopySubData(
+      s_data.vertex_buffer, math::Range1ui(0, vert_size), vert_size);
+  Reset();
+  renderer->DrawScene(root);
+  // Buffer sub-data does not affect memory usage.
+  EXPECT_TRUE(VerifyGpuMemoryUsage(renderer, 12U + kVboSize, 0U, 28672U));
+  EXPECT_EQ(0U, trace_verifier_->GetCountOf("BufferData(GL_ARRAY_BUFFER"));
+  EXPECT_EQ(1U, trace_verifier_->GetCountOf(
+      "CopyBufferSubData(GL_ARRAY_BUFFER, GL_ARRAY_BUFFER"));
+
+  // Copy between BufferObjects.
+  math::Range1ui range(0, static_cast<uint32>(sizeof(float)));
+  s_data.vertex_buffer->CopySubData(s_data.index_buffer, range, 0);
+  Reset();
+  renderer->DrawScene(root);
+  // Buffer sub-data does not affect memory usage.
+  EXPECT_TRUE(VerifyGpuMemoryUsage(renderer, 12U + kVboSize, 0U, 28672U));
+  const std::string str = trace_verifier_->GetTraceString();
+  EXPECT_EQ(1U, trace_verifier_->GetCountOf("BindBuffer(GL_COPY_READ_BUFFER"));
+  EXPECT_EQ(1U, trace_verifier_->GetCountOf("BindBuffer(GL_COPY_WRITE_BUFFER"));
+  EXPECT_EQ(1U, trace_verifier_->GetCountOf(
+      "CopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER"));
+
+  // Reset data.
+  s_data.rect = nullptr;
+  BuildRectangle();
+}
+
+TEST_F(RendererTest, VertexBufferCopySubDataEmulation) {
+  // Test emulation of glCopyBufferSubData.
+  RendererPtr renderer(new Renderer(gm_));
+  NodePtr root = BuildGraph(kWidth, kHeight);
+
+  // Disable all, expect to make copies through unwiped DataContainers.
+  gm_->EnableFunctionGroup(GraphicsManager::kCopyBufferSubData, false);
+  gm_->EnableFunctionGroup(GraphicsManager::kMapBuffer, false);
+  gm_->EnableFunctionGroup(GraphicsManager::kMapBufferRange, false);
+
+  Reset();
+  renderer->DrawScene(root);
+  DCHECK_EQ(static_cast<GLenum>(GL_NO_ERROR), gm_->GetError());
+  EXPECT_EQ(1U, trace_verifier_->GetCountOf("BindBuffer(GL_ARRAY_BUFFER"));
+  EXPECT_EQ(1U, trace_verifier_->GetCountOf("BufferData(GL_ARRAY_BUFFER"));
+
+  // Copy with a single BufferObject, copy third vertex into first and then
+  // second into third. Expect to use unwiped DataContainers for copy.
+  const Vertex before1 = s_data.vertex_buffer->GetData()->GetData<Vertex>()[1];
+  const Vertex before2 = s_data.vertex_buffer->GetData()->GetData<Vertex>()[2];
+  int vert_size = static_cast<uint32>(sizeof(Vertex));
+  s_data.vertex_buffer->CopySubData(
+      s_data.vertex_buffer, math::Range1ui(0, vert_size), vert_size * 2);
+  s_data.vertex_buffer->CopySubData(
+      s_data.vertex_buffer,
+      math::Range1ui(2 * vert_size, 3 * vert_size), vert_size);
+  Reset();
+  renderer->DrawScene(root);
+  const Vertex after0 = s_data.vertex_buffer->GetData()->GetData<Vertex>()[0];
+  const Vertex after1 = s_data.vertex_buffer->GetData()->GetData<Vertex>()[1];
+  const Vertex after2 = s_data.vertex_buffer->GetData()->GetData<Vertex>()[2];
+  EXPECT_TRUE(after0 == before2);
+  EXPECT_TRUE(after1 == before1);
+  EXPECT_TRUE(after2 == before1);
+
+  // Copy between BufferObjects.
+  float* v = s_data.index_buffer->GetData()->GetMutableData<float>();
+  v[0] = 3.14159f;
+  v[1] = 2.7182f;
+  s_data.index_buffer->SetData(s_data.index_buffer->GetData(),
+                               s_data.index_buffer->GetStructSize(),
+                               s_data.index_buffer->GetCount(),
+                               BufferObject::kDynamicDraw);
+  uint32 float_size = static_cast<uint32>(sizeof(float));
+  s_data.vertex_buffer->CopySubData(
+      s_data.index_buffer, math::Range1ui(0, float_size), 0U);
+  s_data.vertex_buffer->CopySubData(
+      s_data.index_buffer, math::Range1ui(2 * float_size, 3 * float_size),
+      float_size);
+  Reset();
+  renderer->DrawScene(root);
+  const Vertex after = s_data.vertex_buffer->GetData()->GetData<Vertex>()[0];
+  EXPECT_EQ(v[0], after.point_coords[0]);
+  EXPECT_EQ(v[1], after.point_coords[2]);
+
+  // Enable MapBuffer.
+  gm_->EnableFunctionGroup(GraphicsManager::kCopyBufferSubData, false);
+  gm_->EnableFunctionGroup(GraphicsManager::kMapBuffer, true);
+  gm_->EnableFunctionGroup(GraphicsManager::kMapBufferRange, true);
+
+  // Copy first into second, then second into third.
+  const Vertex before0 = s_data.vertex_buffer->GetData()->GetData<Vertex>()[0];
+  s_data.vertex_buffer->CopySubData(
+      s_data.vertex_buffer, math::Range1ui(vert_size, 2 * vert_size), 0);
+  s_data.vertex_buffer->CopySubData(
+      s_data.vertex_buffer,
+      math::Range1ui(2 * vert_size, 3 * vert_size), vert_size);
+  Reset();
+  renderer->DrawScene(root);
+  // Expect to use Map/UnmapBuffer to extract bytes for the copy.
+  EXPECT_EQ(2U, trace_verifier_->GetCountOf("MapBuffer"));
+  EXPECT_EQ(2U, trace_verifier_->GetCountOf("UnmapBuffer"));
+  renderer->MapBufferObjectData(s_data.vertex_buffer, Renderer::kReadOnly);
+  const Vertex* after_verts = static_cast<const Vertex*>(
+      s_data.vertex_buffer->GetMappedPointer());
+  EXPECT_EQ(before0, after_verts[0]);
+  EXPECT_EQ(before0, after_verts[1]);
+  EXPECT_EQ(before0, after_verts[2]);
+  renderer->UnmapBufferObjectData(s_data.vertex_buffer);
+
+  // Disable all, expect to make copies through allocated buffers.
+  gm_->EnableFunctionGroup(GraphicsManager::kCopyBufferSubData, false);
+  gm_->EnableFunctionGroup(GraphicsManager::kMapBuffer, false);
+  gm_->EnableFunctionGroup(GraphicsManager::kMapBufferRange, false);
+
+  // Copy between BufferObjects.
+  // NULL vertex_buffer's data so it uses allocated memory to effect the copy.
+  s_data.vertex_buffer->SetData(base::DataContainerPtr(),
+                                s_data.vertex_buffer->GetStructSize(),
+                                s_data.vertex_buffer->GetCount(),
+                                BufferObject::kDynamicDraw);
+  s_data.vertex_buffer->CopySubData(
+      s_data.index_buffer, math::Range1ui(0, float_size), 0U);
+  s_data.vertex_buffer->CopySubData(
+      s_data.index_buffer, math::Range1ui(2 * float_size, 3 * float_size),
+      float_size);
+  Reset();
+  renderer->DrawScene(root);
+  EXPECT_EQ(1U, trace_verifier_->GetCountOf("BufferData(GL_ARRAY_BUFFER"));
+  EXPECT_EQ(2U, trace_verifier_->GetCountOf("BufferSubData(GL_ARRAY_BUFFER"));
+  EXPECT_EQ(0U, trace_verifier_->GetCountOf("MapBuffer"));
+  EXPECT_EQ(0U, trace_verifier_->GetCountOf("UnmapBuffer"));
+
+  // Reset data.
+  s_data.rect = nullptr;
   BuildRectangle();
 }
 
@@ -4166,7 +4321,7 @@ TEST_F(RendererTest, IndexBufferUsage) {
   EXPECT_TRUE(VerifyRenderCalls(verify_data, trace_verifier_, renderer, root));
 
   Reset();
-  renderer = NULL;
+  renderer = nullptr;
   EXPECT_TRUE(VerifyReleases(1));
 }
 
@@ -4190,8 +4345,8 @@ TEST_F(RendererTest, ProgramAndShaderInfoLogs) {
             s_data.shader->GetFragmentShader()->GetInfoLog());
   EXPECT_EQ("", s_data.shader->GetInfoLog());
   // Reset data.
-  s_data.rect = NULL;
-  s_data.shader = NULL;
+  s_data.rect = nullptr;
+  s_data.shader = nullptr;
   BuildRectangle();
 
   Reset();
@@ -4310,21 +4465,21 @@ TEST_F(RendererTest, PrimitiveType) {
   gm_->EnableFunctionGroup(GraphicsManager::kVertexArrays, false);
   {
     RendererPtr renderer(new Renderer(gm_));
-    // Destroy the data in the datacontainer to get an error message.
-    s_data.vertex_container = NULL;
+    // Destroy the data in the datacontainer - should not get an error message.
+    s_data.vertex_container = nullptr;
     // The attribute_array must be destroyed as well to trigger a rebind.
-    s_data.attribute_array = NULL;
+    s_data.attribute_array = nullptr;
     BuildRectangleAttributeArray();
     s_data.vertex_buffer->SetData(
         s_data.vertex_container, sizeof(Vertex), s_num_vertices,
         s_options.vertex_buffer_usage);
     Reset();
     renderer->DrawScene(root);
-    // The buffer object should not be updated.
-    EXPECT_EQ(0U, trace_verifier_->GetCountOf("BindBuffer(GL_ARRAY_BUFFER"));
-    EXPECT_EQ(0U, trace_verifier_->GetCountOf("BufferData(GL_ARRAY_BUFFER"));
-    EXPECT_EQ(0U, trace_verifier_->GetCountOf("Draw"));
-    EXPECT_TRUE(log_checker.HasMessage("WARNING", "Unable to draw shape"));
+    // The buffer object should be updated even with null datacontainer.
+    EXPECT_EQ(1U, trace_verifier_->GetCountOf("BindBuffer(GL_ARRAY_BUFFER"));
+    EXPECT_EQ(1U, trace_verifier_->GetCountOf("BufferData(GL_ARRAY_BUFFER"));
+    EXPECT_EQ(1U, trace_verifier_->GetCountOf("Draw"));
+    EXPECT_FALSE(log_checker.HasMessage("WARNING", "Unable to draw shape"));
     // Restore the data.
     BuildRectangleBufferObject();
     BuildRectangleAttributeArray();
@@ -4332,38 +4487,38 @@ TEST_F(RendererTest, PrimitiveType) {
 
   gm_->EnableFunctionGroup(GraphicsManager::kVertexArrays, true);
   RendererPtr renderer(new Renderer(gm_));
-  // Destroy the data in the datacontainer to get an error message.
-  s_data.vertex_container = NULL;
+  // Destroy the data in the datacontainer, should not get an error message.
+  s_data.vertex_container = nullptr;
   // The attribute_array must be destroyed as well to trigger a rebind.
-  s_data.attribute_array = NULL;
+  s_data.attribute_array = nullptr;
   BuildRectangleAttributeArray();
   s_data.vertex_buffer->SetData(
       s_data.vertex_container, sizeof(Vertex), s_num_vertices,
       s_options.vertex_buffer_usage);
   Reset();
   renderer->DrawScene(root);
-  // The buffer object should not be updated.
-  EXPECT_EQ(0U, trace_verifier_->GetCountOf("BindBuffer(GL_ARRAY_BUFFER"));
-  EXPECT_EQ(0U, trace_verifier_->GetCountOf("BufferData(GL_ARRAY_BUFFER"));
-  EXPECT_EQ(0U, trace_verifier_->GetCountOf("Draw"));
-  EXPECT_TRUE(log_checker.HasMessage("WARNING", "Unable to draw shape"));
+  // The buffer object should be updated even with null datacontainer.
+  EXPECT_EQ(1U, trace_verifier_->GetCountOf("BindBuffer(GL_ARRAY_BUFFER"));
+  EXPECT_EQ(1U, trace_verifier_->GetCountOf("BufferData(GL_ARRAY_BUFFER"));
+  EXPECT_EQ(1U, trace_verifier_->GetCountOf("Draw"));
+  EXPECT_FALSE(log_checker.HasMessage("WARNING", "Unable to draw shape"));
   // Restore the data.
   BuildRectangleBufferObject();
   BuildRectangleAttributeArray();
 
   // Do the same with the index buffer.
-  s_data.index_container = NULL;
+  s_data.index_container = nullptr;
   s_data.index_buffer->SetData(s_data.index_container, sizeof(uint16),
                                s_num_indices, s_options.index_buffer_usage);
   Reset();
   renderer->DrawScene(root);
-  // The index buffer object should not be updated.
-  EXPECT_EQ(0U, trace_verifier_->GetCountOf(
+  // The index buffer object should be updated.
+  EXPECT_EQ(1U, trace_verifier_->GetCountOf(
       "BindBuffer(GL_ELEMENT_ARRAY_BUFFER"));
-  EXPECT_EQ(0U, trace_verifier_->GetCountOf(
+  EXPECT_EQ(1U, trace_verifier_->GetCountOf(
       "BufferData(GL_ELEMENT_ARRAY_BUFFER"));
-  EXPECT_EQ(0U, trace_verifier_->GetCountOf("Draw"));
-  EXPECT_TRUE(log_checker.HasMessage("WARNING", "Unable to draw shape"));
+  EXPECT_EQ(1U, trace_verifier_->GetCountOf("Draw"));
+  EXPECT_FALSE(log_checker.HasMessage("WARNING", "Unable to draw shape"));
   // Restore the data.
   BuildRectangleShape<uint16>();
 
@@ -4377,7 +4532,7 @@ TEST_F(RendererTest, PrimitiveType) {
   // Check that if there are no index buffers then DrawArrays is used. By
   // default, all vertices should be used.
   s_data.shape->SetPrimitiveType(Shape::kPoints);
-  s_data.shape->SetIndexBuffer(IndexBufferPtr(NULL));
+  s_data.shape->SetIndexBuffer(IndexBufferPtr(nullptr));
   Reset();
   renderer->DrawScene(root);
   EXPECT_EQ(0U, trace_verifier_->GetCountOf("DrawElements"));
@@ -4408,14 +4563,14 @@ TEST_F(RendererTest, PrimitiveType) {
   s_data.shape->SetIndexBuffer(s_data.index_buffer);
 
   // Check that if the shape has no attribute array that it is not drawn.
-  s_data.shape->SetAttributeArray(AttributeArrayPtr(NULL));
+  s_data.shape->SetAttributeArray(AttributeArrayPtr(nullptr));
   Reset();
   renderer->DrawScene(root);
   EXPECT_EQ(0U, trace_verifier_->GetCountOf("Draw"));
   s_data.shape->SetAttributeArray(s_data.attribute_array);
 
   Reset();
-  renderer = NULL;
+  renderer = nullptr;
 }
 
 TEST_F(RendererTest, TextureWithZeroDimensionsAreNotAllocated) {
@@ -4782,7 +4937,7 @@ TEST_F(RendererTest, ImageFormat) {
   }
 
   Reset();
-  renderer = NULL;
+  renderer = nullptr;
   EXPECT_TRUE(VerifyReleases(1));
 }
 
@@ -4814,7 +4969,7 @@ TEST_F(RendererTest, FramebufferObject) {
     RendererPtr renderer(new Renderer(gm_));
     // Test an incomplete framebuffer.
     Reset();
-    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == NULL);
+    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == nullptr);
     renderer->BindFramebuffer(s_data.fbo);
     EXPECT_EQ(s_data.fbo.Get(), renderer->GetCurrentFramebuffer().Get());
     renderer->DrawScene(root);
@@ -4832,7 +4987,7 @@ TEST_F(RendererTest, FramebufferObject) {
     s_data.fbo->SetColorAttachment(
         0U, FramebufferObject::Attachment(s_data.texture));
     Reset();
-    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == NULL);
+    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == nullptr);
     renderer->BindFramebuffer(s_data.fbo);
     EXPECT_EQ(s_data.fbo.Get(), renderer->GetCurrentFramebuffer().Get());
     EXPECT_EQ(1U, trace_verifier_->GetCountOf("BindFramebuffer"));
@@ -4866,14 +5021,14 @@ TEST_F(RendererTest, FramebufferObject) {
         new FramebufferObject(texture_width, texture_height));
     fbo2->SetColorAttachment(0U, FramebufferObject::Attachment(s_data.texture));
 
-    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == NULL);
+    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == nullptr);
     renderer->BindFramebuffer(s_data.fbo);
     EXPECT_EQ(s_data.fbo.Get(), renderer->GetCurrentFramebuffer().Get());
 
     MockVisual share_visual(*visual_);
     EXPECT_EQ(s_data.fbo.Get(), renderer->GetCurrentFramebuffer().Get());
     portgfx::Visual::MakeCurrent(&share_visual);
-    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == NULL);
+    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == nullptr);
     renderer->BindFramebuffer(fbo2);
     EXPECT_EQ(fbo2.Get(), renderer->GetCurrentFramebuffer().Get());
 
@@ -4897,7 +5052,7 @@ TEST_F(RendererTest, FramebufferObject) {
     s_data.fbo->SetColorAttachment(
         0U, FramebufferObject::Attachment(s_data.texture));
     Reset();
-    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == NULL);
+    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == nullptr);
     renderer->BindFramebuffer(s_data.fbo);
     EXPECT_EQ(s_data.fbo.Get(), renderer->GetCurrentFramebuffer().Get());
     renderer->DrawScene(root);
@@ -4933,7 +5088,7 @@ TEST_F(RendererTest, FramebufferObject) {
         0U, FramebufferObject::Attachment(s_data.cubemap,
                                           CubeMapTexture::kPositiveX));
     Reset();
-    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == NULL);
+    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == nullptr);
     renderer->BindFramebuffer(s_data.fbo);
     EXPECT_EQ(s_data.fbo.Get(), renderer->GetCurrentFramebuffer().Get());
     renderer->DrawScene(root);
@@ -4954,7 +5109,7 @@ TEST_F(RendererTest, FramebufferObject) {
         0U, FramebufferObject::Attachment(s_data.cubemap,
                                           CubeMapTexture::kPositiveZ));
     Reset();
-    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == NULL);
+    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == nullptr);
     renderer->BindFramebuffer(s_data.fbo);
     EXPECT_EQ(s_data.fbo.Get(), renderer->GetCurrentFramebuffer().Get());
     renderer->DrawScene(root);
@@ -4991,7 +5146,7 @@ TEST_F(RendererTest, FramebufferObject) {
     s_data.fbo->SetColorAttachment(
         0U, FramebufferObject::Attachment(Image::kRgba4Byte));
     Reset();
-    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == NULL);
+    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == nullptr);
     renderer->BindFramebuffer(s_data.fbo);
     EXPECT_EQ(s_data.fbo.Get(), renderer->GetCurrentFramebuffer().Get());
     renderer->DrawScene(root);
@@ -5039,7 +5194,7 @@ TEST_F(RendererTest, FramebufferObject) {
     Reset();
     renderer->DrawScene(root);
     EXPECT_FALSE(log_checker.HasAnyMessages());
-    // Since the buffer is nullptr nothing will be set.  This isn't an error
+    // Since the buffer is NULL nothing will be set.  This isn't an error
     // since the caller could just set it manually through OpenGL directly.
     EXPECT_EQ(0U, trace_verifier_->GetCountOf(
                       "EGLImageTargetRenderbufferStorageOES"));
@@ -5084,7 +5239,7 @@ TEST_F(RendererTest, FramebufferObject) {
     s_data.fbo->SetColorAttachment(
         0U, FramebufferObject::Attachment(Image::kRgba8, 4));
     Reset();
-    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == NULL);
+    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == nullptr);
     renderer->BindFramebuffer(s_data.fbo);
     EXPECT_EQ(s_data.fbo.Get(), renderer->GetCurrentFramebuffer().Get());
     renderer->DrawScene(root);
@@ -5116,7 +5271,7 @@ TEST_F(RendererTest, FramebufferObject) {
     s_data.fbo->SetDepthAttachment(FramebufferObject::Attachment(
         kDepthBufferFormat, 4));
     Reset();
-    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == NULL);
+    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == nullptr);
     renderer->BindFramebuffer(s_data.fbo);
     EXPECT_EQ(s_data.fbo.Get(), renderer->GetCurrentFramebuffer().Get());
     renderer->DrawScene(root);
@@ -5158,7 +5313,7 @@ TEST_F(RendererTest, FramebufferObjectMultisampleTextureAttachment) {
   s_data.fbo->SetColorAttachment(
       0U, FramebufferObject::Attachment(s_data.texture));
   Reset();
-  EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == NULL);
+  EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == nullptr);
   renderer->BindFramebuffer(s_data.fbo);
   EXPECT_EQ(s_data.fbo.Get(), renderer->GetCurrentFramebuffer().Get());
   EXPECT_EQ(1U, trace_verifier_->GetCountOf("BindFramebuffer"));
@@ -5326,9 +5481,9 @@ TEST_F(RendererTest, CubeMapTextureMipmaps) {
 
   // Remove an image from a few faces and verify that GenerateMipmap is called
   // only once for the entire texture.
-  s_data.cubemap->SetImage(CubeMapTexture::kNegativeZ, 1, ImagePtr(NULL));
-  s_data.cubemap->SetImage(CubeMapTexture::kPositiveY, 3, ImagePtr(NULL));
-  s_data.cubemap->SetImage(CubeMapTexture::kPositiveZ, 2, ImagePtr(NULL));
+  s_data.cubemap->SetImage(CubeMapTexture::kNegativeZ, 1, ImagePtr(nullptr));
+  s_data.cubemap->SetImage(CubeMapTexture::kPositiveY, 3, ImagePtr(nullptr));
+  s_data.cubemap->SetImage(CubeMapTexture::kPositiveZ, 2, ImagePtr(nullptr));
   Reset();
   renderer->DrawScene(root);
   // Overall memory usage should be unchanged.
@@ -5498,7 +5653,7 @@ TEST_F(RendererTest, CubeMapTextureMisc) {
   // Check that a texture with no image does not get sent.
   for (int j = 0; j < 6; ++j)
     s_data.cubemap->SetImage(static_cast<CubeMapTexture::CubeFace>(j), 0U,
-                             ImagePtr(NULL));
+                             ImagePtr(nullptr));
   Reset();
   renderer->DrawScene(root);
   // The regular texture is still sent the first time.
@@ -5781,7 +5936,7 @@ TEST_F(RendererTest, ImmutableTextures) {
       renderer, trace_verifier_, 3, "TexStorage3D(GL_TEXTURE_3D, "));
   // 3D cubemaps are illegal.
 
-  s_data.image.Reset(NULL);
+  s_data.image.Reset(nullptr);
 }
 
 TEST_F(RendererTest, ImmutableMultisampleTextures) {
@@ -5800,7 +5955,7 @@ TEST_F(RendererTest, ImmutableMultisampleTextures) {
       renderer, trace_verifier_, 8,
       "TexStorage3DMultisample(GL_TEXTURE_2D_MULTISAMPLE_ARRAY, "));
 
-  s_data.image.Reset(NULL);
+  s_data.image.Reset(nullptr);
 }
 
 TEST_F(RendererTest, TextureEvictionCausesRebind) {
@@ -5890,12 +6045,12 @@ TEST_F(RendererTest, TextureEvictionCausesRebind) {
   FramebufferObjectPtr fbo(new FramebufferObject(128, 128));
   fbo->SetColorAttachment(0U, FramebufferObject::Attachment(Image::kRgba4Byte));
   Reset();
-  EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == NULL);
+  EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == nullptr);
   renderer->BindFramebuffer(fbo);
   EXPECT_EQ(fbo.Get(), renderer->GetCurrentFramebuffer().Get());
   renderer->DrawScene(root);
   renderer->BindFramebuffer(FramebufferObjectPtr());
-  EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == NULL);
+  EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == nullptr);
   EXPECT_EQ(0U, trace_verifier_->GetCountOf("TexImage2D"));
   EXPECT_EQ(num_textures,
             trace_verifier_->GetCountOf("ActiveTexture(GL_TEXTURE"));
@@ -5965,7 +6120,7 @@ TEST_F(RendererTest, TextureEvictionCausesRebind) {
   EXPECT_EQ(0U, trace_verifier_->GetCountOf("BindSampler"));
 
   // Reset data.
-  s_data.rect = NULL;
+  s_data.rect = nullptr;
   BuildRectangle();
 }
 
@@ -6049,12 +6204,12 @@ TEST_F(RendererTest, ArrayTextureEvictionCausesRebind) {
   FramebufferObjectPtr fbo(new FramebufferObject(128, 128));
   fbo->SetColorAttachment(0U, FramebufferObject::Attachment(Image::kRgba4Byte));
   Reset();
-  EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == NULL);
+  EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == nullptr);
   renderer->BindFramebuffer(fbo);
   EXPECT_EQ(fbo.Get(), renderer->GetCurrentFramebuffer().Get());
   renderer->DrawScene(root);
   renderer->BindFramebuffer(FramebufferObjectPtr());
-  EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == NULL);
+  EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == nullptr);
   EXPECT_EQ(0U, trace_verifier_->GetCountOf("TexImage2D"));
   EXPECT_EQ(num_textures,
             trace_verifier_->GetCountOf("ActiveTexture(GL_TEXTURE"));
@@ -6114,7 +6269,7 @@ TEST_F(RendererTest, ArrayTextureEvictionCausesRebind) {
   EXPECT_EQ(0U, trace_verifier_->GetCountOf("Uniform1iv"));
 
   // Reset data.
-  s_data.rect = NULL;
+  s_data.rect = nullptr;
   BuildRectangle();
 }
 
@@ -6200,12 +6355,12 @@ TEST_F(RendererTest, ArrayCubemapEvictionCausesRebind) {
   FramebufferObjectPtr fbo(new FramebufferObject(128, 128));
   fbo->SetColorAttachment(0U, FramebufferObject::Attachment(Image::kRgba4Byte));
   Reset();
-  EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == NULL);
+  EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == nullptr);
   renderer->BindFramebuffer(fbo);
   EXPECT_EQ(fbo.Get(), renderer->GetCurrentFramebuffer().Get());
   renderer->DrawScene(root);
   renderer->BindFramebuffer(FramebufferObjectPtr());
-  EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == NULL);
+  EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == nullptr);
   EXPECT_EQ(0U, trace_verifier_->GetCountOf("TexImage2D"));
   EXPECT_EQ(num_textures,
             trace_verifier_->GetCountOf("ActiveTexture(GL_TEXTURE"));
@@ -6267,7 +6422,7 @@ TEST_F(RendererTest, ArrayCubemapEvictionCausesRebind) {
   EXPECT_EQ(0U, trace_verifier_->GetCountOf("Uniform1iv"));
 
   // Reset data.
-  s_data.rect = NULL;
+  s_data.rect = nullptr;
   BuildRectangle();
 }
 
@@ -6325,7 +6480,7 @@ TEST_F(RendererTest, TextureMipmaps) {
   }
 
   // Remove a texture and verify that GenerateMipmap is called.
-  s_data.texture->SetImage(1U, ImagePtr(NULL));
+  s_data.texture->SetImage(1U, ImagePtr(nullptr));
   Reset();
   renderer->DrawScene(root);
   EXPECT_FALSE(log_checker.HasAnyMessages());
@@ -6620,7 +6775,7 @@ TEST_F(RendererTest, TextureMisc) {
   base::LogChecker log_checker;
 
   // Check that a texture with no image does not get sent.
-  s_data.texture->SetImage(0U, ImagePtr(NULL));
+  s_data.texture->SetImage(0U, ImagePtr(nullptr));
   s_data.texture->SetLabel("texture");
   Reset();
   renderer->DrawScene(root);
@@ -6866,7 +7021,7 @@ TEST_F(RendererTest, TextureBaseLevel) {
   EXPECT_TRUE(VerifyRenderCalls(verify_data, trace_verifier_, renderer, root));
 
   Reset();
-  renderer = NULL;
+  renderer = nullptr;
   EXPECT_TRUE(VerifyReleases(1));
 }
 
@@ -6888,7 +7043,7 @@ TEST_F(RendererTest, TextureMaxLevel) {
   EXPECT_TRUE(VerifyRenderCalls(verify_data, trace_verifier_, renderer, root));
 
   Reset();
-  renderer = NULL;
+  renderer = nullptr;
   EXPECT_TRUE(VerifyReleases(1));
 }
 
@@ -6917,7 +7072,7 @@ TEST_F(RendererTest, TextureSwizzleRed) {
   EXPECT_TRUE(VerifyRenderCalls(verify_data, trace_verifier_, renderer, root));
 
   Reset();
-  renderer = NULL;
+  renderer = nullptr;
   EXPECT_TRUE(VerifyReleases(1));
 }
 
@@ -6946,7 +7101,7 @@ TEST_F(RendererTest, TextureSwizzleGreen) {
   EXPECT_TRUE(VerifyRenderCalls(verify_data, trace_verifier_, renderer, root));
 
   Reset();
-  renderer = NULL;
+  renderer = nullptr;
   EXPECT_TRUE(VerifyReleases(1));
 }
 
@@ -6975,7 +7130,7 @@ TEST_F(RendererTest, TextureSwizzleBlue) {
   EXPECT_TRUE(VerifyRenderCalls(verify_data, trace_verifier_, renderer, root));
 
   Reset();
-  renderer = NULL;
+  renderer = nullptr;
   EXPECT_TRUE(VerifyReleases(1));
 }
 
@@ -7004,14 +7159,14 @@ TEST_F(RendererTest, TextureSwizzleAlpha) {
   EXPECT_TRUE(VerifyRenderCalls(verify_data, trace_verifier_, renderer, root));
 
   Reset();
-  renderer = NULL;
+  renderer = nullptr;
   EXPECT_TRUE(VerifyReleases(1));
 }
 
 TEST_F(RendererTest, MultipleRenderers) {
   // Multiple Renderers create multiple instances of the same resources.
   // There isn't (yet) a way to get at the internal state of the
-  // ResourceManager, but this at least will create ResourceGroups.
+  // ResourceManager.
   gm_->EnableFunctionGroup(GraphicsManager::kSamplerObjects, false);
   {
     RendererPtr renderer1(new Renderer(gm_));
@@ -7038,17 +7193,17 @@ TEST_F(RendererTest, MultipleRenderers) {
 
     Reset();
     // Force calls to OnDestroyed().
-    s_data.attribute_array = NULL;
-    s_data.vertex_buffer = NULL;
-    s_data.index_buffer = NULL;
-    s_data.shader = NULL;
-    s_data.shape = NULL;
-    s_data.texture = NULL;
-    s_data.cubemap = NULL;
-    s_data.rect = NULL;
+    s_data.attribute_array = nullptr;
+    s_data.vertex_buffer = nullptr;
+    s_data.index_buffer = nullptr;
+    s_data.shader = nullptr;
+    s_data.shape = nullptr;
+    s_data.texture = nullptr;
+    s_data.cubemap = nullptr;
+    s_data.rect = nullptr;
     root->ClearChildren();
     root->ClearUniforms();
-    root->SetShaderProgram(ShaderProgramPtr(NULL));
+    root->SetShaderProgram(ShaderProgramPtr(nullptr));
     // Force calls to ReleaseAll().
     renderer1->DrawScene(root);
     renderer2->DrawScene(root);
@@ -7082,9 +7237,9 @@ TEST_F(RendererTest, MultipleRenderers) {
     call_strings.push_back("DeleteVertexArrays");
     EXPECT_TRUE(trace_verifier_->VerifySortedCalls(call_strings));
     Reset();
-    root = NULL;
-    renderer1 = NULL;
-    renderer2 = NULL;
+    root = nullptr;
+    renderer1 = nullptr;
+    renderer2 = nullptr;
     EXPECT_EQ(0U, trace_verifier_->GetCallCount());
   }
   // Reset data.
@@ -7102,13 +7257,13 @@ TEST_F(RendererTest, MultipleRenderers) {
     renderer3->DrawScene(root);
     Reset();
     // Force resource deletion from a renderer.
-    renderer1 = NULL;
+    renderer1 = nullptr;
     // Force calls to OnDestroyed().
-    root = NULL;
-    s_data.shape = NULL;
-    s_data.rect = NULL;
-    renderer2 = NULL;
-    renderer3 = NULL;
+    root = nullptr;
+    s_data.shape = nullptr;
+    s_data.rect = nullptr;
+    renderer2 = nullptr;
+    renderer3 = nullptr;
     EXPECT_TRUE(VerifyReleases(3));
   }
 
@@ -7130,12 +7285,12 @@ TEST_F(RendererTest, MultipleRenderers) {
     Reset();
     renderer1->ClearResources(s_data.attribute_array.Get());
     renderer2->ClearTypedResources(Renderer::kTexture);
-    renderer1 = NULL;
+    renderer1 = nullptr;
     // Force calls to OnDestroyed().
-    root = NULL;
-    s_data.shape = NULL;
-    s_data.rect = NULL;
-    renderer2 = NULL;
+    root = nullptr;
+    s_data.shape = nullptr;
+    s_data.rect = nullptr;
+    renderer2 = nullptr;
     EXPECT_TRUE(VerifyReleases(2));
   }
 
@@ -7766,7 +7921,7 @@ TEST_F(RendererTest, StateCompression) {
   EXPECT_EQ(0U, trace_verifier_->GetCountOf("Disable(GL_STENCIL_TEST)"));
 
   // Create a scene that is very deep (> 16) and ensure state changes happen.
-  renderer.Reset(NULL);
+  renderer.Reset(nullptr);
   Renderer::DestroyCurrentStateCache();
   renderer.Reset(new Renderer(gm_));
   Reset();
@@ -7830,7 +7985,7 @@ TEST_F(RendererTest, ReadImage) {
   image = renderer->ReadImage(
       Range2i::BuildWithSize(Point2i(0, 0), Vector2i(50U, 80U)),
       Image::kRgb565, al);
-  EXPECT_TRUE(image->GetData()->GetData() != NULL);
+  EXPECT_TRUE(image->GetData()->GetData() != nullptr);
   EXPECT_EQ(Image::kRgb565, image->GetFormat());
   EXPECT_EQ(50U, image->GetWidth());
   EXPECT_EQ(80U, image->GetHeight());
@@ -7838,7 +7993,7 @@ TEST_F(RendererTest, ReadImage) {
   image = renderer->ReadImage(
       Range2i::BuildWithSize(Point2i(20, 10), Vector2i(50U, 80U)),
       Image::kRgba8888, al);
-  EXPECT_TRUE(image->GetData()->GetData() != NULL);
+  EXPECT_TRUE(image->GetData()->GetData() != nullptr);
   EXPECT_EQ(Image::kRgba8888, image->GetFormat());
   EXPECT_EQ(50U, image->GetWidth());
   EXPECT_EQ(80U, image->GetHeight());
@@ -7849,7 +8004,7 @@ TEST_F(RendererTest, ReadImage) {
   image = renderer->ReadImage(
       Range2i::BuildWithSize(Point2i(0, 0), Vector2i(128U, 128U)),
       Image::kRgb888, al);
-  EXPECT_TRUE(image->GetData()->GetData() != NULL);
+  EXPECT_TRUE(image->GetData()->GetData() != nullptr);
   EXPECT_EQ(Image::kRgb888, image->GetFormat());
   EXPECT_EQ(128U, image->GetWidth());
   EXPECT_EQ(128U, image->GetHeight());
@@ -7858,7 +8013,7 @@ TEST_F(RendererTest, ReadImage) {
   image = renderer->ReadImage(
       Range2i::BuildWithSize(Point2i(20, 10), Vector2i(50U, 80U)),
       Image::kRgba8888, al);
-  EXPECT_TRUE(image->GetData()->GetData() != NULL);
+  EXPECT_TRUE(image->GetData()->GetData() != nullptr);
   EXPECT_EQ(Image::kRgba8888, image->GetFormat());
   EXPECT_EQ(50U, image->GetWidth());
   EXPECT_EQ(80U, image->GetHeight());
@@ -7871,6 +8026,9 @@ TEST_F(RendererTest, MappedBuffer) {
   NodePtr root = BuildGraph(kWidth, kHeight);
   Reset();
 
+  const BufferObject::MappedBufferData::DataSource kInvalidSource =
+      base::InvalidEnumValue<BufferObject::MappedBufferData::DataSource>();
+
   const BufferObject::MappedBufferData& mbd =
       s_data.vertex_buffer->GetMappedData();
   const Range1ui full_range(
@@ -7879,7 +8037,15 @@ TEST_F(RendererTest, MappedBuffer) {
 
   // The buffer should not have any mapped data by default.
   EXPECT_TRUE(mbd.range.IsEmpty());
-  EXPECT_TRUE(mbd.pointer == NULL);
+  EXPECT_TRUE(mbd.pointer == nullptr);
+
+  // nullptr BufferObjectPtrs should trigger warning.
+  renderer->MapBufferObjectData(BufferObjectPtr(), Renderer::kWriteOnly);
+  EXPECT_TRUE(
+      log_checker.HasMessage("WARNING", "A NULL BufferObject was passed"));
+  renderer->UnmapBufferObjectData(BufferObjectPtr());
+  EXPECT_TRUE(
+      log_checker.HasMessage("WARNING", "A NULL BufferObject was passed"));
 
   gm_->EnableFunctionGroup(GraphicsManager::kMapBuffer, false);
   gm_->EnableFunctionGroup(GraphicsManager::kMapBufferBase, false);
@@ -7889,7 +8055,7 @@ TEST_F(RendererTest, MappedBuffer) {
 
   // The data should have been mapped with a client-side pointer.
   EXPECT_EQ(full_range, mbd.range);
-  EXPECT_FALSE(mbd.pointer == NULL);
+  EXPECT_FALSE(mbd.pointer == nullptr);
 
   // Trying to map again should log a warning.
   EXPECT_FALSE(log_checker.HasAnyMessages());
@@ -7900,9 +8066,8 @@ TEST_F(RendererTest, MappedBuffer) {
   // Unmapping the buffer should free the pointer.
   renderer->UnmapBufferObjectData(s_data.vertex_buffer);
   EXPECT_TRUE(mbd.range.IsEmpty());
-  EXPECT_TRUE(mbd.pointer == NULL);
-  EXPECT_FALSE(mbd.gpu_mapped);
-
+  EXPECT_TRUE(mbd.pointer == nullptr);
+  EXPECT_EQ(kInvalidSource, mbd.data_source);
   // Unmapping again should log a warning.
   renderer->UnmapBufferObjectData(s_data.vertex_buffer);
   EXPECT_TRUE(
@@ -7936,14 +8101,14 @@ TEST_F(RendererTest, MappedBuffer) {
 
   // Check that the mapped data changed.
   EXPECT_EQ(full_range, mbd.range);
-  EXPECT_FALSE(mbd.pointer == NULL);
-  EXPECT_TRUE(mbd.gpu_mapped);
+  EXPECT_FALSE(mbd.pointer == nullptr);
+  EXPECT_EQ(BufferObject::MappedBufferData::kGpuMapped, mbd.data_source);
 
   Reset();
   renderer->UnmapBufferObjectData(s_data.vertex_buffer);
   EXPECT_EQ(1U, trace_verifier_->GetCountOf("UnmapBuffer"));
-  EXPECT_TRUE(mbd.pointer == NULL);
-  EXPECT_FALSE(mbd.gpu_mapped);
+  EXPECT_TRUE(mbd.pointer == nullptr);
+  EXPECT_EQ(kInvalidSource, mbd.data_source);
   renderer->UnmapBufferObjectData(s_data.vertex_buffer);
   EXPECT_TRUE(
       log_checker.HasMessage("WARNING", "unmapped BufferObject was passed"));
@@ -7957,19 +8122,19 @@ TEST_F(RendererTest, MappedBuffer) {
   EXPECT_TRUE(trace_verifier_->VerifyCallAt(
       trace_verifier_->GetNthIndexOf(0U, "MapBuffer"))
           .HasArg(2, "GL_READ_ONLY"));
-  EXPECT_TRUE(mbd.gpu_mapped);
+  EXPECT_EQ(BufferObject::MappedBufferData::kGpuMapped, mbd.data_source);
   renderer->UnmapBufferObjectData(s_data.vertex_buffer);
-  EXPECT_FALSE(mbd.gpu_mapped);
+  EXPECT_EQ(kInvalidSource, mbd.data_source);
   EXPECT_EQ(1U, trace_verifier_->GetCountOf("UnmapBuffer"));
   Reset();
   renderer->MapBufferObjectData(s_data.vertex_buffer, Renderer::kReadWrite);
   EXPECT_EQ(1U, trace_verifier_->GetCountOf("MapBuffer"));
-  EXPECT_TRUE(mbd.gpu_mapped);
+  EXPECT_EQ(BufferObject::MappedBufferData::kGpuMapped, mbd.data_source);
   EXPECT_TRUE(trace_verifier_->VerifyCallAt(
       trace_verifier_->GetNthIndexOf(0U, "MapBuffer"))
           .HasArg(2, "GL_READ_WRITE"));
   renderer->UnmapBufferObjectData(s_data.vertex_buffer);
-  EXPECT_FALSE(mbd.gpu_mapped);
+  EXPECT_EQ(kInvalidSource, mbd.data_source);
   EXPECT_EQ(1U, trace_verifier_->GetCountOf("UnmapBuffer"));
 
   // Check that when the range is the entire buffer and MapBufferRange() is not
@@ -7984,33 +8149,39 @@ TEST_F(RendererTest, MappedBuffer) {
       trace_verifier_->GetNthIndexOf(0U, "MapBuffer"))
           .HasArg(2, "GL_WRITE_ONLY"));
   EXPECT_FALSE(log_checker.HasAnyMessages());
-  EXPECT_TRUE(mbd.gpu_mapped);
+  EXPECT_EQ(BufferObject::MappedBufferData::kGpuMapped, mbd.data_source);
 
   // The entire buffer should be mapped.
   EXPECT_EQ(full_range, mbd.range);
-  EXPECT_FALSE(mbd.pointer == NULL);
+  EXPECT_FALSE(mbd.pointer == nullptr);
   renderer->UnmapBufferObjectData(s_data.vertex_buffer);
   EXPECT_EQ(1U, trace_verifier_->GetCountOf("UnmapBuffer"));
-  EXPECT_FALSE(mbd.gpu_mapped);
+  EXPECT_EQ(kInvalidSource, mbd.data_source);
 
   // Check that platforms that do not support MapBufferRange() fall back to
-  // a client-side pointer.
+  // the BufferObject's unwiped DataContainer.
   Range1ui range(4U, 8U);
   Reset();
   renderer->MapBufferObjectDataRange(
       s_data.vertex_buffer, Renderer::kWriteOnly, range);
   EXPECT_EQ(0U, trace_verifier_->GetCountOf("MapBuffer"));
   EXPECT_FALSE(log_checker.HasAnyMessages());
-  EXPECT_FALSE(mbd.gpu_mapped);
+  EXPECT_EQ(BufferObject::MappedBufferData::kDataContainer, mbd.data_source);
 
   // The range should be mapped.
   EXPECT_EQ(range, mbd.range);
-  EXPECT_FALSE(mbd.pointer == NULL);
-  EXPECT_FALSE(mbd.gpu_mapped);
+  EXPECT_FALSE(mbd.pointer == nullptr);
+  EXPECT_EQ(BufferObject::MappedBufferData::kDataContainer, mbd.data_source);
   renderer->UnmapBufferObjectData(s_data.vertex_buffer);
   EXPECT_EQ(0U, trace_verifier_->GetCountOf("UnmapBuffer"));
-  EXPECT_TRUE(mbd.pointer == NULL);
-  EXPECT_FALSE(mbd.gpu_mapped);
+  EXPECT_TRUE(mbd.pointer == nullptr);
+  EXPECT_EQ(kInvalidSource, mbd.data_source);
+
+  // Without DataContainer, expect to use kAllocated.
+  s_data.vertex_buffer->SetData(base::DataContainerPtr(),
+                                s_data.vertex_buffer->GetStructSize(),
+                                s_data.vertex_buffer->GetCount(),
+                                s_options.vertex_buffer_usage);
 
   // Map a range of data using a client side pointer.
   Reset();
@@ -8020,13 +8191,16 @@ TEST_F(RendererTest, MappedBuffer) {
   renderer->MapBufferObjectDataRange(
       s_data.vertex_buffer, Renderer::kWriteOnly, Range1ui());
   EXPECT_TRUE(log_checker.HasMessage("WARNING", "Ignoring empty range"));
+  // Reading an allocated buffer should complain about reading uninitialized
+  // memory.
   renderer->MapBufferObjectDataRange(
-      s_data.vertex_buffer, Renderer::kWriteOnly, range);
-  EXPECT_FALSE(log_checker.HasAnyMessages());
+      s_data.vertex_buffer, Renderer::kReadOnly, range);
+  EXPECT_TRUE(log_checker.HasMessage(
+      "WARNING", "mapped bytes are uninitialized"));
   // Check that the mapped data changed.
   EXPECT_EQ(range, mbd.range);
-  EXPECT_FALSE(mbd.pointer == NULL);
-  EXPECT_FALSE(mbd.gpu_mapped);
+  EXPECT_FALSE(mbd.pointer == nullptr);
+  EXPECT_EQ(BufferObject::MappedBufferData::kAllocated, mbd.data_source);
 
   // Trying to map again should log a warning.
   EXPECT_FALSE(log_checker.HasAnyMessages());
@@ -8034,13 +8208,13 @@ TEST_F(RendererTest, MappedBuffer) {
       s_data.vertex_buffer, Renderer::kWriteOnly, Range1ui());
   EXPECT_TRUE(log_checker.HasMessage(
       "WARNING", "buffer that is already mapped was passed"));
-  EXPECT_FALSE(mbd.gpu_mapped);
+  EXPECT_EQ(BufferObject::MappedBufferData::kAllocated, mbd.data_source);
 
   // Unmapping the buffer should free the pointer.
   renderer->UnmapBufferObjectData(s_data.vertex_buffer);
   EXPECT_TRUE(mbd.range.IsEmpty());
-  EXPECT_TRUE(mbd.pointer == NULL);
-  EXPECT_FALSE(mbd.gpu_mapped);
+  EXPECT_TRUE(mbd.pointer == nullptr);
+  EXPECT_EQ(kInvalidSource, mbd.data_source);
   renderer->UnmapBufferObjectData(s_data.vertex_buffer);
   EXPECT_TRUE(
       log_checker.HasMessage("WARNING", "unmapped BufferObject was passed"));
@@ -8067,8 +8241,8 @@ TEST_F(RendererTest, MappedBuffer) {
   EXPECT_EQ(0U, trace_verifier_->GetCountOf("MapBufferRange"));
   EXPECT_TRUE(log_checker.HasMessage("WARNING", "Ignoring empty range"));
   EXPECT_TRUE(mbd.range.IsEmpty());
-  EXPECT_TRUE(mbd.pointer == NULL);
-  EXPECT_FALSE(mbd.gpu_mapped);
+  EXPECT_TRUE(mbd.pointer == nullptr);
+  EXPECT_EQ(kInvalidSource, mbd.data_source);
 
   // Try a range that is too large.
   renderer->MapBufferObjectDataRange(
@@ -8077,14 +8251,14 @@ TEST_F(RendererTest, MappedBuffer) {
   EXPECT_EQ(1U, trace_verifier_->GetCountOf("MapBufferRange"));
   EXPECT_TRUE(log_checker.HasMessage("ERROR", "Failed to allocate data for"));
   EXPECT_TRUE(mbd.range.IsEmpty());
-  EXPECT_TRUE(mbd.pointer == NULL);
-  EXPECT_FALSE(mbd.gpu_mapped);
+  EXPECT_TRUE(mbd.pointer == nullptr);
+  EXPECT_EQ(kInvalidSource, mbd.data_source);
 
   Reset();
   renderer->MapBufferObjectDataRange(
       s_data.vertex_buffer, Renderer::kWriteOnly, range);
   EXPECT_EQ(1U, trace_verifier_->GetCountOf("MapBufferRange"));
-  EXPECT_TRUE(mbd.gpu_mapped);
+  EXPECT_EQ(BufferObject::MappedBufferData::kGpuMapped, mbd.data_source);
   EXPECT_TRUE(trace_verifier_->VerifyCallAt(
       trace_verifier_->GetNthIndexOf(0U, "MapBuffer"))
           .HasArg(4, "GL_MAP_WRITE_BIT"));
@@ -8093,54 +8267,54 @@ TEST_F(RendererTest, MappedBuffer) {
   // Check that the mapped data changed.
   Reset();
   EXPECT_EQ(range, mbd.range);
-  EXPECT_FALSE(mbd.pointer == NULL);
+  EXPECT_FALSE(mbd.pointer == nullptr);
 
   // Try again to get a warning.
   renderer->MapBufferObjectDataRange(
       s_data.vertex_buffer, Renderer::kWriteOnly, Range1ui());
   EXPECT_TRUE(log_checker.HasMessage(
       "WARNING", "buffer that is already mapped was passed"));
-  EXPECT_TRUE(mbd.gpu_mapped);
+  EXPECT_EQ(BufferObject::MappedBufferData::kGpuMapped, mbd.data_source);
 
   renderer->UnmapBufferObjectData(s_data.vertex_buffer);
   EXPECT_EQ(1U, trace_verifier_->GetCountOf("UnmapBuffer"));
   EXPECT_TRUE(mbd.range.IsEmpty());
-  EXPECT_TRUE(mbd.pointer == NULL);
-  EXPECT_FALSE(mbd.gpu_mapped);
+  EXPECT_TRUE(mbd.pointer == nullptr);
+  EXPECT_EQ(kInvalidSource, mbd.data_source);
   renderer->UnmapBufferObjectData(s_data.vertex_buffer);
   // An additional call should not have been made.
   EXPECT_EQ(1U, trace_verifier_->GetCountOf("UnmapBuffer"));
   EXPECT_TRUE(
       log_checker.HasMessage("WARNING", "unmapped BufferObject was passed"));
-  EXPECT_FALSE(mbd.gpu_mapped);
+  EXPECT_EQ(kInvalidSource, mbd.data_source);
 
   // Map using different access modes.
   Reset();
   renderer->MapBufferObjectDataRange(
       s_data.vertex_buffer, Renderer::kReadOnly, range);
   EXPECT_EQ(1U, trace_verifier_->GetCountOf("MapBufferRange"));
-  EXPECT_TRUE(mbd.gpu_mapped);
+  EXPECT_EQ(BufferObject::MappedBufferData::kGpuMapped, mbd.data_source);
   EXPECT_TRUE(trace_verifier_->VerifyCallAt(
       trace_verifier_->GetNthIndexOf(0U, "MapBuffer"))
           .HasArg(4, "GL_MAP_READ_BIT"));
   renderer->UnmapBufferObjectData(s_data.vertex_buffer);
   EXPECT_EQ(1U, trace_verifier_->GetCountOf("UnmapBuffer"));
-  EXPECT_FALSE(mbd.gpu_mapped);
+  EXPECT_EQ(kInvalidSource, mbd.data_source);
   Reset();
   renderer->MapBufferObjectDataRange(
       s_data.vertex_buffer, Renderer::kReadWrite, range);
   EXPECT_EQ(1U, trace_verifier_->GetCountOf("MapBufferRange"));
-  EXPECT_TRUE(mbd.gpu_mapped);
+  EXPECT_EQ(BufferObject::MappedBufferData::kGpuMapped, mbd.data_source);
   EXPECT_TRUE(trace_verifier_->VerifyCallAt(
       trace_verifier_->GetNthIndexOf(0U, "MapBuffer"))
           .HasArg(4, "GL_MAP_READ_BIT | GL_MAP_WRITE_BIT"));
   renderer->UnmapBufferObjectData(s_data.vertex_buffer);
   EXPECT_EQ(1U, trace_verifier_->GetCountOf("UnmapBuffer"));
-  EXPECT_FALSE(mbd.gpu_mapped);
+  EXPECT_EQ(kInvalidSource, mbd.data_source);
 
   // Reset data.
-  s_data.rect = NULL;
-  s_data.vertex_container = NULL;
+  s_data.rect = nullptr;
+  s_data.vertex_container = nullptr;
   BuildRectangle();
 }
 
@@ -8264,14 +8438,14 @@ TEST_F(RendererTest, FlagsBehavior) {
     renderer->DrawScene(root);
     Reset();
     // These will trigger resources to be released.
-    s_data.attribute_array = NULL;
-    s_data.vertex_buffer = NULL;
-    s_data.index_buffer = NULL;
-    s_data.shader = NULL;
-    s_data.shape = NULL;
-    s_data.rect = NULL;
+    s_data.attribute_array = nullptr;
+    s_data.vertex_buffer = nullptr;
+    s_data.index_buffer = nullptr;
+    s_data.shader = nullptr;
+    s_data.shape = nullptr;
+    s_data.rect = nullptr;
     root->ClearChildren();
-    root->SetShaderProgram(ShaderProgramPtr(NULL));
+    root->SetShaderProgram(ShaderProgramPtr(nullptr));
     // Tell the renderer not to process releases.
     renderer->ClearFlag(Renderer::kProcessReleases);
     renderer->DrawScene(root);
@@ -8296,7 +8470,7 @@ TEST_F(RendererTest, FlagsBehavior) {
     EXPECT_TRUE(trace_verifier_->VerifySortedCalls(call_strings));
 
     // Reset data.
-    s_data.rect = NULL;
+    s_data.rect = nullptr;
     BuildRectangle();
   }
 
@@ -8334,7 +8508,7 @@ TEST_F(RendererTest, FlagsBehavior) {
         gm_, renderer, trace_verifier_, Renderer::kSaveFramebuffer,
         Renderer::kRestoreFramebuffer, "GetIntegerv(GL_FRAMEBUFFER_BINDING",
         "BindFramebuffer"));
-    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == NULL);
+    EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == nullptr);
   }
   {
     RendererPtr renderer(new Renderer(gm_));
@@ -8427,7 +8601,7 @@ TEST_F(RendererTest, FlagsBehavior) {
       renderer->SetFlag(Renderer::kClearFramebuffer);
       renderer->DrawScene(root);
       // The framebuffer should have been cleared.
-      EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == NULL);
+      EXPECT_TRUE(renderer->GetCurrentFramebuffer().Get() == nullptr);
     }
 
     // Restoring a program binding should override clearing it.
@@ -8817,14 +8991,14 @@ TEST_F(RendererTest, CreateResourceWithExternallyManagedId) {
 
   Reset();
   // Destroy all resources.
-  renderer.Reset(NULL);
-  s_data.attribute_array = NULL;
-  s_data.vertex_buffer = NULL;
-  s_data.index_buffer = NULL;
-  s_data.shader = NULL;
-  s_data.shape = NULL;
-  s_data.texture = NULL;
-  s_data.rect = NULL;
+  renderer.Reset(nullptr);
+  s_data.attribute_array = nullptr;
+  s_data.vertex_buffer = nullptr;
+  s_data.index_buffer = nullptr;
+  s_data.shader = nullptr;
+  s_data.shape = nullptr;
+  s_data.texture = nullptr;
+  s_data.rect = nullptr;
   // Check that the managed resources were not deleted.
   EXPECT_EQ(0U, trace_verifier_->GetCountOf("Delete"));
 }
@@ -9181,18 +9355,18 @@ TEST_F(RendererTest, ReleaseResources) {
 
   Reset();
   // Force calls to OnDestroyed().
-  s_data.attribute_array = NULL;
-  s_data.vertex_buffer = NULL;
-  s_data.index_buffer = NULL;
-  s_data.shader = NULL;
-  s_data.shape = NULL;
-  s_data.texture = NULL;
-  s_data.cubemap = NULL;
-  s_data.rect = NULL;
+  s_data.attribute_array = nullptr;
+  s_data.vertex_buffer = nullptr;
+  s_data.index_buffer = nullptr;
+  s_data.shader = nullptr;
+  s_data.shape = nullptr;
+  s_data.texture = nullptr;
+  s_data.cubemap = nullptr;
+  s_data.rect = nullptr;
   root->ClearChildren();
   root->ClearUniforms();
-  root->SetShaderProgram(ShaderProgramPtr(NULL));
-  root.Reset(NULL);
+  root->SetShaderProgram(ShaderProgramPtr(nullptr));
+  root.Reset(nullptr);
 
   const size_t post_mark_usage =
       renderer->GetGpuMemoryUsage(ion::gfx::Renderer::kTexture);
@@ -9749,7 +9923,7 @@ TEST_F(RendererTest, BackgroundUpload) {
       base::AllocationManager::GetDefaultAllocatorForLifetime(
           base::kShortTerm);
   base::DataContainerPtr data = base::DataContainer::CreateOverAllocated<uint8>(
-      kImageWidth * kImageHeight, NULL, alloc);
+      kImageWidth * kImageHeight, nullptr, alloc);
   image->Set(Image::kLuminance, kImageWidth, kImageHeight, data);
 
   // Create textures.
@@ -9781,7 +9955,7 @@ TEST_F(RendererTest, BackgroundUpload) {
   portgfx::Visual::MakeCurrent(visual_.get());
   renderer->CreateOrUpdateResource(texture2.Get());
   // Destroy texture2, calling OnDestroyed() in it's resource.
-  texture2.Reset(NULL);
+  texture2.Reset(nullptr);
   // This will trigger the actual release.
   renderer->DrawScene(NodePtr());
 
@@ -9966,6 +10140,24 @@ TEST_F(RendererTest, ResolveMultisampleFramebuffer) {
     EXPECT_TRUE(log_checker.HasMessage(
         "WARNING", "No multisampled frambuffer functions available."));
   }
+}
+
+TEST_F(RendererTest, ExternalFramebufferDestruction) {
+  // Check whether dropping references to the bound framebuffer works correctly.
+  RendererPtr renderer(new Renderer(gm_));
+  NodePtr root = BuildGraph(kWidth, kHeight, true);
+
+  {
+    FramebufferObjectPtr dest_fbo(new FramebufferObject(256, 256));
+    dest_fbo->SetColorAttachment(
+        0U, FramebufferObject::Attachment(Image::kRgba8888));
+    renderer->BindFramebuffer(dest_fbo);
+    renderer->DrawScene(root);
+  }
+
+  FramebufferObjectPtr fbo = renderer->GetCurrentFramebuffer();
+  EXPECT_TRUE(fbo.Get() == nullptr);
+  renderer->DrawScene(root);
 }
 
 }  // namespace gfx

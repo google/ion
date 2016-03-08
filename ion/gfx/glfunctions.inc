@@ -222,488 +222,494 @@ typedef GLuint GLuint4;
 // Each of these implements the corresponding standard or extended OpenGL
 // function. All functions in the Core group are guaranteed to be present on all
 // systems.
-ION_WRAP_GL_FUNC1(Core, ActiveTexture, void, GLenum, texture);
-ION_WRAP_GL_FUNC2(Core, AttachShader, void, GLuint, program, GLuint, shader);
+ION_WRAP_GL_FUNC1(Core, ActiveTexture, void, GLenum, texture)
+ION_WRAP_GL_FUNC2(Core, AttachShader, void, GLuint, program, GLuint, shader)
 ION_WRAP_GL_FUNC3(Core, BindAttribLocation, void, GLuint, program, GLuint,
-                  index, const GLchar*, name);
-ION_WRAP_GL_FUNC2(Core, BindBuffer, void, GLenum, target, GLuint, buffer);
+                  index, const GLchar*, name)
+ION_WRAP_GL_FUNC2(Core, BindBuffer, void, GLenum, target, GLuint, buffer)
 ION_WRAP_GL_FUNC2(Core, BindFramebuffer, void, GLenum, target, GLuint,
-                  framebuffer);
+                  framebuffer)
 ION_WRAP_GL_FUNC2(Core, BindRenderbuffer, void, GLenum, target, GLuint,
-                  renderbuffer);
-ION_WRAP_GL_FUNC2(Core, BindTexture, void, GLenum, target, GLuint, texture);
+                  renderbuffer)
+ION_WRAP_GL_FUNC2(Core, BindTexture, void, GLenum, target, GLuint, texture)
 ION_WRAP_GL_FUNC4(Core, BlendColor, void, GLfloat, red, GLfloat, green, GLfloat,
-                  blue, GLfloat, alpha);
-ION_WRAP_GL_FUNC1(Core, BlendEquation, void, GLenum, mode);
+                  blue, GLfloat, alpha)
+ION_WRAP_GL_FUNC1(Core, BlendEquation, void, GLenum, mode)
 ION_WRAP_GL_FUNC2(Core, BlendEquationSeparate, void, GLenum, mode_rgb, GLenum,
-                  mode_alpha);
+                  mode_alpha)
 ION_WRAP_GL_FUNC2(Core, BlendFunc, void, GLblendenum, sfactor, GLblendenum,
-                  dfactor);
+                  dfactor)
 ION_WRAP_GL_FUNC4(Core, BlendFuncSeparate, void, GLblendenum, sfactor_rgb,
                   GLblendenum, dfactor_rgb, GLblendenum, sfactor_alpha,
-                  GLblendenum, dfactor_alpha);
+                  GLblendenum, dfactor_alpha)
 ION_WRAP_GL_FUNC4(Core, BufferData, void, GLenum, target, GLsizeiptr, size,
-                  const GLvoid*, data, GLenum, usage);
+                  const GLvoid*, data, GLenum, usage)
 ION_WRAP_GL_FUNC4(Core, BufferSubData, void, GLenum, target, GLintptr, offset,
-                  GLsizeiptr, size, const GLvoid*, data);
-ION_WRAP_GL_FUNC1(Core, CheckFramebufferStatus, GLenum, GLenum, target);
-ION_WRAP_GL_FUNC1(Core, Clear, void, GLbitfield, mask);
+                  GLsizeiptr, size, const GLvoid*, data)
+ION_WRAP_GL_FUNC1(Core, CheckFramebufferStatus, GLenum, GLenum, target)
+ION_WRAP_GL_FUNC1(Core, Clear, void, GLbitfield, mask)
 ION_WRAP_GL_FUNC4(Core, ClearColor, void, GLfloat, red, GLfloat, green, GLfloat,
-                  blue, GLfloat, alpha);
-ION_WRAP_GL_FUNC1(Core, ClearDepthf, void, GLfloat, depth);
-ION_WRAP_GL_FUNC1(Core, ClearStencil, void, GLint, s);
+                  blue, GLfloat, alpha)
+ION_WRAP_GL_FUNC1(Core, ClearDepthf, void, GLfloat, depth)
+ION_WRAP_GL_FUNC1(Core, ClearStencil, void, GLint, s)
 ION_WRAP_GL_FUNC4(Core, ColorMask, void, GLboolean, red, GLboolean, green,
-                  GLboolean, blue, GLboolean, alpha);
-ION_WRAP_GL_FUNC1(Core, CompileShader, void, GLuint, shader);
+                  GLboolean, blue, GLboolean, alpha)
+ION_WRAP_GL_FUNC1(Core, CompileShader, void, GLuint, shader)
 ION_WRAP_GL_FUNC8(Core, CompressedTexImage2D, void, GLenum, target, GLint,
                   level, GLenum, internal_format, GLsizei, width, GLsizei,
                   height, GLint, border, GLsizei, image_size, const GLvoid*,
-                  data);
+                  data)
 ION_WRAP_GL_FUNC9(Core, CompressedTexSubImage2D, void, GLenum, target, GLint,
                   level, GLint, xoffset, GLint, yoffset, GLsizei, width,
                   GLsizei, height, GLenum, format, GLsizei, imageSize,
-                  const GLvoid*, data);
+                  const GLvoid*, data)
 ION_WRAP_GL_FUNC8(Core, CopyTexImage2D, void, GLenum, target, GLint, level,
                   GLenum, internalformat, GLint, x, GLint, y, GLsizei, width,
-                  GLsizei, height, GLint, border);
+                  GLsizei, height, GLint, border)
 ION_WRAP_GL_FUNC8(Core, CopyTexSubImage2D, void, GLenum, target, GLint, level,
                   GLint, xoffset, GLint, yoffset, GLint, x, GLint, y, GLsizei,
-                  width, GLsizei, height);
-ION_WRAP_GL_FUNC0(Core, CreateProgram, GLuint);
-ION_WRAP_GL_FUNC1(Core, CreateShader, GLuint, GLenum, type);
-ION_WRAP_GL_FUNC1(Core, CullFace, void, GLenum, mode);
+                  width, GLsizei, height)
+ION_WRAP_GL_FUNC0(Core, CreateProgram, GLuint)
+ION_WRAP_GL_FUNC1(Core, CreateShader, GLuint, GLenum, type)
+ION_WRAP_GL_FUNC1(Core, CullFace, void, GLenum, mode)
 ION_WRAP_GL_FUNC2(Core, DeleteBuffers, void, GLsizei, n, const GLuint*,
-                  buffers);
+                  buffers)
 ION_WRAP_GL_FUNC2(Core, DeleteFramebuffers, void, GLsizei, n, const GLuint*,
-                  framebuffers);
-ION_WRAP_GL_FUNC1(Core, DeleteProgram, void, GLuint, program);
+                  framebuffers)
+ION_WRAP_GL_FUNC1(Core, DeleteProgram, void, GLuint, program)
 ION_WRAP_GL_FUNC2(Core, DeleteRenderbuffers, void, GLsizei, n, const GLuint*,
-                  renderbuffers);
-ION_WRAP_GL_FUNC1(Core, DeleteShader, void, GLuint, shader);
+                  renderbuffers)
+ION_WRAP_GL_FUNC1(Core, DeleteShader, void, GLuint, shader)
 ION_WRAP_GL_FUNC2(Core, DeleteTextures, void, GLsizei, n, const GLuint*,
-                  textures);
-ION_WRAP_GL_FUNC1(Core, DepthFunc, void, GLenum, func);
-ION_WRAP_GL_FUNC1(Core, DepthMask, void, GLboolean, flag);
-ION_WRAP_GL_FUNC2(Core, DepthRangef, void, GLfloat, near_val, GLfloat, far_val);
-ION_WRAP_GL_FUNC2(Core, DetachShader, void, GLuint, program, GLuint, shader);
-ION_WRAP_GL_FUNC1(Core, Disable, void, GLenum, cap);
-ION_WRAP_GL_FUNC1(Core, DisableVertexAttribArray, void, GLuint, index);
+                  textures)
+ION_WRAP_GL_FUNC1(Core, DepthFunc, void, GLenum, func)
+ION_WRAP_GL_FUNC1(Core, DepthMask, void, GLboolean, flag)
+ION_WRAP_GL_FUNC2(Core, DepthRangef, void, GLfloat, near_val, GLfloat, far_val)
+ION_WRAP_GL_FUNC2(Core, DetachShader, void, GLuint, program, GLuint, shader)
+ION_WRAP_GL_FUNC1(Core, Disable, void, GLenum, cap)
+ION_WRAP_GL_FUNC1(Core, DisableVertexAttribArray, void, GLuint, index)
 ION_WRAP_GL_FUNC3(Core, DrawArrays, void, GLenum, mode, GLint, first, GLsizei,
-                  count);
+                  count)
 ION_WRAP_GL_FUNC4(Core, DrawElements, void, GLenum, mode, GLsizei, count,
-                  GLenum, type, const GLvoid*, indices);
-ION_WRAP_GL_FUNC1(Core, Enable, void, GLenum, cap);
-ION_WRAP_GL_FUNC1(Core, EnableVertexAttribArray, void, GLuint, index);
-ION_WRAP_GL_FUNC0(Core, Finish, void);
-ION_WRAP_GL_FUNC0(Core, Flush, void);
+                  GLenum, type, const GLvoid*, indices)
+ION_WRAP_GL_FUNC1(Core, Enable, void, GLenum, cap)
+ION_WRAP_GL_FUNC1(Core, EnableVertexAttribArray, void, GLuint, index)
+ION_WRAP_GL_FUNC0(Core, Finish, void)
+ION_WRAP_GL_FUNC0(Core, Flush, void)
 ION_WRAP_GL_FUNC4(Core, FramebufferRenderbuffer, void, GLenum, target, GLenum,
-                  attachment, GLenum, renderbuffertarget, GLuint, renderbuffer);
+                  attachment, GLenum, renderbuffertarget, GLuint, renderbuffer)
 ION_WRAP_GL_FUNC5(Core, FramebufferTexture2D, void, GLenum, target, GLenum,
-                  attachment, GLenum, textarget, GLuint, texture, GLint, level);
-ION_WRAP_GL_FUNC1(Core, FrontFace, void, GLenum, mode);
-ION_WRAP_GL_FUNC2(Core, GenBuffers, void, GLsizei, n, GLuint*, buffers);
-ION_WRAP_GL_FUNC1(Core, GenerateMipmap, void, GLenum, target);
+                  attachment, GLenum, textarget, GLuint, texture, GLint, level)
+ION_WRAP_GL_FUNC1(Core, FrontFace, void, GLenum, mode)
+ION_WRAP_GL_FUNC2(Core, GenBuffers, void, GLsizei, n, GLuint*, buffers)
+ION_WRAP_GL_FUNC1(Core, GenerateMipmap, void, GLenum, target)
 ION_WRAP_GL_FUNC2(Core, GenFramebuffers, void, GLsizei, n, GLuint*,
-                  framebuffers);
+                  framebuffers)
 ION_WRAP_GL_FUNC2(Core, GenRenderbuffers, void, GLsizei, n, GLuint*,
-                  renderbuffers);
-ION_WRAP_GL_FUNC2(Core, GenTextures, void, GLsizei, n, GLuint*, textures);
+                  renderbuffers)
+ION_WRAP_GL_FUNC2(Core, GenTextures, void, GLsizei, n, GLuint*, textures)
 ION_WRAP_GL_FUNC7(Core, GetActiveAttrib, void, GLuint, program, GLuint, index,
                   GLsizei, bufSize, GLsizei*, length, GLint*, size, GLenum*,
-                  type, GLchar*, name);
+                  type, GLchar*, name)
 ION_WRAP_GL_FUNC7(Core, GetActiveUniform, void, GLuint, program, GLuint, index,
                   GLsizei, bufSize, GLsizei*, length, GLint*, size, GLenum*,
-                  type, GLchar*, name);
+                  type, GLchar*, name)
 ION_WRAP_GL_FUNC4(Core, GetAttachedShaders, void, GLuint, program, GLsizei,
-                  maxCount, GLsizei*, count, GLuint*, shaders);
+                  maxCount, GLsizei*, count, GLuint*, shaders)
 ION_WRAP_GL_FUNC2(Core, GetAttribLocation, GLint, GLuint, program,
-                  const GLchar*, name);
-ION_WRAP_GL_FUNC2(Core, GetBooleanv, void, GLenum, pname, GLboolean*, params);
+                  const GLchar*, name)
+ION_WRAP_GL_FUNC2(Core, GetBooleanv, void, GLenum, pname, GLboolean*, params)
 ION_WRAP_GL_FUNC3(Core, GetBufferParameteriv, void, GLenum, target, GLenum,
-                  value, GLint*, data);
-ION_WRAP_GL_FUNC0(Core, GetError, GLenum);
-ION_WRAP_GL_FUNC2(Core, GetFloatv, void, GLenum, pname, GLfloat*, params);
+                  value, GLint*, data)
+ION_WRAP_GL_FUNC0(Core, GetError, GLenum)
+ION_WRAP_GL_FUNC2(Core, GetFloatv, void, GLenum, pname, GLfloat*, params)
 ION_WRAP_GL_FUNC4(Core, GetFramebufferAttachmentParameteriv, void, GLenum,
-                  target, GLenum, attachment, GLenum, pname, GLint*, params);
-ION_WRAP_GL_FUNC2(Core, GetIntegerv, void, GLenum, pname, GLint*, params);
+                  target, GLenum, attachment, GLenum, pname, GLint*, params)
+ION_WRAP_GL_FUNC2(Core, GetIntegerv, void, GLenum, pname, GLint*, params)
 ION_WRAP_GL_FUNC4(Core, GetProgramInfoLog, void, GLuint, program, GLsizei,
-                  buf_size, GLsizei*, length, GLchar*, info_log);
+                  buf_size, GLsizei*, length, GLchar*, info_log)
 ION_WRAP_GL_FUNC3(Core, GetProgramiv, void, GLuint, program, GLenum, pname,
-                  GLint*, params);
+                  GLint*, params)
 ION_WRAP_GL_FUNC3(Core, GetRenderbufferParameteriv, void, GLenum, target,
-                  GLenum, pname, GLint*, params);
+                  GLenum, pname, GLint*, params)
 ION_WRAP_GL_FUNC4(Core, GetShaderInfoLog, void, GLuint, shader, GLsizei,
-                  buf_size, GLsizei*, length, GLchar*, info_log);
+                  buf_size, GLsizei*, length, GLchar*, info_log)
 ION_WRAP_GL_FUNC4(Core, GetShaderPrecisionFormat, void, GLenum, shaderType,
-                  GLenum, precisionType, GLint*, range, GLint*, precision);
+                  GLenum, precisionType, GLint*, range, GLint*, precision)
 ION_WRAP_GL_FUNC4(Core, GetShaderSource, void, GLuint, shader, GLsizei,
-                  buf_size, GLsizei*, length, GLchar*, source);
+                  buf_size, GLsizei*, length, GLchar*, source)
 ION_WRAP_GL_FUNC3(Core, GetShaderiv, void, GLuint, shader, GLenum, pname,
-                  GLint*, params);
-ION_WRAP_GL_FUNC1(Core, GetString, const GLubyte*, GLenum, name);
+                  GLint*, params)
+ION_WRAP_GL_FUNC1(Core, GetString, const GLubyte*, GLenum, name)
 ION_WRAP_GL_FUNC3(Core, GetTexParameterfv, void, GLenum, target, GLenum, pname,
-                  GLfloat*, params);
+                  GLfloat*, params)
 ION_WRAP_GL_FUNC3(Core, GetTexParameteriv, void, GLenum, target, GLenum, pname,
-                  GLint*, params);
+                  GLint*, params)
 ION_WRAP_GL_FUNC3(Core, GetUniformfv, void, GLuint, program, GLint, location,
-                  GLfloat*, params);
+                  GLfloat*, params)
 ION_WRAP_GL_FUNC3(Core, GetUniformiv, void, GLuint, program, GLint, location,
-                  GLint*, params);
+                  GLint*, params)
 ION_WRAP_GL_FUNC2(Core, GetUniformLocation, GLint, GLuint, program,
-                  const GLchar*, name);
+                  const GLchar*, name)
 ION_WRAP_GL_FUNC3(Core, GetVertexAttribfv, void, GLuint, index, GLenum, pname,
-                  GLfloat*, params);
+                  GLfloat*, params)
 ION_WRAP_GL_FUNC3(Core, GetVertexAttribiv, void, GLuint, index, GLenum, pname,
-                  GLint*, params);
+                  GLint*, params)
 ION_WRAP_GL_FUNC3(Core, GetVertexAttribPointerv, void, GLuint, index, GLenum,
-                  pname, GLvoid**, pointer);
-ION_WRAP_GL_FUNC2(Core, Hint, void, GLenum, target, GLenum, hint);
-ION_WRAP_GL_FUNC1(Core, IsBuffer, GLboolean, GLuint, buffer);
-ION_WRAP_GL_FUNC1(Core, IsEnabled, GLboolean, GLenum, value);
-ION_WRAP_GL_FUNC1(Core, IsFramebuffer, GLboolean, GLuint, framebuffer);
-ION_WRAP_GL_FUNC1(Core, IsProgram, GLboolean, GLuint, program);
-ION_WRAP_GL_FUNC1(Core, IsRenderbuffer, GLboolean, GLuint, renderbuffer);
-ION_WRAP_GL_FUNC1(Core, IsShader, GLboolean, GLuint, shader);
-ION_WRAP_GL_FUNC1(Core, IsTexture, GLboolean, GLuint, texture);
-ION_WRAP_GL_FUNC1(Core, LineWidth, void, GLfloat, width);
-ION_WRAP_GL_FUNC1(Core, LinkProgram, void, GLuint, program);
-ION_WRAP_GL_FUNC2(Core, PixelStorei, void, GLenum, pname, GLint, param);
-ION_WRAP_GL_FUNC2(Core, PolygonOffset, void, GLfloat, factor, GLfloat, units);
+                  pname, GLvoid**, pointer)
+ION_WRAP_GL_FUNC2(Core, Hint, void, GLenum, target, GLenum, hint)
+ION_WRAP_GL_FUNC1(Core, IsBuffer, GLboolean, GLuint, buffer)
+ION_WRAP_GL_FUNC1(Core, IsEnabled, GLboolean, GLenum, value)
+ION_WRAP_GL_FUNC1(Core, IsFramebuffer, GLboolean, GLuint, framebuffer)
+ION_WRAP_GL_FUNC1(Core, IsProgram, GLboolean, GLuint, program)
+ION_WRAP_GL_FUNC1(Core, IsRenderbuffer, GLboolean, GLuint, renderbuffer)
+ION_WRAP_GL_FUNC1(Core, IsShader, GLboolean, GLuint, shader)
+ION_WRAP_GL_FUNC1(Core, IsTexture, GLboolean, GLuint, texture)
+ION_WRAP_GL_FUNC1(Core, LineWidth, void, GLfloat, width)
+ION_WRAP_GL_FUNC1(Core, LinkProgram, void, GLuint, program)
+ION_WRAP_GL_FUNC2(Core, PixelStorei, void, GLenum, pname, GLint, param)
+ION_WRAP_GL_FUNC2(Core, PolygonOffset, void, GLfloat, factor, GLfloat, units)
 ION_WRAP_GL_FUNC7(Core, ReadPixels, void, GLint, x, GLint, y, GLsizei, width,
-                  GLsizei, height, GLenum, format, GLenum, type, GLvoid*, data);
-ION_WRAP_GL_FUNC0(Core, ReleaseShaderCompiler, void);
+                  GLsizei, height, GLenum, format, GLenum, type, GLvoid*, data)
+ION_WRAP_GL_FUNC0(Core, ReleaseShaderCompiler, void)
 ION_WRAP_GL_FUNC4(Core, RenderbufferStorage, void, GLenum, target, GLenum,
-                  internalformat, GLsizei, width, GLsizei, height);
+                  internalformat, GLsizei, width, GLsizei, height)
 ION_WRAP_GL_FUNC2(Core, SampleCoverage, void, GLfloat, value, GLboolean,
-                  invert);
+                  invert)
 ION_WRAP_GL_FUNC4(Core, Scissor, void, GLint, x, GLint, y, GLsizei, width,
-                  GLsizei, height);
+                  GLsizei, height)
 ION_WRAP_GL_FUNC5(Core, ShaderBinary, void, GLsizei, n, const GLuint*, shaders,
-                  GLenum, binaryformat, const void*, binary, GLsizei, length);
+                  GLenum, binaryformat, const void*, binary, GLsizei, length)
 ION_WRAP_GL_FUNC4(Core, ShaderSource, void, GLuint, shader, GLsizei, count,
-                  const GLchar**, string, const GLint*, length);
+                  const GLchar**, string, const GLint*, length)
 ION_WRAP_GL_FUNC3(Core, StencilFunc, void, GLenum, func, GLint, ref, GLuint,
-                  mask);
+                  mask)
 ION_WRAP_GL_FUNC4(Core, StencilFuncSeparate, void, GLenum, face, GLenum, func,
-                  GLint, ref, GLuint, mask);
-ION_WRAP_GL_FUNC1(Core, StencilMask, void, GLuint, mask);
-ION_WRAP_GL_FUNC2(Core, StencilMaskSeparate, void, GLenum, face, GLuint, mask);
+                  GLint, ref, GLuint, mask)
+ION_WRAP_GL_FUNC1(Core, StencilMask, void, GLuint, mask)
+ION_WRAP_GL_FUNC2(Core, StencilMaskSeparate, void, GLenum, face, GLuint, mask)
 ION_WRAP_GL_FUNC3(Core, StencilOp, void, GLstencilenum, sfail, GLstencilenum,
-                  dpfail, GLstencilenum, dppass);
+                  dpfail, GLstencilenum, dppass)
 ION_WRAP_GL_FUNC4(Core, StencilOpSeparate, void, GLenum, face, GLstencilenum,
-                  sfail, GLstencilenum, dpfail, GLstencilenum, dppass);
+                  sfail, GLstencilenum, dpfail, GLstencilenum, dppass)
 ION_WRAP_GL_FUNC9(Core, TexImage2D, void, GLintenum, target, GLint, level,
                   GLenum, internal_format, GLsizei, width, GLsizei, height,
                   GLint, border, GLenum, format, GLenum, type, const GLvoid*,
-                  pixels);
+                  pixels)
 ION_WRAP_GL_FUNC3(Core, TexParameterf, void, GLenum, target, GLenum, pname,
-                  GLfloat, param);
+                  GLfloat, param)
 ION_WRAP_GL_FUNC3(Core, TexParameterfv, void, GLenum, target, GLenum, pname,
-                  const GLfloat*, params);
+                  const GLfloat*, params)
 ION_WRAP_GL_FUNC3(Core, TexParameteri, void, GLenum, target, GLenum, pname,
-                  GLtextureenum, param);
+                  GLtextureenum, param)
 ION_WRAP_GL_FUNC3(Core, TexParameteriv, void, GLenum, target, GLenum, pname,
-                  const GLint*, params);
+                  const GLint*, params)
 ION_WRAP_GL_FUNC9(Core, TexSubImage2D, void, GLenum, target, GLint, level,
                   GLint, xoffset, GLint, yoffset, GLsizei, width, GLsizei,
-                  height, GLenum, format, GLenum, type, const GLvoid*, data);
-ION_WRAP_GL_FUNC2(Core, Uniform1f, void, GLint, location, GLfloat, v0);
+                  height, GLenum, format, GLenum, type, const GLvoid*, data)
+ION_WRAP_GL_FUNC2(Core, Uniform1f, void, GLint, location, GLfloat, v0)
 ION_WRAP_GL_FUNC3(Core, Uniform1fv, void, GLint, location, GLsizei, count,
-                  const GLfloat1*, value);
-ION_WRAP_GL_FUNC2(Core, Uniform1i, void, GLint, location, GLint, v0);
+                  const GLfloat1*, value)
+ION_WRAP_GL_FUNC2(Core, Uniform1i, void, GLint, location, GLint, v0)
 ION_WRAP_GL_FUNC3(Core, Uniform1iv, void, GLint, location, GLsizei, count,
-                  const GLint1*, value);
+                  const GLint1*, value)
 ION_WRAP_GL_FUNC3(Core, Uniform2f, void, GLint, location, GLfloat, v0, GLfloat,
-                  v1);
+                  v1)
 ION_WRAP_GL_FUNC3(Core, Uniform2fv, void, GLint, location, GLsizei, count,
-                  const GLfloat2*, value);
-ION_WRAP_GL_FUNC3(Core, Uniform2i, void, GLint, location, GLint, v0, GLint, v1);
+                  const GLfloat2*, value)
+ION_WRAP_GL_FUNC3(Core, Uniform2i, void, GLint, location, GLint, v0, GLint, v1)
 ION_WRAP_GL_FUNC3(Core, Uniform2iv, void, GLint, location, GLsizei, count,
-                  const GLint2*, value);
+                  const GLint2*, value)
 ION_WRAP_GL_FUNC4(Core, Uniform3f, void, GLint, location, GLfloat, v0, GLfloat,
-                  v1, GLfloat, v2);
+                  v1, GLfloat, v2)
 ION_WRAP_GL_FUNC3(Core, Uniform3fv, void, GLint, location, GLsizei, count,
-                  const GLfloat3*, value);
+                  const GLfloat3*, value)
 ION_WRAP_GL_FUNC4(Core, Uniform3i, void, GLint, location, GLint, v0, GLint, v1,
-                  GLint, v2);
+                  GLint, v2)
 ION_WRAP_GL_FUNC3(Core, Uniform3iv, void, GLint, location, GLsizei, count,
-                  const GLint3*, value);
+                  const GLint3*, value)
 ION_WRAP_GL_FUNC5(Core, Uniform4f, void, GLint, location, GLfloat, v0, GLfloat,
-                  v1, GLfloat, v2, GLfloat, v3);
+                  v1, GLfloat, v2, GLfloat, v3)
 ION_WRAP_GL_FUNC3(Core, Uniform4fv, void, GLint, location, GLsizei, count,
-                  const GLfloat4*, value);
+                  const GLfloat4*, value)
 ION_WRAP_GL_FUNC5(Core, Uniform4i, void, GLint, location, GLint, v0, GLint, v1,
-                  GLint, v2, GLint, v3);
+                  GLint, v2, GLint, v3)
 ION_WRAP_GL_FUNC3(Core, Uniform4iv, void, GLint, location, GLsizei, count,
-                  const GLint4*, value);
+                  const GLint4*, value)
 ION_WRAP_GL_FUNC4(Core, UniformMatrix2fv, void, GLint, location, GLsizei, count,
-                  GLboolean, transpose, const GLmatrix2*, value);
+                  GLboolean, transpose, const GLmatrix2*, value)
 ION_WRAP_GL_FUNC4(Core, UniformMatrix3fv, void, GLint, location, GLsizei, count,
-                  GLboolean, transpose, const GLmatrix3*, value);
+                  GLboolean, transpose, const GLmatrix3*, value)
 ION_WRAP_GL_FUNC4(Core, UniformMatrix4fv, void, GLint, location, GLsizei, count,
-                  GLboolean, transpose, const GLmatrix4*, value);
-ION_WRAP_GL_FUNC1(Core, UseProgram, void, GLuint, program);
-ION_WRAP_GL_FUNC1(Core, ValidateProgram, void, GLuint, program);
-ION_WRAP_GL_FUNC2(Core, VertexAttrib1f, void, GLint, index, GLfloat, v0);
+                  GLboolean, transpose, const GLmatrix4*, value)
+ION_WRAP_GL_FUNC1(Core, UseProgram, void, GLuint, program)
+ION_WRAP_GL_FUNC1(Core, ValidateProgram, void, GLuint, program)
+ION_WRAP_GL_FUNC2(Core, VertexAttrib1f, void, GLint, index, GLfloat, v0)
 ION_WRAP_GL_FUNC2(Core, VertexAttrib1fv, void, GLuint, index, const GLfloat1*,
-                  value);
+                  value)
 ION_WRAP_GL_FUNC3(Core, VertexAttrib2f, void, GLint, index, GLfloat, v0,
-                  GLfloat, v1);
+                  GLfloat, v1)
 ION_WRAP_GL_FUNC2(Core, VertexAttrib2fv, void, GLuint, index, const GLfloat2*,
-                  value);
+                  value)
 ION_WRAP_GL_FUNC4(Core, VertexAttrib3f, void, GLint, index, GLfloat, v0,
-                  GLfloat, v1, GLfloat, v2);
+                  GLfloat, v1, GLfloat, v2)
 ION_WRAP_GL_FUNC2(Core, VertexAttrib3fv, void, GLuint, index, const GLfloat3*,
-                  value);
+                  value)
 ION_WRAP_GL_FUNC5(Core, VertexAttrib4f, void, GLint, index, GLfloat, v0,
-                  GLfloat, v1, GLfloat, v2, GLfloat, v3);
+                  GLfloat, v1, GLfloat, v2, GLfloat, v3)
 ION_WRAP_GL_FUNC2(Core, VertexAttrib4fv, void, GLuint, index, const GLfloat4*,
-                  value);
+                  value)
 ION_WRAP_GL_FUNC6(Core, VertexAttribPointer, void, GLuint, index, GLint, size,
                   GLenum, type, GLboolean, normalized, GLsizei, stride,
-                  const GLvoid*, pointer);
+                  const GLvoid*, pointer)
 ION_WRAP_GL_FUNC4(Core, Viewport, void, GLint, x, GLint, y, GLsizei, width,
-                  GLsizei, height);
+                  GLsizei, height)
 
 // ChooseBuffer group.
-ION_WRAP_GL_FUNC1(ChooseBuffer, DrawBuffer, void, GLenum, buffer);
-ION_WRAP_GL_FUNC1(ChooseBuffer, ReadBuffer, void, GLenum, buffer);
+ION_WRAP_GL_FUNC1(ChooseBuffer, DrawBuffer, void, GLenum, buffer)
+ION_WRAP_GL_FUNC1(ChooseBuffer, ReadBuffer, void, GLenum, buffer)
 
 // DebugLabel group.
 ION_WRAP_GL_FUNC5(DebugLabel, GetObjectLabel, void, GLenum, type, GLuint,
-                  object, GLsizei, bufSize, GLsizei*, length, GLchar*, label);
+                  object, GLsizei, bufSize, GLsizei*, length, GLchar*, label)
 ION_WRAP_GL_FUNC4(DebugLabel, LabelObject, void, GLenum, type, GLuint, object,
-                  GLsizei, length, const GLchar*, label);
+                  GLsizei, length, const GLchar*, label)
 
 // DebugMarker group.
 ION_WRAP_GL_FUNC2(DebugMarker, InsertEventMarker, void, GLsizei, length,
-                  const GLchar*, marker);
-ION_WRAP_GL_FUNC0(DebugMarker, PopGroupMarker, void);
+                  const GLchar*, marker)
+ION_WRAP_GL_FUNC0(DebugMarker, PopGroupMarker, void)
 ION_WRAP_GL_FUNC2(DebugMarker, PushGroupMarker, void, GLsizei, length,
-                  const GLchar*, marker);
+                  const GLchar*, marker)
 
 // DebugOutput group.
 ION_WRAP_GL_FUNC2(DebugOutput, DebugMessageCallback, void, GLDEBUGPROC,
-                  callback, const void*, userParam);
+                  callback, const void*, userParam)
 ION_WRAP_GL_FUNC6(DebugOutput, DebugMessageControl, void, GLenum, source,
                   GLenum, type, GLenum, severity, GLsizei, count, GLuint*, ids,
-                  GLboolean, enabled);
+                  GLboolean, enabled)
 ION_WRAP_GL_FUNC6(DebugOutput, DebugMessageInsert, void, GLenum, source, GLenum,
                   type, GLuint, id, GLenum, severity, GLsizei, length,
-                  const GLchar*, buf);
+                  const GLchar*, buf)
 ION_WRAP_GL_FUNC8(DebugOutput, GetDebugMessageLog, GLuint, GLuint, count,
                   GLsizei, bufSize, GLenum*, sources, GLenum*, types, GLuint*,
                   ids, GLenum*, severities, GLsizei*, lengths, GLchar*,
-                  messageLog);
+                  messageLog)
 ION_WRAP_GL_FUNC2(DebugOutput, GetPointerv, void, GLenum, pname, void**,
-                  params);
+                  params)
 
 // FramebufferBlit group.
 ION_WRAP_GL_FUNC10(FramebufferBlit, BlitFramebuffer, void, GLint, srcX0, GLint,
                    srcY0, GLint, srcX1, GLint, srcY1, GLint, dstX0, GLint,
                    dstY0, GLint, dstX1, GLint, dstY1, GLbitfield, mask, GLenum,
-                   filter);
+                   filter)
 
 // FramebufferMultisample group.
 ION_WRAP_GL_FUNC5(FramebufferMultisample, RenderbufferStorageMultisample, void,
                   GLenum, target, GLsizei, samples, GLenum, internal_format,
-                  GLsizei, width, GLsizei, height);
+                  GLsizei, width, GLsizei, height)
 
 // GpuShader4 group.
 ION_WRAP_GL_FUNC3(GpuShader4, GetUniformuiv, void, GLuint, program, GLint,
-                  location, GLuint*, params);
-ION_WRAP_GL_FUNC2(GpuShader4, Uniform1ui, void, GLint, location, GLuint, v0);
+                  location, GLuint*, params)
+ION_WRAP_GL_FUNC2(GpuShader4, Uniform1ui, void, GLint, location, GLuint, v0)
 ION_WRAP_GL_FUNC3(GpuShader4, Uniform1uiv, void, GLint, location, GLsizei,
-                  count, const GLuint1*, value);
+                  count, const GLuint1*, value)
 ION_WRAP_GL_FUNC3(GpuShader4, Uniform2ui, void, GLint, location, GLuint, v0,
-                  GLuint, v1);
+                  GLuint, v1)
 ION_WRAP_GL_FUNC3(GpuShader4, Uniform2uiv, void, GLint, location, GLsizei,
-                  count, const GLuint2*, value);
+                  count, const GLuint2*, value)
 ION_WRAP_GL_FUNC4(GpuShader4, Uniform3ui, void, GLint, location, GLuint, v0,
-                  GLuint, v1, GLuint, v2);
+                  GLuint, v1, GLuint, v2)
 ION_WRAP_GL_FUNC3(GpuShader4, Uniform3uiv, void, GLint, location, GLsizei,
-                  count, const GLuint3*, value);
+                  count, const GLuint3*, value)
 ION_WRAP_GL_FUNC5(GpuShader4, Uniform4ui, void, GLint, location, GLuint, v0,
-                  GLuint, v1, GLuint, v2, GLuint, v3);
+                  GLuint, v1, GLuint, v2, GLuint, v3)
 ION_WRAP_GL_FUNC3(GpuShader4, Uniform4uiv, void, GLint, location, GLsizei,
-                  count, const GLuint4*, value);
+                  count, const GLuint4*, value)
 // TODO(user): Add support for VertexAttribI*, GetVertexAttribI*,
 // BindFragDataLocation, and GetFragDataLocation.
 
 // EglImage group.
 ION_WRAP_GL_FUNC2(EglImage, EGLImageTargetTexture2DOES, void, GLenum, target,
-                  void*, image);
+                  void*, image)
 ION_WRAP_GL_FUNC2(EglImage, EGLImageTargetRenderbufferStorageOES, void,
-                  GLenum, target, void*, image);
+                  GLenum, target, void*, image)
 
 // GetString group.
 ION_WRAP_GL_FUNC2(GetString, GetStringi, const GLubyte*, GLenum, name, GLuint,
-                  index);
+                  index)
 
 // Instanced drawing group.
 ION_WRAP_GL_FUNC4(InstancedDrawing, DrawArraysInstanced, void, GLenum, mode,
-                  GLint, first, GLsizei, count, GLsizei, primCount);
+                  GLint, first, GLsizei, count, GLsizei, primCount)
 ION_WRAP_GL_FUNC5(InstancedDrawing, DrawElementsInstanced, void, GLenum, mode,
                   GLsizei, count, GLenum, type, const GLvoid*, indices, GLsizei,
-                  primCount);
+                  primCount)
 ION_WRAP_GL_FUNC2(InstancedDrawing, VertexAttribDivisor, void, GLuint, index,
-                  GLuint, divisor);
+                  GLuint, divisor)
 
 // MapBuffer group.
-ION_WRAP_GL_FUNC2(MapBuffer, MapBuffer, void*, GLenum, target, GLenum, access);
+ION_WRAP_GL_FUNC2(MapBuffer, MapBuffer, void*, GLenum, target, GLenum, access)
 
 // MapBufferBase group.
 ION_WRAP_GL_FUNC3(MapBufferBase, GetBufferPointerv, void, GLenum, target,
-                  GLenum, pname, GLvoid**, params);
-ION_WRAP_GL_FUNC1(MapBufferBase, UnmapBuffer, void, GLenum, target);
+                  GLenum, pname, GLvoid**, params)
+ION_WRAP_GL_FUNC1(MapBufferBase, UnmapBuffer, void, GLenum, target)
 
 // MapBufferRange group.
 ION_WRAP_GL_FUNC3(MapBufferRange, FlushMappedBufferRange, GLsync, GLenum,
-                  target, GLintptr, offset, GLsizeiptr, length);
+                  target, GLintptr, offset, GLsizeiptr, length)
 ION_WRAP_GL_FUNC4(MapBufferRange, MapBufferRange, void*, GLenum, target,
-                  GLintptr, offset, GLsizeiptr, length, GLmapaccess, access);
+                  GLintptr, offset, GLsizeiptr, length, GLmapaccess, access)
+
+// CopyBufferSubData group.
+ION_WRAP_GL_FUNC5(CopyBufferSubData, CopyBufferSubData,
+                  void, GLenum, read_target, GLenum, write_target,
+                  GLintptr, read_offset, GLintptr, write_offset,
+                  GLsizeiptr, size)
 
 // MultisampleFramebufferResolve group.
 ION_WRAP_GL_FUNC0(
-    MultisampleFramebufferResolve, ResolveMultisampleFramebuffer, void);
+    MultisampleFramebufferResolve, ResolveMultisampleFramebuffer, void)
 
 // PointSize group.
-ION_WRAP_GL_FUNC1(PointSize, PointSize, void, GLfloat, size);
+ION_WRAP_GL_FUNC1(PointSize, PointSize, void, GLfloat, size)
 
 // SamplerObjects group.
 ION_WRAP_GL_FUNC2(SamplerObjects, BindSampler, void, GLuint, unit, GLuint,
-                  sampler);
+                  sampler)
 ION_WRAP_GL_FUNC2(SamplerObjects, DeleteSamplers, void, GLsizei, n,
-                  const GLuint*, samplers);
+                  const GLuint*, samplers)
 ION_WRAP_GL_FUNC2(SamplerObjects, GenSamplers, void, GLsizei, n, GLuint*,
-                  samplers);
+                  samplers)
 ION_WRAP_GL_FUNC3(SamplerObjects, GetSamplerParameterfv, void, GLuint, sampler,
-                  GLenum, pname, GLfloat*, params);
+                  GLenum, pname, GLfloat*, params)
 ION_WRAP_GL_FUNC3(SamplerObjects, GetSamplerParameteriv, void, GLuint, sampler,
-                  GLenum, pname, GLint*, params);
-ION_WRAP_GL_FUNC1(SamplerObjects, IsSampler, GLboolean, GLuint, id);
+                  GLenum, pname, GLint*, params)
+ION_WRAP_GL_FUNC1(SamplerObjects, IsSampler, GLboolean, GLuint, id)
 ION_WRAP_GL_FUNC3(SamplerObjects, SamplerParameterf, void, GLuint, sampler,
-                  GLenum, pname, GLfloat, param);
+                  GLenum, pname, GLfloat, param)
 ION_WRAP_GL_FUNC3(SamplerObjects, SamplerParameterfv, void, GLuint, sampler,
-                  GLenum, pname, const GLfloat*, params);
+                  GLenum, pname, const GLfloat*, params)
 ION_WRAP_GL_FUNC3(SamplerObjects, SamplerParameteri, void, GLuint, sampler,
-                  GLenum, pname, GLtextureenum, param);
+                  GLenum, pname, GLtextureenum, param)
 ION_WRAP_GL_FUNC3(SamplerObjects, SamplerParameteriv, void, GLuint, sampler,
-                  GLenum, pname, const GLint*, params);
+                  GLenum, pname, const GLint*, params)
 
 // Sync objects group.
 ION_WRAP_GL_FUNC3(Sync, ClientWaitSync, GLenum, GLsync, sync, GLbitfield, flags,
-                  GLuint64, timeout);
-ION_WRAP_GL_FUNC1(Sync, DeleteSync, void, GLsync, sync);
+                  GLuint64, timeout)
+ION_WRAP_GL_FUNC1(Sync, DeleteSync, void, GLsync, sync)
 ION_WRAP_GL_FUNC2(Sync, FenceSync, GLsync, GLenum, condition, GLbitfield,
-                  flags);
+                  flags)
 ION_WRAP_GL_FUNC5(Sync, GetSynciv, void, GLsync, sync, GLenum, pname, GLsizei,
-                  bufSize, GLsizei*, length, GLint*, values);
+                  bufSize, GLsizei*, length, GLint*, values)
 ION_WRAP_GL_FUNC3(Sync, WaitSync, void, GLsync, sync, GLbitfield, flags,
-                  GLuint64, timeout);
+                  GLuint64, timeout)
 
 // Texture3d group.
 ION_WRAP_GL_FUNC9(Texture3d, CompressedTexImage3D, void, GLenum, target, GLint,
                   level, GLenum, internal_format, GLsizei, width, GLsizei,
                   height, GLsizei, depth, GLint, border, GLsizei, image_size,
-                  const GLvoid*, data);
+                  const GLvoid*, data)
 ION_WRAP_GL_FUNC11(Texture3d, CompressedTexSubImage3D, void, GLenum, target,
                    GLint, level, GLint, xoffset, GLint, yoffset, GLint, zoffset,
                    GLsizei, width, GLsizei, height, GLsizei, depth, GLenum,
-                   format, GLsizei, imageSize, const GLvoid*, data);
+                   format, GLsizei, imageSize, const GLvoid*, data)
 ION_WRAP_GL_FUNC9(Texture3d, CopyTexSubImage3D, void, GLenum, target, GLint,
                   level, GLint, xoffset, GLint, yoffset, GLint, zoffset, GLint,
-                  x, GLint, y, GLsizei, width, GLsizei, height);
+                  x, GLint, y, GLsizei, width, GLsizei, height)
 ION_WRAP_GL_FUNC10(Texture3d, TexImage3D, void, GLintenum, target, GLint, level,
                    GLenum, internal_format, GLsizei, width, GLsizei, height,
                    GLsizei, depth, GLint, border, GLenum, format, GLenum, type,
-                   const GLvoid*, pixels);
+                   const GLvoid*, pixels)
 ION_WRAP_GL_FUNC11(Texture3d, TexSubImage3D, void, GLenum, target, GLint, level,
                    GLint, xoffset, GLint, yoffset, GLint, zoffset, GLsizei,
                    width, GLsizei, height, GLsizei, depth, GLenum, format,
-                   GLenum, type, const GLvoid*, data);
+                   GLenum, type, const GLvoid*, data)
 
 // TextureMultisample group.
 ION_WRAP_GL_FUNC6(TextureMultisample, TexImage2DMultisample, void, GLenum,
                   target, GLsizei, samples, GLenum, internal_format, GLsizei,
-                  width, GLsizei, height, GLboolean, fixed_sample_locations);
+                  width, GLsizei, height, GLboolean, fixed_sample_locations)
 ION_WRAP_GL_FUNC7(TextureMultisample, TexImage3DMultisample, void, GLenum,
                   target, GLsizei, samples, GLenum, internal_format, GLsizei,
                   width, GLsizei, height, GLsizei, depth, GLboolean,
-                  fixed_sample_locations);
+                  fixed_sample_locations)
 ION_WRAP_GL_FUNC3(TextureMultisample, GetMultisamplefv, void, GLenum, pname,
-                  GLuint, index, GLfloat*, val);
+                  GLuint, index, GLfloat*, val)
 ION_WRAP_GL_FUNC2(TextureMultisample, SampleMaski, void, GLuint, index,
-                  GLbitfield, mask);
+                  GLbitfield, mask)
 
 // TextureStorage group.
 ION_WRAP_GL_FUNC5(TextureStorage, TexStorage2D, void, GLenum, target, GLsizei,
                   levels, GLenum, internalformat, GLsizei, width, GLsizei,
-                  height);
+                  height)
 ION_WRAP_GL_FUNC6(TextureStorage, TexStorage3D, void, GLenum, target, GLsizei,
                   levels, GLenum, internalformat, GLsizei, width, GLsizei,
-                  height, GLsizei, depth);
+                  height, GLsizei, depth)
 
 // TextureStorageMultisample group.
 ION_WRAP_GL_FUNC6(TextureStorageMultisample, TexStorage2DMultisample, void,
                   GLenum, target, GLsizei, samples, GLenum, internal_format,
                   GLsizei, width, GLsizei, height, GLboolean,
-                  fixed_sample_locations);
+                  fixed_sample_locations)
 ION_WRAP_GL_FUNC7(TextureStorageMultisample, TexStorage3DMultisample, void,
                   GLenum, target, GLsizei, samples, GLenum, internal_format,
                   GLsizei, width, GLsizei, height, GLsizei, depth, GLboolean,
-                  fixed_sample_locations);
+                  fixed_sample_locations)
 
 // TransformFeedback group.
 ION_WRAP_GL_FUNC1(TransformFeedback, BeginTransformFeedback, void, GLenum,
-                  primitive_mode);
+                  primitive_mode)
 ION_WRAP_GL_FUNC2(TransformFeedback, BindTransformFeedback, void, GLenum,
-                  target, GLuint, id);
+                  target, GLuint, id)
 ION_WRAP_GL_FUNC2(TransformFeedback, DeleteTransformFeedbacks, void, GLsizei, n,
-                  const GLuint*, ids);
-ION_WRAP_GL_FUNC0(TransformFeedback, EndTransformFeedback, void);
+                  const GLuint*, ids)
+ION_WRAP_GL_FUNC0(TransformFeedback, EndTransformFeedback, void)
 ION_WRAP_GL_FUNC2(TransformFeedback, GenTransformFeedbacks, void, GLsizei, n,
-                  GLuint*, ids);
+                  GLuint*, ids)
 ION_WRAP_GL_FUNC7(TransformFeedback, GetTransformFeedbackVarying, void, GLuint,
                   program, GLuint, index, GLsizei, buf_size, GLsizei*, length,
-                  GLsizei*, size, GLenum*, type, GLchar*, name);
+                  GLsizei*, size, GLenum*, type, GLchar*, name)
 ION_WRAP_GL_FUNC1(TransformFeedback, IsTransformFeedback, GLboolean, GLuint,
-                  id);
-ION_WRAP_GL_FUNC0(TransformFeedback, PauseTransformFeedback, void);
-ION_WRAP_GL_FUNC0(TransformFeedback, ResumeTransformFeedback, void);
+                  id)
+ION_WRAP_GL_FUNC0(TransformFeedback, PauseTransformFeedback, void)
+ION_WRAP_GL_FUNC0(TransformFeedback, ResumeTransformFeedback, void)
 ION_WRAP_GL_FUNC4(TransformFeedback, TransformFeedbackVaryings, void, GLuint,
                   program, GLsizei, count, const GLchar**, varyings, GLenum,
-                  buffer_mode);
+                  buffer_mode)
 
 // VertexArrays group.
-ION_WRAP_GL_FUNC1(VertexArrays, BindVertexArray, void, GLuint, array);
+ION_WRAP_GL_FUNC1(VertexArrays, BindVertexArray, void, GLuint, array)
 ION_WRAP_GL_FUNC2(VertexArrays, DeleteVertexArrays, void, GLsizei, n,
-                  const GLuint*, arrays);
+                  const GLuint*, arrays)
 ION_WRAP_GL_FUNC2(VertexArrays, GenVertexArrays, void, GLsizei, n, GLuint*,
-                  arrays);
-ION_WRAP_GL_FUNC1(VertexArrays, IsVertexArray, GLboolean, GLuint, array);
+                  arrays)
+ION_WRAP_GL_FUNC1(VertexArrays, IsVertexArray, GLboolean, GLuint, array)
 
 // Raw group.  These functions only have basic Ion support.
-ION_WRAP_GL_FUNC2(Raw, GetInteger64v, void, GLenum, pname, GLint64*, params);
+ION_WRAP_GL_FUNC2(Raw, GetInteger64v, void, GLenum, pname, GLint64*, params)
 ION_WRAP_GL_FUNC3(Raw, TexBuffer, void, GLintenum, target, GLenum,
-                  internal_format, GLint, buffer);
+                  internal_format, GLint, buffer)
 // Raw group.  Timer queries.
-ION_WRAP_GL_FUNC2(Raw, BeginQuery, void, GLenum, target, GLuint, id);
-ION_WRAP_GL_FUNC2(Raw, DeleteQueries, void, GLsizei, n, const GLuint*, ids);
-ION_WRAP_GL_FUNC1(Raw, EndQuery, void, GLenum, target);
-ION_WRAP_GL_FUNC2(Raw, GenQueries, void, GLsizei, n, GLuint*, ids);
+ION_WRAP_GL_FUNC2(Raw, BeginQuery, void, GLenum, target, GLuint, id)
+ION_WRAP_GL_FUNC2(Raw, DeleteQueries, void, GLsizei, n, const GLuint*, ids)
+ION_WRAP_GL_FUNC1(Raw, EndQuery, void, GLenum, target)
+ION_WRAP_GL_FUNC2(Raw, GenQueries, void, GLsizei, n, GLuint*, ids)
 ION_WRAP_GL_FUNC3(Raw, GetQueryiv, void, GLenum, target, GLenum, pname,
-                  GLint*, params);
+                  GLint*, params)
 ION_WRAP_GL_FUNC3(Raw, GetQueryObjecti64v, void, GLuint, id, GLenum, pname,
-                  GLint64*, params);
+                  GLint64*, params)
 ION_WRAP_GL_FUNC3(Raw, GetQueryObjectiv, void, GLuint, id, GLenum, pname,
-                  GLint*, params);
+                  GLint*, params)
 ION_WRAP_GL_FUNC3(Raw, GetQueryObjectui64v, void, GLuint, id, GLenum, pname,
-                  GLuint64*, params);
+                  GLuint64*, params)
 ION_WRAP_GL_FUNC3(Raw, GetQueryObjectuiv, void, GLuint, id, GLenum, pname,
-                  GLuint*, params);
-ION_WRAP_GL_FUNC1(Raw, IsQuery, GLboolean, GLuint, id);
-ION_WRAP_GL_FUNC2(Raw, QueryCounter, void, GLuint, id, GLenum, target);
+                  GLuint*, params)
+ION_WRAP_GL_FUNC1(Raw, IsQuery, GLboolean, GLuint, id)
+ION_WRAP_GL_FUNC2(Raw, QueryCounter, void, GLuint, id, GLenum, target)
 
 #undef ION_TRACE_ARG
 #undef ION_WRAP_GL_FUNC

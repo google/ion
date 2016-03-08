@@ -20,6 +20,7 @@ limitations under the License.
 #include <chrono>  // NOLINT
 
 #include "ion/base/logchecker.h"
+#include "ion/base/stringutils.h"
 #include "ion/base/zipassetmanager.h"
 #include "ion/base/zipassetmanagermacros.h"
 #include "ion/port/timer.h"
@@ -96,6 +97,16 @@ class SourceHolder {
   std::map<std::string, StringInfo> strings_;
 };
 
+const char kShaderBeforeRewrite[] =
+    "void main() { gl_MagicVariable = 1; }";
+const char kShaderAfterRewrite[] =
+    "#version 300 es\n"
+    "void main() { gl_MagicVariableEXT = 1; }";
+std::string RewriteShader(const std::string& source) {
+  return "#version 300 es\n" +
+      base::ReplaceString(source, "gl_MagicVariable", "gl_MagicVariableEXT");
+}
+
 }  // anonymous namespace
 
 class ShaderSourceComposerTest : public ::testing::Test {
@@ -136,6 +147,28 @@ TEST_F(ShaderSourceComposerTest, StringComposer) {
   EXPECT_EQ(1U, composer->GetDependencyNames().size());
   EXPECT_EQ("dependency", composer->GetDependencyName(0));
   EXPECT_EQ(std::vector<std::string>(), composer->GetChangedDependencies());
+}
+
+TEST_F(ShaderSourceComposerTest, FilterComposer) {
+  static const char kSource[] = "unicorn vec3 rainbow;";
+  ShaderSourceComposerPtr base(new StringComposer("dependency",
+      kShaderBeforeRewrite));
+  ShaderSourceComposerPtr filter(new FilterComposer(base,
+      RewriteShader));
+  EXPECT_EQ(kShaderAfterRewrite, filter->GetSource());
+  EXPECT_EQ(base->DependsOn("wombat"), filter->DependsOn("wombat"));
+  EXPECT_EQ(base->DependsOn("dependency"), filter->DependsOn("dependency"));
+  EXPECT_EQ(kShaderBeforeRewrite,
+            filter->GetDependencySource("dependency"));
+  EXPECT_EQ(base->GetDependencySource("dependency"),
+            filter->GetDependencySource("dependency"));
+  EXPECT_FALSE(filter->SetDependencySource("", kSource));
+  EXPECT_FALSE(filter->SetDependencySource("platypus", kSource));
+  EXPECT_TRUE(filter->SetDependencySource("dependency", kSource));
+  EXPECT_EQ(kSource, filter->GetDependencySource("dependency"));
+  EXPECT_EQ(1U, filter->GetDependencyNames().size());
+  EXPECT_EQ("dependency", filter->GetDependencyName(0));
+  EXPECT_EQ(std::vector<std::string>(), filter->GetChangedDependencies());
 }
 
 TEST_F(ShaderSourceComposerTest, IncludeComposerSimpleInput) {
