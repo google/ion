@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,10 +29,11 @@ namespace gfx {
 
 #if ION_PRODUCTION
 
-TracingHelper::TracingHelper() {}
 template <typename T>
-const std::string TracingHelper::ToString(const char*, T) {
-  return std::string();
+const std::string TracingHelper::ToString(const char*, T val) {
+  std::ostringstream out;
+  out << val;
+  return out.str();
 }
 
 // Specialize for all types.
@@ -96,6 +97,8 @@ template ION_API const std::string TracingHelper::ToString(const char*,
 #else
 
 namespace {
+
+using ConstantMap = std::unordered_map<int, const char*>;
 
 // This helper function converts any type to a string.
 template <typename T>
@@ -209,8 +212,7 @@ std::string ArrayToString<const float*>(const std::string& type,
 // commented out in the following IonAddConstants* functions.
 
 #define ION_ADD_CONSTANT(name) (*constants)[name] = #name
-static void IonAddConstantsAToF(
-    std::unordered_map<int, std::string>* constants) {
+static void IonAddConstantsAToF(ConstantMap* constants) {
   ION_ADD_CONSTANT(GL_ACTIVE_ATTRIBUTES);
   ION_ADD_CONSTANT(GL_ACTIVE_ATTRIBUTE_MAX_LENGTH);
   ION_ADD_CONSTANT(GL_ACTIVE_TEXTURE);
@@ -224,6 +226,9 @@ static void IonAddConstantsAToF(
   ION_ADD_CONSTANT(GL_ALWAYS);
   ION_ADD_CONSTANT(GL_ARRAY_BUFFER);
   ION_ADD_CONSTANT(GL_ARRAY_BUFFER_BINDING);
+  ION_ADD_CONSTANT(GL_ATC_RGB_AMD);
+  ION_ADD_CONSTANT(GL_ATC_RGBA_EXPLICIT_ALPHA_AMD);
+  ION_ADD_CONSTANT(GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD);
   ION_ADD_CONSTANT(GL_ATTACHED_SHADERS);
   ION_ADD_CONSTANT(GL_BACK);
   ION_ADD_CONSTANT(GL_BACK_LEFT);
@@ -243,13 +248,37 @@ static void IonAddConstantsAToF(
   ION_ADD_CONSTANT(GL_BOOL_VEC2);
   ION_ADD_CONSTANT(GL_BOOL_VEC3);
   ION_ADD_CONSTANT(GL_BOOL_VEC4);
-  ION_ADD_CONSTANT(GL_BUFFER_OBJECT);
+  ION_ADD_CONSTANT(GL_BUFFER_OBJECT_EXT);
   ION_ADD_CONSTANT(GL_BUFFER_SIZE);
   ION_ADD_CONSTANT(GL_BUFFER_USAGE);
   ION_ADD_CONSTANT(GL_BYTE);
   ION_ADD_CONSTANT(GL_CCW);
   ION_ADD_CONSTANT(GL_CLAMP_TO_EDGE);
+  ION_ADD_CONSTANT(GL_CLIP_DISTANCE0);
+  ION_ADD_CONSTANT(GL_CLIP_DISTANCE1);
+  ION_ADD_CONSTANT(GL_CLIP_DISTANCE2);
+  ION_ADD_CONSTANT(GL_CLIP_DISTANCE3);
+  ION_ADD_CONSTANT(GL_CLIP_DISTANCE4);
+  ION_ADD_CONSTANT(GL_CLIP_DISTANCE5);
+  ION_ADD_CONSTANT(GL_CLIP_DISTANCE6);
+  ION_ADD_CONSTANT(GL_CLIP_DISTANCE7);
+  ION_ADD_CONSTANT(GL_COLOR);
   ION_ADD_CONSTANT(GL_COLOR_ATTACHMENT0);
+  ION_ADD_CONSTANT(GL_COLOR_ATTACHMENT1);
+  ION_ADD_CONSTANT(GL_COLOR_ATTACHMENT2);
+  ION_ADD_CONSTANT(GL_COLOR_ATTACHMENT3);
+  ION_ADD_CONSTANT(GL_COLOR_ATTACHMENT4);
+  ION_ADD_CONSTANT(GL_COLOR_ATTACHMENT5);
+  ION_ADD_CONSTANT(GL_COLOR_ATTACHMENT6);
+  ION_ADD_CONSTANT(GL_COLOR_ATTACHMENT7);
+  ION_ADD_CONSTANT(GL_COLOR_ATTACHMENT8);
+  ION_ADD_CONSTANT(GL_COLOR_ATTACHMENT9);
+  ION_ADD_CONSTANT(GL_COLOR_ATTACHMENT10);
+  ION_ADD_CONSTANT(GL_COLOR_ATTACHMENT11);
+  ION_ADD_CONSTANT(GL_COLOR_ATTACHMENT12);
+  ION_ADD_CONSTANT(GL_COLOR_ATTACHMENT13);
+  ION_ADD_CONSTANT(GL_COLOR_ATTACHMENT14);
+  ION_ADD_CONSTANT(GL_COLOR_ATTACHMENT15);
   ION_ADD_CONSTANT(GL_COLOR_CLEAR_VALUE);
   ION_ADD_CONSTANT(GL_COLOR_WRITEMASK);
   ION_ADD_CONSTANT(GL_COMPARE_REF_TO_TEXTURE);
@@ -261,6 +290,20 @@ static void IonAddConstantsAToF(
   ION_ADD_CONSTANT(GL_COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2);
   ION_ADD_CONSTANT(GL_COMPRESSED_RGB_PVRTC_2BPPV1_IMG);
   ION_ADD_CONSTANT(GL_COMPRESSED_RGB_PVRTC_4BPPV1_IMG);
+  ION_ADD_CONSTANT(GL_COMPRESSED_RGBA_ASTC_4x4_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_RGBA_ASTC_5x4_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_RGBA_ASTC_5x5_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_RGBA_ASTC_6x5_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_RGBA_ASTC_6x6_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_RGBA_ASTC_8x5_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_RGBA_ASTC_8x6_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_RGBA_ASTC_8x8_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_RGBA_ASTC_10x5_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_RGBA_ASTC_10x6_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_RGBA_ASTC_10x8_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_RGBA_ASTC_10x10_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_RGBA_ASTC_12x10_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_RGBA_ASTC_12x12_KHR);
   ION_ADD_CONSTANT(GL_COMPRESSED_RGBA_PVRTC_2BPPV1_IMG);
   ION_ADD_CONSTANT(GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG);
   ION_ADD_CONSTANT(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT);
@@ -269,6 +312,20 @@ static void IonAddConstantsAToF(
   ION_ADD_CONSTANT(GL_COMPRESSED_RGBA8_ETC2_EAC);
   ION_ADD_CONSTANT(GL_COMPRESSED_SIGNED_R11_EAC);
   ION_ADD_CONSTANT(GL_COMPRESSED_SIGNED_RG11_EAC);
+  ION_ADD_CONSTANT(GL_COMPRESSED_SRGB8_ALPHA8_ASTC_4x4_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_SRGB8_ALPHA8_ASTC_5x4_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_SRGB8_ALPHA8_ASTC_5x5_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_SRGB8_ALPHA8_ASTC_6x5_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_SRGB8_ALPHA8_ASTC_6x6_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x5_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x6_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x8_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x5_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x6_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x8_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x10_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_SRGB8_ALPHA8_ASTC_12x10_KHR);
+  ION_ADD_CONSTANT(GL_COMPRESSED_SRGB8_ALPHA8_ASTC_12x12_KHR);
   ION_ADD_CONSTANT(GL_COMPRESSED_SRGB8_ALPHA8_ETC2_EAC);
   ION_ADD_CONSTANT(GL_COMPRESSED_SRGB8_ETC2);
   ION_ADD_CONSTANT(GL_COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2);
@@ -276,6 +333,7 @@ static void IonAddConstantsAToF(
   ION_ADD_CONSTANT(GL_CONDITION_SATISFIED);
   ION_ADD_CONSTANT(GL_CONSTANT_ALPHA);
   ION_ADD_CONSTANT(GL_CONSTANT_COLOR);
+  ION_ADD_CONSTANT(GL_CONTEXT_PROFILE_MASK);
   ION_ADD_CONSTANT(GL_COPY_READ_BUFFER);
   ION_ADD_CONSTANT(GL_COPY_WRITE_BUFFER);
   ION_ADD_CONSTANT(GL_CULL_FACE);
@@ -287,6 +345,7 @@ static void IonAddConstantsAToF(
   ION_ADD_CONSTANT(GL_DECR);
   ION_ADD_CONSTANT(GL_DECR_WRAP);
   ION_ADD_CONSTANT(GL_DELETE_STATUS);
+  ION_ADD_CONSTANT(GL_DEPTH);
   ION_ADD_CONSTANT(GL_DEPTH_ATTACHMENT);
   ION_ADD_CONSTANT(GL_DEPTH_BITS);
   ION_ADD_CONSTANT(GL_DEPTH_CLEAR_VALUE);
@@ -297,6 +356,7 @@ static void IonAddConstantsAToF(
   ION_ADD_CONSTANT(GL_DEPTH_FUNC);
   ION_ADD_CONSTANT(GL_DEPTH_RANGE);
   ION_ADD_CONSTANT(GL_DEPTH_STENCIL);
+  ION_ADD_CONSTANT(GL_DEPTH_STENCIL_ATTACHMENT);
   ION_ADD_CONSTANT(GL_DEPTH_TEST);
   ION_ADD_CONSTANT(GL_DEPTH_WRITEMASK);
   ION_ADD_CONSTANT(GL_DEPTH24_STENCIL8);
@@ -315,6 +375,9 @@ static void IonAddConstantsAToF(
   ION_ADD_CONSTANT(GL_ELEMENT_ARRAY_BUFFER_BINDING);
   ION_ADD_CONSTANT(GL_EQUAL);
   ION_ADD_CONSTANT(GL_ETC1_RGB8_OES);
+  ION_ADD_CONSTANT(GL_COMPRESSED_RGB8_ETC2);
+  ION_ADD_CONSTANT(GL_COMPRESSED_RGBA8_ETC2_EAC);
+  ION_ADD_CONSTANT(GL_COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2);
   ION_ADD_CONSTANT(GL_EXTENSIONS);
   ION_ADD_CONSTANT(GL_FASTEST);
   ION_ADD_CONSTANT(GL_FIXED);
@@ -330,13 +393,21 @@ static void IonAddConstantsAToF(
   ION_ADD_CONSTANT(GL_FRAMEBUFFER);
   ION_ADD_CONSTANT(GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME);
   ION_ADD_CONSTANT(GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE);
+  ION_ADD_CONSTANT(GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_BASE_VIEW_INDEX_OVR);
   ION_ADD_CONSTANT(GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE);
+  ION_ADD_CONSTANT(GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER);
   ION_ADD_CONSTANT(GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL);
+  ION_ADD_CONSTANT(GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_NUM_VIEWS_OVR);
+  ION_ADD_CONSTANT(GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_SAMPLES_EXT);
   ION_ADD_CONSTANT(GL_FRAMEBUFFER_BINDING);
   ION_ADD_CONSTANT(GL_FRAMEBUFFER_COMPLETE);
   ION_ADD_CONSTANT(GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT);
+  ION_ADD_CONSTANT(GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER);
   ION_ADD_CONSTANT(GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS);
   ION_ADD_CONSTANT(GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT);
+  ION_ADD_CONSTANT(GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE);
+  ION_ADD_CONSTANT(GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER);
+  ION_ADD_CONSTANT(GL_FRAMEBUFFER_INCOMPLETE_VIEW_TARGETS_OVR);
   ION_ADD_CONSTANT(GL_FRAMEBUFFER_UNSUPPORTED);
   ION_ADD_CONSTANT(GL_FRONT);
   ION_ADD_CONSTANT(GL_FRONT_AND_BACK);
@@ -348,9 +419,9 @@ static void IonAddConstantsAToF(
   ION_ADD_CONSTANT(GL_FUNC_SUBTRACT);
 }
 
-static void IonAddConstantsGToQ(
-    std::unordered_map<int, std::string>* constants) {
+static void IonAddConstantsGToQ(ConstantMap* constants) {
   ION_ADD_CONSTANT(GL_GENERATE_MIPMAP_HINT);
+  ION_ADD_CONSTANT(GL_GEOMETRY_SHADER);
   ION_ADD_CONSTANT(GL_GEQUAL);
   ION_ADD_CONSTANT(GL_GREATER);
   ION_ADD_CONSTANT(GL_GREEN);
@@ -396,6 +467,7 @@ static void IonAddConstantsGToQ(
   ION_ADD_CONSTANT(GL_LOW_INT);
   ION_ADD_CONSTANT(GL_LUMINANCE);
   ION_ADD_CONSTANT(GL_LUMINANCE_ALPHA);
+  ION_ADD_CONSTANT(GL_MAX_CLIP_DISTANCES);
   ION_ADD_CONSTANT(GL_MAX_COLOR_ATTACHMENTS);
   ION_ADD_CONSTANT(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS);
   ION_ADD_CONSTANT(GL_MAX_CUBE_MAP_TEXTURE_SIZE);
@@ -416,8 +488,10 @@ static void IonAddConstantsGToQ(
   ION_ADD_CONSTANT(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS);
   ION_ADD_CONSTANT(GL_MAX_VERTEX_UNIFORM_VECTORS);
   ION_ADD_CONSTANT(GL_MAX_VIEWPORT_DIMS);
+  ION_ADD_CONSTANT(GL_MAX_VIEWS_OVR);
   ION_ADD_CONSTANT(GL_MEDIUM_FLOAT);
   ION_ADD_CONSTANT(GL_MEDIUM_INT);
+  ION_ADD_CONSTANT(GL_MIN_SAMPLE_SHADING_VALUE);
   ION_ADD_CONSTANT(GL_MIRRORED_REPEAT);
   ION_ADD_CONSTANT(GL_MULTISAMPLE);
   ION_ADD_CONSTANT(GL_NEAREST);
@@ -458,16 +532,15 @@ static void IonAddConstantsGToQ(
   ION_ADD_CONSTANT(GL_POLYGON_OFFSET_FILL);
   ION_ADD_CONSTANT(GL_POLYGON_OFFSET_UNITS);
   ION_ADD_CONSTANT(GL_PRIMITIVES_GENERATED);
-  ION_ADD_CONSTANT(GL_PROGRAM_OBJECT);
+  ION_ADD_CONSTANT(GL_PROGRAM_OBJECT_EXT);
   ION_ADD_CONSTANT(GL_PROGRAM_PIPELINE);
-  ION_ADD_CONSTANT(GL_PROGRAM_PIPELINE_OBJECT);
+  ION_ADD_CONSTANT(GL_PROGRAM_PIPELINE_OBJECT_EXT);
   ION_ADD_CONSTANT(GL_PROGRAM_POINT_SIZE);
   ION_ADD_CONSTANT(GL_QUERY);
-  ION_ADD_CONSTANT(GL_QUERY_OBJECT);
+  ION_ADD_CONSTANT(GL_QUERY_OBJECT_EXT);
 }
 
-static void IonAddConstantsRToS(
-    std::unordered_map<int, std::string>* constants) {
+static void IonAddConstantsRToS(ConstantMap* constants) {
   ION_ADD_CONSTANT(GL_R11F_G11F_B10F);
   ION_ADD_CONSTANT(GL_R16F);
   ION_ADD_CONSTANT(GL_R16I);
@@ -569,13 +642,15 @@ static void IonAddConstantsRToS(
   ION_ADD_CONSTANT(GL_SAMPLE_COVERAGE);
   ION_ADD_CONSTANT(GL_SAMPLE_COVERAGE_INVERT);
   ION_ADD_CONSTANT(GL_SAMPLE_COVERAGE_VALUE);
+  ION_ADD_CONSTANT(GL_SAMPLE_MASK_VALUE);
   ION_ADD_CONSTANT(GL_SAMPLE_POSITION);
+  ION_ADD_CONSTANT(GL_SAMPLE_SHADING);
   ION_ADD_CONSTANT(GL_SEPARATE_ATTRIBS);
   ION_ADD_CONSTANT(GL_SCISSOR_BOX);
   ION_ADD_CONSTANT(GL_SCISSOR_TEST);
   ION_ADD_CONSTANT(GL_SHADER_BINARY_FORMATS);
   ION_ADD_CONSTANT(GL_SHADER_COMPILER);
-  ION_ADD_CONSTANT(GL_SHADER_OBJECT);
+  ION_ADD_CONSTANT(GL_SHADER_OBJECT_EXT);
   ION_ADD_CONSTANT(GL_SHADER_SOURCE_LENGTH);
   ION_ADD_CONSTANT(GL_SHADER_TYPE);
   ION_ADD_CONSTANT(GL_SHADING_LANGUAGE_VERSION);
@@ -616,8 +691,7 @@ static void IonAddConstantsRToS(
   ION_ADD_CONSTANT(GL_SYNC_STATUS);
 }
 
-static void IonAddConstantsTToZ(
-    std::unordered_map<int, std::string>* constants) {
+static void IonAddConstantsTToZ(ConstantMap* constants) {
   ION_ADD_CONSTANT(GL_TEXTURE);
   ION_ADD_CONSTANT(GL_TEXTURE0);
   ION_ADD_CONSTANT(GL_TEXTURE1);
@@ -686,6 +760,7 @@ static void IonAddConstantsTToZ(
   ION_ADD_CONSTANT(GL_TEXTURE_MAX_LOD);
   ION_ADD_CONSTANT(GL_TEXTURE_MIN_FILTER);
   ION_ADD_CONSTANT(GL_TEXTURE_MIN_LOD);
+  ION_ADD_CONSTANT(GL_TEXTURE_PROTECTED_EXT);
   ION_ADD_CONSTANT(GL_TEXTURE_SWIZZLE_A);
   ION_ADD_CONSTANT(GL_TEXTURE_SWIZZLE_B);
   ION_ADD_CONSTANT(GL_TEXTURE_SWIZZLE_G);
@@ -737,7 +812,7 @@ static void IonAddConstantsTToZ(
   ION_ADD_CONSTANT(GL_VENDOR);
   ION_ADD_CONSTANT(GL_VERSION);
   ION_ADD_CONSTANT(GL_VERTEX_ARRAY_BINDING);
-  ION_ADD_CONSTANT(GL_VERTEX_ARRAY_OBJECT);
+  ION_ADD_CONSTANT(GL_VERTEX_ARRAY_OBJECT_EXT);
   ION_ADD_CONSTANT(GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING);
   ION_ADD_CONSTANT(GL_VERTEX_ATTRIB_ARRAY_DIVISOR);
   ION_ADD_CONSTANT(GL_VERTEX_ATTRIB_ARRAY_ENABLED);
@@ -754,14 +829,22 @@ static void IonAddConstantsTToZ(
 }
 #undef ION_ADD_CONSTANT
 
-}  // anonymous namespace
-
-TracingHelper::TracingHelper() {
-  IonAddConstantsAToF(&constants_);
-  IonAddConstantsGToQ(&constants_);
-  IonAddConstantsRToS(&constants_);
-  IonAddConstantsTToZ(&constants_);
+static ConstantMap IonCreateConstants() {
+  ConstantMap constants;
+  IonAddConstantsAToF(&constants);
+  IonAddConstantsGToQ(&constants);
+  IonAddConstantsRToS(&constants);
+  IonAddConstantsTToZ(&constants);
+  return constants;
 }
+
+static const ConstantMap& IonGetConstants() {
+  // C++11 guarantees thread-safe initialization.
+  static ConstantMap constants = IonCreateConstants();
+  return constants;
+}
+
+}  // anonymous namespace
 
 // Unspecialized version.
 template <typename T>
@@ -789,13 +872,13 @@ const std::string TracingHelper::ToString(const char* arg_type, T arg) {
 template <> ION_API
 const std::string TracingHelper::ToString(const char* arg_type,
                                           const char* arg) {
-  return std::string("\"") + arg + '"';
+  return arg ? std::string("\"") + arg + '"' : "NULL";
 }
 
 // Specialize to add quotes around strings.
 template <> ION_API
 const std::string TracingHelper::ToString(const char* arg_type, char* arg) {
-  return std::string("\"") + arg + '"';
+  return arg ? std::string("\"") + arg + '"' : "NULL";
 }
 
 // Specialize to print the first string in an array of strings.
@@ -823,11 +906,13 @@ const std::string TracingHelper::ToString(
 // Specialize to deal with GLenum values.
 template <> ION_API
 const std::string TracingHelper::ToString(const char* arg_type, int arg) {
+  const ConstantMap& constants = IonGetConstants();
+  auto it = constants.find(arg);
   // int is sometimes used for parameter types and GLbitfield.
   if (!strcmp(arg_type, "GLtextureenum")) {
     // For texture parameters, only print certain valid values as enums, the
     // rest are just integers.
-    if (arg >= 0 && !constants_[arg].empty()) {
+    if (arg >= 0 && it != constants.end()) {
       switch (arg) {
         case 0:
           return "GL_NONE";
@@ -853,17 +938,17 @@ const std::string TracingHelper::ToString(const char* arg_type, int arg) {
         case GL_NOTEQUAL:
         case GL_RED:
         case GL_REPEAT:
-          return constants_[arg];
+          return it->second;
         default:
           break;
       }
-      const std::string& name = constants_[arg];
+      std::string name = it->second;
       if (base::StartsWith(name, "GL_TEXTURE"))
-        return constants_[arg];
+        return name;
     }
   } else if (!strcmp(arg_type, "GLintenum")) {
-    if (arg >= 0 && !constants_[arg].empty()) {
-      return constants_[arg];
+    if (arg >= 0 && it != constants.end()) {
+      return it->second;
     }
   }
 
@@ -874,6 +959,8 @@ const std::string TracingHelper::ToString(const char* arg_type, int arg) {
 template <> ION_API
 const std::string TracingHelper::ToString(const char* arg_type,
                                           unsigned int arg) {
+  const ConstantMap& constants = IonGetConstants();
+  auto it = constants.find(arg);
   // unsigned int is used for GLenum types, GLbitfield, GLmapaccess (a kind of
   // GLbitfield), and GLuint.
   if (!strcmp(arg_type, "GLblendenum")) {
@@ -881,16 +968,16 @@ const std::string TracingHelper::ToString(const char* arg_type,
       return "GL_ZERO";
     else if (arg == GL_ONE)
       return "GL_ONE";
-    else if (!constants_[arg].empty())
-      return constants_[arg];
+    else if (it != constants.end())
+      return it->second;
   } else if (!strcmp(arg_type, "GLstencilenum")) {
     if (arg == GL_ZERO)
       return "GL_ZERO";
-    else if (!constants_[arg].empty())
-      return constants_[arg];
+    else if (it != constants.end())
+      return it->second;
   } else if (!strcmp(arg_type, "GLenum")) {
-    if (!constants_[arg].empty())
-      return constants_[arg];
+    if (it != constants.end())
+      return it->second;
   } else if (!strcmp(arg_type, "GLbitfield")) {
     // GLbitfield is used for glClear().
     const std::string s = GetClearBitsString(arg);
@@ -904,8 +991,13 @@ const std::string TracingHelper::ToString(const char* arg_type,
   } else if (!strcmp(arg_type, "GLtextureenum")) {
     if (arg == GL_NONE)
       return "GL_NONE";
-    else if (!constants_[arg].empty())
-      return constants_[arg];
+    else if (it != constants.end())
+      return it->second;
+  } else if (!strcmp(arg_type, "GLbufferenum")) {
+    if (arg == GL_NONE)
+      return "GL_NONE";
+    else if (it != constants.end())
+      return it->second;
   }
   return AnyToString(arg);
 }

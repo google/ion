@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,7 +19,10 @@ limitations under the License.
 
 #include "ion/remote/resourcehandler.h"
 
+#include <atomic>
+#include <functional>
 #include <iomanip>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -36,6 +39,9 @@ limitations under the License.
 #include "ion/gfx/tests/testscene.h"
 #include "ion/gfx/texture.h"
 #include "ion/image/conversionutils.h"
+#include "ion/port/semaphore.h"
+#include "ion/port/threadutils.h"
+#include "ion/portgfx/visual.h"
 #include "ion/remote/tests/httpservertest.h"
 
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
@@ -59,1552 +65,1606 @@ using gfx::testing::MockGraphicsManager;
 using gfx::testing::MockGraphicsManagerPtr;
 using gfx::testing::MockVisual;
 using gfx::testing::TestScene;
+using portgfx::Visual;
+using portgfx::VisualPtr;
+
+static const char kPlatformJson[] = R"JSON(
+  "platform": [
+    {
+      "renderer": "Ion fake OpenGL / ES",
+      "vendor": "Google",
+      "version_string": "3.3 Ion OpenGL / ES",
+      "gl_version": 3.3,
+      "glsl_version": 110,
+      "aliased_line_width_range": "1 - 256",
+      "aliased_point_size_range": "1 - 8192",
+      "max_3d_texture_size": 4096,
+      "max_array_texture_layers": 4096,
+      "max_clip_distances": 8,
+      "max_color_attachments": 4,
+      "max_combined_texture_image_units": 32,
+      "max_cube_map_texture_size": 8192,
+      "max_draw_buffers": 4,
+      "max_fragment_uniform_vectors": 512,
+      "max_renderbuffer_size": 4096,
+      "max_samples": 16,
+      "max_texture_image_units": 32,
+      "max_texture_size": 8192,
+      "max_transform_feedback_buffers": -1,
+      "max_transform_feedback_interleaved_components": -1,
+      "max_transform_feedback_separate_attribs": -1,
+      "max_transform_feedback_separate_components": -1,
+      "max_varying_vectors": 15,
+      "max_vertex_attribs": 32,
+      "max_vertex_texture_image_units": 32,
+      "max_vertex_uniform_vectors": 1024,
+      "max_viewport_dims": "8192 x 8192",
+      "max_views": 4,
+      "transform_feedback_varying_max_length": -1,
+      "compressed_texture_formats": [
+        "GL_COMPRESSED_RGB_S3TC_DXT1_EXT",
+        "GL_COMPRESSED_RGB_PVRTC_2BPPV1_IMG",
+        "GL_COMPRESSED_RGB_PVRTC_4BPPV1_IMG",
+        "GL_COMPRESSED_RGBA_PVRTC_2BPPV1_IMG",
+        "GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG",
+        "GL_COMPRESSED_RGBA_S3TC_DXT5_EXT",
+        "GL_ETC1_RGB8_OES",
+        "GL_COMPRESSED_RGB8_ETC2",
+        "GL_COMPRESSED_RGBA8_ETC2_EAC",
+        "GL_COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2"
+      ],
+      "shader_binary_formats": [
+        "0xbadf00d"
+      ],
+      "extensions": [
+        "GL_OES_blend_func_separate",
+        "GL_OES_blend_subtract",
+        "GL_APPLE_clip_distance",
+        "GL_OES_compressed_ETC1_RGB8_texture",
+        "GL_EXT_debug_label",
+        "GL_EXT_debug_marker",
+        "GL_ARB_debug_output",
+        "GL_OES_depth24",
+        "GL_OES_depth32",
+        "GL_OES_depth_texture",
+        "GL_EXT_disjoint_timer_query",
+        "GL_EXT_draw_buffers",
+        "GL_EXT_draw_instanced",
+        "GL_OES_EGL_image",
+        "GL_OES_EGL_image_external",
+        "GL_OES_element_index_uint",
+        "GL_OES_fbo_render_mipmap",
+        "GL_EXT_frag_depth",
+        "GL_OES_fragment_precision_high",
+        "GL_EXT_framebuffer_blit",
+        "GL_APPLE_framebuffer_multisample",
+        "GL_EXT_framebuffer_multisample",
+        "GL_OES_framebuffer_object",
+        "GL_ARB_geometry_shader4",
+        "GL_EXT_gpu_shader4",
+        "GL_EXT_instanced_arrays",
+        "GL_OES_map_buffer_range",
+        "GL_OES_mapbuffer",
+        "GL_ARB_multisample",
+        "GL_EXT_multisampled_render_to_texture",
+        "GL_OVR_multiview",
+        "GL_OVR_multiview2",
+        "GL_OVR_multiview_multisampled_render_to_texture",
+        "GL_OES_packed_depth_stencil",
+        "GL_EXT_protected_textures",
+        "GL_OES_rgb8_rgba8",
+        "GL_OES_sample_shading",
+        "GL_EXT_shader_texture_lod",
+        "GL_NV_sRGB_formats",
+        "GL_OES_standard_derivatives",
+        "GL_OES_stencil8",
+        "GL_ARB_sync",
+        "GL_OES_texture_3D",
+        "GL_EXT_texture_array",
+        "GL_NV_texture_barrier",
+        "GL_EXT_texture_compression_dxt1",
+        "GL_ANGLE_texture_compression_dxt5",
+        "GL_IMG_texture_compression_pvrtc",
+        "GL_EXT_texture_compression_s3tc",
+        "GL_NV_texture_compression_s3tc",
+        "GL_OES_texture_cube_map",
+        "GL_ARB_texture_cube_map_array",
+        "GL_EXT_texture_filter_anisotropic",
+        "GL_OES_texture_float",
+        "GL_OES_texture_half_float",
+        "GL_EXT_texture_lod_bias",
+        "GL_APPLE_texture_max_level",
+        "GL_OES_texture_mirrored_repeat",
+        "GL_ARB_texture_multisample",
+        "GL_EXT_texture_rg",
+        "GL_OES_texture_stencil8",
+        "GL_EXT_texture_storage",
+        "GL_ARB_texture_storage_multisample",
+        "GL_ARB_texture_swizzle",
+        "GL_EXT_texture_type_2_10_10_10_REV",
+        "GL_QCOM_tiled_rendering",
+        "GL_EXT_transform_feedback",
+        "GL_NV_transform_feedback",
+        "GL_ARB_transform_feedback2",
+        "GL_ARB_transform_feedback3",
+        "GL_OES_vertex_array_object"
+      ]
+    }
+  ])JSON";
 
 // A string that represents no resources.
-static const char kPlatformJson[] =
-    "  \"platform\": [\n"
-    "    {\n"
-    "      \"renderer\": \"Ion fake OpenGL / ES\",\n"
-    "      \"vendor\": \"Google\",\n"
-    "      \"version_string\": \"3.3 Ion OpenGL / ES\",\n"
-    "      \"gl_version\": 3.3,\n"
-    "      \"glsl_version\": 110,\n"
-    "      \"aliased_line_width_range\": \"1 - 256\",\n"
-    "      \"aliased_point_size_range\": \"1 - 8192\",\n"
-    "      \"max_color_attachments\": 4,\n"
-    "      \"max_combined_texture_image_units\": 32,\n"
-    "      \"max_cube_map_texture_size\": 8192,\n"
-    "      \"max_draw_buffers\": 4,\n"
-    "      \"max_fragment_uniform_vectors\": 512,\n"
-    "      \"max_renderbuffer_size\": 4096,\n"
-    "      \"max_texture_image_units\": 32,\n"
-    "      \"max_texture_size\": 8192,\n"
-    "      \"max_transform_feedback_buffers\": -1,\n"
-    "      \"max_transform_feedback_interleaved_components\": -1,\n"
-    "      \"max_transform_feedback_separate_attribs\": -1,\n"
-    "      \"max_transform_feedback_separate_components\": -1,\n"
-    "      \"max_varying_vectors\": 15,\n"
-    "      \"max_vertex_attribs\": 32,\n"
-    "      \"max_vertex_texture_image_units\": 32,\n"
-    "      \"max_vertex_uniform_vectors\": 1024,\n"
-    "      \"max_viewport_dims\": \"8192 x 8192\",\n"
-    "      \"transform_feedback_varying_max_length\": -1,\n"
-    "      \"compressed_texture_formats\": \"GL_COMPRESSED_RGB_S3TC_DXT1_EXT, "
-    "GL_COMPRESSED_RGB_PVRTC_2BPPV1_IMG, GL_COMPRESSED_RGB_PVRTC_4BPPV1_IMG, "
-    "GL_COMPRESSED_RGBA_PVRTC_2BPPV1_IMG, GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG, "
-    "GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, GL_ETC1_RGB8_OES\",\n"
-    "      \"shader_binary_formats\": \"0xbadf00d\",\n"
-    "      \"extensions\": \"GL_OES_blend_func_separate "
-    "GL_OES_blend_subtract GL_OES_compressed_ETC1_RGB8_texture "
-    "GL_OES_framebuffer_object GL_OES_texture_cube_map "
-    "GL_OES_texture_mirrored_repeat GL_OES_depth24 GL_OES_depth32 "
-    "GL_OES_fbo_render_mipmap GL_OES_fragment_precision_high "
-    "GL_OES_mapbuffer GL_OES_map_buffer_range GL_OES_rgb8_rgba8 "
-    "GL_OES_stencil8 GL_OES_texture_float GL_OES_texture_half_float "
-    "GL_EXT_texture_filter_anisotropic GL_EXT_texture_type_2_10_10_10_REV "
-    "GL_OES_depth_texture GL_OES_packed_depth_stencil "
-    "GL_OES_standard_derivatives GL_EXT_texture_compression_dxt1 "
-    "GL_IMG_texture_compression_pvrtc GL_EXT_texture_lod_bias "
-    "GL_OES_vertex_array_object GL_EXT_shader_texture_lod "
-    "GL_APPLE_texture_max_level GL_EXT_frag_depth "
-    "GL_NV_texture_compression_s3tc GL_EXT_debug_label GL_EXT_debug_marker "
-    "GL_ARB_debug_output GL_EXT_texture_rg GL_ANGLE_texture_compression_dxt5 "
-    "GL_NV_sRGB_formats GL_EXT_texture_compression_s3tc "
-    "GL_OES_texture_stencil8 GL_OES_texture_3D "
-    "GL_ARB_texture_cube_map_array GL_EXT_texture_storage "
-    "GL_EXT_gpu_shader4 GL_ARB_texture_multisample "
-    "GL_EXT_framebuffer_multisample GL_EXT_framebuffer_blit "
-    "GL_ARB_texture_storage_multisample GL_EXT_draw_instanced GL_ARB_sync "
-    "GL_EXT_disjoint_timer_query GL_NV_transform_feedback "
-    "GL_ARB_transform_feedback2 GL_ARB_transform_feedback3 "
-    "GL_EXT_transform_feedback GL_OES_EGL_image GL_OES_EGL_image_external\"\n"
-    "    }\n"
-    "  ]";
+static const char kNoResourcesJson[] = R"JSON(
+  "buffers": [
+  ],
+  "framebuffers": [
+  ],
+  "programs": [
+  ],
+  "samplers": [
+  ],
+  "shaders": [
+  ],
+  "textures": [
+  ],
+  "vertex_arrays": [
+  ])JSON";
 
-static const char kNoResourcesJson[] =
-    "  \"buffers\": [\n"
-    "  ],\n"
-    "  \"framebuffers\": [\n"
-    "  ],\n"
-    "  \"programs\": [\n"
-    "  ],\n"
-    "  \"samplers\": [\n"
-    "  ],\n"
-    "  \"shaders\": [\n"
-    "  ],\n"
-    "  \"textures\": [\n"
-    "  ],\n"
-    "  \"vertex_arrays\": [\n"
-    "  ]";
+static const char kBuffersJson[] = R"JSON(
+  "buffers": [
+    {
+      "object_id": 1,
+      "label": "",
+      "size": {vertex_buffer_size},
+      "usage": "GL_STATIC_DRAW",
+      "mapped_pointer": "NULL",
+      "target": "GL_ARRAY_BUFFER"
+    },
+    {
+      "object_id": 2,
+      "label": "Vertex buffer",
+      "size": {vertex_buffer_size},
+      "usage": "GL_STATIC_DRAW",
+      "mapped_pointer": "NULL",
+      "target": "GL_ARRAY_BUFFER"
+    },
+    {
+      "object_id": 3,
+      "label": "Indices #0",
+      "size": 24,
+      "usage": "GL_STATIC_DRAW",
+      "mapped_pointer": "NULL",
+      "target": "GL_ELEMENT_ARRAY_BUFFER"
+    }
+  ])JSON";
 
-static const char kBuffersJson[] =
-    "  \"buffers\": [\n"
-    "    {\n"
-    "      \"object_id\": 1,\n"
-    "      \"label\": \"\",\n"
-    "      \"size\": {vertex_buffer_size},\n"
-    "      \"usage\": \"GL_STATIC_DRAW\",\n"
-    "      \"mapped_pointer\": \"NULL\",\n"
-    "      \"target\": \"GL_ARRAY_BUFFER\"\n"
-    "    },\n"
-    "    {\n"
-    "      \"object_id\": 2,\n"
-    "      \"label\": \"Vertex buffer\",\n"
-    "      \"size\": {vertex_buffer_size},\n"
-    "      \"usage\": \"GL_STATIC_DRAW\",\n"
-    "      \"mapped_pointer\": \"NULL\",\n"
-    "      \"target\": \"GL_ARRAY_BUFFER\"\n"
-    "    },\n"
-    "    {\n"
-    "      \"object_id\": 3,\n"
-    "      \"label\": \"Indices #0\",\n"
-    "      \"size\": 24,\n"
-    "      \"usage\": \"GL_STATIC_DRAW\",\n"
-    "      \"mapped_pointer\": \"NULL\",\n"
-    "      \"target\": \"GL_ELEMENT_ARRAY_BUFFER\"\n"
-    "    }\n"
-    "  ]";
+static const char kFramebuffersJson[] = R"JSON(
+  "framebuffers": [
+    {
+      "object_id": 1,
+      "label": "",
+      "attachment_color0": {
+        "type": "GL_TEXTURE",
+        "texture_glid": 1,
+        "mipmap_level": 0,
+        "cube_face": "GL_NONE",
+        "layer": 0,
+        "num_views": 0,
+        "texture_samples": 0
+      },
+      "attachment_color1": {
+        "type": "GL_NONE"
+      },
+      "attachment_color2": {
+        "type": "GL_NONE"
+      },
+      "attachment_color3": {
+        "type": "GL_NONE"
+      },
+      "attachment_depth": {
+        "type": "GL_RENDERBUFFER",
+        "renderbuffer": {
+          "object_id": 1,
+          "label": "",
+          "width": 2,
+          "height": 2,
+          "internal_format": "GL_DEPTH_COMPONENT16",
+          "red_size": 0,
+          "green_size": 0,
+          "blue_size": 0,
+          "alpha_size": 0,
+          "depth_size": 16,
+          "stencil_size": 0
+        }
+      },
+      "attachment_stencil": {
+        "type": "GL_NONE"
+      },
+      "draw_buffers": "GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_NONE",
+      "read_buffer": "GL_COLOR_ATTACHMENT0"
+    }
+  ])JSON";
 
-static const char kFramebuffersJson[] =
-    "  \"framebuffers\": [\n"
-    "    {\n"
-    "      \"object_id\": 1,\n"
-    "      \"label\": \"\",\n"
-    "      \"attachment_color0\": {\n"
-    "        \"type\": \"GL_TEXTURE\",\n"
-    "        \"texture_glid\": 1,\n"
-    "        \"mipmap_level\": 0,\n"
-    "        \"cube_face\": \"GL_NONE\",\n"
-    "        \"renderbuffer\": {\n"
-    "          \"object_id\": 0,\n"
-    "          \"label\": \"\",\n"
-    "          \"width\": 0,\n"
-    "          \"height\": 0,\n"
-    "          \"internal_format\": \"GL_RGBA4\",\n"
-    "          \"red_size\": 0,\n"
-    "          \"green_size\": 0,\n"
-    "          \"blue_size\": 0,\n"
-    "          \"alpha_size\": 0,\n"
-    "          \"depth_size\": 0,\n"
-    "          \"stencil_size\": 0\n"
-    "        }\n"
-    "      },\n"
-    "      \"attachment_depth\": {\n"
-    "        \"type\": \"GL_RENDERBUFFER\",\n"
-    "        \"value\": 1,\n"
-    "        \"mipmap_level\": 0,\n"
-    "        \"cube_face\": \"GL_NONE\",\n"
-    "        \"renderbuffer\": {\n"
-    "          \"object_id\": 1,\n"
-    "          \"label\": \"\",\n"
-    "          \"width\": 2,\n"
-    "          \"height\": 2,\n"
-    "          \"internal_format\": \"GL_DEPTH_COMPONENT16\",\n"
-    "          \"red_size\": 0,\n"
-    "          \"green_size\": 0,\n"
-    "          \"blue_size\": 0,\n"
-    "          \"alpha_size\": 0,\n"
-    "          \"depth_size\": 16,\n"
-    "          \"stencil_size\": 0\n"
-    "        }\n"
-    "      },\n"
-    "      \"attachment_stencil\": {\n"
-    "        \"type\": \"GL_NONE\",\n"
-    "        \"value\": 0,\n"
-    "        \"mipmap_level\": 0,\n"
-    "        \"cube_face\": \"GL_NONE\",\n"
-    "        \"renderbuffer\": {\n"
-    "          \"object_id\": 0,\n"
-    "          \"label\": \"\",\n"
-    "          \"width\": 0,\n"
-    "          \"height\": 0,\n"
-    "          \"internal_format\": \"GL_RGBA4\",\n"
-    "          \"red_size\": 0,\n"
-    "          \"green_size\": 0,\n"
-    "          \"blue_size\": 0,\n"
-    "          \"alpha_size\": 0,\n"
-    "          \"depth_size\": 0,\n"
-    "          \"stencil_size\": 0\n"
-    "        }\n"
-    "      }\n"
-    "    }\n"
-    "  ]";
+// Note that each column of a matrix attribute gets its own index.
+static const char kProgramsJson[] = R"JSON(
+  "programs": [
+    {
+      "object_id": 1,
+      "label": "Default Renderer shader",
+      "vertex_shader_glid": 1,
+      "geometry_shader_glid": 0,
+      "fragment_shader_glid": 2,
+      "delete_status": "GL_FALSE",
+      "link_status": "GL_TRUE",
+      "validate_status": "GL_FALSE",
+      "attributes": [
+        {
+          "name": "aVertex",
+          "index": 0,
+          "size": 1,
+          "type": "GL_FLOAT_VEC3"
+        }
+      ],
+      "uniforms": [
+        {
+          "value": "M[1, 2, 3, 4 ; 5, 1, 7, 8 ; 9, 1, 1, 3 ; 4, 5, 6, 1]",
+          "name": "uProjectionMatrix",
+          "index": 0,
+          "size": 1,
+          "type": "GL_FLOAT_MAT4"
+        },
+        {
+          "value": "M[4, 2, 3, 4 ; 5, 4, 7, 8 ; 9, 1, 4, 3 ; 4, 5, 6, 4]",
+          "name": "uModelviewMatrix",
+          "index": 1,
+          "size": 1,
+          "type": "GL_FLOAT_MAT4"
+        },
+        {
+          "value": "V[4, 3, 2, 1]",
+          "name": "uBaseColor",
+          "index": 2,
+          "size": 1,
+          "type": "GL_FLOAT_VEC4"
+        }
+      ],
+      "info_log": ""
+    },
+    {
+      "object_id": 2,
+      "label": "Dummy Shader",
+      "vertex_shader_glid": 3,
+      "geometry_shader_glid": 4,
+      "fragment_shader_glid": 5,
+      "delete_status": "GL_FALSE",
+      "link_status": "GL_TRUE",
+      "validate_status": "GL_FALSE",
+      "attributes": [
+        {
+          "name": "aFloat",
+          "index": 0,
+          "size": 1,
+          "type": "GL_FLOAT"
+        },
+        {
+          "name": "aFV2",
+          "index": 1,
+          "size": 1,
+          "type": "GL_FLOAT_VEC2"
+        },
+        {
+          "name": "aFV3",
+          "index": 2,
+          "size": 1,
+          "type": "GL_FLOAT_VEC3"
+        },
+        {
+          "name": "aFV4",
+          "index": 3,
+          "size": 1,
+          "type": "GL_FLOAT_VEC4"
+        },
+        {
+          "name": "aMat2",
+          "index": 4,
+          "size": 1,
+          "type": "GL_FLOAT_MAT2"
+        },
+        {
+          "name": "aMat3",
+          "index": 6,
+          "size": 1,
+          "type": "GL_FLOAT_MAT3"
+        },
+        {
+          "name": "aMat4",
+          "index": 9,
+          "size": 1,
+          "type": "GL_FLOAT_MAT4"
+        },
+        {
+          "name": "aBOE1",
+          "index": 13,
+          "size": 1,
+          "type": "GL_FLOAT_VEC2"
+        },
+        {
+          "name": "aBOE2",
+          "index": 14,
+          "size": 1,
+          "type": "GL_FLOAT_VEC3"
+        }
+      ],
+      "uniforms": [
+        {
+          "value": "13",
+          "name": "uInt",
+          "index": 0,
+          "size": 1,
+          "type": "GL_INT"
+        },
+        {
+          "value": "1.5",
+          "name": "uFloat",
+          "index": 1,
+          "size": 1,
+          "type": "GL_FLOAT"
+        },
+        {
+          "value": "27",
+          "name": "uIntGS",
+          "index": 2,
+          "size": 1,
+          "type": "GL_INT"
+        },
+        {
+          "value": "33",
+          "name": "uUintGS",
+          "index": 3,
+          "size": 1,
+          "type": "GL_UNSIGNED_INT"
+        },
+        {
+          "value": "V[2, 3]",
+          "name": "uFV2",
+          "index": 4,
+          "size": 1,
+          "type": "GL_FLOAT_VEC2"
+        },
+        {
+          "value": "V[4, 5, 6]",
+          "name": "uFV3",
+          "index": 5,
+          "size": 1,
+          "type": "GL_FLOAT_VEC3"
+        },
+        {
+          "value": "V[7, 8, 9, 10]",
+          "name": "uFV4",
+          "index": 6,
+          "size": 1,
+          "type": "GL_FLOAT_VEC4"
+        },
+        {
+          "value": "15",
+          "name": "uUint",
+          "index": 7,
+          "size": 1,
+          "type": "GL_UNSIGNED_INT"
+        },
+        {
+          "value": "1",
+          "name": "uCubeMapTex",
+          "index": 8,
+          "size": 1,
+          "type": "GL_SAMPLER_CUBE"
+        },
+        {
+          "value": "2",
+          "name": "uTex",
+          "index": 9,
+          "size": 1,
+          "type": "GL_SAMPLER_2D"
+        },
+        {
+          "value": "V[2, 3]",
+          "name": "uIV2",
+          "index": 10,
+          "size": 1,
+          "type": "GL_INT_VEC2"
+        },
+        {
+          "value": "V[4, 5, 6]",
+          "name": "uIV3",
+          "index": 11,
+          "size": 1,
+          "type": "GL_INT_VEC3"
+        },
+        {
+          "value": "V[7, 8, 9, 10]",
+          "name": "uIV4",
+          "index": 12,
+          "size": 1,
+          "type": "GL_INT_VEC4"
+        },
+        {
+          "value": "V[2, 3]",
+          "name": "uUV2",
+          "index": 13,
+          "size": 1,
+          "type": "GL_UNSIGNED_INT_VEC2"
+        },
+        {
+          "value": "V[4, 5, 6]",
+          "name": "uUV3",
+          "index": 14,
+          "size": 1,
+          "type": "GL_UNSIGNED_INT_VEC3"
+        },
+        {
+          "value": "V[7, 8, 9, 10]",
+          "name": "uUV4",
+          "index": 15,
+          "size": 1,
+          "type": "GL_UNSIGNED_INT_VEC4"
+        },
+        {
+          "value": "M[1, 2 ; 3, 4]",
+          "name": "uMat2",
+          "index": 16,
+          "size": 1,
+          "type": "GL_FLOAT_MAT2"
+        },
+        {
+          "value": "M[1, 2, 3 ; 4, 5, 6 ; 7, 8, 9]",
+          "name": "uMat3",
+          "index": 17,
+          "size": 1,
+          "type": "GL_FLOAT_MAT3"
+        },
+        {
+          "value": "M[1, 2, 3, 4 ; 5, 6, 7, 8 ; 9, 1, 2, 3 ; 4, 5, 6, 7]",
+          "name": "uMat4",
+          "index": 18,
+          "size": 1,
+          "type": "GL_FLOAT_MAT4"
+        },
+        {
+          "value": "[1, 2]",
+          "name": "uIntArray",
+          "index": 19,
+          "size": 2,
+          "type": "GL_INT"
+        },
+        {
+          "value": "[3, 4]",
+          "name": "uUintArray",
+          "index": 21,
+          "size": 2,
+          "type": "GL_UNSIGNED_INT"
+        },
+        {
+          "value": "[1, 2]",
+          "name": "uFloatArray",
+          "index": 23,
+          "size": 2,
+          "type": "GL_FLOAT"
+        },
+        {
+          "value": "[3, 4]",
+          "name": "uCubeMapTexArray",
+          "index": 25,
+          "size": 2,
+          "type": "GL_SAMPLER_CUBE"
+        },
+        {
+          "value": "[5, 6]",
+          "name": "uTexArray",
+          "index": 27,
+          "size": 2,
+          "type": "GL_SAMPLER_2D"
+        },
+        {
+          "value": "[V[1, 2], V[3, 4]]",
+          "name": "uFV2Array",
+          "index": 29,
+          "size": 2,
+          "type": "GL_FLOAT_VEC2"
+        },
+        {
+          "value": "[V[1, 2, 3], V[4, 5, 6]]",
+          "name": "uFV3Array",
+          "index": 31,
+          "size": 2,
+          "type": "GL_FLOAT_VEC3"
+        },
+        {
+          "value": "[V[1, 2, 3, 4], V[5, 6, 7, 8]]",
+          "name": "uFV4Array",
+          "index": 33,
+          "size": 2,
+          "type": "GL_FLOAT_VEC4"
+        },
+        {
+          "value": "[V[1, 2], V[3, 4]]",
+          "name": "uIV2Array",
+          "index": 35,
+          "size": 2,
+          "type": "GL_INT_VEC2"
+        },
+        {
+          "value": "[V[1, 2, 3], V[4, 5, 6]]",
+          "name": "uIV3Array",
+          "index": 37,
+          "size": 2,
+          "type": "GL_INT_VEC3"
+        },
+        {
+          "value": "[V[1, 2, 3, 4], V[5, 6, 7, 8]]",
+          "name": "uIV4Array",
+          "index": 39,
+          "size": 2,
+          "type": "GL_INT_VEC4"
+        },
+        {
+          "value": "[V[1, 2], V[3, 4]]",
+          "name": "uUV2Array",
+          "index": 41,
+          "size": 2,
+          "type": "GL_UNSIGNED_INT_VEC2"
+        },
+        {
+          "value": "[V[1, 2, 3], V[4, 5, 6]]",
+          "name": "uUV3Array",
+          "index": 43,
+          "size": 2,
+          "type": "GL_UNSIGNED_INT_VEC3"
+        },
+        {
+          "value": "[V[1, 2, 3, 4], V[5, 6, 7, 8]]",
+          "name": "uUV4Array",
+          "index": 45,
+          "size": 2,
+          "type": "GL_UNSIGNED_INT_VEC4"
+        },
+        {
+          "value": "[M[1, 0 ; 0, 1], M[2, 0 ; 0, 2]]",
+          "name": "uMat2Array",
+          "index": 47,
+          "size": 2,
+          "type": "GL_FLOAT_MAT2"
+        },
+        {
+          "value": "[M[1, 0, 0 ; 0, 1, 0 ; 0, 0, 1], M[2, 0, 0 ; 0, 2, 0 ; 0, 0, 2]]",
+          "name": "uMat3Array",
+          "index": 49,
+          "size": 2,
+          "type": "GL_FLOAT_MAT3"
+        },
+        {
+          "value": "[M[1, 0, 0, 0 ; 0, 1, 0, 0 ; 0, 0, 1, 0 ; 0, 0, 0, 1], M[2, 0, 0, 0 ; 0, 2, 0, 0 ; 0, 0, 2, 0 ; 0, 0, 0, 2]]",
+          "name": "uMat4Array",
+          "index": 51,
+          "size": 2,
+          "type": "GL_FLOAT_MAT4"
+        }
+      ],
+      "info_log": ""
+    }
+  ])JSON";
 
-static const char kProgramsJson[] =
-    "  \"programs\": [\n"
-    "    {\n"
-    "      \"object_id\": 1,\n"
-    "      \"label\": \"Default Renderer shader\",\n"
-    "      \"vertex_shader_glid\": 1,\n"
-    "      \"fragment_shader_glid\": 2,\n"
-    "      \"delete_status\": \"GL_FALSE\",\n"
-    "      \"link_status\": \"GL_TRUE\",\n"
-    "      \"validate_status\": \"GL_FALSE\",\n"
-    "      \"attributes\": [\n"
-    "        {\n"
-    "          \"name\": \"aVertex\",\n"
-    "          \"index\": 0,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_FLOAT_VEC3\"\n"
-    "        }\n"
-    "      ],\n"
-    "      \"uniforms\": [\n"
-    "        {\n"
-    "          \"value\": "
-    "\"M[1, 2, 3, 4 ; 5, 1, 7, 8 ; 9, 1, 1, 3 ; 4, 5, 6, 1]\",\n"
-    "          \"name\": \"uProjectionMatrix\",\n"
-    "          \"index\": 0,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_FLOAT_MAT4\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": "
-    "\"M[4, 2, 3, 4 ; 5, 4, 7, 8 ; 9, 1, 4, 3 ; 4, 5, 6, 4]\",\n"
-    "          \"name\": \"uModelviewMatrix\",\n"
-    "          \"index\": 1,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_FLOAT_MAT4\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"V[4, 3, 2, 1]\",\n"
-    "          \"name\": \"uBaseColor\",\n"
-    "          \"index\": 2,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_FLOAT_VEC4\"\n"
-    "        }\n"
-    "      ],\n"
-    "      \"info_log\": \"\"\n"
-    "    },\n"
-    "    {\n"
-    "      \"object_id\": 2,\n"
-    "      \"label\": \"Dummy Shader\",\n"
-    "      \"vertex_shader_glid\": 3,\n"
-    "      \"fragment_shader_glid\": 4,\n"
-    "      \"delete_status\": \"GL_FALSE\",\n"
-    "      \"link_status\": \"GL_TRUE\",\n"
-    "      \"validate_status\": \"GL_FALSE\",\n"
-    "      \"attributes\": [\n"
-    "        {\n"
-    "          \"name\": \"aFloat\",\n"
-    "          \"index\": 0,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_FLOAT\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"name\": \"aFV2\",\n"
-    "          \"index\": 1,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_FLOAT_VEC2\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"name\": \"aFV3\",\n"
-    "          \"index\": 2,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_FLOAT_VEC3\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"name\": \"aFV4\",\n"
-    "          \"index\": 3,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_FLOAT_VEC4\"\n"
-    "        },\n"
-    // Note that each column of a matrix attribute gets its own index.
-    "        {\n"
-    "          \"name\": \"aMat2\",\n"
-    "          \"index\": 4,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_FLOAT_MAT2\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"name\": \"aMat3\",\n"
-    "          \"index\": 6,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_FLOAT_MAT3\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"name\": \"aMat4\",\n"
-    "          \"index\": 9,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_FLOAT_MAT4\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"name\": \"aBOE1\",\n"
-    "          \"index\": 13,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_FLOAT_VEC2\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"name\": \"aBOE2\",\n"
-    "          \"index\": 14,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_FLOAT_VEC3\"\n"
-    "        }\n"
-    "      ],\n"
-    "      \"uniforms\": [\n"
-    "        {\n"
-    "          \"value\": \"13\",\n"
-    "          \"name\": \"uInt\",\n"
-    "          \"index\": 0,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_INT\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"1.5\",\n"
-    "          \"name\": \"uFloat\",\n"
-    "          \"index\": 1,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_FLOAT\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"15\",\n"
-    "          \"name\": \"uUint\",\n"
-    "          \"index\": 2,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_UNSIGNED_INT\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"1\",\n"
-    "          \"name\": \"uCubeMapTex\",\n"
-    "          \"index\": 3,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_SAMPLER_CUBE\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"2\",\n"
-    "          \"name\": \"uTex\",\n"
-    "          \"index\": 4,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_SAMPLER_2D\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"V[2, 3]\",\n"
-    "          \"name\": \"uFV2\",\n"
-    "          \"index\": 5,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_FLOAT_VEC2\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"V[4, 5, 6]\",\n"
-    "          \"name\": \"uFV3\",\n"
-    "          \"index\": 6,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_FLOAT_VEC3\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"V[7, 8, 9, 10]\",\n"
-    "          \"name\": \"uFV4\",\n"
-    "          \"index\": 7,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_FLOAT_VEC4\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"V[2, 3]\",\n"
-    "          \"name\": \"uIV2\",\n"
-    "          \"index\": 8,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_INT_VEC2\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"V[4, 5, 6]\",\n"
-    "          \"name\": \"uIV3\",\n"
-    "          \"index\": 9,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_INT_VEC3\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"V[7, 8, 9, 10]\",\n"
-    "          \"name\": \"uIV4\",\n"
-    "          \"index\": 10,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_INT_VEC4\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"V[2, 3]\",\n"
-    "          \"name\": \"uUV2\",\n"
-    "          \"index\": 11,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_UNSIGNED_INT_VEC2\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"V[4, 5, 6]\",\n"
-    "          \"name\": \"uUV3\",\n"
-    "          \"index\": 12,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_UNSIGNED_INT_VEC3\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"V[7, 8, 9, 10]\",\n"
-    "          \"name\": \"uUV4\",\n"
-    "          \"index\": 13,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_UNSIGNED_INT_VEC4\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"M[1, 2 ; 3, 4]\",\n"
-    "          \"name\": \"uMat2\",\n"
-    "          \"index\": 14,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_FLOAT_MAT2\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"M[1, 2, 3 ; 4, 5, 6 ; 7, 8, 9]\",\n"
-    "          \"name\": \"uMat3\",\n"
-    "          \"index\": 15,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_FLOAT_MAT3\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": "
-    "\"M[1, 2, 3, 4 ; 5, 6, 7, 8 ; 9, 1, 2, 3 ; 4, 5, 6, 7]\",\n"
-    "          \"name\": \"uMat4\",\n"
-    "          \"index\": 16,\n"
-    "          \"size\": 1,\n"
-    "          \"type\": \"GL_FLOAT_MAT4\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"[1, 2]\",\n"
-    "          \"name\": \"uIntArray\",\n"
-    "          \"index\": 17,\n"
-    "          \"size\": 2,\n"
-    "          \"type\": \"GL_INT\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"[3, 4]\",\n"
-    "          \"name\": \"uUintArray\",\n"
-    "          \"index\": 19,\n"
-    "          \"size\": 2,\n"
-    "          \"type\": \"GL_UNSIGNED_INT\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"[1, 2]\",\n"
-    "          \"name\": \"uFloatArray\",\n"
-    "          \"index\": 21,\n"
-    "          \"size\": 2,\n"
-    "          \"type\": \"GL_FLOAT\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"[3, 4]\",\n"
-    "          \"name\": \"uCubeMapTexArray\",\n"
-    "          \"index\": 23,\n"
-    "          \"size\": 2,\n"
-    "          \"type\": \"GL_SAMPLER_CUBE\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"[5, 6]\",\n"
-    "          \"name\": \"uTexArray\",\n"
-    "          \"index\": 25,\n"
-    "          \"size\": 2,\n"
-    "          \"type\": \"GL_SAMPLER_2D\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"[V[1, 2], V[3, 4]]\",\n"
-    "          \"name\": \"uFV2Array\",\n"
-    "          \"index\": 27,\n"
-    "          \"size\": 2,\n"
-    "          \"type\": \"GL_FLOAT_VEC2\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"[V[1, 2, 3], V[4, 5, 6]]\",\n"
-    "          \"name\": \"uFV3Array\",\n"
-    "          \"index\": 29,\n"
-    "          \"size\": 2,\n"
-    "          \"type\": \"GL_FLOAT_VEC3\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"[V[1, 2, 3, 4], V[5, 6, 7, 8]]\",\n"
-    "          \"name\": \"uFV4Array\",\n"
-    "          \"index\": 31,\n"
-    "          \"size\": 2,\n"
-    "          \"type\": \"GL_FLOAT_VEC4\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"[V[1, 2], V[3, 4]]\",\n"
-    "          \"name\": \"uIV2Array\",\n"
-    "          \"index\": 33,\n"
-    "          \"size\": 2,\n"
-    "          \"type\": \"GL_INT_VEC2\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"[V[1, 2, 3], V[4, 5, 6]]\",\n"
-    "          \"name\": \"uIV3Array\",\n"
-    "          \"index\": 35,\n"
-    "          \"size\": 2,\n"
-    "          \"type\": \"GL_INT_VEC3\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"[V[1, 2, 3, 4], V[5, 6, 7, 8]]\",\n"
-    "          \"name\": \"uIV4Array\",\n"
-    "          \"index\": 37,\n"
-    "          \"size\": 2,\n"
-    "          \"type\": \"GL_INT_VEC4\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"[V[1, 2], V[3, 4]]\",\n"
-    "          \"name\": \"uUV2Array\",\n"
-    "          \"index\": 39,\n"
-    "          \"size\": 2,\n"
-    "          \"type\": \"GL_UNSIGNED_INT_VEC2\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"[V[1, 2, 3], V[4, 5, 6]]\",\n"
-    "          \"name\": \"uUV3Array\",\n"
-    "          \"index\": 41,\n"
-    "          \"size\": 2,\n"
-    "          \"type\": \"GL_UNSIGNED_INT_VEC3\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"[V[1, 2, 3, 4], V[5, 6, 7, 8]]\",\n"
-    "          \"name\": \"uUV4Array\",\n"
-    "          \"index\": 43,\n"
-    "          \"size\": 2,\n"
-    "          \"type\": \"GL_UNSIGNED_INT_VEC4\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"[M[1, 0 ; 0, 1], M[2, 0 ; 0, 2]]\",\n"
-    "          \"name\": \"uMat2Array\",\n"
-    "          \"index\": 45,\n"
-    "          \"size\": 2,\n"
-    "          \"type\": \"GL_FLOAT_MAT2\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"[M[1, 0, 0 ; 0, 1, 0 ; 0, 0, 1], M[2, 0, 0 ; 0, 2, "
-    "0 ; 0, 0, 2]]\",\n"
-    "          \"name\": \"uMat3Array\",\n"
-    "          \"index\": 47,\n"
-    "          \"size\": 2,\n"
-    "          \"type\": \"GL_FLOAT_MAT3\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"value\": \"[M[1, 0, 0, 0 ; 0, 1, 0, 0 ; 0, 0, 1, 0 ; 0, 0, 0, "
-    "1], M[2, 0, 0, 0 ; 0, 2, 0, 0 ; 0, 0, 2, 0 ; 0, 0, 0, 2]]\",\n"
-    "          \"name\": \"uMat4Array\",\n"
-    "          \"index\": 49,\n"
-    "          \"size\": 2,\n"
-    "          \"type\": \"GL_FLOAT_MAT4\"\n"
-    "        }\n"
-    "      ],\n"
-    "      \"info_log\": \"\"\n"
-    "    }\n"
-    "  ]";
+static const char kSamplersJson[] = R"JSON(
+  "samplers": [
+    {
+      "object_id": 1,
+      "label": "Sampler",
+      "compare_function": "GL_NEVER",
+      "compare_mode": "GL_COMPARE_REF_TO_TEXTURE",
+      "max_anisotropy": 1,
+      "min_lod": -0.5,
+      "max_lod": 0.5,
+      "min_filter": "GL_LINEAR_MIPMAP_LINEAR",
+      "mag_filter": "GL_NEAREST",
+      "wrap_r": "GL_MIRRORED_REPEAT",
+      "wrap_s": "GL_MIRRORED_REPEAT",
+      "wrap_t": "GL_CLAMP_TO_EDGE"
+    },
+    {
+      "object_id": 2,
+      "label": "Cubemap Sampler",
+      "compare_function": "GL_NEVER",
+      "compare_mode": "GL_COMPARE_REF_TO_TEXTURE",
+      "max_anisotropy": 1,
+      "min_lod": -1.5,
+      "max_lod": 1.5,
+      "min_filter": "GL_LINEAR_MIPMAP_LINEAR",
+      "mag_filter": "GL_NEAREST",
+      "wrap_r": "GL_CLAMP_TO_EDGE",
+      "wrap_s": "GL_MIRRORED_REPEAT",
+      "wrap_t": "GL_CLAMP_TO_EDGE"
+    },
+    {
+      "object_id": 3,
+      "label": "Sampler",
+      "compare_function": "GL_NEVER",
+      "compare_mode": "GL_COMPARE_REF_TO_TEXTURE",
+      "max_anisotropy": 1,
+      "min_lod": -0.5,
+      "max_lod": 0.5,
+      "min_filter": "GL_LINEAR_MIPMAP_LINEAR",
+      "mag_filter": "GL_NEAREST",
+      "wrap_r": "GL_MIRRORED_REPEAT",
+      "wrap_s": "GL_MIRRORED_REPEAT",
+      "wrap_t": "GL_CLAMP_TO_EDGE"
+    },
+    {
+      "object_id": 4,
+      "label": "Cubemap Sampler",
+      "compare_function": "GL_NEVER",
+      "compare_mode": "GL_COMPARE_REF_TO_TEXTURE",
+      "max_anisotropy": 1,
+      "min_lod": -1.5,
+      "max_lod": 1.5,
+      "min_filter": "GL_LINEAR_MIPMAP_LINEAR",
+      "mag_filter": "GL_NEAREST",
+      "wrap_r": "GL_CLAMP_TO_EDGE",
+      "wrap_s": "GL_MIRRORED_REPEAT",
+      "wrap_t": "GL_CLAMP_TO_EDGE"
+    },
+    {
+      "object_id": 5,
+      "label": "Cubemap Sampler",
+      "compare_function": "GL_NEVER",
+      "compare_mode": "GL_COMPARE_REF_TO_TEXTURE",
+      "max_anisotropy": 1,
+      "min_lod": -1.5,
+      "max_lod": 1.5,
+      "min_filter": "GL_LINEAR_MIPMAP_LINEAR",
+      "mag_filter": "GL_NEAREST",
+      "wrap_r": "GL_CLAMP_TO_EDGE",
+      "wrap_s": "GL_MIRRORED_REPEAT",
+      "wrap_t": "GL_CLAMP_TO_EDGE"
+    },
+    {
+      "object_id": 6,
+      "label": "Sampler",
+      "compare_function": "GL_NEVER",
+      "compare_mode": "GL_COMPARE_REF_TO_TEXTURE",
+      "max_anisotropy": 1,
+      "min_lod": -0.5,
+      "max_lod": 0.5,
+      "min_filter": "GL_LINEAR_MIPMAP_LINEAR",
+      "mag_filter": "GL_NEAREST",
+      "wrap_r": "GL_MIRRORED_REPEAT",
+      "wrap_s": "GL_MIRRORED_REPEAT",
+      "wrap_t": "GL_CLAMP_TO_EDGE"
+    },
+    {
+      "object_id": 7,
+      "label": "Sampler",
+      "compare_function": "GL_NEVER",
+      "compare_mode": "GL_COMPARE_REF_TO_TEXTURE",
+      "max_anisotropy": 1,
+      "min_lod": -0.5,
+      "max_lod": 0.5,
+      "min_filter": "GL_LINEAR_MIPMAP_LINEAR",
+      "mag_filter": "GL_NEAREST",
+      "wrap_r": "GL_MIRRORED_REPEAT",
+      "wrap_s": "GL_MIRRORED_REPEAT",
+      "wrap_t": "GL_CLAMP_TO_EDGE"
+    }
+  ])JSON";
 
-static const char kSamplersJson[] =
-    "  \"samplers\": [\n"
-    "    {\n"
-    "      \"object_id\": 1,\n"
-    "      \"label\": \"Sampler\",\n"
-    "      \"compare_function\": \"GL_NEVER\",\n"
-    "      \"compare_mode\": \"GL_COMPARE_REF_TO_TEXTURE\",\n"
-    "      \"max_anisotropy\": 1,\n"
-    "      \"min_lod\": -0.5,\n"
-    "      \"max_lod\": 0.5,\n"
-    "      \"min_filter\": \"GL_LINEAR_MIPMAP_LINEAR\",\n"
-    "      \"mag_filter\": \"GL_NEAREST\",\n"
-    "      \"wrap_r\": \"GL_MIRRORED_REPEAT\",\n"
-    "      \"wrap_s\": \"GL_MIRRORED_REPEAT\",\n"
-    "      \"wrap_t\": \"GL_CLAMP_TO_EDGE\"\n"
-    "    },\n"
-    "    {\n"
-    "      \"object_id\": 2,\n"
-    "      \"label\": \"Cubemap Sampler\",\n"
-    "      \"compare_function\": \"GL_NEVER\",\n"
-    "      \"compare_mode\": \"GL_COMPARE_REF_TO_TEXTURE\",\n"
-    "      \"max_anisotropy\": 1,\n"
-    "      \"min_lod\": -1.5,\n"
-    "      \"max_lod\": 1.5,\n"
-    "      \"min_filter\": \"GL_LINEAR_MIPMAP_LINEAR\",\n"
-    "      \"mag_filter\": \"GL_NEAREST\",\n"
-    "      \"wrap_r\": \"GL_CLAMP_TO_EDGE\",\n"
-    "      \"wrap_s\": \"GL_MIRRORED_REPEAT\",\n"
-    "      \"wrap_t\": \"GL_CLAMP_TO_EDGE\"\n"
-    "    },\n"
-    "    {\n"
-    "      \"object_id\": 3,\n"
-    "      \"label\": \"Sampler\",\n"
-    "      \"compare_function\": \"GL_NEVER\",\n"
-    "      \"compare_mode\": \"GL_COMPARE_REF_TO_TEXTURE\",\n"
-    "      \"max_anisotropy\": 1,\n"
-    "      \"min_lod\": -0.5,\n"
-    "      \"max_lod\": 0.5,\n"
-    "      \"min_filter\": \"GL_LINEAR_MIPMAP_LINEAR\",\n"
-    "      \"mag_filter\": \"GL_NEAREST\",\n"
-    "      \"wrap_r\": \"GL_MIRRORED_REPEAT\",\n"
-    "      \"wrap_s\": \"GL_MIRRORED_REPEAT\",\n"
-    "      \"wrap_t\": \"GL_CLAMP_TO_EDGE\"\n"
-    "    },\n"
-    "    {\n"
-    "      \"object_id\": 4,\n"
-    "      \"label\": \"Cubemap Sampler\",\n"
-    "      \"compare_function\": \"GL_NEVER\",\n"
-    "      \"compare_mode\": \"GL_COMPARE_REF_TO_TEXTURE\",\n"
-    "      \"max_anisotropy\": 1,\n"
-    "      \"min_lod\": -1.5,\n"
-    "      \"max_lod\": 1.5,\n"
-    "      \"min_filter\": \"GL_LINEAR_MIPMAP_LINEAR\",\n"
-    "      \"mag_filter\": \"GL_NEAREST\",\n"
-    "      \"wrap_r\": \"GL_CLAMP_TO_EDGE\",\n"
-    "      \"wrap_s\": \"GL_MIRRORED_REPEAT\",\n"
-    "      \"wrap_t\": \"GL_CLAMP_TO_EDGE\"\n"
-    "    },\n"
-    "    {\n"
-    "      \"object_id\": 5,\n"
-    "      \"label\": \"Cubemap Sampler\",\n"
-    "      \"compare_function\": \"GL_NEVER\",\n"
-    "      \"compare_mode\": \"GL_COMPARE_REF_TO_TEXTURE\",\n"
-    "      \"max_anisotropy\": 1,\n"
-    "      \"min_lod\": -1.5,\n"
-    "      \"max_lod\": 1.5,\n"
-    "      \"min_filter\": \"GL_LINEAR_MIPMAP_LINEAR\",\n"
-    "      \"mag_filter\": \"GL_NEAREST\",\n"
-    "      \"wrap_r\": \"GL_CLAMP_TO_EDGE\",\n"
-    "      \"wrap_s\": \"GL_MIRRORED_REPEAT\",\n"
-    "      \"wrap_t\": \"GL_CLAMP_TO_EDGE\"\n"
-    "    },\n"
-    "    {\n"
-    "      \"object_id\": 6,\n"
-    "      \"label\": \"Sampler\",\n"
-    "      \"compare_function\": \"GL_NEVER\",\n"
-    "      \"compare_mode\": \"GL_COMPARE_REF_TO_TEXTURE\",\n"
-    "      \"max_anisotropy\": 1,\n"
-    "      \"min_lod\": -0.5,\n"
-    "      \"max_lod\": 0.5,\n"
-    "      \"min_filter\": \"GL_LINEAR_MIPMAP_LINEAR\",\n"
-    "      \"mag_filter\": \"GL_NEAREST\",\n"
-    "      \"wrap_r\": \"GL_MIRRORED_REPEAT\",\n"
-    "      \"wrap_s\": \"GL_MIRRORED_REPEAT\",\n"
-    "      \"wrap_t\": \"GL_CLAMP_TO_EDGE\"\n"
-    "    },\n"
-    "    {\n"
-    "      \"object_id\": 7,\n"
-    "      \"label\": \"Sampler\",\n"
-    "      \"compare_function\": \"GL_NEVER\",\n"
-    "      \"compare_mode\": \"GL_COMPARE_REF_TO_TEXTURE\",\n"
-    "      \"max_anisotropy\": 1,\n"
-    "      \"min_lod\": -0.5,\n"
-    "      \"max_lod\": 0.5,\n"
-    "      \"min_filter\": \"GL_LINEAR_MIPMAP_LINEAR\",\n"
-    "      \"mag_filter\": \"GL_NEAREST\",\n"
-    "      \"wrap_r\": \"GL_MIRRORED_REPEAT\",\n"
-    "      \"wrap_s\": \"GL_MIRRORED_REPEAT\",\n"
-    "      \"wrap_t\": \"GL_CLAMP_TO_EDGE\"\n"
-    "    }\n"
-    "  ]";
+static const char kShadersJson[] = R"JSON(
+  "shaders": [
+    {
+      "object_id": 1,
+      "label": "Default Renderer vertex shader",
+      "type": "GL_VERTEX_SHADER",
+      "delete_status": "GL_FALSE",
+      "compile_status": "GL_TRUE",
+      "source": "PHByZT48Y29kZT51bmlmb3JtIG1hdDQgdVByb2plY3Rpb25NYXRyaXg7CnVuaWZvcm0gbWF0NCB1TW9kZWx2aWV3TWF0cml4OwphdHRyaWJ1dGUgdmVjMyBhVmVydGV4OwoKdm9pZCBtYWluKHZvaWQpIHsKICBnbF9Qb3NpdGlvbiA9IHVQcm9qZWN0aW9uTWF0cml4ICogdU1vZGVsdmlld01hdHJpeCAqCiAgICAgIHZlYzQoYVZlcnRleCwgMS4pOwp9CjwvY29kZT48L3ByZT4=",
+      "info_log": ""
+    },
+    {
+      "object_id": 2,
+      "label": "Default Renderer fragment shader",
+      "type": "GL_FRAGMENT_SHADER",
+      "delete_status": "GL_FALSE",
+      "compile_status": "GL_TRUE",
+      "source": "PHByZT48Y29kZT4jaWZkZWYgR0xfRVMKcHJlY2lzaW9uIG1lZGl1bXAgZmxvYXQ7CiNlbmRpZgoKdW5pZm9ybSB2ZWM0IHVCYXNlQ29sb3I7Cgp2b2lkIG1haW4odm9pZCkgewogIGdsX0ZyYWdDb2xvciA9IHVCYXNlQ29sb3I7Cn0KPC9jb2RlPjwvcHJlPg==",
+      "info_log": ""
+    },
+    {
+      "object_id": 3,
+      "label": "Vertex shader",
+      "type": "GL_VERTEX_SHADER",
+      "delete_status": "GL_FALSE",
+      "compile_status": "GL_TRUE",
+      "source": "PHByZT48Y29kZT5hdHRyaWJ1dGUgZmxvYXQgYUZsb2F0OwphdHRyaWJ1dGUgdmVjMiBhRlYyOwphdHRyaWJ1dGUgdmVjMyBhRlYzOwphdHRyaWJ1dGUgdmVjNCBhRlY0OwphdHRyaWJ1dGUgbWF0MiBhTWF0MjsKYXR0cmlidXRlIG1hdDMgYU1hdDM7CmF0dHJpYnV0ZSBtYXQ0IGFNYXQ0OwphdHRyaWJ1dGUgdmVjMiBhQk9FMTsKYXR0cmlidXRlIHZlYzMgYUJPRTI7CnVuaWZvcm0gaW50IHVJbnQ7CnVuaWZvcm0gZmxvYXQgdUZsb2F0Owo8L2NvZGU+PC9wcmU+",
+      "info_log": ""
+    },
+    {
+      "object_id": 4,
+      "label": "Geometry shader",
+      "type": "GL_GEOMETRY_SHADER",
+      "delete_status": "GL_FALSE",
+      "compile_status": "GL_TRUE",
+      "source": "PHByZT48Y29kZT51bmlmb3JtIGludCB1SW50R1M7CnVuaWZvcm0gdWludCB1VWludEdTOwp1bmlmb3JtIHZlYzIgdUZWMjsKdW5pZm9ybSB2ZWMzIHVGVjM7CnVuaWZvcm0gdmVjNCB1RlY0Owo8L2NvZGU+PC9wcmU+",
+      "info_log": ""
+    },
+    {
+      "object_id": 5,
+      "label": "Fragment shader",
+      "type": "GL_FRAGMENT_SHADER",
+      "delete_status": "GL_FALSE",
+      "compile_status": "GL_TRUE",
+      "source": "PHByZT48Y29kZT51bmlmb3JtIGludCB1SW50Owp1bmlmb3JtIHVpbnQgdVVpbnQ7CnVuaWZvcm0gZmxvYXQgdUZsb2F0Owp1bmlmb3JtIHNhbXBsZXJDdWJlIHVDdWJlTWFwVGV4Owp1bmlmb3JtIHNhbXBsZXIyRCB1VGV4Owp1bmlmb3JtIHZlYzIgdUZWMjsKdW5pZm9ybSB2ZWMzIHVGVjM7CnVuaWZvcm0gdmVjNCB1RlY0Owp1bmlmb3JtIGl2ZWMyIHVJVjI7CnVuaWZvcm0gaXZlYzMgdUlWMzsKdW5pZm9ybSBpdmVjNCB1SVY0Owp1bmlmb3JtIHV2ZWMyIHVVVjI7CnVuaWZvcm0gdXZlYzMgdVVWMzsKdW5pZm9ybSB1dmVjNCB1VVY0Owp1bmlmb3JtIG1hdDIgdU1hdDI7CnVuaWZvcm0gbWF0MyB1TWF0MzsKdW5pZm9ybSBtYXQ0IHVNYXQ0Owp1bmlmb3JtIGludCB1SW50QXJyYXlbMl07CnVuaWZvcm0gdWludCB1VWludEFycmF5WzJdOwp1bmlmb3JtIGZsb2F0IHVGbG9hdEFycmF5WzJdOwp1bmlmb3JtIHNhbXBsZXJDdWJlIHVDdWJlTWFwVGV4QXJyYXlbMl07CnVuaWZvcm0gc2FtcGxlcjJEIHVUZXhBcnJheVsyXTsKdW5pZm9ybSB2ZWMyIHVGVjJBcnJheVsyXTsKdW5pZm9ybSB2ZWMzIHVGVjNBcnJheVsyXTsKdW5pZm9ybSB2ZWM0IHVGVjRBcnJheVsyXTsKdW5pZm9ybSBpdmVjMiB1SVYyQXJyYXlbMl07CnVuaWZvcm0gaXZlYzMgdUlWM0FycmF5WzJdOwp1bmlmb3JtIGl2ZWM0IHVJVjRBcnJheVsyXTsKdW5pZm9ybSB1dmVjMiB1VVYyQXJyYXlbMl07CnVuaWZvcm0gdXZlYzMgdVVWM0FycmF5WzJdOwp1bmlmb3JtIHV2ZWM0IHVVVjRBcnJheVsyXTsKdW5pZm9ybSBtYXQyIHVNYXQyQXJyYXlbMl07CnVuaWZvcm0gbWF0MyB1TWF0M0FycmF5WzJdOwp1bmlmb3JtIG1hdDQgdU1hdDRBcnJheVsyXTsKPC9jb2RlPjwvcHJlPg==",
+      "info_log": ""
+    }
+  ])JSON";
 
-static const char kShadersJson[] =
-    "  \"shaders\": [\n"
-    "    {\n"
-    "      \"object_id\": 1,\n"
-    "      \"label\": \"Default Renderer vertex shader\",\n"
-    "      \"type\": \"GL_VERTEX_SHADER\",\n"
-    "      \"delete_status\": \"GL_FALSE\",\n"
-    "      \"compile_status\": \"GL_TRUE\",\n"
-    "      \"source\": "
-    "\"PHByZT48Y29kZT51bmlmb3JtIG1hdDQgdVByb2plY3Rpb25NYXRyaXg7CnVuaWZvcm0gbWF0"
-    "NCB1TW9kZWx2aWV3TWF0cml4OwphdHRyaWJ1dGUgdmVjMyBhVmVydGV4OwoKdm9pZCBtYWluKH"
-    "ZvaWQpIHsKICBnbF9Qb3NpdGlvbiA9IHVQcm9qZWN0aW9uTWF0cml4ICogdU1vZGVsdmlld01h"
-    "dHJpeCAqCiAgICAgIHZlYzQoYVZlcnRleCwgMS4pOwp9CjwvY29kZT48L3ByZT4=\",\n"
-    "      \"info_log\": \"\"\n"
-    "    },\n"
-    "    {\n"
-    "      \"object_id\": 2,\n"
-    "      \"label\": \"Default Renderer fragment shader\",\n"
-    "      \"type\": \"GL_FRAGMENT_SHADER\",\n"
-    "      \"delete_status\": \"GL_FALSE\",\n"
-    "      \"compile_status\": \"GL_TRUE\",\n"
-    "      \"source\": "
-    "\"PHByZT48Y29kZT4jaWZkZWYgR0xfRVMKcHJlY2lzaW9uIG1lZGl1bXAgZmxvYXQ7CiNlbmRp"
-    "ZgoKdW5pZm9ybSB2ZWM0IHVCYXNlQ29sb3I7Cgp2b2lkIG1haW4odm9pZCkgewogIGdsX0ZyYW"
-    "dDb2xvciA9IHVCYXNlQ29sb3I7Cn0KPC9jb2RlPjwvcHJlPg==\",\n"
-    "      \"info_log\": \"\"\n"
-    "    },\n"
-    "    {\n"
-    "      \"object_id\": 3,\n"
-    "      \"label\": \"Vertex shader\",\n"
-    "      \"type\": \"GL_VERTEX_SHADER\",\n"
-    "      \"delete_status\": \"GL_FALSE\",\n"
-    "      \"compile_status\": \"GL_TRUE\",\n"
-    "      \"source\": "
-    "\"PHByZT48Y29kZT5hdHRyaWJ1dGUgZmxvYXQgYUZsb2F0OwphdHRyaWJ1dGUgdmVjMiBhRlYy"
-    "OwphdHRyaWJ1dGUgdmVjMyBhRlYzOwphdHRyaWJ1dGUgdmVjNCBhRlY0OwphdHRyaWJ1dGUgbW"
-    "F0MiBhTWF0MjsKYXR0cmlidXRlIG1hdDMgYU1hdDM7CmF0dHJpYnV0ZSBtYXQ0IGFNYXQ0Owph"
-    "dHRyaWJ1dGUgdmVjMiBhQk9FMTsKYXR0cmlidXRlIHZlYzMgYUJPRTI7CnVuaWZvcm0gaW50IH"
-    "VJbnQ7CnVuaWZvcm0gZmxvYXQgdUZsb2F0Owo8L2NvZGU+PC9wcmU+\",\n"
-    "      \"info_log\": \"\"\n"
-    "    },\n"
-    "    {\n"
-    "      \"object_id\": 4,\n"
-    "      \"label\": \"Fragment shader\",\n"
-    "      \"type\": \"GL_FRAGMENT_SHADER\",\n"
-    "      \"delete_status\": \"GL_FALSE\",\n"
-    "      \"compile_status\": \"GL_TRUE\",\n"
-    "      \"source\": "
-    "\"PHByZT48Y29kZT51bmlmb3JtIGludCB1SW50Owp1bmlmb3JtIHVpbnQgdVVpbnQ7CnVuaWZv"
-    "cm0gZmxvYXQgdUZsb2F0Owp1bmlmb3JtIHNhbXBsZXJDdWJlIHVDdWJlTWFwVGV4Owp1bmlmb3"
-    "JtIHNhbXBsZXIyRCB1VGV4Owp1bmlmb3JtIHZlYzIgdUZWMjsKdW5pZm9ybSB2ZWMzIHVGVjM7"
-    "CnVuaWZvcm0gdmVjNCB1RlY0Owp1bmlmb3JtIGl2ZWMyIHVJVjI7CnVuaWZvcm0gaXZlYzMgdU"
-    "lWMzsKdW5pZm9ybSBpdmVjNCB1SVY0Owp1bmlmb3JtIHV2ZWMyIHVVVjI7CnVuaWZvcm0gdXZl"
-    "YzMgdVVWMzsKdW5pZm9ybSB1dmVjNCB1VVY0Owp1bmlmb3JtIG1hdDIgdU1hdDI7CnVuaWZvcm"
-    "0gbWF0MyB1TWF0MzsKdW5pZm9ybSBtYXQ0IHVNYXQ0Owp1bmlmb3JtIGludCB1SW50QXJyYXlb"
-    "Ml07CnVuaWZvcm0gdWludCB1VWludEFycmF5WzJdOwp1bmlmb3JtIGZsb2F0IHVGbG9hdEFycm"
-    "F5WzJdOwp1bmlmb3JtIHNhbXBsZXJDdWJlIHVDdWJlTWFwVGV4QXJyYXlbMl07CnVuaWZvcm0g"
-    "c2FtcGxlcjJEIHVUZXhBcnJheVsyXTsKdW5pZm9ybSB2ZWMyIHVGVjJBcnJheVsyXTsKdW5pZm"
-    "9ybSB2ZWMzIHVGVjNBcnJheVsyXTsKdW5pZm9ybSB2ZWM0IHVGVjRBcnJheVsyXTsKdW5pZm9y"
-    "bSBpdmVjMiB1SVYyQXJyYXlbMl07CnVuaWZvcm0gaXZlYzMgdUlWM0FycmF5WzJdOwp1bmlmb3"
-    "JtIGl2ZWM0IHVJVjRBcnJheVsyXTsKdW5pZm9ybSB1dmVjMiB1VVYyQXJyYXlbMl07CnVuaWZv"
-    "cm0gdXZlYzMgdVVWM0FycmF5WzJdOwp1bmlmb3JtIHV2ZWM0IHVVVjRBcnJheVsyXTsKdW5pZm"
-    "9ybSBtYXQyIHVNYXQyQXJyYXlbMl07CnVuaWZvcm0gbWF0MyB1TWF0M0FycmF5WzJdOwp1bmlm"
-    "b3JtIG1hdDQgdU1hdDRBcnJheVsyXTsKPC9jb2RlPjwvcHJlPg==\",\n"
-    "      \"info_log\": \"\"\n"
-    "    }\n"
-    "  ]";
+static const char kTexturesJson[] = R"JSON(
+  "textures": [
+    {
+      "object_id": 1,
+      "label": "Texture",
+      "width": 2,
+      "height": 2,
+      "format": "Rgb888",
+      "sampler_glid": 1,
+      "base_level": 10,
+      "max_level": 100,
+      "compare_function": "GL_LESS",
+      "compare_mode": "GL_NONE",
+      "is_protected": "GL_FALSE",
+      "max_anisotropy": 1,
+      "min_lod": -1000,
+      "max_lod": 1000,
+      "min_filter": "GL_NEAREST_MIPMAP_LINEAR",
+      "mag_filter": "GL_LINEAR",
+      "swizzle_red": "GL_ALPHA",
+      "swizzle_green": "GL_BLUE",
+      "swizzle_blue": "GL_GREEN",
+      "swizzle_alpha": "GL_RED",
+      "wrap_r": "GL_REPEAT",
+      "wrap_s": "GL_REPEAT",
+      "wrap_t": "GL_REPEAT",
+      "target": "GL_TEXTURE_2D",
+      "last_image_unit": "GL_TEXTURE{texture_unit1}"
+    },
+    {
+      "object_id": 2,
+      "label": "Cubemap",
+      "width": 2,
+      "height": 2,
+      "format": "Rgb888",
+      "sampler_glid": 2,
+      "base_level": 10,
+      "max_level": 100,
+      "compare_function": "GL_LESS",
+      "compare_mode": "GL_NONE",
+      "is_protected": "GL_FALSE",
+      "max_anisotropy": 1,
+      "min_lod": -1000,
+      "max_lod": 1000,
+      "min_filter": "GL_NEAREST_MIPMAP_LINEAR",
+      "mag_filter": "GL_LINEAR",
+      "swizzle_red": "GL_ALPHA",
+      "swizzle_green": "GL_BLUE",
+      "swizzle_blue": "GL_GREEN",
+      "swizzle_alpha": "GL_RED",
+      "wrap_r": "GL_REPEAT",
+      "wrap_s": "GL_REPEAT",
+      "wrap_t": "GL_REPEAT",
+      "target": "GL_TEXTURE_CUBE_MAP",
+      "last_image_unit": "GL_TEXTURE{texture_unit2}"
+    },
+    {
+      "object_id": 3,
+      "label": "Texture",
+      "width": 2,
+      "height": 2,
+      "format": "Rgb888",
+      "sampler_glid": 3,
+      "base_level": 10,
+      "max_level": 100,
+      "compare_function": "GL_LESS",
+      "compare_mode": "GL_NONE",
+      "is_protected": "GL_FALSE",
+      "max_anisotropy": 1,
+      "min_lod": -1000,
+      "max_lod": 1000,
+      "min_filter": "GL_NEAREST_MIPMAP_LINEAR",
+      "mag_filter": "GL_LINEAR",
+      "swizzle_red": "GL_ALPHA",
+      "swizzle_green": "GL_BLUE",
+      "swizzle_blue": "GL_GREEN",
+      "swizzle_alpha": "GL_RED",
+      "wrap_r": "GL_REPEAT",
+      "wrap_s": "GL_REPEAT",
+      "wrap_t": "GL_REPEAT",
+      "target": "GL_TEXTURE_2D",
+      "last_image_unit": "GL_TEXTURE{texture_unit3}"
+    },
+    {
+      "object_id": 4,
+      "label": "Cubemap",
+      "width": 2,
+      "height": 2,
+      "format": "Rgb888",
+      "sampler_glid": 4,
+      "base_level": 10,
+      "max_level": 100,
+      "compare_function": "GL_LESS",
+      "compare_mode": "GL_NONE",
+      "is_protected": "GL_FALSE",
+      "max_anisotropy": 1,
+      "min_lod": -1000,
+      "max_lod": 1000,
+      "min_filter": "GL_NEAREST_MIPMAP_LINEAR",
+      "mag_filter": "GL_LINEAR",
+      "swizzle_red": "GL_ALPHA",
+      "swizzle_green": "GL_BLUE",
+      "swizzle_blue": "GL_GREEN",
+      "swizzle_alpha": "GL_RED",
+      "wrap_r": "GL_REPEAT",
+      "wrap_s": "GL_REPEAT",
+      "wrap_t": "GL_REPEAT",
+      "target": "GL_TEXTURE_CUBE_MAP",
+      "last_image_unit": "GL_TEXTURE{texture_unit4}"
+    },
+    {
+      "object_id": 5,
+      "label": "Cubemap",
+      "width": 2,
+      "height": 2,
+      "format": "Rgb888",
+      "sampler_glid": 5,
+      "base_level": 10,
+      "max_level": 100,
+      "compare_function": "GL_LESS",
+      "compare_mode": "GL_NONE",
+      "is_protected": "GL_FALSE",
+      "max_anisotropy": 1,
+      "min_lod": -1000,
+      "max_lod": 1000,
+      "min_filter": "GL_NEAREST_MIPMAP_LINEAR",
+      "mag_filter": "GL_LINEAR",
+      "swizzle_red": "GL_ALPHA",
+      "swizzle_green": "GL_BLUE",
+      "swizzle_blue": "GL_GREEN",
+      "swizzle_alpha": "GL_RED",
+      "wrap_r": "GL_REPEAT",
+      "wrap_s": "GL_REPEAT",
+      "wrap_t": "GL_REPEAT",
+      "target": "GL_TEXTURE_CUBE_MAP",
+      "last_image_unit": "GL_TEXTURE{texture_unit5}"
+    },
+    {
+      "object_id": 6,
+      "label": "Texture",
+      "width": 2,
+      "height": 2,
+      "format": "Rgb888",
+      "sampler_glid": 6,
+      "base_level": 10,
+      "max_level": 100,
+      "compare_function": "GL_LESS",
+      "compare_mode": "GL_NONE",
+      "is_protected": "GL_FALSE",
+      "max_anisotropy": 1,
+      "min_lod": -1000,
+      "max_lod": 1000,
+      "min_filter": "GL_NEAREST_MIPMAP_LINEAR",
+      "mag_filter": "GL_LINEAR",
+      "swizzle_red": "GL_ALPHA",
+      "swizzle_green": "GL_BLUE",
+      "swizzle_blue": "GL_GREEN",
+      "swizzle_alpha": "GL_RED",
+      "wrap_r": "GL_REPEAT",
+      "wrap_s": "GL_REPEAT",
+      "wrap_t": "GL_REPEAT",
+      "target": "GL_TEXTURE_2D",
+      "last_image_unit": "GL_TEXTURE{texture_unit6}"
+    },
+    {
+      "object_id": 7,
+      "label": "Texture",
+      "width": 2,
+      "height": 2,
+      "format": "Rgb888",
+      "sampler_glid": 7,
+      "base_level": 10,
+      "max_level": 100,
+      "compare_function": "GL_LESS",
+      "compare_mode": "GL_NONE",
+      "is_protected": "GL_FALSE",
+      "max_anisotropy": 1,
+      "min_lod": -1000,
+      "max_lod": 1000,
+      "min_filter": "GL_NEAREST_MIPMAP_LINEAR",
+      "mag_filter": "GL_LINEAR",
+      "swizzle_red": "GL_ALPHA",
+      "swizzle_green": "GL_BLUE",
+      "swizzle_blue": "GL_GREEN",
+      "swizzle_alpha": "GL_RED",
+      "wrap_r": "GL_REPEAT",
+      "wrap_s": "GL_REPEAT",
+      "wrap_t": "GL_REPEAT",
+      "target": "GL_TEXTURE_2D",
+      "last_image_unit": "GL_TEXTURE{texture_unit7}"
+    }
+  ])JSON";
 
-static const char kTexturesJson[] =
-    "  \"textures\": [\n"
-    "    {\n"
-    "      \"object_id\": 1,\n"
-    "      \"label\": \"Texture\",\n"
-    "      \"width\": 2,\n"
-    "      \"height\": 2,\n"
-    "      \"format\": \"Rgb888\",\n"
-    "      \"sampler_glid\": 1,\n"
-    "      \"base_level\": 10,\n"
-    "      \"max_level\": 100,\n"
-    "      \"compare_function\": \"GL_LESS\",\n"
-    "      \"compare_mode\": \"GL_NONE\",\n"
-    "      \"max_anisotropy\": 1,\n"
-    "      \"min_lod\": -1000,\n"
-    "      \"max_lod\": 1000,\n"
-    "      \"min_filter\": \"GL_NEAREST_MIPMAP_LINEAR\",\n"
-    "      \"mag_filter\": \"GL_LINEAR\",\n"
-    "      \"swizzle_red\": \"GL_ALPHA\",\n"
-    "      \"swizzle_green\": \"GL_BLUE\",\n"
-    "      \"swizzle_blue\": \"GL_GREEN\",\n"
-    "      \"swizzle_alpha\": \"GL_RED\",\n"
-    "      \"wrap_r\": \"GL_REPEAT\",\n"
-    "      \"wrap_s\": \"GL_REPEAT\",\n"
-    "      \"wrap_t\": \"GL_REPEAT\",\n"
-    "      \"target\": \"GL_TEXTURE_2D\",\n"
-    "      \"last_image_unit\": \"GL_TEXTURE{texture_unit1}\"\n"
-    "    },\n"
-    "    {\n"
-    "      \"object_id\": 2,\n"
-    "      \"label\": \"Cubemap\",\n"
-    "      \"width\": 2,\n"
-    "      \"height\": 2,\n"
-    "      \"format\": \"Rgb888\",\n"
-    "      \"sampler_glid\": 2,\n"
-    "      \"base_level\": 10,\n"
-    "      \"max_level\": 100,\n"
-    "      \"compare_function\": \"GL_LESS\",\n"
-    "      \"compare_mode\": \"GL_NONE\",\n"
-    "      \"max_anisotropy\": 1,\n"
-    "      \"min_lod\": -1000,\n"
-    "      \"max_lod\": 1000,\n"
-    "      \"min_filter\": \"GL_NEAREST_MIPMAP_LINEAR\",\n"
-    "      \"mag_filter\": \"GL_LINEAR\",\n"
-    "      \"swizzle_red\": \"GL_ALPHA\",\n"
-    "      \"swizzle_green\": \"GL_BLUE\",\n"
-    "      \"swizzle_blue\": \"GL_GREEN\",\n"
-    "      \"swizzle_alpha\": \"GL_RED\",\n"
-    "      \"wrap_r\": \"GL_REPEAT\",\n"
-    "      \"wrap_s\": \"GL_REPEAT\",\n"
-    "      \"wrap_t\": \"GL_REPEAT\",\n"
-    "      \"target\": \"GL_TEXTURE_CUBE_MAP\",\n"
-    "      \"last_image_unit\": \"GL_TEXTURE{texture_unit2}\"\n"
-    "    },\n"
-    "    {\n"
-    "      \"object_id\": 3,\n"
-    "      \"label\": \"Texture\",\n"
-    "      \"width\": 2,\n"
-    "      \"height\": 2,\n"
-    "      \"format\": \"Rgb888\",\n"
-    "      \"sampler_glid\": 3,\n"
-    "      \"base_level\": 10,\n"
-    "      \"max_level\": 100,\n"
-    "      \"compare_function\": \"GL_LESS\",\n"
-    "      \"compare_mode\": \"GL_NONE\",\n"
-    "      \"max_anisotropy\": 1,\n"
-    "      \"min_lod\": -1000,\n"
-    "      \"max_lod\": 1000,\n"
-    "      \"min_filter\": \"GL_NEAREST_MIPMAP_LINEAR\",\n"
-    "      \"mag_filter\": \"GL_LINEAR\",\n"
-    "      \"swizzle_red\": \"GL_ALPHA\",\n"
-    "      \"swizzle_green\": \"GL_BLUE\",\n"
-    "      \"swizzle_blue\": \"GL_GREEN\",\n"
-    "      \"swizzle_alpha\": \"GL_RED\",\n"
-    "      \"wrap_r\": \"GL_REPEAT\",\n"
-    "      \"wrap_s\": \"GL_REPEAT\",\n"
-    "      \"wrap_t\": \"GL_REPEAT\",\n"
-    "      \"target\": \"GL_TEXTURE_2D\",\n"
-    "      \"last_image_unit\": \"GL_TEXTURE{texture_unit3}\"\n"
-    "    },\n"
-    "    {\n"
-    "      \"object_id\": 4,\n"
-    "      \"label\": \"Cubemap\",\n"
-    "      \"width\": 2,\n"
-    "      \"height\": 2,\n"
-    "      \"format\": \"Rgb888\",\n"
-    "      \"sampler_glid\": 4,\n"
-    "      \"base_level\": 10,\n"
-    "      \"max_level\": 100,\n"
-    "      \"compare_function\": \"GL_LESS\",\n"
-    "      \"compare_mode\": \"GL_NONE\",\n"
-    "      \"max_anisotropy\": 1,\n"
-    "      \"min_lod\": -1000,\n"
-    "      \"max_lod\": 1000,\n"
-    "      \"min_filter\": \"GL_NEAREST_MIPMAP_LINEAR\",\n"
-    "      \"mag_filter\": \"GL_LINEAR\",\n"
-    "      \"swizzle_red\": \"GL_ALPHA\",\n"
-    "      \"swizzle_green\": \"GL_BLUE\",\n"
-    "      \"swizzle_blue\": \"GL_GREEN\",\n"
-    "      \"swizzle_alpha\": \"GL_RED\",\n"
-    "      \"wrap_r\": \"GL_REPEAT\",\n"
-    "      \"wrap_s\": \"GL_REPEAT\",\n"
-    "      \"wrap_t\": \"GL_REPEAT\",\n"
-    "      \"target\": \"GL_TEXTURE_CUBE_MAP\",\n"
-    "      \"last_image_unit\": \"GL_TEXTURE{texture_unit4}\"\n"
-    "    },\n"
-    "    {\n"
-    "      \"object_id\": 5,\n"
-    "      \"label\": \"Cubemap\",\n"
-    "      \"width\": 2,\n"
-    "      \"height\": 2,\n"
-    "      \"format\": \"Rgb888\",\n"
-    "      \"sampler_glid\": 5,\n"
-    "      \"base_level\": 10,\n"
-    "      \"max_level\": 100,\n"
-    "      \"compare_function\": \"GL_LESS\",\n"
-    "      \"compare_mode\": \"GL_NONE\",\n"
-    "      \"max_anisotropy\": 1,\n"
-    "      \"min_lod\": -1000,\n"
-    "      \"max_lod\": 1000,\n"
-    "      \"min_filter\": \"GL_NEAREST_MIPMAP_LINEAR\",\n"
-    "      \"mag_filter\": \"GL_LINEAR\",\n"
-    "      \"swizzle_red\": \"GL_ALPHA\",\n"
-    "      \"swizzle_green\": \"GL_BLUE\",\n"
-    "      \"swizzle_blue\": \"GL_GREEN\",\n"
-    "      \"swizzle_alpha\": \"GL_RED\",\n"
-    "      \"wrap_r\": \"GL_REPEAT\",\n"
-    "      \"wrap_s\": \"GL_REPEAT\",\n"
-    "      \"wrap_t\": \"GL_REPEAT\",\n"
-    "      \"target\": \"GL_TEXTURE_CUBE_MAP\",\n"
-    "      \"last_image_unit\": \"GL_TEXTURE{texture_unit5}\"\n"
-    "    },\n"
-    "    {\n"
-    "      \"object_id\": 6,\n"
-    "      \"label\": \"Texture\",\n"
-    "      \"width\": 2,\n"
-    "      \"height\": 2,\n"
-    "      \"format\": \"Rgb888\",\n"
-    "      \"sampler_glid\": 6,\n"
-    "      \"base_level\": 10,\n"
-    "      \"max_level\": 100,\n"
-    "      \"compare_function\": \"GL_LESS\",\n"
-    "      \"compare_mode\": \"GL_NONE\",\n"
-    "      \"max_anisotropy\": 1,\n"
-    "      \"min_lod\": -1000,\n"
-    "      \"max_lod\": 1000,\n"
-    "      \"min_filter\": \"GL_NEAREST_MIPMAP_LINEAR\",\n"
-    "      \"mag_filter\": \"GL_LINEAR\",\n"
-    "      \"swizzle_red\": \"GL_ALPHA\",\n"
-    "      \"swizzle_green\": \"GL_BLUE\",\n"
-    "      \"swizzle_blue\": \"GL_GREEN\",\n"
-    "      \"swizzle_alpha\": \"GL_RED\",\n"
-    "      \"wrap_r\": \"GL_REPEAT\",\n"
-    "      \"wrap_s\": \"GL_REPEAT\",\n"
-    "      \"wrap_t\": \"GL_REPEAT\",\n"
-    "      \"target\": \"GL_TEXTURE_2D\",\n"
-    "      \"last_image_unit\": \"GL_TEXTURE{texture_unit6}\"\n"
-    "    },\n"
-    "    {\n"
-    "      \"object_id\": 7,\n"
-    "      \"label\": \"Texture\",\n"
-    "      \"width\": 2,\n"
-    "      \"height\": 2,\n"
-    "      \"format\": \"Rgb888\",\n"
-    "      \"sampler_glid\": 7,\n"
-    "      \"base_level\": 10,\n"
-    "      \"max_level\": 100,\n"
-    "      \"compare_function\": \"GL_LESS\",\n"
-    "      \"compare_mode\": \"GL_NONE\",\n"
-    "      \"max_anisotropy\": 1,\n"
-    "      \"min_lod\": -1000,\n"
-    "      \"max_lod\": 1000,\n"
-    "      \"min_filter\": \"GL_NEAREST_MIPMAP_LINEAR\",\n"
-    "      \"mag_filter\": \"GL_LINEAR\",\n"
-    "      \"swizzle_red\": \"GL_ALPHA\",\n"
-    "      \"swizzle_green\": \"GL_BLUE\",\n"
-    "      \"swizzle_blue\": \"GL_GREEN\",\n"
-    "      \"swizzle_alpha\": \"GL_RED\",\n"
-    "      \"wrap_r\": \"GL_REPEAT\",\n"
-    "      \"wrap_s\": \"GL_REPEAT\",\n"
-    "      \"wrap_t\": \"GL_REPEAT\",\n"
-    "      \"target\": \"GL_TEXTURE_2D\",\n"
-    "      \"last_image_unit\": \"GL_TEXTURE{texture_unit7}\"\n"
-    "    }\n"
-    "  ]";
+// MSVC cannot handle string literals longer than 16380 bytes, so we need to
+// split this into two literals in the middle.
+// https://msdn.microsoft.com/en-us/library/dddywwsc.aspx
+static const char kVertexArraysJson[] = R"JSON(
+  "vertex_arrays": [
+    {
+      "object_id": 2,
+      "label": "",
+      "vertex_count": 3,
+      "attributes": [
+        {
+          "buffer_glid": 1,
+          "enabled": "GL_TRUE",
+          "size": 3,
+          "stride": {vertex_buffer_stride},
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 1,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[1, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 2,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[1, 2, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 3,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[1, 2, 3, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[1, 2, 3, 4]"
+        },
 
-static const char kVertexArraysJson[] =
-    "  \"vertex_arrays\": [\n"
-    "    {\n"
-    "      \"object_id\": 2,\n"
-    "      \"label\": \"\",\n"
-    "      \"vertex_count\": 3,\n"
-    "      \"attributes\": [\n"
-    "        {\n"
-    "          \"buffer_glid\": 1,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 3,\n"
-    "          \"stride\": {vertex_buffer_stride},\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 1,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[1, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 2,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[1, 2, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 3,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[1, 2, 3, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[1, 2, 3, 4]\"\n"
-    "        },\n"
-
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 2,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[1, 3, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 2,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[2, 4, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 3,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[1, 4, 7, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 3,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[2, 5, 8, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 3,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[3, 6, 9, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[1, 5, 9, 4]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[2, 6, 1, 5]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[3, 7, 2, 6]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[4, 8, 3, 7]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        }\n"
-    "      ]\n"
-    "    },\n"
-    "    {\n"
-    "      \"object_id\": 3,\n"
-    "      \"label\": \"Vertex array\",\n"
-    "      \"vertex_count\": 3,\n"
-    "      \"attributes\": [\n"
-    "        {\n"
-    "          \"buffer_glid\": 2,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 1,\n"
-    "          \"stride\": {vertex_buffer_stride},\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 2,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 2,\n"
-    "          \"stride\": {vertex_buffer_stride},\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_TRUE\",\n"
-    "          \"pointer_or_offset\": \"{pointer_or_offset}\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 1,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[1, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 2,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[1, 2, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 3,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[1, 2, 3, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[1, 2, 3, 4]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 2,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[1, 3, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 2,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[2, 4, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 3,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[1, 4, 7, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 3,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[2, 5, 8, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 3,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[3, 6, 9, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[1, 5, 9, 4]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[2, 6, 1, 5]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[3, 7, 2, 6]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_TRUE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[4, 8, 3, 7]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        },\n"
-    "        {\n"
-    "          \"buffer_glid\": 0,\n"
-    "          \"enabled\": \"GL_FALSE\",\n"
-    "          \"size\": 4,\n"
-    "          \"stride\": 0,\n"
-    "          \"type\": \"GL_FLOAT\",\n"
-    "          \"normalized\": \"GL_FALSE\",\n"
-    "          \"pointer_or_offset\": \"NULL\",\n"
-    "          \"value\": \"V[0, 0, 0, 1]\"\n"
-    "        }\n"
-    "      ]\n"
-    "    }\n"
-    "  ]";
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 2,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[1, 3, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 2,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[2, 4, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 3,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[1, 4, 7, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 3,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[2, 5, 8, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 3,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[3, 6, 9, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[1, 5, 9, 4]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[2, 6, 1, 5]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[3, 7, 2, 6]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[4, 8, 3, 7]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        }
+      ]
+    },)JSON" R"JSON(
+    {
+      "object_id": 3,
+      "label": "Vertex array",
+      "vertex_count": 3,
+      "attributes": [
+        {
+          "buffer_glid": 2,
+          "enabled": "GL_TRUE",
+          "size": 1,
+          "stride": {vertex_buffer_stride},
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 2,
+          "enabled": "GL_TRUE",
+          "size": 2,
+          "stride": {vertex_buffer_stride},
+          "type": "GL_FLOAT",
+          "normalized": "GL_TRUE",
+          "pointer_or_offset": "{pointer_or_offset}",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 1,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[1, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 2,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[1, 2, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 3,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[1, 2, 3, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[1, 2, 3, 4]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 2,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[1, 3, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 2,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[2, 4, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 3,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[1, 4, 7, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 3,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[2, 5, 8, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 3,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[3, 6, 9, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[1, 5, 9, 4]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[2, 6, 1, 5]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[3, 7, 2, 6]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_TRUE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[4, 8, 3, 7]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        },
+        {
+          "buffer_glid": 0,
+          "enabled": "GL_FALSE",
+          "size": 4,
+          "stride": 0,
+          "type": "GL_FLOAT",
+          "normalized": "GL_FALSE",
+          "pointer_or_offset": "NULL",
+          "value": "V[0, 0, 0, 1]"
+        }
+      ]
+    }
+  ])JSON";
 
 static const char kJoinJson[] = ",\n";
 static const char kPrefixJson[] = "{\n";
 static const char kSuffixJson[] = "\n}\n";
+
+static const char* SkipInitialNewline(const char* json_string) {
+  return json_string && json_string[0] == '\n' ? json_string + 1 : json_string;
+}
 
 #if !ION_PRODUCTION
 // Returns a string containing a hex representation of a size_t.
@@ -1657,71 +1717,107 @@ static const std::string GetTestCubeMapImagePng() {
 //-----------------------------------------------------------------------------
 class ResourceHandlerTest : public RemoteServerTest {
  protected:
+  ResourceHandlerTest()
+      : renderer_thread_(ion::port::kInvalidThreadId),
+        renderer_thread_func_(
+            std::bind(&ResourceHandlerTest::DrawSceneFunc, this)),
+        renderer_thread_quit_flag_(false) {}
+
   void SetUp() override {
     RemoteServerTest::SetUp();
-    main_visual_.reset(new MockVisual(800, 800));
-    gm_.Reset(new MockGraphicsManager());
-    had_visual_ = false;
-    renderer_.Reset(new Renderer(gm_));
-
     server_->SetHeaderHtml("");
     server_->SetFooterHtml("");
-    ResourceHandler* rh = new ResourceHandler(renderer_);
-    HttpServerTestRequestHandler* test_handler =
-        new HttpServerTestRequestHandler(HttpServer::RequestHandlerPtr(rh));
-    test_handler->SetPreHandler(
-        std::bind(&ResourceHandlerTest::MockVisualSetup, this));
-    test_handler->SetPostHandler(
-        std::bind(&ResourceHandlerTest::MockVisualTearDown, this));
-    server_->RegisterHandler(
-        HttpServer::RequestHandlerPtr(test_handler));
   }
 
   void TearDown() override {
-    renderer_.Reset(NULL);
-    gm_.Reset(NULL);
+    ASSERT_EQ(ion::port::kInvalidThreadId, renderer_thread_);
     RemoteServerTest::TearDown();
-    // The server holds the graphics manager alive, so this needs to be after
-    // the parent class tear down.
-    main_visual_.reset();
   }
 
-  void MockVisualSetup() {
-    // ResourceHandler calls on background threads use OpenGL calls, so there
-    // needs to be a MockVisual associated with this thread.
-    if (!MockVisual::GetCurrent()) {
-      // These tests rely on GL state being shared between the main test thread
-      // and the http server thread.  Simulate this by using the same context
-      // in both cases.  While MockVisual instances are not thread safe, these
-      // tests block the test thread while performing http server thread
-      // requests so it should be safe.
-      portgfx::Visual::MakeCurrent(main_visual_.get());
-      had_visual_ = false;
-    } else {
-      had_visual_ = true;
-    }
-  }
-  void MockVisualTearDown() {
-    if (!had_visual_) {
-      portgfx::Visual::MakeCurrent(NULL);
-    }
+  // The thread which processes the Renderer's info requests must be the same
+  // thread on which the scene was drawn.  Since we use blocking info requests
+  // on the main test thread, we cannot use the main test thread to also operate
+  // the renderer (as that would deadlock).  Hence, we draw the scene and
+  // service info requests on |renderer_thread_|.
+  // |scene| is the Node with the scene contents to draw.  |fbo_texture| is a
+  // texture to bind to the FBO when rendering.
+  void StartDrawScene(const NodePtr& scene, const TexturePtr& fbo_texture) {
+    ASSERT_EQ(ion::port::kInvalidThreadId, renderer_thread_);
+    renderer_scene_ = scene;
+    renderer_fbo_texture_ = fbo_texture;
+    renderer_thread_quit_flag_.store(false, std::memory_order_relaxed);
+    render_thread_start_.reset(new ion::port::Semaphore());
+    renderer_thread_ = ion::port::SpawnThreadStd(&renderer_thread_func_);
+    render_thread_start_->Wait();
+    render_thread_start_.reset();
   }
 
-  void DrawScene(const NodePtr& root) {
-    renderer_->DrawScene(root);
+  void StopDrawScene() {
+    ASSERT_NE(ion::port::kInvalidThreadId, renderer_thread_);
+    renderer_thread_quit_flag_.store(true, std::memory_order_relaxed);
+    ion::port::JoinThread(renderer_thread_);
+
+    renderer_thread_ = ion::port::kInvalidThreadId;
+  }
+
+  bool DrawSceneFunc() {
+    VisualPtr visual = MockVisual::Create(800, 800);
+    Visual::MakeCurrent(visual);
+    MockGraphicsManagerPtr mock_graphics_manager(new MockGraphicsManager());
+    RendererPtr renderer(new Renderer(mock_graphics_manager));
+    HttpServer::RequestHandlerPtr rh(new ResourceHandler(renderer));
+    server_->RegisterHandler(rh);
+
+    // Notify the thread calling StartDrawScene() that |renderer| is set up.
+    render_thread_start_->Post();
+
+    // Bind an texture-backed FBO, if requested.
+    FramebufferObjectPtr fbo;
+    if (renderer_fbo_texture_.Get() != nullptr) {
+      fbo.Reset(new FramebufferObject(2, 2));
+      fbo->SetColorAttachment(
+          0U, FramebufferObject::Attachment(renderer_fbo_texture_));
+      fbo->SetDepthAttachment(
+          FramebufferObject::Attachment(Image::kRenderbufferDepth16));
+      renderer->BindFramebuffer(fbo);
+    }
+
+    // Draw the scene on this thread.
+    renderer->DrawScene(renderer_scene_);
     // TestScene includes some invalid index buffer types.
-    gm_->SetErrorCode(GL_NO_ERROR);
+    mock_graphics_manager->SetErrorCode(GL_NO_ERROR);
+
+    // Now service info requests on this thread.
+    while (!renderer_thread_quit_flag_.load(std::memory_order_relaxed)) {
+      renderer->ProcessResourceInfoRequests();
+    }
+
+    // Clean up renderer state.
+    renderer_fbo_texture_.Reset();
+    renderer_scene_.Reset();
+    server_->UnregisterHandler(rh->GetBasePath());
+    Visual::MakeCurrent(VisualPtr());
+    return true;
   }
 
-  std::unique_ptr<gfx::testing::MockVisual> main_visual_;
-  MockGraphicsManagerPtr gm_;
-  RendererPtr renderer_;
-  bool had_visual_;
+  // State supporting the renderer thread.
+  ion::port::ThreadId renderer_thread_;
+  std::function<bool()> renderer_thread_func_;
+  std::unique_ptr<ion::port::Semaphore> render_thread_start_;
+  std::atomic<bool> renderer_thread_quit_flag_;
+
+  // The Node representing the scene to render.  May be nullptr.
+  NodePtr renderer_scene_;
+
+  // A texture to attach to the FBO during render.  May be nullptr.
+  TexturePtr renderer_fbo_texture_;
 };
 
 }  // anonymous namespace
 
 TEST_F(ResourceHandlerTest, ServeResourceRoot) {
+  StartDrawScene(NodePtr(), TexturePtr());
+
   GetUri("/ion/resources/does/not/exist");
   Verify404(__LINE__);
 
@@ -1739,40 +1835,38 @@ TEST_F(ResourceHandlerTest, ServeResourceRoot) {
   GetUri("/ion/resources");
   EXPECT_EQ(200, response_.status);
   EXPECT_EQ(index, response_.data);
+
+  StopDrawScene();
 }
 
 // Disabled in production builds.
 #if !ION_PRODUCTION
 TEST_F(ResourceHandlerTest, GetResources) {
+  StartDrawScene(NodePtr(), TexturePtr());
+
   GetUri(
       "/ion/resources/"
       "resources_by_type?types=platform,buffers,framebuffers,programs,samplers,"
-      "shaders,textures,vertex_arrays&nonblocking");
+      "shaders,textures,vertex_arrays");
   EXPECT_EQ(200, response_.status);
   // There should be no resources without a scene.
   std::vector<std::string> strings;
   strings.push_back(kPrefixJson);
-  strings.push_back(kPlatformJson);
+  strings.push_back(SkipInitialNewline(kPlatformJson));
   strings.push_back(kJoinJson);
-  strings.push_back(kNoResourcesJson);
+  strings.push_back(SkipInitialNewline(kNoResourcesJson));
   strings.push_back(kSuffixJson);
   EXPECT_TRUE(base::testing::MultiLineStringsEqual(
       base::JoinStrings(strings, ""), response_.data));
 
+  StopDrawScene();
+
   // Build and draw a scene to create resources.
   TestScene scene;
-  NodePtr root = scene.GetScene();
-  TexturePtr tex = scene.CreateTexture();
-  FramebufferObjectPtr fbo(new FramebufferObject(2, 2));
-  fbo->SetColorAttachment(0U, FramebufferObject::Attachment(tex));
-  fbo->SetDepthAttachment(
-      FramebufferObject::Attachment(Image::kRenderbufferDepth16));
-  renderer_->BindFramebuffer(fbo);
-  DrawScene(root);
-  renderer_->BindFramebuffer(FramebufferObjectPtr());
+  StartDrawScene(scene.GetScene(), scene.CreateTexture());
 
   // Invalid label.
-  GetUri("/ion/resources/resources_by_type?types=not_a_label&nonblocking");
+  GetUri("/ion/resources/resources_by_type?types=not_a_label");
   EXPECT_EQ(200, response_.status);
   strings.clear();
   strings.push_back(kPrefixJson);
@@ -1781,25 +1875,25 @@ TEST_F(ResourceHandlerTest, GetResources) {
       base::JoinStrings(strings, ""), response_.data));
 
   // Platform only.
-  GetUri("/ion/resources/resources_by_type?types=platform&nonblocking");
+  GetUri("/ion/resources/resources_by_type?types=platform");
   EXPECT_EQ(200, response_.status);
   strings.clear();
   strings.push_back(kPrefixJson);
-  strings.push_back(kPlatformJson);
+  strings.push_back(SkipInitialNewline(kPlatformJson));
   strings.push_back(kSuffixJson);
   EXPECT_TRUE(base::testing::MultiLineStringsEqual(
       base::JoinStrings(strings, ""), response_.data));
 
   // Buffers and Shaders only.
-  GetUri("/ion/resources/resources_by_type?types=buffers,shaders&nonblocking");
+  GetUri("/ion/resources/resources_by_type?types=buffers,shaders");
   EXPECT_EQ(200, response_.status);
   strings.clear();
   strings.push_back(kPrefixJson);
-  strings.push_back(
-      base::ReplaceString(kBuffersJson, "{vertex_buffer_size}",
-                          base::ValueToString(scene.GetBufferSize())));
+  strings.push_back(base::ReplaceString(
+      SkipInitialNewline(kBuffersJson), "{vertex_buffer_size}",
+      base::ValueToString(scene.GetBufferSize())));
   strings.push_back(kJoinJson);
-  strings.push_back(kShadersJson);
+  strings.push_back(SkipInitialNewline(kShadersJson));
   strings.push_back(kSuffixJson);
   EXPECT_TRUE(base::testing::MultiLineStringsEqual(
       base::JoinStrings(strings, ""), response_.data));
@@ -1807,12 +1901,11 @@ TEST_F(ResourceHandlerTest, GetResources) {
   // Textures, Framebuffers, invalid, and Samplers.
   GetUri(
       "/ion/resources/"
-      "resources_by_type?types=textures,framebuffers,invalid,samplers&"
-      "nonblocking");
+      "resources_by_type?types=textures,framebuffers,invalid,samplers");
   EXPECT_EQ(200, response_.status);
   strings.clear();
   strings.push_back(kPrefixJson);
-  std::string textures = kTexturesJson;
+  std::string textures = SkipInitialNewline(kTexturesJson);
   static const int kTextureUnits[] = {0, 7, 8, 9, 10, 11, 12};
   for (int i = 0; i < static_cast<int>(arraysize(kTextureUnits)); ++i) {
     textures = base::ReplaceString(
@@ -1821,9 +1914,9 @@ TEST_F(ResourceHandlerTest, GetResources) {
   }
   strings.push_back(textures);
   strings.push_back(kJoinJson);
-  strings.push_back(kFramebuffersJson);
+  strings.push_back(SkipInitialNewline(kFramebuffersJson));
   strings.push_back(kJoinJson);
-  strings.push_back(kSamplersJson);
+  strings.push_back(SkipInitialNewline(kSamplersJson));
   strings.push_back(kSuffixJson);
   EXPECT_TRUE(base::testing::MultiLineStringsEqual(
       base::JoinStrings(strings, ""), response_.data));
@@ -1833,62 +1926,66 @@ TEST_F(ResourceHandlerTest, GetResources) {
       "/ion/resources/"
       "resources_by_type?types=platform,buffers,"
       "framebuffers,programs,samplers,shaders,textures,"
-      "vertex_arrays&nonblocking");
+      "vertex_arrays");
   EXPECT_EQ(200, response_.status);
   strings.clear();
   strings.push_back(kPrefixJson);
-  strings.push_back(kPlatformJson);
+  strings.push_back(SkipInitialNewline(kPlatformJson));
   strings.push_back(kJoinJson);
-  strings.push_back(
-      base::ReplaceString(kBuffersJson, "{vertex_buffer_size}",
-                          base::ValueToString(scene.GetBufferSize())));
+  strings.push_back(base::ReplaceString(
+      SkipInitialNewline(kBuffersJson), "{vertex_buffer_size}",
+      base::ValueToString(scene.GetBufferSize())));
   strings.push_back(kJoinJson);
-  strings.push_back(kFramebuffersJson);
+  strings.push_back(SkipInitialNewline(kFramebuffersJson));
   strings.push_back(kJoinJson);
-  strings.push_back(kProgramsJson);
+  strings.push_back(SkipInitialNewline(kProgramsJson));
   strings.push_back(kJoinJson);
-  strings.push_back(kSamplersJson);
+  strings.push_back(SkipInitialNewline(kSamplersJson));
   strings.push_back(kJoinJson);
-  strings.push_back(kShadersJson);
+  strings.push_back(SkipInitialNewline(kShadersJson));
   strings.push_back(kJoinJson);
   strings.push_back(textures);
   strings.push_back(kJoinJson);
-  strings.push_back(
-      base::ReplaceString(
-          base::ReplaceString(kVertexArraysJson, "{vertex_buffer_stride}",
-                              base::ValueToString(scene.GetBufferStride())),
-          "{pointer_or_offset}",
-          ToHexString(TestScene::GetSecondBoeAttributeOffset())));
+  strings.push_back(base::ReplaceString(
+      base::ReplaceString(SkipInitialNewline(kVertexArraysJson),
+                          "{vertex_buffer_stride}",
+                          base::ValueToString(scene.GetBufferStride())),
+      "{pointer_or_offset}",
+      ToHexString(TestScene::GetSecondBoeAttributeOffset())));
   strings.push_back(kSuffixJson);
   EXPECT_TRUE(base::testing::MultiLineStringsEqual(
       base::JoinStrings(strings, ""), response_.data));
+
+  StopDrawScene();
 }
 #endif  // ION_PRODUCTION
 
 TEST_F(ResourceHandlerTest, GetBufferData) {
-  GetUri("/ion/resources/buffer_data?nonblocking");
+  GetUri("/ion/resources/buffer_data");
   Verify404(__LINE__);
 }
 
 TEST_F(ResourceHandlerTest, GetTextureData) {
-  GetUri("/ion/resources/texture_data?nonblocking");
+  GetUri("/ion/resources/texture_data");
   Verify404(__LINE__);
 
-  GetUri("/ion/resources/texture_data?nonblocking&id=-1");
+  GetUri("/ion/resources/texture_data?id=-1");
   Verify404(__LINE__);
 
-  GetUri("/ion/resources/texture_data?nonblocking&id=2345345");
+  GetUri("/ion/resources/texture_data?id=2345345");
   Verify404(__LINE__);
 
   TestScene scene;
-  NodePtr root = scene.GetScene();
-  DrawScene(root);
-  GetUri("/ion/resources/texture_data?nonblocking&id=2");
-  EXPECT_EQ(GetTestImagePng(), response_.data);
 
-  DrawScene(root);
-  GetUri("/ion/resources/texture_data?nonblocking&id=1");
+  StartDrawScene(scene.GetScene(), TexturePtr());
+  GetUri("/ion/resources/texture_data?id=2");
+  EXPECT_EQ(GetTestImagePng(), response_.data);
+  StopDrawScene();
+
+  StartDrawScene(scene.GetScene(), TexturePtr());
+  GetUri("/ion/resources/texture_data?id=1");
   EXPECT_EQ(GetTestCubeMapImagePng(), response_.data);
+  StopDrawScene();
 }
 
 }  // namespace remote

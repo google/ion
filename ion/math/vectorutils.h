@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,6 +32,18 @@ limitations under the License.
 
 namespace ion {
 namespace math {
+
+// Returns a vector with the specified coordinate removed, yielding a vector
+// that is one dimension smaller.
+template <int Dimension, typename T>
+Vector<Dimension - 1, T> WithoutDimension(const Vector<Dimension, T>& v,
+                                          int dim) {
+  Vector<Dimension - 1, T> result;
+  for (int i = 0; i < Dimension - 1; ++i) {
+    result[i] = v[i + (i < dim ? 0 : 1)];
+  }
+  return result;
+}
 
 // Returns the dot (inner) product of two Vectors.
 template <int Dimension, typename T>
@@ -101,7 +113,7 @@ bool Normalize(Vector<Dimension, T>* v) {
 // Returns a unit-length version of a Vector. If the given Vector has no
 // length, this returns a Zero() Vector.
 template <int Dimension, typename T>
-const Vector<Dimension, T> Normalized(const Vector<Dimension, T>& v) {
+Vector<Dimension, T> Normalized(const Vector<Dimension, T>& v) {
   Vector<Dimension, T> result = v;
   if (Normalize(&result))
     return result;
@@ -112,7 +124,7 @@ const Vector<Dimension, T> Normalized(const Vector<Dimension, T>& v) {
 // Returns an unnormalized Vector2 that is orthonormal to the passed one. If the
 // passed vector has length 0, then a zero-length vector is returned.
 template <typename T>
-const Vector<2, T> Orthogonal(const Vector<2, T>& v) {
+Vector<2, T> Orthogonal(const Vector<2, T>& v) {
   return Vector<2, T>(-v[1], v[0]);
 }
 
@@ -121,7 +133,7 @@ const Vector<2, T> Orthogonal(const Vector<2, T>& v) {
 // returned vector is not guaranteed to be in any particular direction, just
 // that it is perpendicular to v.
 template <typename T>
-const Vector<3, T> Orthogonal(const Vector<3, T>& v) {
+Vector<3, T> Orthogonal(const Vector<3, T>& v) {
   static const T kTolerance = static_cast<T>(0.0001);
   Vector<3, T> n = Cross(v, Vector<3, T>::AxisX());
   if (Length(n) < kTolerance) {
@@ -137,15 +149,15 @@ const Vector<3, T> Orthogonal(const Vector<3, T>& v) {
 // returned vector is not guaranteed to be in any particular direction, just
 // that it is perpendicular to v.
 template <int Dimension, typename T>
-const Vector<Dimension, T> Orthonormal(const Vector<Dimension, T>& v) {
+Vector<Dimension, T> Orthonormal(const Vector<Dimension, T>& v) {
   return Normalized(Orthogonal(v));
 }
 
 // Returns the Vector resulting from projecting of one Vector onto another.
 // This will return a Zero() Vector if onto_v has zero length.
 template <int Dimension, typename T>
-const Vector<Dimension, T> Projection(const Vector<Dimension, T>& v,
-                                      const Vector<Dimension, T>& onto_v) {
+Vector<Dimension, T> Projection(const Vector<Dimension, T>& v,
+                                const Vector<Dimension, T>& onto_v) {
   const T len_squared = LengthSquared(onto_v);
   return len_squared == static_cast<T>(0) ? Vector<Dimension, T>::Zero() :
       (Dot(v, onto_v) / len_squared) * onto_v;
@@ -155,7 +167,7 @@ const Vector<Dimension, T> Projection(const Vector<Dimension, T>& v,
 // passed length. If the input vector has zero length, however, then the
 // returned vector also has zero length.
 template <int Dimension, typename T>
-const Vector<Dimension, T> Rescale(const Vector<Dimension, T>& v, T length) {
+Vector<Dimension, T> Rescale(const Vector<Dimension, T>& v, T length) {
   return Normalized(v) * length;
 }
 
@@ -173,8 +185,8 @@ bool VectorsAlmostEqual(const Vector<Dimension, T>& v0,
 // Returns a Point in which each element is the minimum of the corresponding
 // elements of two Points. This is useful for computing bounding boxes.
 template <int Dimension, typename T>
-const Point<Dimension, T> MinBoundPoint(const Point<Dimension, T>& p0,
-                                        const Point<Dimension, T>& p1) {
+Point<Dimension, T> MinBoundPoint(const Point<Dimension, T>& p0,
+                                  const Point<Dimension, T>& p1) {
   Point<Dimension, T> min_point;
   for (int i = 0; i < Dimension; ++i)
     min_point[i] = std::min(p0[i], p1[i]);
@@ -184,8 +196,8 @@ const Point<Dimension, T> MinBoundPoint(const Point<Dimension, T>& p0,
 // Returns a Point in which each element is the maximum of the corresponding
 // elements of two Points. This is useful for computing bounding boxes.
 template <int Dimension, typename T>
-const Point<Dimension, T> MaxBoundPoint(const Point<Dimension, T>& p0,
-                                        const Point<Dimension, T>& p1) {
+Point<Dimension, T> MaxBoundPoint(const Point<Dimension, T>& p0,
+                                  const Point<Dimension, T>& p1) {
   Point<Dimension, T> max_point;
   for (int i = 0; i < Dimension; ++i)
     max_point[i] = std::max(p0[i], p1[i]);
@@ -202,8 +214,8 @@ Point<Dimension, T> ClosestPointOnSegment(const Point<Dimension, T>& p,
     return start;
 
   const Vector<Dimension, T> to_min = p - start;
-  const double projection = Dot(to_min, diff);
-  const double length_squared = Dot(diff, diff);
+  const T projection = Dot(to_min, diff);
+  const T length_squared = Dot(diff, diff);
   if (projection <= static_cast<T>(0)) {
     return start;
   } else if (length_squared <= projection) {
@@ -217,17 +229,17 @@ Point<Dimension, T> ClosestPointOnSegment(const Point<Dimension, T>& p,
 // Returns the squared distance from a Point to a line segment described by two
 // Points.
 template <int Dimension, typename T>
-const T DistanceSquaredToSegment(const Point<Dimension, T>& p,
-                                 const Point<Dimension, T>& start,
-                                 const Point<Dimension, T>& end) {
+T DistanceSquaredToSegment(const Point<Dimension, T>& p,
+                           const Point<Dimension, T>& start,
+                           const Point<Dimension, T>& end) {
   return DistanceSquared(p, ClosestPointOnSegment(p, start, end));
 }
 
 // Returns the distance from a Point to a line segment described by two Points.
 template <int Dimension, typename T>
-const T DistanceToSegment(const Point<Dimension, T>& p,
-                          const Point<Dimension, T>& start,
-                          const Point<Dimension, T>& end) {
+T DistanceToSegment(const Point<Dimension, T>& p,
+                    const Point<Dimension, T>& start,
+                    const Point<Dimension, T>& end) {
   return Distance(p, ClosestPointOnSegment(p, start, end));
 }
 

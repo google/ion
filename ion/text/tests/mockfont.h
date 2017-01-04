@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -90,7 +90,7 @@ class MockFont : public Font {
 };
 
 // Convenience typedef for shared pointer to a MockFont.
-typedef base::ReferentPtr<MockFont>::Type MockFontPtr;
+using MockFontPtr = base::SharedPtr<MockFont>;
 
 }  // namespace testing
 }  // namespace text

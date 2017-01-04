@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ namespace gfx {
 
 // Convenience typedef for shared pointer to a Node.
 class Node;
-typedef base::ReferentPtr<Node>::Type NodePtr;
+using NodePtr = base::SharedPtr<Node>;
 
 // A Node instance represents a node in a scene graph. It can have any or all
 // of the following:

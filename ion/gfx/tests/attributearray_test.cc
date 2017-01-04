@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ class AttributeArrayTest : public ::testing::Test {
   }
 
   // This is to ensure that the resource holder goes away before the resource.
-  void TearDown() override { va_.Reset(NULL); }
+  void TearDown() override { va_.Reset(nullptr); }
 
   AttributeArrayPtr va_;
   std::unique_ptr<MockVertexArrayResource> resource_;
@@ -150,7 +150,7 @@ TEST_F(AttributeArrayTest, AddReplaceAttributes) {
 
   // Modifying vb should trigger a notification in the AttributeArray.
   vb->SetData(base::DataContainer::CreateOverAllocated<char>(
-                  1, NULL, base::AllocatorPtr()),
+                  1, nullptr, base::AllocatorPtr()),
               1, 1, BufferObject::kStaticDraw);
   EXPECT_TRUE(resource_->TestModifiedBit(AttributeArray::kAttributeChanged));
   resource_->ResetModifiedBits();
@@ -277,7 +277,7 @@ TEST_F(AttributeArrayTest, AddReplaceAttributes) {
   resource_->ResetModifiedBits();
   // Modifying vb should trigger a notification for all Attributes that use it.
   vb->SetData(base::DataContainer::CreateOverAllocated<char>(
-                  1, NULL, base::AllocatorPtr()),
+                  1, nullptr, base::AllocatorPtr()),
               1, 1, BufferObject::kStaticDraw);
   EXPECT_EQ(2U, resource_->GetModifiedBitCount());
   EXPECT_TRUE(resource_->TestModifiedBit(AttributeArray::kAttributeChanged));
@@ -374,10 +374,10 @@ TEST_F(AttributeArrayTest, AddReplaceAttributes) {
 
   // Check that you cannot get an invalid mutable attribute.
   // Check that getting a mutable attribute sets the appropriate bit.
-  EXPECT_TRUE(va_->GetMutableAttribute(4) == NULL);
-  EXPECT_TRUE(va_->GetMutableSimpleAttribute(2) == NULL);
+  EXPECT_TRUE(va_->GetMutableAttribute(4) == nullptr);
+  EXPECT_TRUE(va_->GetMutableSimpleAttribute(2) == nullptr);
   EXPECT_FALSE(log_checker.HasAnyMessages());
-  EXPECT_TRUE(va_->GetMutableBufferAttribute(1) == NULL);
+  EXPECT_TRUE(va_->GetMutableBufferAttribute(1) == nullptr);
   EXPECT_TRUE(log_checker.HasMessage("ERROR", "Invalid index"));
 
   // Check that attributes are enabled by default.
@@ -452,7 +452,7 @@ TEST_F(AttributeArrayTest, AddReplaceAttributes) {
 
   // Check that destroying the AttributeArray removes it from its receivers'
   // notify list.
-  va_.Reset(NULL);
+  va_.Reset(nullptr);
   EXPECT_EQ(0U, vb->GetReceiverCount());
 }
 

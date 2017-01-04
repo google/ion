@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,13 +19,19 @@ limitations under the License.
 #include "ion/remote/tests/getunusedport.h"
 
 #if defined(ION_PLATFORM_WINDOWS)
-#include <io.h>
-#define close(fd) closesocket(fd)
+#include <winsock2.h>
 typedef int socklen_t;
+typedef SOCKET ion_socket_t;
+namespace {
+void close(ion_socket_t socket) {
+  closesocket(socket);
+}
+}  // namespace
 #else
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <unistd.h>
+typedef int ion_socket_t;
 #endif
 
 #include "base/integral_types.h"
@@ -111,7 +117,8 @@ class PortIterator {
 static bool IsPortAvailable(int* port, bool is_tcp) {
   DCHECK_GE(*port, 0);
   const int proto = is_tcp ? IPPROTO_TCP : 0;
-  const int fd = socket(AF_INET, is_tcp ? SOCK_STREAM : SOCK_DGRAM, proto);
+  const ion_socket_t fd =
+      socket(AF_INET, is_tcp ? SOCK_STREAM : SOCK_DGRAM, proto);
   if (fd < 0) {
     return false;
   }

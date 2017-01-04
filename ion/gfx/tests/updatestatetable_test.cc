@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -51,16 +51,11 @@ class UpdateStateTableTest : public ::testing::Test {
   void SetUp() override {
     st0_.Reset(new StateTable(kWidth, kHeight));
     st1_.Reset(new StateTable(kWidth, kHeight));
-    visual_.reset(new MockVisual(kWidth, kHeight));
+    visual_ = MockVisual::Create(kWidth, kHeight);
+    portgfx::Visual::MakeCurrent(visual_);
     gm_.Reset(new MockGraphicsManager());
 
-    trace_verifier_ = new testing::TraceVerifier(gm_.Get());
-  }
-
-  void TearDown() override {
-    delete trace_verifier_;
-    gm_.Reset(NULL);
-    visual_.reset();
+    trace_verifier_.reset(new testing::TraceVerifier(gm_.Get()));
   }
 
   // Resets call counts and the trace verifier.
@@ -135,8 +130,8 @@ class UpdateStateTableTest : public ::testing::Test {
   static const int kWidth = 400;
   static const int kHeight = 300;
 
-  std::unique_ptr<MockVisual> visual_;
-  testing::TraceVerifier* trace_verifier_;
+  portgfx::VisualPtr visual_;
+  std::unique_ptr<testing::TraceVerifier> trace_verifier_;
 };
 
 TEST_F(UpdateStateTableTest, UpdateFromStateTableNoOp) {
@@ -152,7 +147,7 @@ TEST_F(UpdateStateTableTest, UpdateFromStateTableCapability) {
   TestOneCapability(StateTable::kCullFace, true, "GL_CULL_FACE");
   TestOneCapability(StateTable::kDepthTest, true, "GL_DEPTH_TEST");
   TestOneCapability(StateTable::kDither, false, "GL_DITHER");
-  TestOneCapability(StateTable::kMultisample, true, "GL_MULTISAMPLE");
+  TestOneCapability(StateTable::kMultisample, false, "GL_MULTISAMPLE");
   TestOneCapability(StateTable::kPolygonOffsetFill, true,
                     "GL_POLYGON_OFFSET_FILL");
   TestOneCapability(StateTable::kSampleAlphaToCoverage, true,
@@ -182,34 +177,33 @@ TEST_F(UpdateStateTableTest, UpdateMultisampleFromStateTableCapability) {
   EXPECT_TRUE(GetGraphicsManager()->IsValidStateTableCapability(
       StateTable::kMultisample));
 
-  st1_->Enable(cap, true);
+  st1_->Enable(cap, false);
   ResetAndUpdate();
   EXPECT_EQ(1, MockGraphicsManager::GetCallCount());
   EXPECT_TRUE(GetTraceVerifier().VerifyOneCall(
-      std::string("Enable(" + gl_cap_string + ")")));
+      std::string("Disable(" + gl_cap_string + ")")));
 
-  // With cap multisample disabled, we shouldn't get any calls.
-  GetGraphicsManager()->EnableFunctionGroup(
-      GraphicsManager::kFramebufferMultisample, false);
+  // When multisample capability is not supported, we should not get any calls.
+  GetGraphicsManager()->EnableFeature(
+      GraphicsManager::kMultisampleCapability, false);
   EXPECT_FALSE(GetGraphicsManager()->IsValidStateTableCapability(
       StateTable::kMultisample));
   ResetAndUpdate();
   EXPECT_TRUE(GetTraceVerifier().VerifyNoCalls());
 
-  // UpdateSettingsInStateTable should also not set multisampling.
   Reset();
   UpdateSettingsInStateTable(st1_.Get(), gm_.Get());
   EXPECT_TRUE(GetTraceVerifier().VerifyNoCalls());
 
-  // Re-enable cap multisample, should get call again.
-  GetGraphicsManager()->EnableFunctionGroup(
-      GraphicsManager::kFramebufferMultisample, true);
+  // Re-enable multisample capability, should get call again.
+  GetGraphicsManager()->EnableFeature(
+      GraphicsManager::kMultisampleCapability, true);
   EXPECT_TRUE(GetGraphicsManager()->IsValidStateTableCapability(
       StateTable::kMultisample));
   ResetAndUpdate();
   EXPECT_EQ(1, MockGraphicsManager::GetCallCount());
   EXPECT_TRUE(GetTraceVerifier().VerifyOneCall(
-      std::string("Enable(" + gl_cap_string + ")")));
+      std::string("Disable(" + gl_cap_string + ")")));
 
   Reset();
   UpdateSettingsInStateTable(st1_.Get(), gm_.Get());
@@ -222,8 +216,8 @@ TEST_F(UpdateStateTableTest, InvalidStateTableCapDoesNotSuppressSubsequent) {
   const std::string& subsequent_gl_cap_string = "GL_POLYGON_OFFSET_FILL";
 
   // Make multisample an invalid state table capability.
-  GetGraphicsManager()->EnableFunctionGroup(
-      GraphicsManager::kFramebufferMultisample, false);
+  GetGraphicsManager()->EnableFeature(
+      GraphicsManager::kMultisampleCapability, false);
   EXPECT_FALSE(GetGraphicsManager()->IsValidStateTableCapability(
       StateTable::kMultisample));
 
@@ -435,8 +429,6 @@ TEST_F(UpdateStateTableTest, UpdateFromStateTableValues) {
                  "DepthFunc(GL_EQUAL)");
   ION_TEST_VALUE(SetDepthRange(Range1f(0.f, .4f)), "DepthRangef(0, 0.4)");
   ION_TEST_VALUE(SetDepthRange(Range1f(.2f, .5f)), "DepthRangef(0.2, 0.5)");
-  ION_TEST_VALUE(SetDrawBuffer(StateTable::kFrontLeft),
-                 "DrawBuffer(GL_FRONT_LEFT)");
   ION_TEST_VALUE(SetHint(StateTable::kGenerateMipmapHint,
                          StateTable::kHintNicest),
                  "Hint(GL_GENERATE_MIPMAP_HINT, GL_NICEST)");
@@ -552,8 +544,6 @@ TEST_F(UpdateStateTableTest, UpdateFromStateTableValuesEnforced) {
                  "DepthFunc(GL_EQUAL)");
   ION_TEST_VALUE(SetDepthRange(Range1f(0.f, .4f)), "DepthRangef(0, 0.4)");
   ION_TEST_VALUE(SetDepthRange(Range1f(.2f, .5f)), "DepthRangef(0.2, 0.5)");
-  ION_TEST_VALUE(SetDrawBuffer(StateTable::kFrontRight),
-                 "DrawBuffer(GL_FRONT_RIGHT)");
   ION_TEST_VALUE(
       SetHint(StateTable::kGenerateMipmapHint, StateTable::kHintNicest),
       "Hint(GL_GENERATE_MIPMAP_HINT, GL_NICEST)");
@@ -734,8 +724,6 @@ TEST_F(UpdateStateTableTest, UpdateSettingsInStateTable) {
                  "GetIntegerv(GL_DEPTH_FUNC");
   ION_TEST_VALUE(SetDepthRange(Range1f(0.f, .4f)), "GetFloatv(GL_DEPTH_RANGE");
   ION_TEST_VALUE(SetDepthRange(Range1f(.2f, .5f)), "GetFloatv(GL_DEPTH_RANGE");
-  ION_TEST_VALUE(SetDrawBuffer(StateTable::kFrontLeft),
-                 "GetIntegerv(GL_DRAW_BUFFER");
   ION_TEST_VALUE(SetLineWidth(.4f), "GetFloatv(GL_LINE_WIDTH");
   ION_TEST_VALUE(
       SetPolygonOffset(.5f, .2f),

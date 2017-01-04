@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -77,7 +77,7 @@ template <typename T> class StlAllocator : public std::allocator<T> {
     // instantiated.
     typedef typename std::conditional<HasTrivialDestructor<T>::value, void,
                                       T>::type VoidOrT;
-    const VoidOrT* select_overload = NULL;
+    const VoidOrT* select_overload = nullptr;
     construct_impl(select_overload, p, val);
   }
   template <typename... Args>
@@ -88,7 +88,7 @@ template <typename T> class StlAllocator : public std::allocator<T> {
     // instantiated.
     typedef typename std::conditional<HasTrivialDestructor<T>::value, void,
                                       T>::type VoidOrT;
-    const VoidOrT* select_overload = NULL;
+    const VoidOrT* select_overload = nullptr;
     construct_impl(select_overload, p, std::forward<Args>(args)...);  // NOLINT
   }
   template <class U, class... Args>
@@ -100,7 +100,7 @@ template <typename T> class StlAllocator : public std::allocator<T> {
     // instantiated.
     typedef typename std::conditional<HasTrivialDestructor<U>::value, void,
                                       U>::type VoidOrU;
-    const VoidOrU* select_overload = NULL;
+    const VoidOrU* select_overload = nullptr;
     construct_impl(select_overload, p, std::forward<Args>(args)...);  // NOLINT
   }
 
@@ -131,19 +131,19 @@ template <typename T> class StlAllocator : public std::allocator<T> {
   void construct_impl(const T* dummy, Pointer p, const T& val) {
     Allocatable::SetPlacementAllocator(allocator_.Get());
     std::allocator<T>::construct(p, val);
-    Allocatable::SetPlacementAllocator(NULL);
+    Allocatable::SetPlacementAllocator(nullptr);
   }
   template <typename... Args>
   void construct_impl(const T* dummy, Pointer p, Args&&... args) {  // NOLINT
     Allocatable::SetPlacementAllocator(allocator_.Get());
     std::allocator<T>::construct(p, std::forward<Args>(args)...);  // NOLINT
-    Allocatable::SetPlacementAllocator(NULL);
+    Allocatable::SetPlacementAllocator(nullptr);
   }
   template <class U, class... Args>
   void construct_impl(const U* dummy, U* p, Args&&... args) {  // NOLINT
     Allocatable::SetPlacementAllocator(allocator_.Get());
     std::allocator<T>::construct(p, std::forward<Args>(args)...);  // NOLINT
-    Allocatable::SetPlacementAllocator(NULL);
+    Allocatable::SetPlacementAllocator(nullptr);
   }
 
   AllocatorPtr allocator_;
@@ -160,19 +160,19 @@ class StlInlinedAllocator : public StlAllocator<T> {
   typedef typename StlAllocator<T>::ConstPointer ConstPointer;
   typedef typename StlAllocator<T>::SizeType SizeType;
   explicit StlInlinedAllocator(const AllocatorPtr& allocator)
-      : StlAllocator<T>(allocator), current_(NULL), inlined_(true) {}
+      : StlAllocator<T>(allocator), current_(nullptr), inlined_(true) {}
   // Copy constructor. This needs to be explicitly listed so that inlined
   // storage is not copied.
   explicit StlInlinedAllocator(const StlInlinedAllocator<T, N>& a)
       : StlAllocator<T>(a.GetAllocator()),
-        current_(NULL),
+        current_(nullptr),
         inlined_(a.inlined_) {}
   // This copy constructor cannot be explicit because older versions of STL
   // seem to implicitly cast between allocators of different types.
   template <typename U>
   StlInlinedAllocator(const StlInlinedAllocator<U, N>& a)
       : StlAllocator<T>(a.GetAllocator()),
-        current_(NULL),
+        current_(nullptr),
         inlined_(a.inlined_) {}
   Pointer allocate(SizeType n, ConstPointer hint = 0) {
     // Return the local storage if we can, otherwise mark this as not inlined

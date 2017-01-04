@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -74,56 +74,6 @@ struct GearInfo {
 
 }  // end anonymous namespace
 
-// Rewrite the gears shader to be compatible with the given GL version.
-static const std::string RewriteShader(const std::string& source,
-                                       ion::gfx::GraphicsManager::GlApi api,
-                                       GLuint version,
-                                       bool is_fragment_shader) {
-  std::string body = source;
-  std::string preamble;
-  const std::string es_fragment_boilerplate =
-      "#ifdef GL_FRAGMENT_PRECISION_HIGH\n"
-      "precision highp float;\n"
-      "#else\n"
-      "precision mediump float;\n"
-      "#endif\n";
-  bool modernize = false;
-  if (api == ion::gfx::GraphicsManager::kDesktop) {
-    // The shader could work on GLSL 1.3 = OpenGL 3.0 if we used
-    // EXT_draw_instanced, but we'll ignore that case, since hardware and
-    // drivers that support OpenGL 3.0 but not 3.1 are very rare.
-    preamble = "#version 140\n";
-    modernize = true;
-  } else {
-    if (api == ion::gfx::GraphicsManager::kEs && version >= 30) {
-      preamble = "#version 300 es\n";
-      if (is_fragment_shader) {
-        preamble += es_fragment_boilerplate + "out vec4 FragColor;\n";
-        body = ion::base::ReplaceString(body,
-                                        "gl_FragColor",
-                                        "FragColor");
-      }
-      modernize = true;
-    } else {
-      preamble = "#version 100 es\n"
-                 "#extension EXT_draw_instanced : enable\n";
-      if (is_fragment_shader)
-        preamble += es_fragment_boilerplate;
-      body = ion::base::ReplaceString(body,
-                                      "gl_InstanceID",
-                                      "gl_InstanceIDEXT");
-      modernize = false;
-    }
-  }
-  if (modernize) {
-    // Replace deprecated storage qualifiers with modern equivalents.
-    body = ion::base::ReplaceString(body, "attribute", "in");
-    body = ion::base::ReplaceString(body, "varying",
-                                    is_fragment_shader ? "in" : "out");
-  }
-  return preamble + body;
-}
-
 //-----------------------------------------------------------------------------
 //
 // GearsDemo class.
@@ -168,8 +118,8 @@ IonGearsDemo::IonGearsDemo(int width, int height)
   if (!IonGearsResources::RegisterAssets()) {
     LOG(FATAL) << "Could not register demo assets";
   }
-  if (!GetGraphicsManager()->IsFunctionGroupAvailable(
-      ion::gfx::GraphicsManager::kInstancedDrawing)) {
+  if (!GetGraphicsManager()->IsFeatureAvailable(
+          ion::gfx::GraphicsManager::kInstancedArrays)) {
     LOG(FATAL) << "IonGearsDemo requires instanced drawing functions, "
                << "but the OpenGL implementation does not support them";
   }
@@ -226,7 +176,7 @@ IonGearsDemo::IonGearsDemo(int width, int height)
       .Bind(gi.rotation, "aInstanceRotation", 1)
       .Apply(reg, gear_shape_->GetAttributeArray(), gear_info_buffer_);
 
-  gear_count_index_ = gear_->AddUniform(reg->Create<ion::gfx::Uniform, uint>(
+  gear_count_index_ = gear_->AddUniform(reg->Create<ion::gfx::Uniform, uint32>(
       "uGearCount", gear_rows_ * gear_columns_));
 
   root_->AddChild(gear_);
@@ -276,7 +226,7 @@ void IonGearsDemo::UpdateGearUniforms(uint64 frame_count) {
   const float row_offset = static_cast<float>(gear_rows_ - 1) / 2.f;
 
   gear_shape_->SetInstanceCount(gear_count);
-  gear_->SetUniformValue<uint>(gear_count_index_, gear_count);
+  gear_->SetUniformValue<uint32>(gear_count_index_, gear_count);
 
   // Lay out the gears in a square grid.
   for (int i = 0; i < gear_columns_; ++i) {

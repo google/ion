@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -59,7 +59,7 @@ class ION_API VectorDataContainer : public DataContainer {
   // Returns the data pointer of this instance, which is only valid if the
   // internal vector has data.
   void* GetDataPtr() const override {
-    return vector_.empty() ? NULL : &vector_[0];
+    return vector_.empty() ? nullptr : &vector_[0];
   }
 
   // The actual data.

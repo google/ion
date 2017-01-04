@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,13 +20,17 @@ limitations under the License.
 
 #include <memory>
 #include <string>
-#include <unordered_map>
+#include <unordered_set>
 
 #include "base/integral_types.h"
 #include "ion/base/allocatable.h"
+#include "ion/base/bufferbuilder.h"
 #include "ion/base/circularbuffer.h"
+#include "ion/base/spinmutex.h"
 #include "ion/base/stlalloc/allocvector.h"
+#include "ion/base/stringtable.h"
 #include "ion/port/threadutils.h"
+#include "ion/port/timer.h"
 #include "ion/profile/timelineevent.h"
 #include "ion/profile/timelinenode.h"
 #include "third_party/jsoncpp/include/json/json.h"
@@ -49,24 +53,29 @@ class TraceRecorder : public ion::base::Allocatable {
   };
 
   typedef base::CircularBuffer<uint32> TraceBuffer;
-  typedef std::unordered_map<uint32, std::string> IndexToStringMap;
 
   explicit TraceRecorder(CallTraceManager* manager);
 
   // Explicitly specify the capacity of this recorder in bytes.
   TraceRecorder(CallTraceManager* manager, size_t buffer_size);
 
+  // Clear all events from this TraceRecorder.
+  void Clear();
+
   // Manipulate the default buffer size in bytes used for future instantiations.
   static size_t GetDefaultBufferSize() { return s_default_buffer_size_; }
   static void SetDefaultBufferSize(size_t s) { s_default_buffer_size_ = s; }
 
-  // Maniupulate whether or not to reserve the full buffer size immediately for
+  // Manipulate whether or not to reserve the full buffer size immediately for
   // future instantiations.
   static bool GetReserveBuffer() { return s_reserve_buffer_; }
   static void SetReserveBuffer(bool reserve) { s_reserve_buffer_ = reserve; }
 
+  // Get an ID for a named scope event.
+  uint32 GetScopeEvent(const char* name);
+
   // Queries and records the event corresponding to the provided event_id.
-  void EnterScope(int event_id);
+  void EnterScope(uint32 event_id);
 
   // Attaches data to the current scope, which will be visible on mouse-over.
   // The string |value| must be in JSON format, e.g. "\"my_string\"" for a
@@ -82,7 +91,7 @@ class TraceRecorder : public ion::base::Allocatable {
   void LeaveScope();
 
   // Same as EnterScope, but with specified timestamp.
-  void EnterScopeAtTime(uint32 timestamp, int event_id);
+  void EnterScopeAtTime(uint32 timestamp, uint32 event_id);
 
   // Same as AnnotateCurrentScope, but with specified timestamp.
   void AnnotateCurrentScopeAtTime(uint32 timestamp,
@@ -134,11 +143,8 @@ class TraceRecorder : public ion::base::Allocatable {
   // "UnnamedThread" unless it has been set by a call to SetThreadName.
   std::string GetThreadName() const { return thread_name_; }
 
-  // Dumps the strings one by one to a string table.
-  void DumpStrings(std::vector<std::string>* table) const;
-
-  // Appends a binary dump of the trace to the output string.
-  void DumpTrace(std::string* output, uint32 string_index_offset) const;
+  // Appends a binary dump of the trace to the output BufferBuilder.
+  void DumpTrace(base::BufferBuilder* output) const;
 
   // Adds all events in the trace as a sub-tree under the passed in root node.
   void AddTraceToTimelineNode(TimelineNode* root) const;
@@ -157,37 +163,30 @@ class TraceRecorder : public ion::base::Allocatable {
   // to false.
   static bool s_reserve_buffer_;
 
-  // Returns an index to use for this string, and records it in the
-  // string_buffer_ if necessary.
-  uint32 GetStringIndex(const std::string& str);
-
   // Returns the string stored at argument location |arg_index| for the trace
-  // event at position |index| in the trace buffer. |inverse_string_buffer| maps
-  // from a string index to the actual string.
-  std::string GetStringArg(size_t index, int arg_index,
-                           const IndexToStringMap& inverse_string_buffer) const;
+  // event at position |index| in the trace buffer.
+  std::string GetStringArg(size_t index, int arg_index) const;
 
   // Returns a new timeline event for the trace event stored at position |index|
-  // in the trace buffer. |inverse_string_buffer| is a map from a string index
-  // to the actual string.
-  std::unique_ptr<TimelineEvent> GetTimelineEvent(
-      size_t index, const IndexToStringMap& inverse_string_buffer) const;
+  // in the trace buffer.
+  std::unique_ptr<TimelineEvent> GetTimelineEvent(size_t index) const;
+
+  // Helper function to implement public EnterTimeRange methods.
+  void EnterTimeRange(uint32 unique_id, uint32 name_index, uint32 value_index);
 
   // Reference to the parent CallTraceManager, used to query time.
   CallTraceManager* manager_;
 
+  // A View on a StringTable which provides the mapping of string values to
+  // string IDs.
+  const base::StringTable::ViewPtr string_table_view_;
+
+  // A View on a StringTable which provides the mapping of scope event names to
+  // IDs.
+  const base::StringTable::ViewPtr scope_events_view_;
+
   // Circular buffer of traces.
   TraceBuffer trace_buffer_;
-
-  // Maps strings to their indexes.
-  // TODO(user): The capacity on this isn't limited, it may be a good idea to
-  // limit this.
-  // TODO(user): The unlimited capacity can be a real issue when annotating
-  // different string to every frame (e.g., annotating frame time in floating
-  // point number). This increases memory usage without bound, and eventually
-  // affects the actual frame time due to excessive look-up cost in
-  // |string_buffer_|.
-  std::unordered_map<std::string, uint32> string_buffer_;
 
   // Keep track of the scope level for inserting empty scope markers.
   int scope_level_;
@@ -202,6 +201,17 @@ class TraceRecorder : public ion::base::Allocatable {
   // the frame number.
   int frame_level_;
   uint32 current_frame_number_;
+
+  // This set keeps track of the currently open time range events, so they can
+  // be properly closed at DumpTrace. Failing to do so can leave the resulting
+  // WTF trace file unreadable.
+  std::unordered_set<uint32> open_time_range_events_;
+
+  // Protect trace_buffer_ and string_buffer_ from access by a different thread
+  // during DumpStrings() and DumpTrace(). These dumping functions should be
+  // rare, so use a SpinMutex to be efficient in the common case of no
+  // contention.
+  mutable base::SpinMutex mutex_;
 };
 
 }  // namespace profile

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -238,16 +238,17 @@ static const Benchmark::Descriptor& GetVarDescriptor(
 class GPUPerformanceTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    visual_.reset(new gfx::testing::MockVisual(kWidth, kHeight));
+    visual_ = gfx::testing::MockVisual::Create(kWidth, kHeight);
+    portgfx::Visual::MakeCurrent(visual_);
     gm_.Reset(new gfx::testing::MockGraphicsManager());
   }
 
   void TearDown() override {
-    gm_.Reset(NULL);
-    visual_.reset();
+    gm_.Reset(nullptr);
+    visual_.Reset(nullptr);
   }
 
-  std::unique_ptr<gfx::testing::MockVisual> visual_;
+  portgfx::VisualPtr visual_;
   gfx::testing::MockGraphicsManagerPtr gm_;
   static const int kWidth = 400;
   static const int kHeight = 300;

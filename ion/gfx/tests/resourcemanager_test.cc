@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ limitations under the License.
 #include "ion/gfx/tests/testscene.h"
 #include "ion/gfx/tests/traceverifier.h"
 #include "ion/gfx/texture.h"
+#include "ion/gfx/transformfeedback.h"
 #include "ion/gfx/uniform.h"
 #include "ion/math/matrix.h"
 #include "ion/math/vector.h"
@@ -141,23 +142,23 @@ static ::testing::AssertionResult VerifyArrayInfo(
   // Buffer attributes.
   VERIFY(VerifyAttribute(info.attributes, 0, 2U, GL_TRUE, 1U,
                          sizeof(testing::TestScene::Vertex), GL_FLOAT, GL_FALSE,
-                         NULL, math::Vector4f(0.f, 0.f, 0.f, 1.f), 0));
+                         nullptr, math::Vector4f(0.f, 0.f, 0.f, 1.f), 0));
   VERIFY(VerifyAttribute(info.attributes, 1, 2U, GL_TRUE, 2U,
                          sizeof(testing::TestScene::Vertex), GL_FLOAT, GL_TRUE,
                          reinterpret_cast<GLvoid*>(4),
                          math::Vector4f(0.f, 0.f, 0.f, 1.f), 0));
   // Non-buffer attributes.
   VERIFY(VerifyAttribute(info.attributes, 2, 0U, GL_TRUE, 1U, 0U, GL_FLOAT,
-                         GL_FALSE, NULL, math::Vector4f(1.f, 0.f, 0.f, 1.f),
+                         GL_FALSE, nullptr, math::Vector4f(1.f, 0.f, 0.f, 1.f),
                          0));
   VERIFY(VerifyAttribute(info.attributes, 3, 0U, GL_TRUE, 2U, 0U, GL_FLOAT,
-                         GL_FALSE, NULL, math::Vector4f(1.f, 2.f, 0.f, 1.f),
+                         GL_FALSE, nullptr, math::Vector4f(1.f, 2.f, 0.f, 1.f),
                          0));
   VERIFY(VerifyAttribute(info.attributes, 4, 0U, GL_TRUE, 3U, 0U, GL_FLOAT,
-                         GL_FALSE, NULL, math::Vector4f(1.f, 2.f, 3.f, 1.f),
+                         GL_FALSE, nullptr, math::Vector4f(1.f, 2.f, 3.f, 1.f),
                          0));
   VERIFY(VerifyAttribute(info.attributes, 5, 0U, GL_TRUE, 4U, 0U, GL_FLOAT,
-                         GL_FALSE, NULL, math::Vector4f(1.f, 2.f, 3.f, 4.f),
+                         GL_FALSE, nullptr, math::Vector4f(1.f, 2.f, 3.f, 4.f),
                          0));
   return ::testing::AssertionSuccess();
 }
@@ -168,7 +169,7 @@ static ::testing::AssertionResult VerifyDefaultArrayInfo(
   VERIFY_EQ(3U, info.vertex_count);
   VERIFY(VerifyAttribute(info.attributes, 0, 1U, GL_TRUE, 3U,
                          sizeof(testing::TestScene::Vertex), GL_FLOAT, GL_FALSE,
-                         NULL, math::Vector4f(0.f, 0.f, 0.f, 1.f), 0));
+                         nullptr, math::Vector4f(0.f, 0.f, 0.f, 1.f), 0));
   return ::testing::AssertionSuccess();
 }
 
@@ -184,7 +185,7 @@ static ::testing::AssertionResult VerifyBufferInfo(
   VERIFY_EQ(size, info.size);
   VERIFY_EQ(usage, info.usage);
   VERIFY_EQ(label, info.label);
-  VERIFY_TRUE(info.mapped_data == NULL);
+  VERIFY_TRUE(info.mapped_data == nullptr);
   return ::testing::AssertionSuccess();
 }
 
@@ -238,11 +239,11 @@ static ::testing::AssertionResult VerifyRenderbufferInfo(
 
 static ::testing::AssertionResult VerifyFramebufferInfo(
     const ResourceManager::FramebufferInfo& info) {
-  VERIFY(VerifyAttachmentInfo(info.color0, GL_TEXTURE, 1U, 0U, 0U));
+  VERIFY(VerifyAttachmentInfo(info.color[0], GL_TEXTURE, 1U, 0U, 0U));
   VERIFY(VerifyAttachmentInfo(info.depth, GL_RENDERBUFFER, 1U, 0U, 0U));
   VERIFY(VerifyAttachmentInfo(info.stencil, GL_NONE, 0U, 0U, 0U));
   VERIFY(VerifyRenderbufferInfo(
-      info.color0_renderbuffer, 0, 0, GL_RGBA4, 0, 0, 0, 0, 0, 0, "color0"));
+      info.color_renderbuffers[0], 0, 0, GL_RGBA4, 0, 0, 0, 0, 0, 0, "color0"));
   VERIFY(VerifyRenderbufferInfo(
       info.depth_renderbuffer, 2, 2, GL_DEPTH_COMPONENT16,
       0, 0, 0, 0, 16, 0, "depth"));
@@ -253,11 +254,11 @@ static ::testing::AssertionResult VerifyFramebufferInfo(
 
 static ::testing::AssertionResult VerifyFramebufferInfo2(
     const ResourceManager::FramebufferInfo& info) {
-  VERIFY(VerifyAttachmentInfo(info.color0, GL_RENDERBUFFER, 2U, 0U, 0U));
+  VERIFY(VerifyAttachmentInfo(info.color[0], GL_RENDERBUFFER, 2U, 0U, 0U));
   VERIFY(VerifyAttachmentInfo(info.depth, GL_NONE, 0U, 0U, 0U));
   VERIFY(VerifyAttachmentInfo(info.stencil, GL_RENDERBUFFER, 3U, 0U, 0U));
   VERIFY(VerifyRenderbufferInfo(
-      info.color0_renderbuffer, 128, 1024, GL_RGB565, 5, 6, 5, 0, 0, 0,
+      info.color_renderbuffers[0], 128, 1024, GL_RGB565, 5, 6, 5, 0, 0, 0,
       "color0"));
   VERIFY(VerifyRenderbufferInfo(
       info.depth_renderbuffer, 0, 0, GL_RGBA4, 0, 0, 0, 0, 0, 0, "depth"));
@@ -312,22 +313,6 @@ static ::testing::AssertionResult VerifyPlatformInfo(
             info.max_viewport_dims[1]);
   VERIFY_EQ(gm->GetTransformFeedbackVaryingMaxLength(),
             info.transform_feedback_varying_max_length);
-
-  VERIFY_EQ(7U, info.compressed_texture_formats.size());
-  VERIFY_EQ(static_cast<GLenum>(GL_COMPRESSED_RGB_S3TC_DXT1_EXT),
-            info.compressed_texture_formats[0]);
-  VERIFY_EQ(static_cast<GLenum>(GL_COMPRESSED_RGB_PVRTC_2BPPV1_IMG),
-            info.compressed_texture_formats[1]);
-  VERIFY_EQ(static_cast<GLenum>(GL_COMPRESSED_RGB_PVRTC_4BPPV1_IMG),
-            info.compressed_texture_formats[2]);
-  VERIFY_EQ(static_cast<GLenum>(GL_COMPRESSED_RGBA_PVRTC_2BPPV1_IMG),
-            info.compressed_texture_formats[3]);
-  VERIFY_EQ(static_cast<GLenum>(GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG),
-            info.compressed_texture_formats[4]);
-  VERIFY_EQ(static_cast<GLenum>(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT),
-            info.compressed_texture_formats[5]);
-  VERIFY_EQ(static_cast<GLenum>(GL_ETC1_RGB8_OES),
-            info.compressed_texture_formats[6]);
   VERIFY_EQ(1U, info.shader_binary_formats.size());
   VERIFY_EQ(0xbadf00dU, info.shader_binary_formats[0]);
   return ::testing::AssertionSuccess();
@@ -349,6 +334,20 @@ static ::testing::AssertionResult VerifyShaderInfo(
   VERIFY_EQ(source, info.source);
   VERIFY_EQ(info_log, info.info_log);
   VERIFY_EQ(label, info.label);
+  return ::testing::AssertionSuccess();
+}
+
+//-----------------------------------------------------------------------------
+//
+// TransformFeedbackInfo verification routines.
+//
+//-----------------------------------------------------------------------------
+static ::testing::AssertionResult VerifyTransformFeedbackInfo(
+    const ResourceManager::TransformFeedbackInfo& info, GLuint buffer,
+    GLboolean active, GLboolean paused) {
+  VERIFY_EQ(buffer, info.buffer);
+  VERIFY_EQ(active, info.active);
+  VERIFY_EQ(paused, info.paused);
   return ::testing::AssertionSuccess();
 }
 
@@ -434,6 +433,7 @@ static ::testing::AssertionResult VerifyProgramUniformArrayVector(
 
 static ::testing::AssertionResult VerifyDefaultProgramInfo(
     const ResourceManager::ProgramInfo& info, int line) {
+  VERIFY_EQ(0U, info.geometry_shader);
   VERIFY_EQ(1U, info.vertex_shader);
   VERIFY_EQ(2U, info.fragment_shader);
   VERIFY_EQ("Default Renderer shader", info.label);
@@ -462,8 +462,9 @@ static ::testing::AssertionResult VerifyDefaultProgramInfo(
 
 static ::testing::AssertionResult VerifyProgramInfo(
     const ResourceManager::ProgramInfo& info, int line, GLuint vertex_shader,
-    GLuint fragment_shader) {
+    GLuint geometry_shader, GLuint fragment_shader) {
   VERIFY_EQ(vertex_shader, info.vertex_shader);
+  VERIFY_EQ(geometry_shader, info.geometry_shader);
   VERIFY_EQ(fragment_shader, info.fragment_shader);
   VERIFY_EQ("Dummy Shader", info.label);
   VERIFY_EQ(GL_FALSE, info.delete_status);
@@ -492,20 +493,16 @@ static ::testing::AssertionResult VerifyProgramInfo(
                                 "aBOE2"));
 
   int i = 0;
-  VERIFY_EQ(34U, info.uniforms.size());
+  VERIFY_EQ(36U, info.uniforms.size());
   VERIFY(VerifyProgramUniform(info.uniforms[i], i, GL_INT, 1, "uInt", 13));
   ++i;
   VERIFY(
       VerifyProgramUniform(info.uniforms[i], i, GL_FLOAT, 1, "uFloat", 1.5f));
   ++i;
-  VERIFY(VerifyProgramUniform(info.uniforms[i], i, GL_UNSIGNED_INT, 1, "uUint",
-                              15U));
+  VERIFY(VerifyProgramUniform(info.uniforms[i], i, GL_INT, 1, "uIntGS", 27));
   ++i;
-  VERIFY(VerifyProgramUniform(info.uniforms[i], i, GL_SAMPLER_CUBE, 1,
-                              "uCubeMapTex", 0));
-  ++i;
-  VERIFY(
-      VerifyProgramUniform(info.uniforms[i], i, GL_SAMPLER_2D, 1, "uTex", 1));
+  VERIFY(VerifyProgramUniform(info.uniforms[i], i, GL_UNSIGNED_INT, 1,
+                              "uUintGS", 33U));
   ++i;
   VERIFY(VerifyProgramUniformVector(
       info.uniforms[i], i, GL_FLOAT_VEC2, 1, "uFV2", Vector2f(2.f, 3.f)));
@@ -516,6 +513,15 @@ static ::testing::AssertionResult VerifyProgramInfo(
   VERIFY(VerifyProgramUniformVector(
       info.uniforms[i], i, GL_FLOAT_VEC4, 1, "uFV4",
       Vector4f(7.f, 8.f, 9.f, 10.f)));
+  ++i;
+  VERIFY(VerifyProgramUniform(info.uniforms[i], i, GL_UNSIGNED_INT, 1, "uUint",
+                              15U));
+  ++i;
+  VERIFY(VerifyProgramUniform(info.uniforms[i], i, GL_SAMPLER_CUBE, 1,
+                              "uCubeMapTex", 0));
+  ++i;
+  VERIFY(
+      VerifyProgramUniform(info.uniforms[i], i, GL_SAMPLER_2D, 1, "uTex", 1));
   ++i;
   VERIFY(VerifyProgramUniformVector(
       info.uniforms[i], i, GL_INT_VEC2, 1, "uIV2", Vector2i(2, 3)));
@@ -704,7 +710,12 @@ static ::testing::AssertionResult VerifyTextureInfo(
   VERIFY_EQ(expected.swizzle_g, info.swizzle_g);
   VERIFY_EQ(expected.swizzle_b, info.swizzle_b);
   VERIFY_EQ(expected.swizzle_a, info.swizzle_a);
-  VERIFY_EQ(expected.wrap_r, info.wrap_r);
+  if (expected.target == GL_TEXTURE_2D_ARRAY ||
+      expected.target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY ||
+      expected.target == GL_TEXTURE_3D ||
+      expected.target == GL_TEXTURE_CUBE_MAP_ARRAY) {
+    VERIFY_EQ(expected.wrap_r, info.wrap_r);
+  }
   VERIFY_EQ(expected.wrap_s, info.wrap_s);
   VERIFY_EQ(expected.wrap_t, info.wrap_t);
   VERIFY_EQ(expected.target, info.target);
@@ -720,16 +731,17 @@ static ::testing::AssertionResult VerifyTextureInfo(
 class ResourceManagerTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    visual_.reset(new MockVisual(kWidth, kHeight));
+    mock_visual_ = MockVisual::Create(kWidth, kHeight);
+    portgfx::Visual::MakeCurrent(mock_visual_);
     gm_.Reset(new MockGraphicsManager());
     renderer_.Reset(new Renderer(gm_));
   }
 
   void TearDown() override {
-    renderer_.Reset(NULL);
-    gm_.Reset(NULL);
-    Renderer::DestroyStateCache(visual_.get());
-    visual_.reset();
+    renderer_.Reset(nullptr);
+    gm_.Reset(nullptr);
+    Renderer::DestroyStateCache(mock_visual_);
+    mock_visual_.Reset(nullptr);
   }
 
   void DrawScene(const NodePtr& root) {
@@ -738,7 +750,7 @@ class ResourceManagerTest : public ::testing::Test {
     gm_->SetErrorCode(GL_NO_ERROR);
   }
 
-  std::unique_ptr<MockVisual> visual_;
+  base::SharedPtr<MockVisual> mock_visual_;
   MockGraphicsManagerPtr gm_;
   RendererPtr renderer_;
 
@@ -812,7 +824,7 @@ TEST_F(ResourceManagerTest, GetBufferInfo) {
   const base::AllocVector<ShapePtr>& shapes =
       root->GetChildren()[0]->GetChildren()[0]->GetShapes();
   ASSERT_LT(0U, shapes.size());
-  ASSERT_TRUE(shapes[0]->GetAttributeArray().Get() != NULL);
+  ASSERT_TRUE(shapes[0]->GetAttributeArray().Get() != nullptr);
   ASSERT_LT(0U, shapes[0]->GetAttributeArray()->GetBufferAttributeCount());
   const BufferObjectPtr buffer =
       shapes[0]->GetAttributeArray()->GetBufferAttribute(0)
@@ -941,6 +953,37 @@ TEST_F(ResourceManagerTest, GetFramebufferInfo) {
   EXPECT_EQ(1U, callback.infos.size());
   EXPECT_EQ("my new fbo", callback.infos[0].label);
   EXPECT_TRUE(VerifyFramebufferInfo2(callback.infos[0]));
+
+  // Now disable some function groups.
+  gm_->EnableFeature(GraphicsManager::kDrawBuffers, false);
+  manager->RequestResourceInfo<FramebufferObject, FramebufferInfo>(
+      fbo, std::bind(&CallbackHelper<FramebufferInfo>::Callback, &callback,
+                     std::placeholders::_1));
+  renderer_->ProcessResourceInfoRequests();
+  EXPECT_TRUE(callback.was_called);
+  EXPECT_EQ(1U, callback.infos.size());
+  EXPECT_EQ("my new fbo", callback.infos[0].label);
+  EXPECT_TRUE(VerifyFramebufferInfo2(callback.infos[0]));
+
+  gm_->EnableFeature(GraphicsManager::kDrawBuffer, false);
+  manager->RequestResourceInfo<FramebufferObject, FramebufferInfo>(
+      fbo, std::bind(&CallbackHelper<FramebufferInfo>::Callback, &callback,
+                     std::placeholders::_1));
+  renderer_->ProcessResourceInfoRequests();
+  EXPECT_TRUE(callback.was_called);
+  EXPECT_EQ(1U, callback.infos.size());
+  EXPECT_EQ("my new fbo", callback.infos[0].label);
+  EXPECT_TRUE(VerifyFramebufferInfo2(callback.infos[0]));
+
+  gm_->EnableFeature(GraphicsManager::kReadBuffer, false);
+  manager->RequestResourceInfo<FramebufferObject, FramebufferInfo>(
+      fbo, std::bind(&CallbackHelper<FramebufferInfo>::Callback, &callback,
+                     std::placeholders::_1));
+  renderer_->ProcessResourceInfoRequests();
+  EXPECT_TRUE(callback.was_called);
+  EXPECT_EQ(1U, callback.infos.size());
+  EXPECT_EQ("my new fbo", callback.infos[0].label);
+  EXPECT_TRUE(VerifyFramebufferInfo2(callback.infos[0]));
 }
 
 TEST_F(ResourceManagerTest, GetFramebufferInfoNexus6) {
@@ -1046,7 +1089,7 @@ TEST_F(ResourceManagerTest, GetProgramInfo) {
   // The default program is in info[0];
   EXPECT_TRUE(VerifyDefaultProgramInfo(callback.infos[0], __LINE__));
   // The custom program is in info[1].
-  EXPECT_TRUE(VerifyProgramInfo(callback.infos[1], __LINE__, 3U, 4U));
+  EXPECT_TRUE(VerifyProgramInfo(callback.infos[1], __LINE__, 3U, 4U, 5U));
   callback.Reset();
 }
 
@@ -1055,12 +1098,13 @@ TEST_F(ResourceManagerTest, GetSamplerInfo) {
 
   testing::TestScene scene;
   NodePtr root = scene.GetScene();
+  NodePtr child = root->GetChildren()[0];
   ResourceManager* manager = renderer_->GetResourceManager();
   CallbackHelper<SamplerInfo> callback;
 
   // Get info on the texture.
-  TexturePtr texture =
-      root->GetChildren()[0]->GetUniforms()[4].GetValue<TexturePtr>();
+  const size_t tex_index = child->GetUniformIndex("uTex");
+  TexturePtr texture = child->GetUniforms()[tex_index].GetValue<TexturePtr>();
   manager->RequestResourceInfo<Sampler, SamplerInfo>(
       texture->GetSampler(), std::bind(&CallbackHelper<SamplerInfo>::Callback,
                                        &callback, std::placeholders::_1));
@@ -1160,7 +1204,7 @@ TEST_F(ResourceManagerTest, GetShaderInfo) {
       &CallbackHelper<ShaderInfo>::Callback, &callback, std::placeholders::_1));
   renderer_->ProcessResourceInfoRequests();
   EXPECT_TRUE(callback.was_called);
-  EXPECT_EQ(4U, callback.infos.size());
+  EXPECT_EQ(5U, callback.infos.size());
   EXPECT_TRUE(VerifyShaderInfo(
       callback.infos[0], __LINE__, GL_VERTEX_SHADER, GL_FALSE, GL_TRUE,
       renderer_->GetDefaultShaderProgram()->GetVertexShader()->GetSource(), "",
@@ -1173,23 +1217,27 @@ TEST_F(ResourceManagerTest, GetShaderInfo) {
       callback.infos[2], __LINE__, GL_VERTEX_SHADER, GL_FALSE, GL_TRUE,
       scene.GetVertexShaderSource(), "", "Vertex shader"));
   EXPECT_TRUE(VerifyShaderInfo(
-      callback.infos[3], __LINE__, GL_FRAGMENT_SHADER, GL_FALSE, GL_TRUE,
+      callback.infos[3], __LINE__, GL_GEOMETRY_SHADER, GL_FALSE, GL_TRUE,
+      scene.GetGeometryShaderSource(), "", "Geometry shader"));
+  EXPECT_TRUE(VerifyShaderInfo(
+      callback.infos[4], __LINE__, GL_FRAGMENT_SHADER, GL_FALSE, GL_TRUE,
       scene.GetFragmentShaderSource(), "", "Fragment shader"));
   callback.Reset();
 }
 
 TEST_F(ResourceManagerTest, GetTextureInfoNoSamplers) {
-  gm_->EnableFunctionGroup(GraphicsManager::kSamplerObjects, false);
+  gm_->EnableFeature(GraphicsManager::kSamplerObjects, false);
   typedef ResourceManager::TextureInfo TextureInfo;
 
   testing::TestScene scene;
   NodePtr root = scene.GetScene();
+  NodePtr child = root->GetChildren()[0];
   ResourceManager* manager = renderer_->GetResourceManager();
   CallbackHelper<TextureInfo> callback;
 
   // Get info on the texture.
-  TexturePtr texture =
-      root->GetChildren()[0]->GetUniforms()[4].GetValue<TexturePtr>();
+  const size_t tex_index = child->GetUniformIndex("uTex");
+  TexturePtr texture = child->GetUniforms()[tex_index].GetValue<TexturePtr>();
   manager->RequestResourceInfo<TextureBase, TextureInfo>(
       texture, std::bind(&CallbackHelper<TextureInfo>::Callback, &callback,
                          std::placeholders::_1));
@@ -1225,11 +1273,12 @@ TEST_F(ResourceManagerTest, GetTextureInfoNoSamplers) {
   EXPECT_TRUE(VerifyTextureInfo(expected0, callback.infos[0]));
   callback.Reset();
 
-  // Get info on the cubemap texture.
-  CubeMapTexturePtr cubemap =
-      root->GetChildren()[0]->GetUniforms()[3].GetValue<CubeMapTexturePtr>();
+  // Get info on the cube_map texture.
+  const size_t cube_map_index = child->GetUniformIndex("uCubeMapTex");
+  CubeMapTexturePtr cube_map =
+      child->GetUniforms()[cube_map_index].GetValue<CubeMapTexturePtr>();
   manager->RequestResourceInfo<TextureBase, TextureInfo>(
-      cubemap, std::bind(&CallbackHelper<TextureInfo>::Callback, &callback,
+      cube_map, std::bind(&CallbackHelper<TextureInfo>::Callback, &callback,
                          std::placeholders::_1));
   renderer_->ProcessResourceInfoRequests();
   EXPECT_TRUE(callback.was_called);
@@ -1306,12 +1355,13 @@ TEST_F(ResourceManagerTest, GetTextureInfoWithSamplers) {
 
   testing::TestScene scene;
   NodePtr root = scene.GetScene();
+  NodePtr child = root->GetChildren()[0];
   ResourceManager* manager = renderer_->GetResourceManager();
   CallbackHelper<TextureInfo> callback;
 
   // Get info on the texture.
-  TexturePtr texture =
-      root->GetChildren()[0]->GetUniforms()[4].GetValue<TexturePtr>();
+  const size_t tex_index = child->GetUniformIndex("uTex");
+  TexturePtr texture = child->GetUniforms()[tex_index].GetValue<TexturePtr>();
   manager->RequestResourceInfo<TextureBase, TextureInfo>(
       texture, std::bind(&CallbackHelper<TextureInfo>::Callback, &callback,
                          std::placeholders::_1));
@@ -1336,11 +1386,12 @@ TEST_F(ResourceManagerTest, GetTextureInfoWithSamplers) {
   EXPECT_TRUE(VerifyTextureInfo(expected0, callback.infos[0]));
   callback.Reset();
 
-  // Get info on the cubemap texture.
-  CubeMapTexturePtr cubemap =
-      root->GetChildren()[0]->GetUniforms()[3].GetValue<CubeMapTexturePtr>();
+  // Get info on the cube_map texture.
+  const size_t cube_map_index = child->GetUniformIndex("uCubeMapTex");
+  CubeMapTexturePtr cube_map =
+      child->GetUniforms()[cube_map_index].GetValue<CubeMapTexturePtr>();
   manager->RequestResourceInfo<TextureBase, TextureInfo>(
-      cubemap, std::bind(&CallbackHelper<TextureInfo>::Callback, &callback,
+      cube_map, std::bind(&CallbackHelper<TextureInfo>::Callback, &callback,
                          std::placeholders::_1));
   renderer_->ProcessResourceInfoRequests();
   EXPECT_TRUE(callback.was_called);
@@ -1428,7 +1479,7 @@ TEST_F(ResourceManagerTest, GetTextureData) {
   EXPECT_TRUE(callback.was_called);
   EXPECT_EQ(1U, callback.infos.size());
   EXPECT_EQ(1U, callback.infos[0].images.size());
-  EXPECT_FALSE(callback.infos[0].images[0].Get() == NULL);
+  EXPECT_TRUE(callback.infos[0].images[0]);
   EXPECT_EQ(2U, callback.infos[0].images[0]->GetWidth());
   EXPECT_EQ(2U, callback.infos[0].images[0]->GetHeight());
   EXPECT_EQ(Image::kRgb888, callback.infos[0].images[0]->GetFormat());
@@ -1460,12 +1511,12 @@ TEST_F(ResourceManagerTest, GetTextureData) {
   EXPECT_TRUE(callback.was_called);
   EXPECT_EQ(1U, callback.infos.size());
   EXPECT_EQ(1U, callback.infos[0].images.size());
-  EXPECT_FALSE(callback.infos[0].images[0].Get() == NULL);
+  EXPECT_TRUE(callback.infos[0].images[0]);
   EXPECT_EQ(2U, callback.infos[0].images[0]->GetWidth());
   EXPECT_EQ(2U, callback.infos[0].images[0]->GetHeight());
   EXPECT_EQ(Image::kRgb888, callback.infos[0].images[0]->GetFormat());
 
-  // Request a cubemap image.
+  // Request a cube map image.
   manager->RequestTextureImage(
       1U, std::bind(&CallbackHelper<TextureImageInfo>::Callback, &callback,
                     std::placeholders::_1));
@@ -1474,14 +1525,14 @@ TEST_F(ResourceManagerTest, GetTextureData) {
   EXPECT_EQ(1U, callback.infos.size());
   EXPECT_EQ(6U, callback.infos[0].images.size());
   for (int i = 0; i < 6; ++i) {
-    EXPECT_FALSE(callback.infos[0].images[i].Get() == NULL);
+    EXPECT_TRUE(callback.infos[0].images[i]);
     EXPECT_EQ(2U, callback.infos[0].images[i]->GetWidth());
     EXPECT_EQ(2U, callback.infos[0].images[i]->GetHeight());
     EXPECT_EQ(Image::kRgb888, callback.infos[0].images[i]->GetFormat());
   }
   callback.Reset();
 
-  // Request a cubemap mipmap image.
+  // Request a cube map mipmap image.
   CubeMapTexturePtr cube_mipmap = scene.CreateCubeMapTexture();
   for (int i = 0; i < 6; ++i)
     cube_mipmap->SetImage(
@@ -1503,12 +1554,50 @@ TEST_F(ResourceManagerTest, GetTextureData) {
   EXPECT_EQ(1U, callback.infos.size());
   EXPECT_EQ(6U, callback.infos[0].images.size());
   for (int i = 0; i < 6; ++i) {
-    EXPECT_FALSE(callback.infos[0].images[i].Get() == NULL);
+    EXPECT_TRUE(callback.infos[0].images[i]);
     EXPECT_EQ(2U, callback.infos[0].images[i]->GetWidth());
     EXPECT_EQ(2U, callback.infos[0].images[i]->GetHeight());
     EXPECT_EQ(Image::kRgb888, callback.infos[0].images[i]->GetFormat());
   }
   callback.Reset();
+}
+
+TEST_F(ResourceManagerTest, GetTransformFeedbackInfo) {
+  if (!gm_->IsFeatureAvailable(GraphicsManager::kTransformFeedback)) {
+    return;
+  }
+  typedef ResourceManager::TransformFeedbackInfo TransformFeedbackInfo;
+
+  // Create a buffer object to capture vertex data.
+  BufferObjectPtr buffer(new BufferObject);
+  const size_t vert_count = 4;
+  using ion::math::Vector4f;
+  Vector4f* verts = new Vector4f[vert_count];
+  ion::base::DataContainerPtr container =
+      ion::base::DataContainer::Create<Vector4f>(
+          verts, ion::base::DataContainer::ArrayDeleter<Vector4f>,
+          true, buffer->GetAllocator());
+  buffer->SetData(container, sizeof(verts[0]), vert_count,
+                  ion::gfx::BufferObject::kStreamDraw);
+
+  // Construct a simplified scene that includes captured varyings.
+  testing::TestScene scene(true);
+  ResourceManager* manager = renderer_->GetResourceManager();
+  CallbackHelper<TransformFeedbackInfo> callback;
+  ion::gfx::TransformFeedbackPtr tfo(new ion::gfx::TransformFeedback(buffer));
+  manager->RequestResourceInfo<TransformFeedback, TransformFeedbackInfo>(
+      tfo, std::bind(&CallbackHelper<TransformFeedbackInfo>::Callback,
+                     &callback,
+                     std::placeholders::_1));
+
+  // Render the scene with transform feedback active.
+  renderer_->BeginTransformFeedback(tfo);
+  DrawScene(scene.GetScene());
+  EXPECT_TRUE(callback.was_called);
+  EXPECT_EQ(1U, callback.infos.size());
+  GLuint bufid = renderer_->GetResourceGlId(buffer.Get());
+  EXPECT_TRUE(VerifyTransformFeedbackInfo(
+             callback.infos[0], bufid, true, false));
 }
 
 }  // namespace gfx

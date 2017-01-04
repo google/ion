@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -64,7 +64,7 @@ class HttpServerWebsocketTest : public ::testing::Test {
 
   void SetUpEasyWsStream() {
     easyws_fp = port::OpenFile(easyws_file_name, "w");
-    ASSERT_FALSE(easyws_fp == NULL);
+    ASSERT_FALSE(easyws_fp == nullptr);
     easywsclient::WebSocket::setMessageStream(easyws_fp);
   }
 
@@ -98,7 +98,7 @@ class HttpServerWebsocketTest : public ::testing::Test {
 
     // Shutdown the server.
     EXPECT_TRUE(server_->IsRunning());
-    server_.reset(NULL);
+    server_.reset(nullptr);
   }
 
   std::unique_ptr<HttpServer> server_;
@@ -214,8 +214,8 @@ TEST_F(HttpServerWebsocketTest, BadPath) {
   ClientSocket* socket2 = ClientSocket::from_url(
       base + "/test_handler/bad_socket_type");
 
-  EXPECT_TRUE(socket1 == NULL);
-  EXPECT_TRUE(socket2 == NULL);
+  EXPECT_TRUE(socket1 == nullptr);
+  EXPECT_TRUE(socket2 == nullptr);
 
   const std::vector<std::string> msgs = GetEasywsclientMessages();
   EXPECT_EQ(2U, msgs.size());
@@ -243,8 +243,8 @@ TEST_F(HttpServerWebsocketTest, SendAndReceive) {
 
   // Ensure that connections were made successfully... if these fail,
   // the code below would surely crash.
-  ASSERT_TRUE(socket1 != NULL);
-  ASSERT_TRUE(socket2 != NULL);
+  ASSERT_TRUE(socket1 != nullptr);
+  ASSERT_TRUE(socket2 != nullptr);
   EXPECT_EQ(server_->WebsocketCount(), 2U);
 
   // Send messages that will be bounced back after being wrapped
@@ -299,7 +299,7 @@ TEST_F(HttpServerWebsocketTest, MultipleFrameSizes) {
 
   ClientSocket* socket = ClientSocket::from_url("ws://" + localhost_ +
                                                 "/test_handler/prefix_suffix");
-  ASSERT_TRUE(socket != NULL);
+  ASSERT_TRUE(socket != nullptr);
 
   std::string medium(50000, 'X');  // encode length in 2 bytes
   std::string large(100000, 'Y');  // encode length in 8 bytes
@@ -387,8 +387,8 @@ TEST_F(HttpServerWebsocketTest, MultiFrameMessages) {
 
   // Ensure that connections were made successfully... if these fail,
   // the code below would surely crash.
-  ASSERT_TRUE(text_socket != NULL);
-  ASSERT_TRUE(binary_socket != NULL);
+  ASSERT_TRUE(text_socket != nullptr);
+  ASSERT_TRUE(binary_socket != nullptr);
   EXPECT_EQ(server_->WebsocketCount(), 2U);
 
   // Send 2 text messages and 2 binary messages, each broken into 4 frames.

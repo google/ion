@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,6 +23,11 @@
   ],
   'target_defaults': {
     'conditions': [
+      # Attempting to insert mac/ios OTHER_CFLAGS changes here does not work due
+      # to arcane rules concerning merging:
+      #   https://gyp.gsrc.io/docs/InputFormatReference.md#Merge-Basics
+      # and order of evaluation (specifically for included files):
+      #   https://gyp.gsrc.io/docs/InputFormatReference.md#Processing-Order
       ['OS in ["linux", "android"]', {
         # Various third-party libraries result in warnings.
         'cflags_cc': [
@@ -32,15 +37,6 @@
           '-Wconversion',
         ],
       }],
-      ['OS in ["mac", "ios"]', {
-        'xcode_settings': {
-          'OTHER_CFLAGS': [
-            '-Wno-conversion',
-            '-Wno-sign-compare',
-           ],
-        },
-      }],  # mac or ios
-
       [ 'OS == "nacl"', {
         'cflags!': [
           '-include ion/port/nacl/override/aligned_malloc.h',
@@ -69,10 +65,18 @@
         'tess',
       ],
       'conditions': [
-        ['OS == "windows"', {
+        ['OS == "win"', {
           'msvs_disabled_warnings': [
             '4244',   # Conversion from __int64 to int [64-bit builds].
           ],
+        }],
+        ['OS in ["mac", "ios"]', {
+          'xcode_settings': {
+            'OTHER_CFLAGS': [
+              '-Wno-conversion',
+              '-Wno-sign-compare',
+             ],
+          },
         }],
       ],
       'dependencies': [
@@ -121,6 +125,15 @@
           ],
         }],
 
+        ['OS in ["mac", "ios"]', {
+          'xcode_settings': {
+            'OTHER_CFLAGS': [
+              '-Wno-conversion',
+              '-Wno-sign-compare',
+             ],
+          },
+        }],
+
         ['OS=="asmjs"', {
           # sys/ioctl.h defines SO_RCVTIMEO and SO_SNDTIMEO. This directive
           # instructs emcc to include its own internal version of sys/ioctl.h,
@@ -134,7 +147,7 @@
           ],
         }],
 
-        ['OS=="windows"', {
+        ['OS=="win"', {
           'msvs_disabled_warnings': [
             # Conversion from int64 to int.
             '4244',
@@ -153,7 +166,15 @@
         '../../third_party/easywsclient/easywsclient.hpp',
       ],
       'conditions': [
-        ['OS=="windows"', {
+        ['OS in ["mac", "ios"]', {
+          'xcode_settings': {
+            'OTHER_CFLAGS': [
+              '-Wno-conversion',
+              '-Wno-sign-compare',
+             ],
+          },
+        }],
+        ['OS=="win"', {
           'msvs_disabled_warnings': [
             # Conversion from int64 to int.
             '4244',
@@ -185,7 +206,15 @@
         ],
       },
       'conditions': [
-        ['OS == "windows"', {
+        ['OS in ["mac", "ios"]', {
+          'xcode_settings': {
+            'OTHER_CFLAGS': [
+              '-Wno-conversion',
+              '-Wno-sign-compare',
+             ],
+          },
+        }],
+        ['OS == "win"', {
           'defines': [
             '_CRT_SECURE_NO_WARNINGS',
           ],
@@ -251,10 +280,19 @@
              '-Wno-unused-but-set-variable',
            ],
         }],
-        ['OS == "windows"', {
+        ['OS in ["mac", "ios"]', {
+          'xcode_settings': {
+            'OTHER_CFLAGS': [
+              '-Wno-conversion',
+              '-Wno-sign-compare',
+             ],
+          },
+        }],
+        ['OS == "win"', {
           'msvs_disabled_warnings': [
             '4244',   # Conversion from __int64 to int [64-bit builds].
             '4267',   # Conversion from size_t to int [64-bit builds].
+            '4334',   # Result of 32-bit shift implicitly converted to 64 bits.
           ],
         }],
       ],
@@ -268,6 +306,16 @@
         '../../third_party/stblib/stb_image.h',
         '../../util/stb_image_write.c',
         '../../third_party/stblib/stb_image_write.h',
+      ],
+      'conditions': [
+        ['OS in ["mac", "ios"]', {
+          'xcode_settings': {
+            'OTHER_CFLAGS': [
+              '-Wno-conversion',
+              '-Wno-sign-compare',
+             ],
+          },
+        }],
       ],
     },  # target: ionstblib
 
@@ -306,6 +354,9 @@
         'NOUNCRYPT=1',
         'STDC',
       ],
+      'include_dirs': [
+        '../../third_party/zlib/src/',
+      ],
       'all_dependent_settings': {
         'include_dirs': [
           '../../third_party/zlib/src/',
@@ -338,7 +389,7 @@
             'USE_FILE32API=1',
           ],
         }],
-        ['OS == "windows"', {
+        ['OS == "win"', {
           'msvs_disabled_warnings': [
             '4018',  # '>' : signed/unsigned mismatch.
             '4267',  # Conversion from size_t to long [64-bit builds].
@@ -352,7 +403,7 @@
       'type': 'none',
       'link_settings': {
         'conditions': [
-          ['OS == "windows"', {
+          ['OS == "win"', {
             'libraries': [
               '-lgdi32',
               '-luser32',
@@ -409,7 +460,7 @@
 
       'all_dependent_settings': {
         'conditions': [
-          ['OS == "windows"', {
+          ['OS == "win"', {
             'VCCLCompilerTool': {
               'ExceptionHandling': '1',
             },
@@ -421,16 +472,8 @@
                 '4099',   # Type struct reused as class.
               ],
             },
-            'conditions': [
-              ['angle or ogles20', {
-                'include_dirs': [
-                  # TODO(user): Is this set anyhwere?
-                  #'<(ANGLE_SOURCE)/include',
-                ],
-              }],
-            ],  # conditions
           }],
-          ['OS in ["linux", "windows"] and not angle', {
+          ['OS in ["linux", "win"] and not angle', {
             'include_dirs': [
               '../../third_party/GL/gl/include',
             ],
@@ -452,6 +495,16 @@
       ],
       'defines': [
         'JSON_USE_EXCEPTION=0',
+      ],
+      'conditions': [
+        ['OS in ["mac", "ios"]', {
+          'xcode_settings': {
+            'OTHER_CFLAGS': [
+              '-Wno-conversion',
+              '-Wno-sign-compare',
+             ],
+          },
+        }],
       ],
     },  # target: ionjsoncpp
   ],

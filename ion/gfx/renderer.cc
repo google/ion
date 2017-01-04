@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -47,6 +47,7 @@ limitations under the License.
 #include "ion/gfx/shape.h"
 #include "ion/gfx/texture.h"
 #include "ion/gfx/texturemanager.h"
+#include "ion/gfx/transformfeedback.h"
 #include "ion/gfx/updatestatetable.h"
 #include "ion/math/matrix.h"
 #include "ion/math/matrixutils.h"
@@ -59,6 +60,9 @@ limitations under the License.
 #include "ion/port/mutex.h"
 #include "ion/portgfx/glheaders.h"
 #include "ion/portgfx/visual.h"
+#if defined(ION_ANALYTICS_ENABLED)
+#include "ion/profile/profiling.h"
+#endif
 
 namespace ion {
 namespace gfx {
@@ -69,9 +73,14 @@ using math::Point3ui;
 using math::Range1i;
 using math::Range1ui;
 
+#define SCOPED_RESOURCE_LABEL \
+  ScopedResourceLabel label(this, rb, ION_PRETTY_FUNCTION);
+
 namespace {
 
 static const GLuint kInvalidGluint = static_cast<GLuint>(-1);
+
+using StringVector = base::AllocVector<std::string>;
 
 //-----------------------------------------------------------------------------
 //
@@ -132,10 +141,13 @@ static GLuint GetAttributeSlotCountByGlType(GLenum type) {
 // Returns a string corresponding to a shader type (for error messages).
 static const char* GetShaderTypeString(GLenum shader_type) {
   const char* type = "<UNKNOWN>";
-  if (shader_type == GL_VERTEX_SHADER)
+  if (shader_type == GL_VERTEX_SHADER) {
     type = "vertex";
-  else if (shader_type == GL_FRAGMENT_SHADER)
+  } else if (shader_type == GL_GEOMETRY_SHADER) {
+    type = "geometry";
+  } else if (shader_type == GL_FRAGMENT_SHADER) {
     type = "fragment";
+  }
   return type;
 }
 
@@ -143,7 +155,7 @@ static const char* GetShaderTypeString(GLenum shader_type) {
 static void SetObjectLabel(GraphicsManager* gm, GLenum type, GLuint id,
                            const std::string& label) {
 #if !ION_PRODUCTION
-  if (gm->IsFunctionGroupAvailable(GraphicsManager::kDebugLabel)) {
+  if (gm->IsFeatureAvailable(GraphicsManager::kDebugLabel)) {
     gm->LabelObject(type, id, static_cast<GLsizei>(label.length()),
                     label.c_str());
   }
@@ -277,12 +289,28 @@ static GLuint CompileShader(const std::string& id_string, GLenum shader_type,
 // Links an OpenGL shader program, returning the program id. Logs a message and
 // returns 0 on error.
 static GLuint RelinkShaderProgram(const std::string& id_string,
-                                  GLuint program_id, GLuint vertex_shader_id,
+                                  GLuint program_id,
+                                  GLuint vertex_shader_id,
+                                  GLuint geometry_shader_id,
                                   GLuint fragment_shader_id,
+                                  const StringVector& captured_varyings,
                                   std::string* info_log, GraphicsManager* gm) {
   // Clear the info log. When this function returns it will either be empty,
   // indicating success, or non-empty, signaling an error.
   info_log->clear();
+
+  // If transform feedback varyings were specified, tell GL about them now.
+  const size_t nvaryings = captured_varyings.size();
+  if (nvaryings > 0) {
+    std::vector<const char*> raw_varyings(nvaryings);
+    auto iter = raw_varyings.begin();
+    for (const auto& str : captured_varyings) {
+      *iter++ = str.c_str();
+    }
+    gm->TransformFeedbackVaryings(program_id, static_cast<GLsizei>(nvaryings),
+                                  raw_varyings.data(), GL_INTERLEAVED_ATTRIBS);
+  }
+
   // Link the program object.
   gm->LinkProgram(program_id);
 
@@ -307,17 +335,22 @@ static GLuint RelinkShaderProgram(const std::string& id_string,
 // returns 0 on error.
 static GLuint LinkShaderProgram(const std::string& id_string,
                                 GLuint vertex_shader_id,
+                                GLuint geometry_shader_id,
                                 GLuint fragment_shader_id,
+                                const StringVector& captured_varyings,
                                 std::string* info_log, GraphicsManager* gm) {
   GLuint program_id = gm->CreateProgram();
   if (program_id) {
     if (vertex_shader_id)
       gm->AttachShader(program_id, vertex_shader_id);
+    if (geometry_shader_id)
+      gm->AttachShader(program_id, geometry_shader_id);
     if (fragment_shader_id)
       gm->AttachShader(program_id, fragment_shader_id);
 
     program_id = RelinkShaderProgram(id_string, program_id, vertex_shader_id,
-                                     fragment_shader_id, info_log, gm);
+                                     geometry_shader_id, fragment_shader_id,
+                                     captured_varyings, info_log, gm);
   } else {
     LOG(ERROR) << "***ION: Unable to create shader program object";
   }
@@ -416,6 +449,14 @@ inline static void SendMatrixUniform(const Uniform& uniform,
   }
 }
 
+static uint64_t GetInvalidateColorFlags() {
+  uint64_t result = 0;
+  for (size_t i = 0; i < kColorAttachmentSlotCount; ++i) {
+    result |= (1ULL << (Renderer::kInvalidateColorAttachment + i));
+  }
+  return result;
+}
+
 }  // anonymous namespace
 
 
@@ -476,6 +517,10 @@ struct Renderer::HolderToResource<TextureBase> {
 template <>
 struct Renderer::HolderToResource<Texture> {
   typedef Renderer::TextureResource ResourceType;
+};
+template <>
+struct Renderer::HolderToResource<TransformFeedback> {
+  typedef Renderer::TransformFeedbackResource ResourceType;
 };
 
 //-----------------------------------------------------------------------------
@@ -555,7 +600,7 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
       return resource_manager_->GetResource(holder, binder, gl_id);
     }
 
-    void UnbindAll() {
+    virtual void UnbindAll() {
       // Remove this from all ResourceBinders.
       base::ReadLock read_lock(GetResourceBinderLock());
       base::ReadGuard read_guard(&read_lock);
@@ -658,14 +703,26 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
     ResourceAccessor(resources_[kShaderProgram]).GetResources().reserve(16U);
     ResourceAccessor(resources_[kShader]).GetResources().reserve(16U);
     ResourceAccessor(resources_[kTexture]).GetResources().reserve(128U);
+    ResourceAccessor(resources_[kTransformFeedback]).GetResources().reserve(1U);
   }
 
   // The destructor releases and deletes all resources.
-  ~ResourceManager() override {}
+  ~ResourceManager() override {
+    DestroyOrAbandonAllResources(false);
+    AcquireOrReleaseResourceIndex(true, resource_index_);
+  }
 
   // Returns the resource index for this. Use it to get and set resources in
   // ResourceHolders.
   size_t GetResourceIndex() const { return resource_index_; }
+
+  bool AreResourcesAccessible() const {
+    const portgfx::VisualPtr current_visual = portgfx::Visual::GetCurrent();
+    if (!current_visual) return false;
+    if (!visual_) return true;  // No resources created yet
+    const uintptr_t current_share_group = current_visual->GetShareGroupId();
+    return current_share_group == visual_->GetShareGroupId();
+  }
 
   // Returns a ResourceAccessor for the Resources of the specified type.
   ResourceAccessor AccessResources(ResourceType type) {
@@ -724,6 +781,8 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
 
   // Adds a resource to manage, specialized by type.
   void AddResource(Resource* resource) {
+    if (!visual_)
+      visual_ = portgfx::Visual::GetCurrent();
     ResourceAccessor accessor(resources_[resource->GetType()]);
     ResourceVector& resources = accessor.GetResources();
     resource->SetIndex(resources.size());
@@ -737,7 +796,8 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
     resources_to_release_.push_back(resource);
   }
 
-  // Marks a resource to destroy at the next convenient time.
+  // Removes a resource from the vector that holds ownership. The caller is
+  // responsible for deleting the resource and reclaiming memory.
   void DestroyResource(Resource* resource) {
     DCHECK(resource);
 
@@ -777,7 +837,7 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
           resource->OnDestroyed();
         }
       }
-      ReleaseAll(binder);
+      ProcessReleases(binder);
     }
   }
 
@@ -791,15 +851,19 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
   }
 
   // Releases all resources waiting to be released, then deletes them.
-  void ReleaseAll(ResourceBinder* resource_binder) {
+  void ProcessReleases(ResourceBinder* resource_binder) {
     // This can't be strictly 2-pass because deleting items may cause a resource
     // holder to be ready for release.  Loop until we have no more items to
     // release.
-    const bool can_make_gl_calls = portgfx::Visual::GetCurrent() != nullptr;
+    const bool can_make_gl_calls = AreResourcesAccessible();
     while (true) {
       ResourceVector resources_to_destroy(*this);
       {
         base::LockGuard locker(&release_mutex_);
+        // If the vector is empty when we enter the lock, we are done. Putting
+        // this here avoids acquiring the mutex twice when there is nothing to
+        // release.
+        if (resources_to_release_.empty()) return;
         for (Resource* resource : resources_to_release_) {
           resource->Release(can_make_gl_calls);
           // Add the resource to the to-be-destroyed vector.
@@ -813,24 +877,21 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
       // separate from the above block since it is possible for the deletion of
       // a Resource to trigger an addition to the release queue. This can
       // happen, for example, when a ShaderProgram is destroyed: it releases
-      // it's list of Uniforms, which can trigger a Texture to be marked for
+      // its list of Uniforms, which can trigger a Texture to be marked for
       // release, which requires a mutex lock.
       for (Resource* resource : resources_to_destroy)
         delete resource;
-
-      {
-        base::LockGuard locker(&release_mutex_);
-        // The decrefs that can happen while deleting items may cause more items
-        // on the release list.
-        if (resources_to_release_.empty())
-          break;
-      }
     }
   }
 
-  // This should only be called right before this instance is destroyed.
-  void DestroyAllResources() {
-    const bool can_make_gl_calls = portgfx::Visual::GetCurrent() != nullptr;
+  // Delete all resources owned by this manager. Used for cleaning up on
+  // destruction and when abandoning resources.
+  void DestroyOrAbandonAllResources(bool force_abandon) {
+    {
+      base::LockGuard locker(&release_mutex_);
+      resources_to_release_.clear();
+    }
+    bool can_make_gl_calls = force_abandon ? false : AreResourcesAccessible();
     for (int i = 0; i < kNumResourceTypes; ++i) {
       ResourceAccessor accessor(resources_[i]);
       ResourceVector& resources = accessor.GetResources();
@@ -840,7 +901,11 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
       }
       resources.clear();
     }
-    AcquireOrReleaseResourceIndex(true, resource_index_);
+    visual_.Reset();
+  }
+
+  void RestoreVisual() const {
+    portgfx::Visual::MakeCurrent(visual_);
   }
 
   // Process any outstanding requests for data, e.g., PlatformInfo and
@@ -888,8 +953,9 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
       // Instead, we should simply do nothing for holders that do not have
       // any resources assigned to them yet.
       if (ResourceType* resource =
-              GetResource(request.holder.Get(), resource_binder))
+          GetResource(request.holder.Get(), resource_binder)) {
         AppendResourceInfo(&infos, resource, resource_binder);
+      }
     } else {
       // Add an info for each Resource for the current renderer.
       ResourceAccessor accessor(*resource_container);
@@ -1001,6 +1067,13 @@ class Renderer::ResourceManager : public gfx::ResourceManager {
   // For locking access to resources_to_release_. This is needed since multiple
   // threads may destroy resources at the same time as holders are destroyed.
   port::Mutex release_mutex_;
+
+  // The Visual that was current when the first resource in this manager was
+  // created. Ensures that the visual does not disappear if it is a wrapping
+  // visual.
+  // TODO(user): we should probably track multiple visuals to properly
+  // delete or abandon thread-specific objects.
+  portgfx::VisualPtr visual_;
 };
 
 //-----------------------------------------------------------------------------
@@ -1015,12 +1088,18 @@ class Renderer::ResourceBinder : public Allocatable {
  public:
   typedef base::AllocVector<Uniform> UniformStack;
 
-  // Tracks which buffers have been bound.
-  struct BufferBinding {
-    BufferBinding() : buffer(0U), resource(nullptr) {}
-    GLuint buffer;
-    BufferResource* resource;
+  template <typename T>
+  struct ResourceBinding {
+    ResourceBinding() : gl_id(0U), resource(nullptr) {}
+    GLuint gl_id;
+    T* resource;
   };
+
+  typedef ResourceBinding<BufferResource> BufferBinding;
+  typedef ResourceBinding<FramebufferResource> FramebufferBinding;
+  typedef ResourceBinding<ShaderProgramResource> ShaderProgramBinding;
+  typedef ResourceBinding<TransformFeedbackResource> TransformFeedbackBinding;
+  typedef ResourceBinding<VertexArrayResource> VertexArrayBinding;
 
   // An ImageUnit represents an OpenGL image unit.
   struct ImageUnit {
@@ -1044,16 +1123,15 @@ class Renderer::ResourceBinder : public Allocatable {
    public:
     explicit StreamAnnotator(const GraphicsManagerPtr& gm)
         : gm_(gm),
+          stream_(gm_->GetTracingStream()),
           gl_supports_markers_(
-              gm_->IsFunctionGroupAvailable(GraphicsManager::kDebugMarker)) {}
+              gm_->IsFeatureAvailable(GraphicsManager::kDebugMarker)) {}
 
     // Pushes a label onto the tracing stack and outputs it if the contained
     // GraphicsManager has a tracing stream.
     void Push(const std::string& marker) {
-      if (std::ostream* out = gm_->GetTracingStream())
-        *out << std::string(indent_.length(), '-') << ">" << marker << ":\n";
-      indent_ += "  ";
-      gm_->SetTracingPrefix(indent_);
+      intptr_t visual_id = portgfx::Visual::GetCurrentId();
+      stream_.EnterScope(visual_id, marker);
       if (gl_supports_markers_)
         gm_->PushGroupMarker(static_cast<GLsizei>(marker.length()),
                              marker.c_str());
@@ -1061,17 +1139,17 @@ class Renderer::ResourceBinder : public Allocatable {
 
     // Pops the last label (if there is one) off of the tracing stack.
     void Pop() {
-      if (const size_t length = indent_.length()) {
+      intptr_t visual_id = portgfx::Visual::GetCurrentId();
+      if (stream_.Depth(visual_id) > 0) {
         if (gl_supports_markers_)
           gm_->PopGroupMarker();
-        indent_ = indent_.substr(0, length - 2U);
-        gm_->SetTracingPrefix(indent_);
+        stream_.ExitScope(visual_id);
       }
     }
 
    private:
     GraphicsManagerPtr gm_;
-    std::string indent_;
+    TracingStream& stream_;
     const bool gl_supports_markers_;
   };
 #endif
@@ -1097,12 +1175,7 @@ class Renderer::ResourceBinder : public Allocatable {
         image_units_(*this),
         texture_last_bindings_(*this),
         active_image_unit_(kInvalidGluint),
-        active_framebuffer_(kInvalidGluint),
-        active_framebuffer_resource_(nullptr),
-        active_shader_id_(0U),
-        active_shader_resource_(nullptr),
-        active_vertex_array_(0U),
-        active_vertex_array_resource_(nullptr),
+        resource_manager_(nullptr),
         current_shader_program_(nullptr),
         vertex_array_keys_(*this),
         gl_state_table_(new (GetAllocator()) StateTable(0, 0)),
@@ -1112,6 +1185,7 @@ class Renderer::ResourceBinder : public Allocatable {
         processing_info_requests_(false) {
     memset(saved_ids_, 0, sizeof(saved_ids_));
     saved_state_table_ = new (GetAllocator()) StateTable();
+    active_framebuffer_.gl_id = kInvalidGluint;
 
     // Enable program point sizes if the platform needs it.
     if (gm->GetGlApiStandard() == GraphicsManager::kDesktop) {
@@ -1120,9 +1194,6 @@ class Renderer::ResourceBinder : public Allocatable {
         gm->Enable(GL_POINT_SPRITE);
       gm->Enable(GL_PROGRAM_POINT_SIZE);
     }
-
-    // Save the default framebuffer.
-    UpdateDefaultFramebufferFromOpenGL();
 
     // Get the number of image units and resize the TextureManager.
     const int max_image_units = GetGraphicsManager()->GetCapabilityValue<int>(
@@ -1178,17 +1249,22 @@ class Renderer::ResourceBinder : public Allocatable {
 
   // Returns the currently active shader program resource.
   ShaderProgramResource* GetActiveShaderProgram() const {
-    return active_shader_resource_;
+    return active_shader_.resource;
+  }
+
+  // Returns the currently active transform feedback object.
+  TransformFeedbackResource* GetActiveTransformFeedback() const {
+    return active_transform_feedback_.resource;
   }
 
   // Returns the currently active framebuffer resource.
   FramebufferResource* GetActiveFramebuffer() const {
-    return active_framebuffer_resource_;
+    return active_framebuffer_.resource;
   }
 
   // Returns the currently active vertex array resource.
   VertexArrayResource* GetActiveVertexArray() const {
-    return active_vertex_array_resource_;
+    return active_vertex_array_.resource;
   }
 
   // Sets the currently active vertex array resource to the passed resource.
@@ -1196,7 +1272,7 @@ class Renderer::ResourceBinder : public Allocatable {
   // emulated vertex arrays, however, we still need to track the latest bound
   // state to avoid duplicate calls.
   void SetActiveVertexArray(VertexArrayResource* resource) {
-    active_vertex_array_resource_ = resource;
+    active_vertex_array_.resource = resource;
   }
 
   // Returns the StateTable that the Renderer believes to represent the current
@@ -1231,6 +1307,9 @@ class Renderer::ResourceBinder : public Allocatable {
   // already bound there.
   void BindTextureToUnit(TextureResource* resource, GLuint unit);
 
+  // Bind the given transform feedback object if it is not already bound.
+  void BindTransformFeedback(GLuint id, TransformFeedbackResource* resource);
+
   // Tests whether the passed texture resource was evicted from an image unit.
   bool WasTextureEvicted(TextureResource* resource) {
     auto found = texture_last_bindings_.find(resource);
@@ -1258,25 +1337,23 @@ class Renderer::ResourceBinder : public Allocatable {
 
   // Clears the buffer bound to target if it is already bound there.
   void ClearBufferBinding(BufferObject::Target target, GLuint id) {
-    if (!id || id == active_buffers_[target].buffer) {
-      active_buffers_[target].buffer = 0;
-      active_buffers_[target].resource = nullptr;
+    if (!id || id == active_buffers_[target].gl_id) {
+      active_buffers_[target] = BufferBinding();
     }
   }
 
   // Clears the framebuffer binding if it is already bound.
   void ClearFramebufferBinding(GLuint id) {
-    if (!id || id == active_framebuffer_) {
-      active_framebuffer_ = kInvalidGluint;
-      active_framebuffer_resource_ = nullptr;
+    if (!id || id == active_framebuffer_.gl_id) {
+      active_framebuffer_.gl_id = kInvalidGluint;
+      active_framebuffer_.resource = nullptr;
     }
   }
 
   // Clears the passed program binding if it is being used.
   void ClearProgramBinding(GLuint id) {
-    if (!id || id == active_shader_id_) {
-      active_shader_id_ = 0;
-      active_shader_resource_ = nullptr;
+    if (!id || id == active_shader_.gl_id) {
+      active_shader_ = ShaderProgramBinding();
     }
   }
 
@@ -1291,6 +1368,13 @@ class Renderer::ResourceBinder : public Allocatable {
   // Clears the texture bound to the passed image unit if it is already bound
   // there.
   void ClearTextureBinding(GLuint id, GLuint unit);
+
+  // Clears the transform feedback binding if it is already bound.
+  void ClearTransformFeedbackBinding(GLuint id) {
+    if (!id || id == active_transform_feedback_.gl_id) {
+      active_transform_feedback_ = TransformFeedbackBinding();
+    }
+  }
 
   // Clears the passed vertex array if it is already bound.
   void ClearVertexArrayBinding(GLuint id);
@@ -1381,7 +1465,7 @@ class Renderer::ResourceBinder : public Allocatable {
         }
       }
       GraphicsManager* gm = rb->GetGraphicsManager().Get();
-      if (gm->IsFunctionGroupAvailable(GraphicsManager::kVertexArrays))
+      if (gm->IsFeatureAvailable(GraphicsManager::kVertexArrays))
         Operation::Process(rb, aa, gl_id);
       else
         Operation::Process(rb,
@@ -1491,6 +1575,9 @@ class Renderer::ResourceBinder : public Allocatable {
     vertex_array_keys_.erase(shader);
   }
 
+  void WrapExternalResource(Texture* holder, uint32 gl_id);
+  void WrapExternalResource(FramebufferObject* holder, uint32 gl_id);
+
  private:
   // Gets the hash key for Resource types. By default this is just the
   // ResourceBinder.
@@ -1537,21 +1624,21 @@ class Renderer::ResourceBinder : public Allocatable {
   GLuint active_image_unit_;
 
   // Tracks which buffer objects are currently bound.
-  std::array<BufferBinding, 4> active_buffers_;
+  std::array<BufferBinding, BufferObject::kNumTargets> active_buffers_;
 
   // Tracks which framebuffer is currently bound.
-  // Please note that if active_framebuffer_ equals
+  // Please note that if active_framebuffer_.gl_id equals
   // kInvalidGluint(static_cast<GLuint>(-1)), then it is invalid framebuffer.
-  GLuint active_framebuffer_;
-  FramebufferResource* active_framebuffer_resource_;
+  FramebufferBinding active_framebuffer_;
 
   // Tracks which shader program is currently active.
-  GLuint active_shader_id_;
-  ShaderProgramResource* active_shader_resource_;
+  ShaderProgramBinding active_shader_;
+
+  // Tracks the currently-bound transform feedback.
+  TransformFeedbackBinding active_transform_feedback_;
 
   // Tracks which vertex array is currently bound.
-  GLuint active_vertex_array_;
-  VertexArrayResource* active_vertex_array_resource_;
+  VertexArrayBinding active_vertex_array_;
 
   // Storage for GL object IDs that are saved when kSave* flags are set, and
   // restored when kRestore* flags are set.
@@ -1563,7 +1650,7 @@ class Renderer::ResourceBinder : public Allocatable {
   // be set using SetResourceManager().
   ResourceManager* resource_manager_;
 
-  // The currently active shader program during traversal.
+  // The currently active shader program during scene graph traversal.
   ShaderProgram* current_shader_program_;
 
   // This set is used to keep track of ResourceKeys for vertex arrays which
@@ -1670,6 +1757,8 @@ void Renderer::ResourceManager::ProcessResourceInfoRequests(
                                           resource_binder);
   ProcessInfoRequests<TextureBase, TextureInfo>(&resources_[kTexture],
                                                 resource_binder);
+  ProcessInfoRequests<TransformFeedback, TransformFeedbackInfo>(
+      &resources_[kTransformFeedback], resource_binder);
   ProcessDataRequests<PlatformInfo>();
   ProcessDataRequests<TextureImageInfo>();
 }
@@ -1680,16 +1769,27 @@ void Renderer::ResourceManager::ProcessResourceInfoRequests(
 class Renderer::ScopedLabel {
  public:
   ScopedLabel(ResourceBinder* binder, const void* address,
-              const std::string& label) {}
+              const std::string& label, const char* method) {}
 };
 #else
 class Renderer::ScopedLabel {
  public:
   ScopedLabel(ResourceBinder* rb, const void* address,
-              const std::string& label)
+              const std::string& label, const char* method)
       : annotator_(rb->GetStreamAnnotator()),
         needs_pop_(false) {
-    if (rb->GetGraphicsManager()->GetTracingStream() && label.length()) {
+#if defined(ION_ANALYTICS_ENABLED)
+    profile::CallTraceManager* const manager = profile::GetCallTraceManager();
+    profile::TraceRecorder* const recorder = manager->GetTraceRecorder();
+    const uint32 scope_event_id = recorder->GetScopeEvent(method);
+    recorder->EnterScope(scope_event_id);
+    if (!label.empty()) {
+      recorder->AnnotateCurrentScope(
+          std::string("label"), ion::base::QuoteString(label));
+    }
+#endif
+    const auto& stream = rb->GetGraphicsManager()->GetTracingStream();
+    if (stream.IsTracing() && !label.empty()) {
       annotator_->Push(label + " [" + base::ValueToString(address) + "]");
       needs_pop_ = true;
     }
@@ -1697,6 +1797,9 @@ class Renderer::ScopedLabel {
   ~ScopedLabel() {
     if (needs_pop_)
       annotator_->Pop();
+#if defined(ION_ANALYTICS_ENABLED)
+    profile::GetCallTraceManager()->GetTraceRecorder()->LeaveScope();
+#endif
   }
 
  private:
@@ -1722,9 +1825,10 @@ class Renderer::Resource : public Renderer::ResourceManager::Resource {
  public:
   class ScopedResourceLabel : public ScopedLabel {
    public:
-    ScopedResourceLabel(Resource* resource, ResourceBinder* binder)
+    ScopedResourceLabel(Resource* resource, ResourceBinder* binder,
+                        const char* method)
         : ScopedLabel(binder, resource->GetHolder(),
-                      resource->GetHolder()->GetLabel()) {}
+                      resource->GetHolder()->GetLabel(), method) {}
   };
 
   ~Resource() override { DetachFromHolder(); }
@@ -1732,6 +1836,7 @@ class Renderer::Resource : public Renderer::ResourceManager::Resource {
   bool AnyModifiedBitsSet() const { return modified_bits_.any(); }
 
   void OnDestroyed() override {
+    UnbindAll();
     // Detach the containing object from the object holding it.
     DetachFromHolder();
     if (GetResourceManager())
@@ -1858,12 +1963,12 @@ class Renderer::SamplerResource : public Resource<Sampler::kNumChanges> {
 };
 
 void Renderer::SamplerResource::Update(ResourceBinder* rb) {
-  if (GetGraphicsManager()->IsFunctionGroupAvailable(
+  if (GetGraphicsManager()->IsFeatureAvailable(
           GraphicsManager::kSamplerObjects)) {
     const Sampler& sampler = GetSampler();
 
     if (AnyModifiedBitsSet()) {
-      ScopedResourceLabel label(this, rb);
+      SCOPED_RESOURCE_LABEL;
       // Generate the sampler object.
       GraphicsManager* gm = GetGraphicsManager();
       DCHECK(gm);
@@ -1915,7 +2020,8 @@ void Renderer::SamplerResource::Update(ResourceBinder* rb) {
           gm->SamplerParameteri(
               id_, GL_TEXTURE_WRAP_R,
               base::EnumHelper::GetConstant(sampler.GetWrapR()));
-
+        if (TestModifiedBit(ResourceHolder::kLabelChanged))
+          SetObjectLabel(gm, GL_SAMPLER, id_, sampler.GetLabel());
         ResetModifiedBits();
       } else {
         LOG(ERROR) << "***ION: Unable to create sampler object";
@@ -1988,6 +2094,16 @@ class Renderer::TextureResource : public Resource<CubeMapTexture::kNumChanges> {
 
   GLenum GetGlTarget() const { return gl_target_; }
 
+  int GetDimensions() const {
+    if (gl_target_ == GL_TEXTURE_3D ||
+        gl_target_ == GL_TEXTURE_2D_MULTISAMPLE_ARRAY ||
+        gl_target_ == GL_TEXTURE_CUBE_MAP_ARRAY) {
+      return 3;
+    } else {
+      return 2;
+    }
+  }
+
   template <typename T> const T& GetTexture() const {
     return static_cast<const T&>(*(this->GetHolder()));
   }
@@ -1998,11 +2114,6 @@ class Renderer::TextureResource : public Resource<CubeMapTexture::kNumChanges> {
   // Binds the texture object in OpenGL to the passed unit.
   void BindToUnit(ResourceBinder* rb, GLuint unit);
   void Unbind(ResourceBinder* rb) override;
-
-  void OnDestroyed() override {
-    UnbindAll();
-    Renderer::Resource<CubeMapTexture::kNumChanges>::OnDestroyed();
-  }
 
   // Determines an image unit number to use to bind this.
   GLuint ObtainImageUnit(ResourceBinder* rb, const void* assoc, int old_unit) {
@@ -2162,11 +2273,11 @@ void Renderer::TextureResource::Bind(ResourceBinder* rb) {
 void Renderer::TextureResource::BindToUnit(ResourceBinder* rb, GLuint unit) {
   UpdateWithUnit(rb, unit);
   if (id_) {
-    ScopedResourceLabel label(this, rb);
+    SCOPED_RESOURCE_LABEL;
     rb->BindTextureToUnit(this, unit);
     Sampler* sampler = GetTexture<TextureBase>().GetSampler().Get();
     if (sampler &&
-        GetGraphicsManager()->IsFunctionGroupAvailable(
+        GetGraphicsManager()->IsFeatureAvailable(
             GraphicsManager::kSamplerObjects)) {
       // If we are using sampler objects then ensure the sampler is bound to the
       // same image unit as this.
@@ -2243,14 +2354,22 @@ void Renderer::TextureResource::UploadImage(const Image& image, GLenum target,
   const void* data = container.Get() ? container->GetData() : nullptr;
   gm->PixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
+  if (samples > 0 &&
+      !gm->IsFeatureAvailable(GraphicsManager::kTextureMultisample)) {
+    LOG(WARNING) << "Multisampling requested for texture \""
+        << GetTexture<TextureBase>().GetLabel()
+        << "\" but multisampled textures are not supported.  Falling back to "
+        << "a non-multisampled format.";
+  }
+
   const bool multisample = (samples > 0) &&
-      gm->IsFunctionGroupAvailable(GraphicsManager::kTextureMultisample);
+      gm->IsFeatureAvailable(GraphicsManager::kTextureMultisample);
 
   if (image.GetType() == Image::kEgl ||
       image.GetType() == Image::kExternalEgl) {
     // EGL images are a special case. We only need to link the EGLImage with the
     // bound texture.
-    if (data && gm->IsFunctionGroupAvailable(GraphicsManager::kEglImage)) {
+    if (data && gm->IsFeatureAvailable(GraphicsManager::kEglImage)) {
       DCHECK(gl_target_ == GL_TEXTURE_EXTERNAL_OES ||
              gl_target_ == GL_TEXTURE_2D);
       gm->EGLImageTargetTexture2DOES(gl_target_, const_cast<void*>(data));
@@ -2278,7 +2397,7 @@ void Renderer::TextureResource::UploadImage(const Image& image, GLenum target,
         const size_t data_size =
             Image::ComputeDataSize(image.GetFormat(), image.GetWidth(),
                                    image.GetHeight(), image.GetDepth());
-        if (gm->IsFunctionGroupAvailable(GraphicsManager::kTexture3d)) {
+        if (gm->IsFeatureAvailable(GraphicsManager::kTexture3d)) {
           if (is_full_image) {
             gm->CompressedTexImage3D(target, level, pf.internal_format,
                                      image.GetWidth(), image.GetHeight(),
@@ -2314,7 +2433,7 @@ void Renderer::TextureResource::UploadImage(const Image& image, GLenum target,
                             pf.type, data);
         }
       } else if (image.GetDimensions() == Image::k3d) {
-        if (gm->IsFunctionGroupAvailable(GraphicsManager::kTexture3d)) {
+        if (gm->IsFeatureAvailable(GraphicsManager::kTexture3d)) {
           if (is_full_image) {
             if (multisample) {
               gm->TexImage3DMultisample(
@@ -2367,11 +2486,11 @@ void Renderer::TextureResource::UpdateState(const TextureBase& texture,
   // Enable or disable multisampling state on the texture, check if its
   // state has changed.
   const bool multisample = (texture.GetMultisampleSamples() > 0) &&
-      gm->IsFunctionGroupAvailable(GraphicsManager::kTextureMultisample);
+      gm->IsFeatureAvailable(GraphicsManager::kTextureMultisample);
   const bool multisample_changed = SetMultisampleEnabledByRenderer(multisample);
 
   if (!id_ || AnyModifiedBitsSet()) {
-    ScopedResourceLabel label(this, rb);
+    SCOPED_RESOURCE_LABEL;
     if (!id_)
       gm->GenTextures(1, &id_);
     if (id_) {
@@ -2386,21 +2505,24 @@ void Renderer::TextureResource::UpdateState(const TextureBase& texture,
       rb->BindTextureToUnit(this, unit);
 
       // If the texture is immutable, call TexStorage?D().
-      if (multisample_changed ||
-          TestModifiedBit(TextureBase::kImmutableImageChanged)) {
-        if (Image* image = texture.GetImmutableImage().Get())
+      if ((multisample_changed ||
+           TestModifiedBit(TextureBase::kImmutableImageChanged)) &&
+          gm->IsFeatureAvailable(GraphicsManager::kTextureStorage)) {
+        if (Image* image = texture.GetImmutableImage().Get()) {
           CreateImmutableTexture(*image, multisample,
                                  texture.GetMultisampleSamples(),
                                  texture.IsMultisampleFixedSampleLocations(),
                                  texture.GetImmutableLevels(), gm);
+        }
       }
+
       if (texture.GetTextureType() == TextureBase::kCubeMapTexture)
         UpdateCubeMapImageState(gm);
       else
         UpdateTextureImageState(gm, multisample, multisample_changed);
       UpdateMemoryUsage(texture.GetTextureType());
       if (TestModifiedBit(TextureBase::kSamplerChanged) &&
-          !GetGraphicsManager()->IsFunctionGroupAvailable(
+          !GetGraphicsManager()->IsFeatureAvailable(
               GraphicsManager::kSamplerObjects))
         if (Sampler* sampler = GetTexture<TextureBase>().GetSampler().Get())
           UpdateSamplerState(*sampler, gm);
@@ -2467,7 +2589,8 @@ void Renderer::TextureResource::UpdateSamplerState(const Sampler& sampler,
       min_lod_ = sampler.GetMinLod();
       gm->TexParameterf(gl_target_, GL_TEXTURE_MIN_LOD, min_lod_);
     }
-    if (wrap_r_ != sampler.GetWrapR()) {
+    // Do not set this if the texture is 2D.
+    if (GetDimensions() == 3 && wrap_r_ != sampler.GetWrapR()) {
       wrap_r_ = sampler.GetWrapR();
       gm->TexParameteri(gl_target_, GL_TEXTURE_WRAP_R,
                         base::EnumHelper::GetConstant(wrap_r_));
@@ -2477,33 +2600,46 @@ void Renderer::TextureResource::UpdateSamplerState(const Sampler& sampler,
 
 void Renderer::TextureResource::UpdateTextureState(const TextureBase& texture,
                                                    GraphicsManager* gm) {
-  if (gm->GetGlVersion() > 20) {
+  if (gm->IsFeatureAvailable(GraphicsManager::kTextureMipmapRange)) {
     if (TestModifiedBit(TextureBase::kBaseLevelChanged))
       gm->TexParameteri(gl_target_, GL_TEXTURE_BASE_LEVEL,
                         texture.GetBaseLevel());
     if (TestModifiedBit(TextureBase::kMaxLevelChanged))
       gm->TexParameteri(gl_target_, GL_TEXTURE_MAX_LEVEL,
                         texture.GetMaxLevel());
-    if ((gm->GetGlApiStandard() == GraphicsManager::kEs &&
-         gm->GetGlVersion() >= 30) ||
-        (gm->GetGlApiStandard() == GraphicsManager::kDesktop &&
-         gm->GetGlVersion() >= 33)) {
-      if (TestModifiedBit(TextureBase::kSwizzleRedChanged))
-        gm->TexParameteri(
-            gl_target_, GL_TEXTURE_SWIZZLE_R,
-            base::EnumHelper::GetConstant(texture.GetSwizzleRed()));
-      if (TestModifiedBit(TextureBase::kSwizzleGreenChanged))
-        gm->TexParameteri(
-            gl_target_, GL_TEXTURE_SWIZZLE_G,
-            base::EnumHelper::GetConstant(texture.GetSwizzleGreen()));
-      if (TestModifiedBit(TextureBase::kSwizzleBlueChanged))
-        gm->TexParameteri(
-            gl_target_, GL_TEXTURE_SWIZZLE_B,
-            base::EnumHelper::GetConstant(texture.GetSwizzleBlue()));
-      if (TestModifiedBit(TextureBase::kSwizzleAlphaChanged))
-        gm->TexParameteri(
-            gl_target_, GL_TEXTURE_SWIZZLE_A,
-            base::EnumHelper::GetConstant(texture.GetSwizzleAlpha()));
+  } else if (TestModifiedBitRange(TextureBase::kBaseLevelChanged,
+                                  TextureBase::kMaxLevelChanged) &&
+             (texture.GetBaseLevel() != 0 ||
+              texture.GetMaxLevel() != 1000)) {
+    LOG(WARNING) << "***ION: OpenGL implementation does not support "
+        "setting texture mipmap ranges, they will be ignored.";
+  }
+  if (gm->IsFeatureAvailable(GraphicsManager::kTextureSwizzle)) {
+    if (TestModifiedBit(TextureBase::kSwizzleRedChanged))
+      gm->TexParameteri(
+          gl_target_, GL_TEXTURE_SWIZZLE_R,
+          base::EnumHelper::GetConstant(texture.GetSwizzleRed()));
+    if (TestModifiedBit(TextureBase::kSwizzleGreenChanged))
+      gm->TexParameteri(
+          gl_target_, GL_TEXTURE_SWIZZLE_G,
+          base::EnumHelper::GetConstant(texture.GetSwizzleGreen()));
+    if (TestModifiedBit(TextureBase::kSwizzleBlueChanged))
+      gm->TexParameteri(
+          gl_target_, GL_TEXTURE_SWIZZLE_B,
+          base::EnumHelper::GetConstant(texture.GetSwizzleBlue()));
+    if (TestModifiedBit(TextureBase::kSwizzleAlphaChanged))
+      gm->TexParameteri(
+          gl_target_, GL_TEXTURE_SWIZZLE_A,
+          base::EnumHelper::GetConstant(texture.GetSwizzleAlpha()));
+  } else {
+    if (TestModifiedBitRange(TextureBase::kSwizzleRedChanged,
+                             TextureBase::kSwizzleAlphaChanged) &&
+        (texture.GetSwizzleRed() != TextureBase::kRed ||
+         texture.GetSwizzleGreen() != TextureBase::kGreen ||
+         texture.GetSwizzleBlue() != TextureBase::kBlue ||
+         texture.GetSwizzleAlpha() != TextureBase::kAlpha)) {
+      LOG(ERROR) << "***ION: OpenGL implementation does not support texture "
+          "swizzles, they will be ignored.";
     }
   }
 }
@@ -2642,6 +2778,10 @@ void Renderer::TextureResource::UpdateSubImages(
   const size_t count = images.size();
   for (size_t i = 0; i < count; ++i) {
     const Image& image = *images[i].image.Get();
+    // If the image is an array type then we're setting a slice and must use its
+    // target.
+    if (image.GetType() == Image::kArray)
+      target = gl_target_;
     // We can assume not multisampling.
     UploadImage(image, target, static_cast<GLint>(images[i].level), 0, false,
                 false, images[i].offset, gm);
@@ -2697,7 +2837,8 @@ void Renderer::TextureResource::UpdateTextureImageState(
   const bool mipmap_changed = TestModifiedBitRange(
       Texture::kMipmapChanged, Texture::kMipmapChanged + kMipmapSlotCount);
 
-  if ((mipmap_changed || multisample_changed) && texture.HasImage(0)) {
+  if ((mipmap_changed || multisample_changed) && texture.HasImage(0) &&
+      !texture.GetImmutableImage().Get()) {
     if (multisample) {
       const Image& image0 = *texture.GetImage(0);
       size_t required_levels = 0U;
@@ -2748,6 +2889,21 @@ void Renderer::TextureResource::CreateImmutableTexture(
     const bool fixed_sample_locations, size_t levels, GraphicsManager* gm) {
   Image::PixelFormat pf =
       GetCompatiblePixelFormat(Image::GetPixelFormat(image.GetFormat()), gm);
+
+  // Protection must be set before the texture is specified.  See:
+  // https://www.khronos.org/registry/gles/extensions/EXT/EXT_protected_textures.txt
+  if (GetTexture<TextureBase>().IsProtected()) {
+    if (gm->IsFeatureAvailable(GraphicsManager::kProtectedTextures)) {
+      gm->TexParameteri(gl_target_, GL_TEXTURE_PROTECTED_EXT, GL_TRUE);
+    } else {
+      LOG(WARNING) << "***ION: Texture '"
+                   << GetTexture<TextureBase>().GetLabel()
+                   << "' requests a protected texture, but the system does not "
+                      "support protected textures. This may result in a black "
+                      "or green screen, or just garbage on the screen.";
+    }
+  }
+
   if (image.GetDimensions() == Image::k2d) {
     if (multisample) {
       gm->TexStorage2DMultisample(gl_target_, static_cast<GLsizei>(samples),
@@ -2786,38 +2942,41 @@ void Renderer::TextureResource::UpdateCubeMapImageState(GraphicsManager* gm) {
   bool images_have_changed = false;
   bool need_to_generate_mipmaps = false;
   size_t required_levels[6];
-  for (int i = 0; i < 6; ++i) {
-    const CubeMapTexture::CubeFace face =
-        static_cast<CubeMapTexture::CubeFace>(i);
-    const int base_mipmap_bit =
-        CubeMapTexture::kNegativeXMipmapChanged + i * kSlotCount;
-    required_levels[i] = 0U;
-    if (TestModifiedBitRange(base_mipmap_bit, base_mipmap_bit + kSlotCount) &&
-        texture.HasImage(face, 0U)) {
-      const Image& image = *texture.GetImage(face, 0U);
-      // Cube map arrays must be specified with the array target, not the face.
-      const GLenum target = image.GetDimensions() == Image::k3d
-                                ? gl_target_
-                                : base::EnumHelper::GetConstant(face);
-      if (image.GetWidth() == image.GetHeight()) {
-        if (UpdateMipmap0Image(image, texture, texture.GetImageCount(face),
-                               target, base_mipmap_bit, gm, &required_levels[i],
-                               false)) {
-          need_to_generate_mipmaps = true;
-          images_have_changed = true;
+  // Don't try to upload face images if we are using immutable images.
+  if (!texture.GetImmutableImage().Get()) {
+    for (int i = 0; i < 6; ++i) {
+      const CubeMapTexture::CubeFace face =
+          static_cast<CubeMapTexture::CubeFace>(i);
+      const int base_mipmap_bit =
+          CubeMapTexture::kNegativeXMipmapChanged + i * kSlotCount;
+      required_levels[i] = 0U;
+      if (TestModifiedBitRange(base_mipmap_bit, base_mipmap_bit + kSlotCount) &&
+          texture.HasImage(face, 0U)) {
+        const Image& image = *texture.GetImage(face, 0U);
+        // Cube map arrays must be specified with the array target, not the
+        // face.
+        const GLenum target = image.GetDimensions() == Image::k3d
+                                  ? gl_target_
+                                  : base::EnumHelper::GetConstant(face);
+        if (image.GetWidth() == image.GetHeight()) {
+          if (UpdateMipmap0Image(image, texture, texture.GetImageCount(face),
+                                 target, base_mipmap_bit, gm,
+                                 &required_levels[i], false)) {
+            need_to_generate_mipmaps = true;
+            images_have_changed = true;
+          }
+        } else {
+          LOG(ERROR) << "Level 0 mimpap for face "
+                     << base::EnumHelper::GetString(face) << " of cubemap \""
+                     << texture.GetLabel()
+                     << "\" does not have square dimensions. OpenGL requires "
+                     << "cubemap faces to have square dimensions";
         }
-      } else {
-        LOG(ERROR) << "Level 0 mimpap for face "
-                   << base::EnumHelper::GetString(face) << " of cubemap \""
-                   << texture.GetLabel()
-                   << "\" does not have square dimensions. OpenGL requires "
-                   << "cubemap faces to have square dimensions";
       }
     }
+    // Generate mipmaps if any of the faces were incomplete.
+    if (need_to_generate_mipmaps) gm->GenerateMipmap(gl_target_);
   }
-  // Generate mipmaps if any of the faces were incomplete.
-  if (need_to_generate_mipmaps)
-    gm->GenerateMipmap(gl_target_);
 
   // Override generated mipmaps with user-supplied ones.
   for (int j = 0; j < 6; ++j) {
@@ -2826,7 +2985,8 @@ void Renderer::TextureResource::UpdateCubeMapImageState(GraphicsManager* gm) {
     const int base_subimage_bit = CubeMapTexture::kNegativeXSubImageChanged;
     const int base_mipmap_bit =
         CubeMapTexture::kNegativeXMipmapChanged + j * kSlotCount;
-    if (TestModifiedBitRange(base_mipmap_bit, base_mipmap_bit + kSlotCount) &&
+    if (!texture.GetImmutableImage().Get() &&
+        TestModifiedBitRange(base_mipmap_bit, base_mipmap_bit + kSlotCount) &&
         texture.HasImage(face, 0U)) {
       const Image& image0 = *texture.GetImage(face, 0U);
       const GLenum target = image0.GetDimensions() == Image::k3d
@@ -2837,8 +2997,8 @@ void Renderer::TextureResource::UpdateCubeMapImageState(GraphicsManager* gm) {
             CheckImage(*texture.GetImage(face, i), texture) &&
             (need_to_generate_mipmaps ||
              TestModifiedBit(static_cast<int>(base_mipmap_bit + i)))) {
-          if (!UpdateImage(image0, *texture.GetImage(face, i), texture, target,
-                           static_cast<int>(i), gm)) {
+          if (!UpdateImage(image0, *texture.GetImage(face, i), texture,
+                           target, static_cast<int>(i), gm)) {
             // Do not generate mipmaps since we have an invalid one.
             images_have_changed = false;
             break;
@@ -2857,6 +3017,15 @@ void Renderer::TextureResource::UpdateCubeMapImageState(GraphicsManager* gm) {
   // Generate mipmaps if necessary.
   if (Sampler* sampler = texture.GetSampler().Get())
     UpdateMipmapGeneration(*sampler, images_have_changed, gm);
+}
+
+void Renderer::ResourceBinder::WrapExternalResource(Texture* holder,
+                                                    uint32 gl_id) {
+  if (graphics_manager_->IsTexture(gl_id)) {
+    auto resource = GetResourceManager()->GetResource(holder, this, gl_id);
+    DCHECK(resource);
+    resource->ResetModifiedBits();
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -2899,7 +3068,7 @@ class Renderer::ShaderResource : public Resource<Shader::kNumChanges> {
 
 bool Renderer::ShaderResource::UpdateShader(ResourceBinder* rb) {
   if (AnyModifiedBitsSet()) {
-    ScopedResourceLabel label(this, rb);
+    SCOPED_RESOURCE_LABEL;
     // For coverage.
     Update(rb);
 
@@ -2920,7 +3089,7 @@ bool Renderer::ShaderResource::UpdateShader(ResourceBinder* rb) {
     }
 
     if (need_to_update_label)
-      SetObjectLabel(gm, GL_SHADER_OBJECT, id_, id_string);
+      SetObjectLabel(gm, GL_SHADER_OBJECT_EXT, id_, id_string);
 
     // Send the info log to the holder.
     shader.SetInfoLog(info_log);
@@ -3163,6 +3332,7 @@ class Renderer::ShaderProgramResource
         attribute_index_map_(shader_program.GetAllocator()),
         uniforms_(shader_program.GetAllocator()),
         vertex_resource_(nullptr),
+        geometry_resource_(nullptr),
         fragment_resource_(nullptr) {}
 
   GLint GetAttributeIndex(
@@ -3189,6 +3359,7 @@ class Renderer::ShaderProgramResource
 
   // Return the resources of the shader stages.
   ShaderResource* GetVertexResource() const { return vertex_resource_; }
+  ShaderResource* GetGeometryResource() const { return geometry_resource_; }
   ShaderResource* GetFragmentResource() const { return fragment_resource_; }
 
  private:
@@ -3245,6 +3416,7 @@ class Renderer::ShaderProgramResource
 
   // Updates the image unit associations of textures. Returns whether any units
   // have changed from the old uniform value to the new one.
+  template <typename HolderType>
   bool UpdateUnitAssociations(UniformCacheEntry* entry,
                               ResourceBinder* rb,
                               const Uniform& new_uniform);
@@ -3258,6 +3430,7 @@ class Renderer::ShaderProgramResource
 
   // Returns whether the Uniform holds a texture type and if any of the textures
   // it contains have been evicted.
+  template <typename HolderType>
   bool ContainsAnEvictedTexture(const Uniform& uniform, ResourceBinder* rb);
 
   // Indices of the attributes in the shader.
@@ -3268,6 +3441,7 @@ class Renderer::ShaderProgramResource
 
   // Shader stage resources.
   ShaderResource* vertex_resource_;
+  ShaderResource* geometry_resource_;
   ShaderResource* fragment_resource_;
 };
 
@@ -3409,72 +3583,44 @@ void Renderer::ShaderProgramResource::PopulateUniformCache() {
   }
 }
 
+template <typename HolderType>
 bool Renderer::ShaderProgramResource::ContainsAnEvictedTexture(
     const Uniform& uniform, ResourceBinder* rb) {
+  using HolderPtr = base::SharedPtr<HolderType>;
+  if (!uniform.IsValid()) return false;
   bool ret = false;
-  if (uniform.IsValid()) {
-    if (uniform.GetType() == kCubeMapTextureUniform) {
-      if (const size_t count = uniform.GetCount()) {
-        for (size_t i = 0; i < count; ++i) {
-          if (TextureResource* txr = GetResource(
-                  uniform.GetValueAt<CubeMapTexturePtr>(i).Get(), rb)) {
-            if (rb->WasTextureEvicted(txr)) {
-              ret = true;
-              break;
-            }
-          }
+  if (const size_t count = uniform.GetCount()) {
+    for (size_t i = 0; i < count; ++i) {
+      if (HolderType* holder = uniform.GetValueAt<HolderPtr>(i).Get()) {
+        TextureResource* txr = GetResource(holder, rb);
+        if (txr && rb->WasTextureEvicted(txr)) {
+          ret = true;
+          break;
         }
-      } else if (TextureResource* txr = GetResource(
-                     uniform.GetValue<CubeMapTexturePtr>().Get(), rb)) {
-        ret = rb->WasTextureEvicted(txr);
-      }
-    } else if (uniform.GetType() == kTextureUniform) {
-      if (const size_t count = uniform.GetCount()) {
-        for (size_t i = 0; i < count; ++i) {
-          if (TextureResource* txr =
-                  GetResource(uniform.GetValueAt<TexturePtr>(i).Get(), rb)) {
-            if (rb->WasTextureEvicted(txr)) {
-              ret = true;
-              break;
-            }
-          }
-        }
-      } else if (TextureResource* txr =
-                     GetResource(uniform.GetValue<TexturePtr>().Get(), rb)) {
-        ret = rb->WasTextureEvicted(txr);
       }
     }
+  } else if (HolderType* holder = uniform.GetValue<HolderPtr>().Get()) {
+    TextureResource* txr = GetResource(holder, rb);
+    ret = txr && rb->WasTextureEvicted(txr);
   }
   return ret;
 }
 
+template <typename HolderType>
 bool Renderer::ShaderProgramResource::UpdateUnitAssociations(
     UniformCacheEntry* entry, ResourceBinder* rb, const Uniform& u) {
+  using HolderPtr = base::SharedPtr<HolderType>;
   bool changed = false;
-  if (u.GetType() == kCubeMapTextureUniform) {
-    if (const size_t count = u.GetCount()) {
-      for (size_t i = 0; i < count; ++i) {
-        if (TextureResource* txr =
-                GetResource(u.GetValueAt<CubeMapTexturePtr>(i).Get(), rb)) {
-          changed = UpdateUnitAssociationAndBind(txr, entry, rb, i) || changed;
-        }
+  if (const size_t count = u.GetCount()) {
+    for (size_t i = 0; i < count; ++i) {
+      if (HolderType* holder = u.GetValueAt<HolderPtr>(i).Get()) {
+        if (TextureResource* txr = GetResource(holder, rb))
+          changed |= UpdateUnitAssociationAndBind(txr, entry, rb, i);
       }
-    } else if (TextureResource* txr =
-                   GetResource(u.GetValue<CubeMapTexturePtr>().Get(), rb)) {
-      changed = UpdateUnitAssociationAndBind(txr, entry, rb, 0);
     }
-  } else if (u.GetType() == kTextureUniform) {
-    if (const size_t count = u.GetCount()) {
-      for (size_t i = 0; i < count; ++i) {
-        if (TextureResource* txr =
-                GetResource(u.GetValueAt<TexturePtr>(i).Get(), rb)) {
-          changed = UpdateUnitAssociationAndBind(txr, entry, rb, i) || changed;
-        }
-      }
-    } else if (TextureResource* txr =
-                   GetResource(u.GetValue<TexturePtr>().Get(), rb)) {
-      changed = UpdateUnitAssociationAndBind(txr, entry, rb, 0);
-    }
+  } else if (HolderType* holder = u.GetValue<HolderPtr>().Get()) {
+    TextureResource* txr = GetResource(holder, rb);
+    if (txr) changed = UpdateUnitAssociationAndBind(txr, entry, rb, 0);
   }
   return changed;
 }
@@ -3509,17 +3655,18 @@ void Renderer::ShaderProgramResource::UpdateUniformValues(ResourceBinder* rb) {
     ShaderInputRegistryResource* sirr = GetResource(entry.spec->registry, rb);
     sirr->Update(rb);
 
-    // Grap top of uniform stack - this is the uniform we want to be valid in
+    // Grab top of uniform stack - this is the uniform we want to be valid in
     // opengl-land.
     const Uniform& uniform = sirr->GetUniform(entry.spec->index);
     if (!uniform.IsValid()) {
       if (!rb->IsProcessingInfoRequests()) {
         LOG(WARNING) << "***ION: There is no value set for uniform '"
                      << entry.spec->name << "' for shader program '"
-                     << GetShaderProgram().GetLabel() << "', rendering"
-                     << " results may be unexpected";
+                     << GetShaderProgram().GetLabel() << "', or it "
+                     << "was created with the wrong ShaderInputRegistry.  "
+                     << "Rendering results may be unexpected.";
       }
-      return;
+      continue;
     }
     // A Uniform needs to be sent if any of the following are true:
     // - The entry Uniform is invalid (i.e., the Uniform has never been sent)
@@ -3529,10 +3676,16 @@ void Renderer::ShaderProgramResource::UpdateUniformValues(ResourceBinder* rb) {
     //   been evicted from its image unit.
     bool skip_sending_uniform = false;
     bool unit_changed = false;
-    if (uniform.GetType() == kTextureUniform ||
-        uniform.GetType() == kCubeMapTextureUniform) {
-      // Update unit associations and check if any units have changed.
-      unit_changed = UpdateUnitAssociations(&entry, rb, uniform);
+    bool unit_evicted = false;
+    // Update unit associations and check if any units have changed.
+    if (uniform.GetType() == kTextureUniform) {
+      unit_changed = UpdateUnitAssociations<Texture>(&entry, rb, uniform);
+      unit_evicted = ContainsAnEvictedTexture<Texture>(uniform, rb);
+      skip_sending_uniform = !unit_changed;
+    } else if (uniform.GetType() == kCubeMapTextureUniform) {
+      unit_changed = UpdateUnitAssociations<CubeMapTexture>(&entry, rb,
+                                                            uniform);
+      unit_evicted = ContainsAnEvictedTexture<CubeMapTexture>(uniform, rb);
       skip_sending_uniform = !unit_changed;
     }
     // Note that we don't always check if the actual uniform value has changed
@@ -3541,11 +3694,11 @@ void Renderer::ShaderProgramResource::UpdateUniformValues(ResourceBinder* rb) {
     // changes so sometimes we may send uniforms that haven't actually changed.
     if (unit_changed ||  // Texture unit changed.
         entry.uniform_stamp != uniform.GetStamp() ||
-        ContainsAnEvictedTexture(uniform, rb)) {
+        unit_evicted) {
       // Remember stamp to detect any changes next time around.
       entry.uniform_stamp = uniform.GetStamp();
       // Emit tracing label even if we don't send uniform.
-      ScopedLabel label(rb, &uniform, entry.spec->name);
+      ScopedLabel label(rb, &uniform, entry.spec->name, ION_PRETTY_FUNCTION);
       if (!skip_sending_uniform) {
         // Send the value to OpenGL.
         rb->SendUniform(uniform, entry.location, gm);
@@ -3558,15 +3711,20 @@ void Renderer::ShaderProgramResource::Update(ResourceBinder* rb) {
   // If shaders have changed then we need to reset their cached resources.
   if (TestModifiedBit(ShaderProgram::kVertexShaderChanged))
     vertex_resource_ = nullptr;
+  if (TestModifiedBit(ShaderProgram::kGeometryShaderChanged))
+    geometry_resource_ = nullptr;
   if (TestModifiedBit(ShaderProgram::kFragmentShaderChanged))
     fragment_resource_ = nullptr;
   // Allow shaders to Update().
   const bool vertex_updated =
       vertex_resource_ && vertex_resource_->UpdateShader(rb);
+  const bool geometry_updated =
+      geometry_resource_ && geometry_resource_->UpdateShader(rb);
   const bool fragment_updated =
       fragment_resource_ && fragment_resource_->UpdateShader(rb);
-  if (vertex_updated || fragment_updated || AnyModifiedBitsSet()) {
-    ScopedResourceLabel label(this, rb);
+  if (vertex_updated || geometry_updated || fragment_updated ||
+      AnyModifiedBitsSet()) {
+    SCOPED_RESOURCE_LABEL;
     const ShaderProgram& shader_program = GetShaderProgram();
 
     if (!vertex_resource_) {
@@ -3574,6 +3732,14 @@ void Renderer::ShaderProgramResource::Update(ResourceBinder* rb) {
         if ((vertex_resource_ = GetResource(shader, rb), rb)) {
           vertex_resource_->SetShaderType(GL_VERTEX_SHADER);
           vertex_resource_->UpdateShader(rb);
+        }
+      }
+    }
+    if (!geometry_resource_) {
+      if (Shader* shader = shader_program.GetGeometryShader().Get()) {
+        if ((geometry_resource_ = GetResource(shader, rb))) {
+          geometry_resource_->SetShaderType(GL_GEOMETRY_SHADER);
+          geometry_resource_->UpdateShader(rb);
         }
       }
     }
@@ -3588,6 +3754,8 @@ void Renderer::ShaderProgramResource::Update(ResourceBinder* rb) {
 
     const GLuint vertex_shader_id =
         vertex_resource_ ? vertex_resource_->GetId() : 0;
+    const GLuint geometry_shader_id =
+        geometry_resource_ ? geometry_resource_->GetId() : 0;
     const GLuint fragment_shader_id =
         fragment_resource_ ? fragment_resource_->GetId() : 0;
 
@@ -3597,7 +3765,9 @@ void Renderer::ShaderProgramResource::Update(ResourceBinder* rb) {
 
     std::string info_log = shader_program.GetInfoLog();
     GLuint id = LinkShaderProgram(id_string, vertex_shader_id,
-                                  fragment_shader_id, &info_log, gm);
+                                  geometry_shader_id, fragment_shader_id,
+                                  shader_program.GetCapturedVaryings(),
+                                  &info_log, gm);
 
     if (id != 0) {
       // Bind each attribute to its name in the shader, using its order in
@@ -3615,9 +3785,11 @@ void Renderer::ShaderProgramResource::Update(ResourceBinder* rb) {
 
       // Relink the program for the bindings to take effect.
       id = RelinkShaderProgram(id_string, id, vertex_shader_id,
-                               fragment_shader_id, &info_log, gm);
+                               geometry_shader_id, fragment_shader_id,
+                               shader_program.GetCapturedVaryings(), &info_log,
+                               gm);
       bool need_to_update_label =
-          vertex_updated || fragment_updated ||
+          vertex_updated || geometry_updated || fragment_updated ||
           TestModifiedBit(ResourceHolder::kLabelChanged);
       if (id != 0) {
         id_ = id;
@@ -3631,7 +3803,8 @@ void Renderer::ShaderProgramResource::Update(ResourceBinder* rb) {
       // We need to update the label if it has changed or either of the sources
       // have since a new program object will be generated.
       if (need_to_update_label)
-        SetObjectLabel(gm, GL_PROGRAM_OBJECT, id_, shader_program.GetLabel());
+        SetObjectLabel(gm, GL_PROGRAM_OBJECT_EXT, id_,
+                       shader_program.GetLabel());
     }
 
     // Send the info logs to the holder.
@@ -3643,7 +3816,7 @@ void Renderer::ShaderProgramResource::Update(ResourceBinder* rb) {
 void Renderer::ShaderProgramResource::Bind(ResourceBinder* rb) {
   Update(rb);
   if (id_) {
-    ScopedResourceLabel label(this, rb);
+    SCOPED_RESOURCE_LABEL;
     rb->BindProgram(id_, this);
     // Ensure that the latest uniform values are sent to OpenGL.
     UpdateUniformValues(rb);
@@ -3651,6 +3824,7 @@ void Renderer::ShaderProgramResource::Bind(ResourceBinder* rb) {
 }
 
 void Renderer::ShaderProgramResource::Unbind(ResourceBinder* rb) {
+  // This may be legally called from a different resource binder.
   if (rb)
     rb->ClearProgramBinding(id_);
 }
@@ -3668,7 +3842,6 @@ void Renderer::ShaderProgramResource::Release(bool can_make_gl_calls) {
       Unbind(it->second.get());
       it->second->EraseVertexArrayKey(this);
     }
-
     if (resource_owns_gl_id_ && can_make_gl_calls)
       GetGraphicsManager()->DeleteProgram(id_);
     id_ = 0;
@@ -3702,7 +3875,11 @@ class Renderer::BufferResource : public Resource<BufferObject::kNumChanges> {
   void Bind(ResourceBinder* rb);
   void Unbind(ResourceBinder* rb) override;
 
-  GLuint GetGlTarget() const { return gl_target_; }
+  GLenum GetGlTarget() const { return gl_target_; }
+  size_t GetSize() const {
+    const BufferObject& bo = GetBufferObject();
+    return bo.GetStructSize() * bo.GetCount();
+  }
 
   void UploadData();
   void UploadSubData(const Range1ui& range, const void* data) const;
@@ -3714,8 +3891,7 @@ class Renderer::BufferResource : public Resource<BufferObject::kNumChanges> {
   void OnDestroyed() override {
     if (target_ == BufferObject::kElementBuffer)
       GetResourceManager()->DisassociateElementBufferFromArrays(this);
-    UnbindAll();
-    Renderer::Resource<BufferObject::kNumChanges>::OnDestroyed();
+    BaseResourceType::OnDestroyed();
   }
 
  private:
@@ -3730,7 +3906,7 @@ class Renderer::BufferResource : public Resource<BufferObject::kNumChanges> {
 void Renderer::BufferResource::Bind(ResourceBinder* rb) {
   Update(rb);
   if (id_) {
-    ScopedResourceLabel label(this, rb);
+    SCOPED_RESOURCE_LABEL;
     rb->BindBuffer(target_, id_, this);
   }
 }
@@ -3775,8 +3951,7 @@ void Renderer::BufferResource::Update(ResourceBinder* rb) {
   if (!AnyModifiedBitsSet()) {
     return;
   }
-  ScopedResourceLabel label(this, rb);
-
+  SCOPED_RESOURCE_LABEL;
   // Generate the VBO.
   GraphicsManager* gm = GetGraphicsManager();
   DCHECK(gm);
@@ -3823,7 +3998,7 @@ void Renderer::BufferResource::Update(ResourceBinder* rb) {
       bo.GetData()->WipeData();
   }
   if (label_changed)
-    SetObjectLabel(gm, GL_BUFFER_OBJECT, id_, bo.GetLabel());
+    SetObjectLabel(gm, GL_BUFFER_OBJECT_EXT, id_, bo.GetLabel());
 
   if (subdata_changed) {
     const base::AllocVector<BufferObject::BufferSubData>& sub_data =
@@ -3848,7 +4023,7 @@ void Renderer::BufferResource::Update(ResourceBinder* rb) {
         // Update src BufferObject.
         src_resource->Update(rb);
       }
-      if (gm->IsFunctionGroupAvailable(GraphicsManager::kCopyBufferSubData)) {
+      if (gm->IsFeatureAvailable(GraphicsManager::kCopyBufferSubData)) {
         CopySubData(rb, src_resource, sdata.range, sdata.read_offset);
         continue;
       }
@@ -3924,6 +4099,92 @@ void Renderer::BufferResource::Release(bool can_make_gl_calls) {
 
 //-----------------------------------------------------------------------------
 //
+// Renderer::TransformFeedbackResource class.
+//
+//-----------------------------------------------------------------------------
+
+class Renderer::TransformFeedbackResource
+    : public Resource<TransformFeedback::kNumChanges> {
+ public:
+  TransformFeedbackResource(ResourceBinder* rb, ResourceManager* rm,
+                            const TransformFeedback& tf, ResourceKey key,
+                            GLuint id)
+      : Renderer::Resource<TransformFeedback::kNumChanges>(rm, tf, key, id) {}
+  ~TransformFeedbackResource() override {
+    DCHECK(id_ == 0U || !portgfx::Visual::GetCurrent());
+  }
+  void Release(bool can_make_gl_calls) override;
+  void Update(ResourceBinder* rb) override;
+  void Bind(ResourceBinder* rb);
+  void Unbind(ResourceBinder* rb) override;
+  ResourceType GetType() const override { return kTransformFeedback; }
+  const TransformFeedback& GetTransformFeedback() const {
+    return static_cast<const TransformFeedback&>(*GetHolder());
+  }
+  void StartCapturing() { capturing_ = true; }
+  void StopCapturing() { capturing_ = false; }
+  bool IsCapturing() const { return capturing_; }
+
+ private:
+  bool capturing_ = false;
+};
+
+void Renderer::TransformFeedbackResource::Release(bool can_make_gl_calls) {
+  BaseResourceType::Release(can_make_gl_calls);
+  if (id_) {
+    UnbindAll();
+    if (resource_owns_gl_id_ && can_make_gl_calls)
+      GetGraphicsManager()->DeleteTransformFeedbacks(1, &id_);
+    id_ = 0;
+  }
+}
+
+void Renderer::TransformFeedbackResource::Update(ResourceBinder* rb) {
+  if (GetGraphicsManager()->IsFeatureAvailable(
+          GraphicsManager::kTransformFeedback)) {
+    const TransformFeedback& tf = GetTransformFeedback();
+    if (AnyModifiedBitsSet()) {
+      SCOPED_RESOURCE_LABEL;
+      GraphicsManager* gm = GetGraphicsManager();
+      DCHECK(gm);
+      if (!id_) gm->GenTransformFeedbacks(1, &id_);
+      if (id_) {
+        rb->BindTransformFeedback(id_, this);
+        if (TestModifiedBit(TransformFeedback::kCaptureBufferChanged)) {
+          const BufferObjectPtr& buf = tf.GetCaptureBuffer();
+          BufferResource* buf_resource = nullptr;
+          GLuint buf_id = 0;
+          if (buf.Get()) {
+            buf_resource = GetResource(buf.Get(), rb);
+            DCHECK(buf_resource);
+            buf_resource->Update(rb);
+            buf_id = buf_resource->GetId();
+          }
+          rb->BindBuffer(BufferObject::kTransformFeedbackBuffer, buf_id,
+                         buf_resource);
+        }
+        if (TestModifiedBit(ResourceHolder::kLabelChanged))
+          SetObjectLabel(gm, GL_TRANSFORM_FEEDBACK, id_, tf.GetLabel());
+        ResetModifiedBits();
+      } else {
+        LOG(ERROR) << "***ION: Unable to create transform feedback object";
+      }
+    }
+  }
+}
+
+void Renderer::TransformFeedbackResource::Bind(ResourceBinder* rb) {
+  Update(rb);
+  SCOPED_RESOURCE_LABEL;
+  rb->BindTransformFeedback(id_, this);
+}
+
+void Renderer::TransformFeedbackResource::Unbind(ResourceBinder* rb) {
+  if (rb) rb->ClearTransformFeedbackBinding(id_);
+}
+
+//-----------------------------------------------------------------------------
+//
 // Renderer::FramebufferResource class.
 //
 //-----------------------------------------------------------------------------
@@ -3934,14 +4195,20 @@ class Renderer::FramebufferResource
   FramebufferResource(ResourceBinder* rb, ResourceManager* rm,
                       const FramebufferObject& fbo, ResourceKey key, GLuint id)
       : Renderer::Resource<FramebufferObject::kNumChanges>(rm, fbo, key, id),
-        color0_id_(0U),
-        depth_id_(0U),
-        stencil_id_(0U) {}
+        color_ids_(*this), depth_id_(0U), stencil_id_(0U),
+        packed_depth_stencil_renderbuffer_(false),
+        implicit_multisample_(false) {
+    color_ids_.resize(rm->GetGraphicsManager()->GetCapabilityValue<int>(
+        GraphicsManager::kMaxColorAttachments));
+  }
 
   ~FramebufferResource() override {
-    DCHECK((id_ == 0U && color0_id_ == 0U &&
-            depth_id_ == 0U && stencil_id_ == 0U) ||
-           !portgfx::Visual::GetCurrent());
+    DCHECK((id_ == 0U && depth_id_ == 0U && stencil_id_ == 0U) ||
+           !resource_owns_gl_id_ || !portgfx::Visual::GetCurrent());
+    for (const auto& color_id : color_ids_) {
+      DCHECK(color_id == 0U || !portgfx::Visual::GetCurrent() ||
+             !resource_owns_gl_id_);
+    }
   }
 
   void Release(bool can_make_gl_calls) override;
@@ -3951,12 +4218,8 @@ class Renderer::FramebufferResource
   // Binds or unbinds the FBO in OpenGL.
   virtual void Bind(ResourceBinder* rb);
   void Unbind(ResourceBinder* rb) override;
-  void OnDestroyed() override {
-    Resource<FramebufferObject::kNumChanges>::OnDestroyed();
-    UnbindAll();
-  }
 
-  GLuint GetColor0Id() const { return color0_id_; }
+  GLuint GetColorId(size_t index) const { return color_ids_[index]; }
   GLuint GetDepthId() const { return depth_id_; }
   GLuint GetStencilId() const { return stencil_id_; }
 
@@ -3965,32 +4228,53 @@ class Renderer::FramebufferResource
     return static_cast<const FramebufferObject&>(*GetHolder());
   }
 
+  void UpdateImplicitMultisampling(GraphicsManager* gm,
+                                   const FramebufferObject& fbo);
   void UpdateAttachment(GraphicsManager* gm, ResourceBinder* rb, GLuint* id,
-                        GLenum target, const FramebufferObject& fbo,
+                        GLenum attachment_slot, const FramebufferObject& fbo,
                         const FramebufferObject::Attachment& attachment);
 
   void UpdateMemoryUsage(const FramebufferObject& fbo);
 
   // Renderbuffer attachment ids.
-  GLuint color0_id_;
+  base::AllocVector<GLuint> color_ids_;
   GLuint depth_id_;
   GLuint stencil_id_;
+  // Whether the depth_id_ is also attached to the stencil attachment.
+  bool packed_depth_stencil_renderbuffer_;
+  // Whether all attachments use implicit multisampling.
+  bool implicit_multisample_;
 };
 
 void Renderer::FramebufferResource::Bind(ResourceBinder* rb) {
   Update(rb);
-  ScopedResourceLabel label(this, rb);
+  SCOPED_RESOURCE_LABEL;
   rb->BindFramebuffer(id_, this);
 }
 
 void Renderer::FramebufferResource::UpdateAttachment(
-    GraphicsManager* gm, ResourceBinder* rb, GLuint* id, GLenum target,
+    GraphicsManager* gm, ResourceBinder* rb, GLuint* id, GLenum attachment_slot,
     const FramebufferObject& fbo,
     const FramebufferObject::Attachment& attachment) {
-  if (attachment.GetBinding() == FramebufferObject::kUnbound) {
-    // The attachment should be unbound if it is bound. This will also detach a
-    // texture.
-    gm->FramebufferRenderbuffer(GL_FRAMEBUFFER, target, GL_RENDERBUFFER, 0);
+  DCHECK(id);
+  // If we previously had a renderbuffer bound to this attachment, delete it
+  // and zero out the ID.
+  if (attachment.GetBinding() != FramebufferObject::kRenderbuffer && *id) {
+    gm->DeleteRenderbuffers(1, id);
+    *id = 0U;
+  }
+  bool unbind_on_error = false;
+  uint32 max_samples = static_cast<uint32>(gm->GetCapabilityValue<int>(
+      GraphicsManager::kMaxSamples));
+  if (attachment.GetSamples() > max_samples) {
+    LOG(ERROR) << "***ION: Too many samples in multisampled attachment: "
+               << attachment.GetSamples() << " samples requested "
+               << "(maximum is " << max_samples << ")";
+    unbind_on_error = true;
+  }
+  if (unbind_on_error) {
+    // Do nothing, since we are already in error state. The actual unbinding
+    // is done at the bottom of this function.
   } else if (attachment.GetBinding() == FramebufferObject::kRenderbuffer) {
     // Create the renderbuffer if it does not exist.
     if (!*id)
@@ -3999,11 +4283,19 @@ void Renderer::FramebufferResource::UpdateAttachment(
       // Bind the renderbuffer to set its format.
       gm->BindRenderbuffer(GL_RENDERBUFFER, *id);
       if (attachment.GetSamples() > 0) {
-        gm->RenderbufferStorageMultisample(
-            GL_RENDERBUFFER,
-            static_cast<GLsizei>(attachment.GetSamples()),
-            Image::GetPixelFormat(attachment.GetFormat()).internal_format,
-            fbo.GetWidth(), fbo.GetHeight());
+        if (implicit_multisample_) {
+          gm->RenderbufferStorageMultisampleEXT(
+              GL_RENDERBUFFER,
+              static_cast<GLsizei>(attachment.GetSamples()),
+              Image::GetPixelFormat(attachment.GetFormat()).internal_format,
+              fbo.GetWidth(), fbo.GetHeight());
+        } else {
+          gm->RenderbufferStorageMultisample(
+              GL_RENDERBUFFER,
+              static_cast<GLsizei>(attachment.GetSamples()),
+              Image::GetPixelFormat(attachment.GetFormat()).internal_format,
+              fbo.GetWidth(), fbo.GetHeight());
+        }
       } else {
         ImagePtr image = attachment.GetImage();
         if (image.Get() && (image->GetType() == Image::kEgl ||
@@ -4011,7 +4303,7 @@ void Renderer::FramebufferResource::UpdateAttachment(
           const DataContainerPtr& container = image->GetData();
           const void* data = container.Get() ? container->GetData() : nullptr;
           if (data &&
-              gm->IsFunctionGroupAvailable(GraphicsManager::kEglImage)) {
+              gm->IsFeatureAvailable(GraphicsManager::kEglImage)) {
             gm->EGLImageTargetRenderbufferStorageOES(GL_RENDERBUFFER,
                                                      const_cast<void*>(data));
           }
@@ -4026,92 +4318,156 @@ void Renderer::FramebufferResource::UpdateAttachment(
       LOG(ERROR) << "***ION: Unable to create renderbuffer object.";
     }
     // Bind the renderbuffer to the attachment.
-    gm->FramebufferRenderbuffer(GL_FRAMEBUFFER, target, GL_RENDERBUFFER, *id);
-  } else if (attachment.GetBinding() == FramebufferObject::kCubeMapTexture) {
-    DCHECK_EQ(FramebufferObject::kCubeMapTexture, attachment.GetBinding());
-    DCHECK(attachment.GetCubeMapTexture().Get());
+    gm->FramebufferRenderbuffer(GL_FRAMEBUFFER, attachment_slot,
+                                GL_RENDERBUFFER, *id);
+  } else if (attachment.GetBinding() != FramebufferObject::kUnbound) {
+    // Handle all texture attachments here.
+    DCHECK(attachment.GetBinding() == FramebufferObject::kTexture ||
+           attachment.GetBinding() == FramebufferObject::kTextureLayer ||
+           attachment.GetBinding() == FramebufferObject::kMultiview ||
+           attachment.GetBinding() == FramebufferObject::kCubeMapTexture);
+    DCHECK(attachment.GetCubeMapTexture().Get() != nullptr ||
+           attachment.GetTexture().Get());
 
-    // Ensure the texture face has the same dimensions as the framebuffer.
-    CubeMapTexture* tex = attachment.GetCubeMapTexture().Get();
-    TextureResource* tr = GetResource(tex, rb);
-    DCHECK(tr);
-    const CubeMapTexture::CubeFace face = attachment.GetCubeMapFace();
-    // Set the dimensions of the texture using an image.
-    // TODO(user): allow other formats.
-    Image::Format format = Image::kRgba8888;
-    const size_t mip_level = attachment.GetMipLevel();
-    ImagePtr image = tex->GetImage(face, mip_level);
-    if (image.Get()) {
-      format = image->GetFormat();
-      if (format != Image::kEglImage &&
-          (image->GetWidth() != fbo.GetWidth() ||
-           image->GetHeight() != fbo.GetHeight())) {
-        LOG(ERROR) << "***ION: Mismatched CubeMapTexture and FBO dimensions: "
-                   << image->GetWidth() << " x " << image->GetHeight()
-                   << " vs. "
-                   << fbo.GetWidth() << " x " << fbo.GetHeight();
-      }
+    ImagePtr image(nullptr);
+    CubeMapTexture::CubeFace face = CubeMapTexture::kPositiveX;
+    const uint32 mip_level = attachment.GetMipLevel();
+    TextureResource* tr = nullptr;
+    std::string label;
+    if (attachment.GetBinding() == FramebufferObject::kCubeMapTexture) {
+      image = attachment.GetCubeMapTexture()->GetImage(face, mip_level);
+      DCHECK(image.Get()) << "Cube map "
+          << attachment.GetCubeMapTexture()->GetLabel() << " has no image";
+      face = attachment.GetCubeMapFace();
+      tr = GetResource(attachment.GetCubeMapTexture().Get(), rb);
     } else {
-      image = new(GetAllocatorForLifetime(base::kMediumTerm)) Image;
-      // Passing a NULL data container will only set the format and dimensions
-      // of the texture; we are not assigning any texture data, only telling
-      // OpenGL how to set up its own backing store. Passing a NULL pointer to
-      // TexImage2D() is an acceptable OpenGL operation.
-      image->Set(format, fbo.GetWidth(), fbo.GetHeight(),
-                 DataContainerPtr(nullptr));
-      tex->SetImage(face, mip_level, image);
+      image = attachment.GetTexture()->GetImage(mip_level);
+      DCHECK(image.Get()) << "Texture " << attachment.GetTexture()->GetLabel()
+          << " has no image";
+      tr = GetResource(attachment.GetTexture().Get(), rb);
+    }
+    DCHECK(tr);
+    // Validate attachment parameters.
+    if (image->GetFormat() != Image::kEglImage &&
+        (image->GetWidth() != fbo.GetWidth() ||
+         image->GetHeight() != fbo.GetHeight())) {
+      LOG(ERROR) << "***ION: Mismatched texture and FBO dimensions: "
+                 << image->GetWidth() << " x " << image->GetHeight()
+                 << " vs. "
+                 << fbo.GetWidth() << " x " << fbo.GetHeight();
+    }
+    if (attachment.GetBinding() == FramebufferObject::kTextureLayer &&
+        attachment.GetLayer() >= image->GetDepth()) {
+      LOG(ERROR) << "***ION: Invalid texture layer index: "
+                 << attachment.GetLayer() << " in texture with "
+                 << image->GetDepth() << " layers";
+      unbind_on_error = true;
+    }
+    if (attachment.GetBinding() == FramebufferObject::kMultiview) {
+      uint32 last = attachment.GetBaseViewIndex() + attachment.GetNumViews();
+      if (last > image->GetDepth()) {
+        LOG(ERROR) << "***ION: Invalid multiview parameters: "
+                   << attachment.GetNumViews() << " views with base view index "
+                   << attachment.GetBaseViewIndex() << " in texture with "
+                   << image->GetDepth() << " layers";
+        unbind_on_error = true;
+      }
+      uint32 max_views = static_cast<uint32>(gm->GetCapabilityValue<int>(
+          GraphicsManager::kMaxViews));
+      if (attachment.GetNumViews() > max_views) {
+        LOG(ERROR) << "***ION: Too many views in multiview attachment: "
+                   << attachment.GetNumViews() << " views requested "
+                   << "(maximum is " << max_views << ")";
+        unbind_on_error = true;
+      }
     }
     tr->Bind(rb);
-    // Bind the texture to the attachment.
-    gm->FramebufferTexture2D(GL_FRAMEBUFFER, target,
-                             base::EnumHelper::GetConstant(face), tr->GetId(),
-                             static_cast<GLint>(mip_level));
-  } else {
-    DCHECK_EQ(FramebufferObject::kTexture, attachment.GetBinding());
-    DCHECK(attachment.GetTexture().Get());
 
-    // Ensure the texture has the same dimensions as the framebuffer.
-    Texture* tex = attachment.GetTexture().Get();
-    TextureResource* tr = GetResource(tex, rb);
-    DCHECK(tr);
-    // Set the dimensions of the texture using an image.
-    // TODO(user): allow other formats.
-    Image::Format format = Image::kRgba8888;
-    const size_t mip_level = attachment.GetMipLevel();
-    ImagePtr image = tex->GetImage(mip_level);
-    if (image.Get()) {
-      format = image->GetFormat();
-      if (format != Image::kEglImage &&
-          (image->GetWidth() != fbo.GetWidth() ||
-           image->GetHeight() != fbo.GetHeight())) {
-        LOG(ERROR) << "***ION: Mismatched Texture and FBO dimensions: "
-                   << image->GetWidth() << " x " << image->GetHeight()
-                   << " vs. "
-                   << fbo.GetWidth() << " x " << fbo.GetHeight();
+    // Bind the texture to the attachment.
+    if (unbind_on_error) {
+      // Do nothing - this will be handled at the end.
+    } else if (attachment.GetBinding() == FramebufferObject::kCubeMapTexture) {
+      if (implicit_multisample_) {
+        const GLenum face_gl = base::EnumHelper::GetConstant(face);
+        gm->FramebufferTexture2DMultisampleEXT(GL_FRAMEBUFFER, attachment_slot,
+                                               face_gl, tr->GetId(),
+                                               static_cast<GLint>(mip_level),
+                                               static_cast<GLsizei>(
+                                                   attachment.GetSamples()));
+      } else {
+        gm->FramebufferTexture2D(GL_FRAMEBUFFER, attachment_slot,
+                                 base::EnumHelper::GetConstant(face),
+                                 tr->GetId(), static_cast<GLint>(mip_level));
+      }
+    } else if (attachment.GetBinding() == FramebufferObject::kTextureLayer) {
+      if (gm->IsFeatureAvailable(GraphicsManager::kFramebufferTextureLayer)) {
+        gm->FramebufferTextureLayer(GL_FRAMEBUFFER, attachment_slot,
+                                    tr->GetId(), static_cast<GLint>(mip_level),
+                                    static_cast<GLint>(attachment.GetLayer()));
+      } else {
+        LOG(ERROR) << "***ION: Requested a texture layer attachment, but "
+                      "glFramebufferTextureLayer is not supported";
+        unbind_on_error = true;
+      }
+    } else if (attachment.GetBinding() == FramebufferObject::kMultiview) {
+      if (implicit_multisample_) {
+        if (gm->IsFeatureAvailable(
+                GraphicsManager::kMultiviewImplicitMultisample)) {
+          gm->FramebufferTextureMultisampleMultiviewOVR(GL_FRAMEBUFFER,
+              attachment_slot, tr->GetId(), static_cast<GLint>(mip_level),
+              static_cast<GLint>(attachment.GetSamples()),
+              static_cast<GLint>(attachment.GetBaseViewIndex()),
+              static_cast<GLint>(attachment.GetNumViews()));
+        } else {
+          LOG(ERROR) << "***ION: Requested an implicitly multisampled "
+                        "multiview attachment, but the "
+                        "GL_OVR_multiview_multisampled_render_to_texture "
+                        "extension is not supported";
+          unbind_on_error = true;
+        }
+      } else {
+        if (gm->IsFeatureAvailable(GraphicsManager::kMultiview)) {
+          gm->FramebufferTextureMultiviewOVR(GL_FRAMEBUFFER, attachment_slot,
+              tr->GetId(), static_cast<GLint>(mip_level),
+              static_cast<GLint>(attachment.GetBaseViewIndex()),
+              static_cast<GLint>(attachment.GetNumViews()));
+        } else {
+          LOG(ERROR) << "***ION: Requested a multiview attachment, but the "
+                        "GL_OVR_multiview2 extension is not supported";
+          unbind_on_error = true;
+        }
       }
     } else {
-      image = new(GetAllocatorForLifetime(base::kMediumTerm)) Image;
-      // Passing a NULL data container will only set the format and dimensions
-      // of the texture; we are not assigning any texture data, only telling
-      // OpenGL how to set up its own backing store. Passing a NULL pointer to
-      // TexImage2D() is an acceptable OpenGL operation.
-      image->Set(format, fbo.GetWidth(), fbo.GetHeight(),
-                 DataContainerPtr(nullptr));
-      tex->SetImage(mip_level, image);
+      if (implicit_multisample_) {
+        gm->FramebufferTexture2DMultisampleEXT(GL_FRAMEBUFFER, attachment_slot,
+                                               tr->GetGlTarget(), tr->GetId(),
+                                               static_cast<GLint>(mip_level),
+                                               static_cast<GLsizei>(
+                                                   attachment.GetSamples()));
+      } else {
+        gm->FramebufferTexture2D(GL_FRAMEBUFFER, attachment_slot,
+                                 tr->GetGlTarget(), tr->GetId(),
+                                 static_cast<GLint>(mip_level));
+      }
     }
-    tr->Bind(rb);
-    // Bind the texture to the attachment.
-    gm->FramebufferTexture2D(GL_FRAMEBUFFER, target, tr->GetGlTarget(),
-                             tr->GetId(), static_cast<GLint>(mip_level));
+  }
+  // Unbind the attachment if necessary.
+  if (attachment.GetBinding() == FramebufferObject::kUnbound ||
+      unbind_on_error) {
+    gm->FramebufferRenderbuffer(GL_FRAMEBUFFER, attachment_slot,
+                                GL_RENDERBUFFER, 0);
   }
 }
 
 void Renderer::FramebufferResource::UpdateMemoryUsage(
     const FramebufferObject& fbo) {
   size_t data_size = 0U;
-  if (color0_id_)
-    data_size += Image::ComputeDataSize(fbo.GetColorAttachment(0U).GetFormat(),
-                                        fbo.GetWidth(), fbo.GetHeight());
+  const size_t num_color_ids = color_ids_.size();
+  for (size_t i = 0; i < num_color_ids; ++i) {
+    if (color_ids_[i])
+      data_size += Image::ComputeDataSize(fbo.GetColorAttachment(i).GetFormat(),
+                                          fbo.GetWidth(), fbo.GetHeight());
+  }
   if (depth_id_)
     data_size += Image::ComputeDataSize(fbo.GetDepthAttachment().GetFormat(),
                                         fbo.GetWidth(), fbo.GetHeight());
@@ -4121,9 +4477,32 @@ void Renderer::FramebufferResource::UpdateMemoryUsage(
   SetUsedGpuMemory(data_size);
 }
 
+void Renderer::FramebufferResource::UpdateImplicitMultisampling(
+    GraphicsManager* gm, const FramebufferObject& fbo) {
+  bool use_ext = true;
+  if (gm->IsFeatureAvailable(GraphicsManager::kImplicitMultisample)) {
+    fbo.ForEachAttachment(
+        [&use_ext](const FramebufferObject::Attachment& a, int) -> void {
+      use_ext &= a.IsImplicitMultisamplingCompatible();
+    });
+  } else {
+    use_ext = false;
+  }
+  // If implicit multisampling status has changed, mark all renderbuffer
+  // attachments for update.
+  if (use_ext != implicit_multisample_) {
+    implicit_multisample_ = use_ext;
+    fbo.ForEachAttachment(
+        [this](const FramebufferObject::Attachment& a, int bit) -> void {
+      if (a.GetBinding() == FramebufferObject::kRenderbuffer)
+        SetModifiedBit(bit);
+    });
+  }
+}
+
 void Renderer::FramebufferResource::Update(ResourceBinder* rb) {
   if (AnyModifiedBitsSet()) {
-    ScopedResourceLabel label(this, rb);
+    SCOPED_RESOURCE_LABEL;
 
     // Generate the FBO if necessary.
     GraphicsManager* gm = GetGraphicsManager();
@@ -4131,22 +4510,82 @@ void Renderer::FramebufferResource::Update(ResourceBinder* rb) {
     if (!id_) gm->GenFramebuffers(1, &id_);
     if (id_) {
       const FramebufferObject& fbo = GetFramebufferObject();
-
+      UpdateImplicitMultisampling(gm, fbo);
       // Bind the framebuffer.
       rb->BindFramebuffer(id_, this);
       // Update any attachments that have changed.
-      if (TestModifiedBit(FramebufferObject::kColorAttachmentChanged) ||
-          TestModifiedBit(FramebufferObject::kDimensionsChanged))
-        UpdateAttachment(gm, rb, &color0_id_, GL_COLOR_ATTACHMENT0, fbo,
-                         fbo.GetColorAttachment(0U));
+      for (size_t i = 0; i < color_ids_.size(); ++i) {
+        const uint32 i32 = static_cast<uint32>(i);
+        if (TestModifiedBit(FramebufferObject::kColorAttachmentChanged + i32) ||
+            TestModifiedBit(FramebufferObject::kDimensionsChanged))
+          UpdateAttachment(gm, rb, &color_ids_[i],
+                           GL_COLOR_ATTACHMENT0 + static_cast<GLenum>(i),
+                           fbo, fbo.GetColorAttachment(i));
+      }
+      // Handle packed depth stencil renderbuffers.
       if (TestModifiedBit(FramebufferObject::kDepthAttachmentChanged) ||
-          TestModifiedBit(FramebufferObject::kDimensionsChanged))
-        UpdateAttachment(gm, rb, &depth_id_, GL_DEPTH_ATTACHMENT, fbo,
-                         fbo.GetDepthAttachment());
-      if (TestModifiedBit(FramebufferObject::kStencilAttachmentChanged) ||
-          TestModifiedBit(FramebufferObject::kDimensionsChanged))
+          TestModifiedBit(FramebufferObject::kStencilAttachmentChanged)) {
+         Image::Format format = fbo.GetDepthAttachment().GetFormat();
+         bool packed =
+             fbo.GetDepthAttachment().GetBinding() ==
+                 FramebufferObject::kRenderbuffer &&
+             (format == Image::kRenderbufferDepth24Stencil8 ||
+              format == Image::kRenderbufferDepth32fStencil8) &&
+             fbo.GetDepthAttachment() == fbo.GetStencilAttachment();
+         if (packed && packed != packed_depth_stencil_renderbuffer_) {
+           // Discard previous stencil buffer, if any.
+           UpdateAttachment(gm, rb, &stencil_id_, GL_STENCIL_ATTACHMENT, fbo,
+                            FramebufferObject::Attachment());
+         }
+         packed_depth_stencil_renderbuffer_ = packed;
+      }
+      if (TestModifiedBit(FramebufferObject::kDepthAttachmentChanged) ||
+          TestModifiedBit(FramebufferObject::kDimensionsChanged)) {
+        if (packed_depth_stencil_renderbuffer_) {
+          UpdateAttachment(gm, rb, &depth_id_, GL_DEPTH_STENCIL_ATTACHMENT, fbo,
+                           fbo.GetDepthAttachment());
+        } else {
+          UpdateAttachment(gm, rb, &depth_id_, GL_DEPTH_ATTACHMENT, fbo,
+                           fbo.GetDepthAttachment());
+        }
+      }
+      if (!packed_depth_stencil_renderbuffer_ &&
+          (TestModifiedBit(FramebufferObject::kStencilAttachmentChanged) ||
+           TestModifiedBit(FramebufferObject::kDimensionsChanged)))
         UpdateAttachment(gm, rb, &stencil_id_, GL_STENCIL_ATTACHMENT, fbo,
                          fbo.GetStencilAttachment());
+      if (TestModifiedBit(FramebufferObject::kDrawBuffersChanged)) {
+        GLenum buffers[kColorAttachmentSlotCount];
+        GLuint num_buffers = 1;
+        for (size_t i = 0; i < kColorAttachmentSlotCount; ++i) {
+          const int32 buf = fbo.GetDrawBuffer(i);
+          if (buf < 0) {
+            // Negative values mean GL_NONE.
+            buffers[i] = GL_NONE;
+          } else {
+            // Submit the minimum number of buffers, so that this works
+            // on implementations with fewer supported buffers.
+            buffers[i] = buf + GL_COLOR_ATTACHMENT0;
+            num_buffers = static_cast<GLuint>(i + 1);
+          }
+        }
+        if (gm->IsFeatureAvailable(GraphicsManager::kDrawBuffers)) {
+          gm->DrawBuffers(num_buffers, buffers);
+        } else if (num_buffers != 1 || (buffers[0] != GL_COLOR_ATTACHMENT0 &&
+                                        buffers[0] != GL_NONE)) {
+          LOG(ERROR) << "Non-default draw buffers set, but DrawBuffers "
+                        "is not available!";
+        }
+      }
+      if (TestModifiedBit(FramebufferObject::kReadBufferChanged)) {
+        if (gm->IsFeatureAvailable(GraphicsManager::kReadBuffer)) {
+          const int32 buffer = fbo.GetReadBuffer();
+          gm->ReadBuffer(buffer < 0 ? GL_NONE : GL_COLOR_ATTACHMENT0 + buffer);
+        } else if (fbo.GetReadBuffer() != 0 && fbo.GetReadBuffer() != -1) {
+          LOG(ERROR) << "Non-default read buffer set, but ReadBuffer "
+                        "is not available!";
+        }
+      }
       UpdateMemoryUsage(fbo);
 
       if (TestModifiedBit(ResourceHolder::kLabelChanged))
@@ -4154,10 +4593,18 @@ void Renderer::FramebufferResource::Update(ResourceBinder* rb) {
 
       // Check the framebuffer status.
       const GLenum status = gm->CheckFramebufferStatus(GL_FRAMEBUFFER);
-      if (status != GL_FRAMEBUFFER_COMPLETE) {
+      if (status == GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE) {
         LOG(ERROR)
-            << "***ION: Framebuffer is not complete (error code: 0x"
-            << std::hex << status
+            << "***ION: Multisampled framebuffer is not complete.  "
+            << "This may be due to an inconsistent sample count across "
+            << "attachments.  When mixing renderbuffers with textures, "
+            << "be sure to set fixed_sample_locations to TRUE in all "
+            << "attached textures.";
+      } else if (status != GL_FRAMEBUFFER_COMPLETE) {
+        TracingHelper helper;
+        LOG(ERROR)
+            << "***ION: Framebuffer is not complete (error code: "
+            << helper.ToString("GLenum", status)
             << ")! One of the attachments might have a zero width or "
                "height or a non-drawable format for that attachment type. It "
                "is also possible that a texture attachment violates some "
@@ -4180,12 +4627,13 @@ void Renderer::FramebufferResource::Unbind(ResourceBinder* rb) {
 
 void Renderer::FramebufferResource::Release(bool can_make_gl_calls) {
   BaseResourceType::Release(can_make_gl_calls);
-  if (id_) {
+  if (id_ && resource_owns_gl_id_) {
     UnbindAll();
     // Delete any renderbuffers.
     if (can_make_gl_calls) {
-      if (color0_id_ )
-        GetGraphicsManager()->DeleteRenderbuffers(1, &color0_id_);
+      // This will silently ignore zeros and invalid values.
+      GetGraphicsManager()->DeleteRenderbuffers(
+          static_cast<GLsizei>(color_ids_.size()), color_ids_.data());
       if (depth_id_)
         GetGraphicsManager()->DeleteRenderbuffers(1, &depth_id_);
       if (stencil_id_)
@@ -4195,7 +4643,17 @@ void Renderer::FramebufferResource::Release(bool can_make_gl_calls) {
         GetGraphicsManager()->DeleteFramebuffers(1, &id_);
     }
     SetUsedGpuMemory(0U);
-    color0_id_ = depth_id_ = stencil_id_ = id_ = 0;
+    depth_id_ = stencil_id_ = id_ = 0;
+    std::fill(color_ids_.begin(), color_ids_.end(), 0);
+  }
+}
+
+void Renderer::ResourceBinder::WrapExternalResource(FramebufferObject* holder,
+                                                    uint32 gl_id) {
+  if (graphics_manager_->IsFramebuffer(gl_id)) {
+    auto resource = GetResourceManager()->GetResource(holder, this, gl_id);
+    DCHECK(resource);
+    resource->ResetModifiedBits();
   }
 }
 
@@ -4241,7 +4699,7 @@ class Renderer::VertexArrayResource
     return element_array_binding_;
   }
   void SetElementArrayBinding(GLuint id, BufferResource* resource) {
-    element_array_binding_.buffer = id;
+    element_array_binding_.gl_id = id;
     element_array_binding_.resource = resource;
   }
 
@@ -4273,8 +4731,8 @@ class Renderer::VertexArrayResource
     const BufferObjectPtr& bo = a.GetValue<BufferObjectElement>().buffer_object;
     if (bo.Get()) {
       if (!a.GetDivisor() ||
-          !GetGraphicsManager()->IsFunctionGroupAvailable(
-              GraphicsManager::kInstancedDrawing)) {
+          !GetGraphicsManager()->IsFeatureAvailable(
+              GraphicsManager::kInstancedArrays)) {
         // Update the vertex count. We can only draw as many vertices as the
         // smallest BufferObject. Note that if we are using instanced attributes
         // we do not update the vertex_count_.
@@ -4290,8 +4748,9 @@ class Renderer::VertexArrayResource
     GLuint slots;
     bool enabled;
   };
-  // Vectors of attribute indices.
+  // Buffer attribute information.
   base::AllocVector<BufferAttributeInfo> buffer_attribute_infos_;
+  // Simple attribute indices.
   base::AllocVector<GLuint> simple_attribute_indices_;
 
  private:
@@ -4400,17 +4859,50 @@ bool Renderer::VertexArrayResource::BindBufferObjectElementAttribute(
   DCHECK(!base::IsInvalidReference(spec));
   const GLenum type = base::EnumHelper::GetConstant(spec.type);
 
+  // Check and issue a warning for single unsigned short type attribute that
+  // requires 2-byte padding to make the vertex data 4-byte aligned, which may
+  // cause problem with AMD drivers on Windows. See bug for related
+  // discussion.
+  if (spec.type == BufferObject::kUnsignedShort && spec.component_count == 1 &&
+      (spec.byte_offset & 0x3) == 0) {
+    LOG_ONCE(WARNING)
+        << "***ION: Vertex attribute " << attribute_index
+        << " for BufferObject " << bo->GetLabel()
+        << " is a single unsigned short that needs a 2-byte padding to make the"
+        << " vertex data 4-byte aligned. It has been found that this may cause"
+        << " long draw calls on Windows with certain AMD drivers. If you"
+        << " experience this, try changing the attribute to 2 unsigned short"
+        << " components so no padding is needed. (Reporting only the first"
+        << " occurrence.)";
+  }
+
   // Matrix attributes require a pointer for each column; we assume that the
   // complete matrix is stored contiguously.
   GLuint stride = 0U;
   GetAttributeSlotCountAndStride(spec.type, &stride, slots);
   for (GLuint i = 0; i < *slots; ++i) {
+    // Vertex attributes should be aligned to max(4, sizeof(type)) for best
+    // performance. We do not use any 8-byte types, so 4 is sufficient.
+    // See:
+    //  https://www.opengl.org/wiki/Vertex_Specification_Best_Practices
+    // and
+    //  https://developer.apple.com/library/ios/documentation/3DDrawing/
+    //   Conceptual/OpenGLES_ProgrammingGuide/TechniquesforWorkingwithVertexData
+    //   /TechniquesforWorkingwithVertexData.html
+    if (((spec.byte_offset + i * stride) & 0x3) ||
+        (bo->GetStructSize() & 0x3)) {
+      LOG_ONCE(WARNING)
+          << "***ION: Vertex attribute " << attribute_index
+          << " for BufferObject " << bo->GetLabel()
+          << " is not 4-byte aligned. This may reduce performance."
+          << " (Reporting only the first occurrence.)";
+    }
     gm->VertexAttribPointer(
         attribute_index + i, static_cast<GLuint>(spec.component_count), type,
         a.IsFixedPointNormalized() ? GL_TRUE : GL_FALSE,
         static_cast<GLuint>(bo->GetStructSize()),
         reinterpret_cast<const void*>(spec.byte_offset + i * stride));
-    if (gm->IsFunctionGroupAvailable(GraphicsManager::kInstancedDrawing)) {
+    if (gm->IsFeatureAvailable(GraphicsManager::kInstancedArrays)) {
       gm->VertexAttribDivisor(attribute_index + i, a.GetDivisor());
     }
   }
@@ -4468,7 +4960,7 @@ void Renderer::VertexArrayResource::PopulateAttributeIndices(
 
 bool Renderer::VertexArrayResource::UpdateAndCheckBuffers(ResourceBinder* rb) {
   if (AnyModifiedBitsSet()) {
-    ScopedResourceLabel label(this, rb);
+    SCOPED_RESOURCE_LABEL;
     // Generate the VAO.
     GraphicsManager* gm = GetGraphicsManager();
     DCHECK(gm);
@@ -4517,7 +5009,7 @@ bool Renderer::VertexArrayResource::UpdateAndCheckBuffers(ResourceBinder* rb) {
       }
 
       if (TestModifiedBit(ResourceHolder::kLabelChanged))
-        SetObjectLabel(gm, GL_VERTEX_ARRAY_OBJECT, id_, aa.GetLabel());
+        SetObjectLabel(gm, GL_VERTEX_ARRAY_OBJECT_EXT, id_, aa.GetLabel());
 
       ResetModifiedBits();
     } else {
@@ -4537,7 +5029,7 @@ bool Renderer::VertexArrayResource::BindAndCheckBuffers(bool force_bind,
   // Since UpdateAndCheckBuffers() has side-effects (it may bind the VAO and
   // update internal state), it must come first in the below statement.
   if ((UpdateAndCheckBuffers(rb) || force_bind) && id_) {
-    ScopedResourceLabel label(this, rb);
+    SCOPED_RESOURCE_LABEL;
     rb->BindVertexArray(id_, this);
     return true;
   }
@@ -4552,7 +5044,6 @@ void Renderer::VertexArrayResource::Unbind(ResourceBinder* rb) {
 void Renderer::VertexArrayResource::Release(bool can_make_gl_calls) {
   BaseResourceType::Release(can_make_gl_calls);
   if (id_) {
-    // This is a no-op, only here for coverage.
     UnbindAll();
     if (resource_owns_gl_id_ && can_make_gl_calls)
       GetGraphicsManager()->DeleteVertexArrays(1, &id_);
@@ -4572,7 +5063,8 @@ class Renderer::VertexArrayEmulatorResource
   VertexArrayEmulatorResource(ResourceBinder* rb, ResourceManager* rm,
                               const AttributeArray& attribute_array,
                               ResourceKey key, GLuint id)
-      : VertexArrayResource(rb, rm, attribute_array, key, id) {}
+      : VertexArrayResource(rb, rm, attribute_array, key, id),
+        sorted_buffer_indices_(attribute_array.GetAllocator()) {}
   ~VertexArrayEmulatorResource() override {}
 
   void Release(bool can_make_gl_calls) override;
@@ -4581,41 +5073,73 @@ class Renderer::VertexArrayEmulatorResource
   // See comments in VertexArrayResource.
   bool BindAndCheckBuffers(bool force_bind, ResourceBinder* rb) override;
   void Unbind(ResourceBinder* rb) override;
+
+ private:
+  typedef base::InlinedAllocVector<GLuint, kAttributeSlotCount> IndexVector;
+  // Sorted vector of indices that contain buffer attributes.
+  IndexVector sorted_buffer_indices_;
 };
 
 bool Renderer::VertexArrayEmulatorResource::UpdateAndCheckBuffers(
     ResourceBinder* rb) {
   // Only resend the vertex array state if this is not the currently bound
   // resource.
-  if (rb->GetActiveVertexArray() != this || AnyModifiedBitsSet()) {
+  VertexArrayEmulatorResource* last_array =
+      static_cast<VertexArrayEmulatorResource*>(rb->GetActiveVertexArray());
+  if (last_array != this || AnyModifiedBitsSet()) {
     ResetModifiedBits();
+    GraphicsManager* gm = GetGraphicsManager();
+    const AttributeArray& aa = GetAttributeArray();
 
-    ScopedResourceLabel label(this, rb);
+    SCOPED_RESOURCE_LABEL;
     rb->SetActiveVertexArray(this);
     BindSimpleAttributes();
     ResetVertexCount();
 
-    GraphicsManager* gm = GetGraphicsManager();
-    const AttributeArray& aa = GetAttributeArray();
     // Since we don't actually have real vertex arrays, we have to bind each
     // attribute pointer every time.
     const size_t buffer_attribute_count = aa.GetBufferAttributeCount();
     DCHECK_EQ(buffer_attribute_count, buffer_attribute_infos_.size());
+    sorted_buffer_indices_.clear();
     for (size_t i = 0; i < buffer_attribute_count; ++i) {
+      BufferAttributeInfo& info = buffer_attribute_infos_[i];
       if (aa.IsBufferAttributeEnabled(i)) {
         const Attribute& a = aa.GetBufferAttribute(i);
         UpdateVertexCount(a);
-        BufferAttributeInfo& info = buffer_attribute_infos_[i];
         if (info.index != static_cast<GLuint>(base::kInvalidIndex)) {
           if (!BindBufferObjectElementAttribute(info.index, a, &info.slots, rb))
             return false;
-          // Enable the attribute.
-          DCHECK_GT(info.slots, 0U);
           for (GLuint j = 0; j < info.slots; ++j)
-            gm->EnableVertexAttribArray(info.index);
-          info.enabled = true;
+            sorted_buffer_indices_.push_back(info.index + j);
         }
       }
+    }
+    std::sort(sorted_buffer_indices_.begin(), sorted_buffer_indices_.end());
+    if (last_array) {
+      IndexVector last_indices(aa.GetAllocator(),
+                               last_array->sorted_buffer_indices_.begin(),
+                               last_array->sorted_buffer_indices_.end());
+      IndexVector result(aa.GetAllocator());
+      // Indices with buffer attributes in the current array that were
+      // previously simple attributes or undefined should be enabled.
+      std::set_difference(sorted_buffer_indices_.begin(),
+                          sorted_buffer_indices_.end(),
+                          last_indices.begin(), last_indices.end(),
+                          std::back_inserter(result));
+      for (GLuint index : result)
+        gm->EnableVertexAttribArray(index);
+      result.clear();
+      // Indices that are no longer buffer attributes in the current array
+      // should be disabled.
+      std::set_difference(last_indices.begin(), last_indices.end(),
+                          sorted_buffer_indices_.begin(),
+                          sorted_buffer_indices_.end(),
+                          std::back_inserter(result));
+      for (GLuint index : result)
+        gm->DisableVertexAttribArray(index);
+    } else {
+      for (GLuint index : sorted_buffer_indices_)
+        gm->EnableVertexAttribArray(index);
     }
   }
   return true;
@@ -4628,7 +5152,7 @@ bool Renderer::VertexArrayEmulatorResource::BindAndCheckBuffers(
 
 void Renderer::VertexArrayEmulatorResource::Unbind(ResourceBinder* rb) {
   // We check the current Visual to ensure that there is a valid GL context.
-  const bool can_make_gl_calls = portgfx::Visual::GetCurrent() != nullptr;
+  const bool can_make_gl_calls = GetResourceManager()->AreResourcesAccessible();
   if (rb && rb->GetActiveVertexArray() == this) {
     GraphicsManager* gm = GetGraphicsManager();
     // Since we don't actually have real vertex arrays, we have to disable each
@@ -4640,9 +5164,8 @@ void Renderer::VertexArrayEmulatorResource::Unbind(ResourceBinder* rb) {
           info.index != static_cast<GLuint>(base::kInvalidIndex)) {
         if (can_make_gl_calls) {
           for (GLuint j = 0; j < info.slots; ++j)
-            gm->DisableVertexAttribArray(info.index);
+            gm->DisableVertexAttribArray(info.index + j);
         }
-
         info.enabled = false;
       }
     }
@@ -4651,8 +5174,8 @@ void Renderer::VertexArrayEmulatorResource::Unbind(ResourceBinder* rb) {
 }
 
 void Renderer::VertexArrayEmulatorResource::Release(bool can_make_gl_calls) {
-  BaseResourceType::Release(can_make_gl_calls);
   UnbindAll();
+  BaseResourceType::Release(can_make_gl_calls);
 }
 
 //-----------------------------------------------------------------------------
@@ -4663,7 +5186,8 @@ void Renderer::VertexArrayEmulatorResource::Release(bool can_make_gl_calls) {
 
 Renderer::Renderer(const GraphicsManagerPtr& gm)
     : flags_(AllProcessFlags()),
-      resource_manager_(new (GetAllocator()) ResourceManager(gm)) {
+      resource_manager_(new (GetAllocator()) ResourceManager(gm)),
+      gl_context_change_policy_(kAbort) {
   DCHECK(gm.Get());
 
   // Create the default shader program and default global uniform settings.
@@ -4672,61 +5196,75 @@ Renderer::Renderer(const GraphicsManagerPtr& gm)
 }
 
 Renderer::~Renderer() {
-  size_t visual_id;
-  ResourceBinder* resource_binder = GetInternalResourceBinder(&visual_id);
-  if (visual_id == 0) {
-    LOG(WARNING) << "***ION: renderer.cc: ~Renderer"
-                 << ": No Visual ID (invalid GL Context?)";
+  if (gl_context_change_policy_ == kIgnore) {
+    ClearAllResources(true);
   }
-  resource_manager_->DestroyAllResources();
+  uintptr_t visual_id;
+  ResourceBinder* resource_binder = GetInternalResourceBinder(&visual_id);
+  // Legacy behavior: if the GL context is NULL on destruction, always abandon
+  // resources instead of aborting, no matter what context change policy is set.
+  if (visual_id == 0) {
+    LOG(WARNING) << "***ION: renderer.cc: ~Renderer: No Visual ID "
+                    "(GL context might have been already destroyed)";
+  } else {
+    CheckContextChange();
+  }
   if (resource_binder)
     resource_binder->SetCurrentFramebuffer(FramebufferObjectPtr());
 }
 
 const Renderer::Flags& Renderer::AllFlags() {
-  static const Flags flags(AllClearFlags() | AllProcessFlags() |
-                           AllRestoreFlags() | AllSaveFlags());
+  static const Flags flags(AllClearFlags() | AllInvalidateFlags() |
+                           AllProcessFlags() | AllRestoreFlags() |
+                           AllSaveFlags());
   return flags;
 }
 
 const Renderer::Flags& Renderer::AllClearFlags() {
-  static const Flags flags((1 << kClearActiveTexture) |
-                           (1 << kClearArrayBuffer) |
-                           (1 << kClearCubemaps) |
-                           (1 << kClearElementArrayBuffer) |
-                           (1 << kClearFramebuffer) |
-                           (1 << kClearShaderProgram) |
-                           (1 << kClearSamplers) |
-                           (1 << kClearTextures) |
-                           (1 << kClearVertexArray));
+  static const Flags flags((1ULL << kClearActiveTexture) |
+                           (1ULL << kClearArrayBuffer) |
+                           (1ULL << kClearCubemaps) |
+                           (1ULL << kClearElementArrayBuffer) |
+                           (1ULL << kClearFramebuffer) |
+                           (1ULL << kClearShaderProgram) |
+                           (1ULL << kClearSamplers) |
+                           (1ULL << kClearTextures) |
+                           (1ULL << kClearVertexArray));
+  return flags;
+}
+
+const Renderer::Flags& Renderer::AllInvalidateFlags() {
+  static const Flags flags(GetInvalidateColorFlags() |
+                           (1ULL << kInvalidateDepthAttachment) |
+                           (1ULL << kInvalidateStencilAttachment));
   return flags;
 }
 
 const Renderer::Flags& Renderer::AllProcessFlags() {
-  static const Flags flags((1 << Renderer::kProcessInfoRequests) |
-                           (1 << Renderer::kProcessReleases));
+  static const Flags flags((1ULL << kProcessInfoRequests) |
+                           (1ULL << kProcessReleases));
   return flags;
 }
 
 const Renderer::Flags& Renderer::AllRestoreFlags() {
-  static const Flags flags((1 << kRestoreActiveTexture) |
-                           (1 << kRestoreArrayBuffer) |
-                           (1 << kRestoreElementArrayBuffer) |
-                           (1 << kRestoreFramebuffer) |
-                           (1 << kRestoreShaderProgram) |
-                           (1 << kRestoreStateTable) |
-                           (1 << kRestoreVertexArray));
+  static const Flags flags((1ULL << kRestoreActiveTexture) |
+                           (1ULL << kRestoreArrayBuffer) |
+                           (1ULL << kRestoreElementArrayBuffer) |
+                           (1ULL << kRestoreFramebuffer) |
+                           (1ULL << kRestoreShaderProgram) |
+                           (1ULL << kRestoreStateTable) |
+                           (1ULL << kRestoreVertexArray));
   return flags;
 }
 
 const Renderer::Flags& Renderer::AllSaveFlags() {
-  static const Flags flags((1 << kSaveActiveTexture) |
-                           (1 << kSaveArrayBuffer) |
-                           (1 << kSaveElementArrayBuffer) |
-                           (1 << kSaveFramebuffer) |
-                           (1 << kSaveShaderProgram) |
-                           (1 << kSaveStateTable) |
-                           (1 << kSaveVertexArray));
+  static const Flags flags((1ULL << kSaveActiveTexture) |
+                           (1ULL << kSaveArrayBuffer) |
+                           (1ULL << kSaveElementArrayBuffer) |
+                           (1ULL << kSaveFramebuffer) |
+                           (1ULL << kSaveShaderProgram) |
+                           (1ULL << kSaveStateTable) |
+                           (1ULL << kSaveVertexArray));
   return flags;
 }
 
@@ -4747,7 +5285,7 @@ Renderer::ResourceBinderMap& Renderer::GetResourceBinderMap() {
   return *binders;
 }
 
-void Renderer::DestroyStateCache(const portgfx::Visual* visual) {
+void Renderer::DestroyStateCache(const portgfx::VisualPtr& visual) {
   if (visual) {
     const size_t id = visual->GetId();
     ResourceBinderMap& binders = GetResourceBinderMap();
@@ -4758,7 +5296,7 @@ void Renderer::DestroyStateCache(const portgfx::Visual* visual) {
 }
 
 void Renderer::DestroyCurrentStateCache() {
-  const size_t id = portgfx::Visual::GetCurrentId();
+  const uintptr_t id = portgfx::Visual::GetCurrentId();
   ResourceBinderMap& binders = GetResourceBinderMap();
   base::WriteLock write_lock(GetResourceBinderLock());
   base::WriteGuard write_guard(&write_lock);
@@ -4766,7 +5304,7 @@ void Renderer::DestroyCurrentStateCache() {
 }
 
 Renderer::ResourceBinder* Renderer::GetInternalResourceBinder(
-    size_t* visual_id) const {
+    uintptr_t* visual_id) const {
   base::ReadLock read_lock(GetResourceBinderLock());
   base::ReadGuard read_guard(&read_lock);
   *visual_id = portgfx::Visual::GetCurrentId();
@@ -4784,7 +5322,7 @@ Renderer::ResourceBinder* Renderer::GetInternalResourceBinder(
 
 Renderer::ResourceBinder*
 Renderer::GetOrCreateInternalResourceBinder(int line) const {
-  size_t visual_id = 0;
+  uintptr_t visual_id = 0;
   ResourceBinder* rb = GetInternalResourceBinder(&visual_id);
   if (visual_id == 0) {
     LOG(WARNING) << "***ION: renderer.cc:" << line
@@ -4803,7 +5341,47 @@ Renderer::GetOrCreateInternalResourceBinder(int line) const {
   }
   DCHECK(rb);
   rb->SetResourceManager(resource_manager_.get());
+  CheckContextChange();
   return rb;
+}
+
+void Renderer::CheckContextChange() const {
+  if (!resource_manager_->AreResourcesAccessible()) {
+    switch (gl_context_change_policy_) {
+      case kAbandonResources:
+        resource_manager_->DestroyOrAbandonAllResources(true);
+        break;
+      case kAbort:
+        LOG(FATAL) <<
+          "OpenGL context has changed and the Renderer's GL resources are no "
+          "longer accessible; aborting.\n"
+          "If your application is crashing here, the OpenGL context is being "
+          "changed (either by you or by the system), but you are reusing the "
+          "same Renderer.  Since reusing a Renderer on a different non-shared "
+          "OpenGL context requires re-creating the GL resources and we don't "
+          "know what to do with the old ones, the only safe thing to do is to "
+          "abort the program.  To fix this crash, do one of the following:\n"
+          "a) If you are using Android's GLSurfaceView and have no idea what "
+             "any of this means, or if you are sure that the old context will "
+             "be or already has been destroyed, call:\n"
+             "SetContextChangePolicy(Renderer::kAbandonResources)\n"
+             "after constructing your renderer.\n"
+          "b) If you are switching between different, non-shared OpenGL "
+             "contexts, you should use a separate Renderer for each context.\n"
+          "c) If you are using a single Renderer with shared contexts, but are "
+             "still getting this crash, it means you are creating the shared "
+             "contexts outside of Ion.  On most platforms, share group "
+             "information cannot be retrieved after context creation, so "
+             "contexts created outside Ion are always considered non-shared.  "
+             "Use portgfx::Visual::CreateVisualInCurrentShareGroup() to create "
+            "your contexts to fix this problem.";
+        break;
+      case kIgnore:
+        break;
+      default:
+        DCHECK(false) << "Unknown context change policy";
+    }
+  }
 }
 
 void Renderer::BindFramebuffer(const FramebufferObjectPtr& fbo) {
@@ -4821,6 +5399,12 @@ void Renderer::BindFramebuffer(const FramebufferObjectPtr& fbo) {
       fbr->Bind(resource_binder);
     }
     resource_binder->SetCurrentFramebuffer(fbo);
+
+    // If we use Ion only for framebuffer management and never call DrawScene(),
+    // we will accumulate unreleased resources over time. To prevent this,
+    // release resources here.
+    if (flags_.test(kProcessReleases))
+      resource_manager_->ProcessReleases(resource_binder);
   }
 }
 
@@ -4830,6 +5414,75 @@ const FramebufferObjectPtr Renderer::GetCurrentFramebuffer() const {
         resource_binder->GetCurrentFramebuffer() : FramebufferObjectPtr();
 }
 
+FramebufferObjectPtr Renderer::CreateExternalFramebufferProxy(
+    const ion::math::Range2i::Size& size,
+    ion::gfx::Image::Format color_format,
+    ion::gfx::Image::Format depth_format,
+    int num_samples) {
+  ion::gfx::SamplerPtr sampler(new ion::gfx::Sampler);
+  sampler->SetMagFilter(ion::gfx::Sampler::kLinear);
+  sampler->SetMinFilter(ion::gfx::Sampler::kLinear);
+  sampler->SetWrapS(ion::gfx::Sampler::kClampToEdge);
+  sampler->SetWrapT(ion::gfx::Sampler::kClampToEdge);
+  const GLuint uninitialized = static_cast<GLuint>(-1);
+  GLuint fboid = uninitialized;
+  auto graphics_manager = GetGraphicsManager();
+  graphics_manager->GetIntegerv(GL_FRAMEBUFFER_BINDING,
+                                reinterpret_cast<GLint*>(&fboid));
+  CHECK(fboid != 0U) << "Cannot create proxy for the default framebuffer.";
+  if (fboid == uninitialized) {
+    TracingHelper helper;
+    GLenum error = graphics_manager->GetError();
+    LOG(FATAL) << "Cannot create framebuffer proxy because "
+        "GetInteger has failed: " << helper.ToString("GLenum", error);
+  }
+  // We wish to know when GetFramebufferAttachmentParameteriv fails to execute,
+  // so initialize the attachment type to something that is neither GL_NONE nor
+  // GL_RENDERBUFFER, nor GL_TEXTURE.
+  GLuint atype = uninitialized;
+  graphics_manager->GetFramebufferAttachmentParameteriv(
+      GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+      GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint*>(&atype));
+  if (atype == uninitialized) {
+    TracingHelper helper;
+    GLenum error = graphics_manager->GetError();
+    LOG(FATAL) << "Cannot create framebuffer proxy because "
+        "GetFramebufferAttachmentParameter has failed: " <<
+        helper.ToString("GLenum", error);
+  }
+  CHECK(atype != GL_NONE) << "Cannot create proxy from a framebuffer object "
+      "that is missing color attachment 0.";
+  CHECK(atype != GL_RENDERBUFFER) << "Framebuffer proxies do not yet support "
+      "renderbuffer color attachments.";
+  CHECK(atype == GL_TEXTURE) << "Non-texture attachments are not supported.";
+  GLuint texid;
+  graphics_manager->GetFramebufferAttachmentParameteriv(
+      GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+      GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, reinterpret_cast<GLint*>(&texid));
+  ion::gfx::FramebufferObjectPtr fbo(
+      new ion::gfx::FramebufferObject(size[0], size[1]));
+  ion::gfx::TexturePtr color_texture(new ion::gfx::Texture);
+  color_texture->SetLabel("Offscreen Color Texture");
+  color_texture->SetSampler(sampler);
+  ion::gfx::ImagePtr color_image(new ion::gfx::Image);
+  // Calling Set instead of SetEglImage is wrong in some cases, but this FBO is
+  // just a proxy object, so it doesn't matter.
+  color_image->Set(color_format, size[0], size[1],
+                   ion::base::DataContainerPtr());
+  color_texture->SetImage(0U, color_image);
+  ResourceBinder* resource_binder = GetOrCreateInternalResourceBinder(__LINE__);
+  resource_binder->WrapExternalResource(color_texture.Get(), texid);
+  if (num_samples > 1) {
+    color_texture->SetMultisampling(num_samples, true);
+  }
+  fbo->SetColorAttachment(
+      0U, ion::gfx::FramebufferObject::Attachment(color_texture));
+  fbo->SetDepthAttachment(
+      ion::gfx::FramebufferObject::Attachment(depth_format));
+  resource_binder->WrapExternalResource(fbo.Get(), fboid);
+  return fbo;
+}
+
 void Renderer::UpdateDefaultFramebufferFromOpenGL() {
   ResourceBinder* resource_binder = GetOrCreateInternalResourceBinder(__LINE__);
   if (resource_binder)
@@ -4837,7 +5490,9 @@ void Renderer::UpdateDefaultFramebufferFromOpenGL() {
 }
 
 void Renderer::ClearCachedBindings() {
-  ResourceBinder* resource_binder = GetOrCreateInternalResourceBinder(__LINE__);
+  uintptr_t
+      visual_id;  // Not used, but the function expects a non-null parameter.
+  ResourceBinder* resource_binder = GetInternalResourceBinder(&visual_id);
   if (resource_binder) {
     resource_binder->ClearNonFramebufferCachedBindings();
     resource_binder->ClearFramebufferBinding(0U);
@@ -4847,8 +5502,11 @@ void Renderer::ClearCachedBindings() {
 template <typename T>
 ION_API void Renderer::BindResource(T* holder) {
   ResourceBinder* resource_binder = GetOrCreateInternalResourceBinder(__LINE__);
-  if (resource_binder)
+  if (resource_binder) {
     resource_binder->BindResource(holder);
+    if (flags_.test(kProcessReleases))
+      resource_manager_->ProcessReleases(resource_binder);
+  }
 }
 
 // Explicitly instantiate.
@@ -4937,9 +5595,12 @@ void Renderer::CreateOrUpdateResources(const NodePtr& node) {
     return;
 
   ResourceBinder* resource_binder = GetOrCreateInternalResourceBinder(__LINE__);
-  if (resource_binder)
+  if (resource_binder) {
     resource_binder->Traverse<ResourceBinder::CreateOrUpdateOp>(node,
         default_shader_.Get());
+    if (flags_.test(kProcessReleases))
+      resource_manager_->ProcessReleases(resource_binder);
+  }
 }
 
 template <typename Operation>
@@ -4949,13 +5610,13 @@ void Renderer::ResourceBinder::Traverse(const NodePtr& node,
   // since the GetResourceKey method of vertex array resources depends
   // on the current active program (each program needs its own VAO).
   ShaderProgram* saved_current_program = current_shader_program_;
-  ShaderProgramResource* saved_active_resource = active_shader_resource_;
+  ShaderProgramResource* saved_active_resource = active_shader_.resource;
   current_shader_program_ = default_shader;
 
   Visit<Operation>(node);
 
   current_shader_program_ = saved_current_program;
-  active_shader_resource_ = saved_active_resource;
+  active_shader_.resource = saved_active_resource;
 }
 
 template <typename Operation>
@@ -4969,7 +5630,10 @@ void Renderer::ResourceBinder::Visit(const NodePtr& node) {
     current_shader_program_ = shader;
   }
 
-  active_shader_resource_ = resource_manager_->GetResource(
+  // Hack: this is required for the correct operation of GetVertexArrayKey()
+  // during update operations. The actual cached shader binding will be restored
+  // by the Traverse() function.
+  active_shader_.resource = resource_manager_->GetResource(
       current_shader_program_, this);
 
   // Upload any textures in the node.
@@ -5030,8 +5694,11 @@ void Renderer::CreateOrUpdateShapeResources(const ShapePtr& shape) {
   if (shape.Get()) {
     ResourceBinder* resource_binder =
         GetOrCreateInternalResourceBinder(__LINE__);
-    if (resource_binder)
+    if (resource_binder) {
       resource_binder->VisitShape<ResourceBinder::CreateOrUpdateOp>(shape);
+      if (flags_.test(kProcessReleases))
+        resource_manager_->ProcessReleases(resource_binder);
+    }
   }
 }
 
@@ -5110,35 +5777,58 @@ void Renderer::SetInitialUniformValue(const Uniform& u) {
 }
 
 void Renderer::ResolveMultisampleFramebuffer(
-    const FramebufferObjectPtr& ms_fbo, const FramebufferObjectPtr& dest_fbo) {
+    const FramebufferObjectPtr& ms_fbo,
+    const FramebufferObjectPtr& dest_fbo,
+    uint32_t mask) {
+  uint32_t all_buffer_bits =
+      kColorBufferBit | kDepthBufferBit | kStencilBufferBit;
+  if (mask == 0) {
+    return;
+  } else if ((mask & ~all_buffer_bits) != 0) {
+    LOG(ERROR) << "Invalid mask argument. Must be a combination of "
+               << "kColorBufferBit, kDepthBufferBit and kStencilBufferBit.";
+    return;
+  }
   const GraphicsManagerPtr& gm = GetGraphicsManager();
 
   // Check whether related functions are available.
-  if (!gm->IsFunctionGroupAvailable(GraphicsManager::kFramebufferBlit) &&
-      !gm->IsFunctionGroupAvailable(
+  if (!gm->IsFeatureAvailable(GraphicsManager::kFramebufferBlit) &&
+      !gm->IsFeatureAvailable(
           GraphicsManager::kMultisampleFramebufferResolve)) {
-    LOG(WARNING) << "No multisampled frambuffer functions available.";
+    LOG(WARNING) << "No multisampled framebuffer functions available.";
     return;
   }
 
-  // Get resource IDs.
-  GLuint ms_fbo_id = GetResourceGlId(ms_fbo.Get());
-  GLuint dest_fbo_id = GetResourceGlId(dest_fbo.Get());
-
-  // Save current bound framebuffer.
+  // Save the currently bound framebuffer.
   const FramebufferObjectPtr previous_fbo = GetCurrentFramebuffer();
 
-  // Bind new framebuffers.
+  // Update and bind framebuffers. Note that this may include updating the draw
+  // and read buffers, so we need to bind to GL_FRAMEBUFFER.
+  BindFramebuffer(ms_fbo);
+  BindFramebuffer(dest_fbo);
+
+  // Bind the multisample framebuffer to the read target.
+  GLuint ms_fbo_id = GetResourceGlId(ms_fbo.Get());
   gm->BindFramebuffer(GL_READ_FRAMEBUFFER, ms_fbo_id);
-  gm->BindFramebuffer(GL_DRAW_FRAMEBUFFER, dest_fbo_id);
 
   // Resolve the multisampled FBO.
-  if (gm->IsFunctionGroupAvailable(GraphicsManager::kFramebufferBlit)) {
+  GLuint gl_mask = ((mask & kColorBufferBit) ? GL_COLOR_BUFFER_BIT : 0x0) |
+                   ((mask & kDepthBufferBit) ? GL_DEPTH_BUFFER_BIT : 0x0) |
+                   ((mask & kStencilBufferBit) ? GL_STENCIL_BUFFER_BIT : 0x0);
+  if (gm->IsFeatureAvailable(GraphicsManager::kFramebufferBlit)) {
     gm->BlitFramebuffer(0, 0, ms_fbo->GetWidth(), ms_fbo->GetHeight(), 0, 0,
                         dest_fbo->GetWidth(), dest_fbo->GetHeight(),
-                        GL_COLOR_BUFFER_BIT, GL_NEAREST);
-  } else if (gm->IsFunctionGroupAvailable(
+                        gl_mask, GL_NEAREST);
+  } else if (gm->IsFeatureAvailable(
                  GraphicsManager::kMultisampleFramebufferResolve)) {
+    if (mask & kDepthBufferBit) {
+      LOG(WARNING) << "Multisampled depth buffer resolves are not supported by "
+                   << "this platform.";
+    }
+    if (mask & kStencilBufferBit) {
+      LOG(WARNING) << "Multisampled stencil buffer resolves are not supported "
+                   << "by this platform.";
+    }
     gm->ResolveMultisampleFramebuffer();
   }
 
@@ -5194,7 +5884,7 @@ void Renderer::ResourceBinder::MapBufferObjectDataRange(
       BufferObject::MappedBufferData::kGpuMapped;
   GraphicsManager* gm = GetGraphicsManager().Get();
   // Prefer MapBufferRange since it has more features.
-  if (gm->IsFunctionGroupAvailable(GraphicsManager::kMapBufferRange)) {
+  if (gm->IsFeatureAvailable(GraphicsManager::kMapBufferRange)) {
     BufferResource* br = resource_manager_->GetResource(bo, this);
     br->Bind(this);
     GLenum access_mode;
@@ -5206,7 +5896,7 @@ void Renderer::ResourceBinder::MapBufferObjectDataRange(
       access_mode = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT;
     data = gm->MapBufferRange(br->GetGlTarget(), range.GetMinPoint(),
                               range.GetSize(), access_mode);
-  } else if (gm->IsFunctionGroupAvailable(GraphicsManager::kMapBuffer) &&
+  } else if (gm->IsFeatureAvailable(GraphicsManager::kMapBuffer) &&
              range == entire_range) {
     BufferResource* br = resource_manager_->GetResource(bo, this);
     br->Bind(this);
@@ -5252,7 +5942,7 @@ void Renderer::ResourceBinder::UnmapBufferObjectData(
     br->Bind(this);
     if (bo->GetMappedData().data_source ==
         BufferObject::MappedBufferData::kGpuMapped &&
-        graphics_manager_->IsFunctionGroupAvailable(
+        graphics_manager_->IsFeatureAvailable(
             GraphicsManager::kMapBufferBase)) {
       graphics_manager_->UnmapBuffer(br->GetGlTarget());
     } else {
@@ -5310,7 +6000,7 @@ void Renderer::ResourceBinder::DrawScene(const NodePtr& node,
     if (flags.test(kSaveShaderProgram))
       gm->GetIntegerv(GL_CURRENT_PROGRAM, GetSavedId(kSaveShaderProgram));
     if (flags.test(kSaveVertexArray) &&
-        gm->IsFunctionGroupAvailable(GraphicsManager::kVertexArrays))
+        gm->IsFeatureAvailable(GraphicsManager::kVertexArrays))
       gm->GetIntegerv(GL_VERTEX_ARRAY_BINDING, GetSavedId(kSaveVertexArray));
   }
 
@@ -5318,7 +6008,7 @@ void Renderer::ResourceBinder::DrawScene(const NodePtr& node,
   if (FramebufferResource* fbr = GetActiveFramebuffer()) fbr->Bind(this);
 
   // Release any resources waiting to be released or destroyed.
-  if (flags.test(kProcessReleases)) resource_manager_->ReleaseAll(this);
+  if (flags.test(kProcessReleases)) resource_manager_->ProcessReleases(this);
 
   // If there are no shaders before the next draw call then we will bind a
   // default one.
@@ -5332,10 +6022,42 @@ void Renderer::ResourceBinder::DrawScene(const NodePtr& node,
     // textures bound to the framebuffer's attachment need to be notified that
     // their contents have changed (and maybe update mipmaps).
     if (FramebufferObject* fbo = GetCurrentFramebuffer().Get()) {
-      MarkAttachmentImplicitlyChanged(fbo->GetColorAttachment(0U));
+      for (size_t i = 0U; i < kColorAttachmentSlotCount; ++i)
+        MarkAttachmentImplicitlyChanged(fbo->GetColorAttachment(i));
       MarkAttachmentImplicitlyChanged(fbo->GetDepthAttachment());
       MarkAttachmentImplicitlyChanged(fbo->GetStencilAttachment());
     }
+  }
+
+  // Possibly invalidate framebuffer attachments.
+  if (gm->IsFeatureAvailable(GraphicsManager::kInvalidateFramebuffer) &&
+      (flags & AllInvalidateFlags()).any()) {
+    GLenum attachments[kColorAttachmentSlotCount + 2];
+    GLsizei count = 0;
+    if (active_framebuffer_.gl_id == 0U) {
+      if (flags.test(kInvalidateColorAttachment)) {
+        attachments[count++] = GL_COLOR;
+      }
+      if (flags.test(kInvalidateDepthAttachment)) {
+        attachments[count++] = GL_DEPTH;
+      }
+      if (flags.test(kInvalidateStencilAttachment)) {
+        attachments[count++] = GL_STENCIL;
+      }
+    } else {
+      for (size_t i = 0; i < kColorAttachmentSlotCount; ++i) {
+        if (flags.test(kInvalidateColorAttachment + i)) {
+          attachments[count++] = static_cast<GLenum>(GL_COLOR_ATTACHMENT0 + i);
+        }
+      }
+      if (flags.test(kInvalidateDepthAttachment)) {
+        attachments[count++] = GL_DEPTH_ATTACHMENT;
+      }
+      if (flags.test(kInvalidateStencilAttachment)) {
+        attachments[count++] = GL_STENCIL_ATTACHMENT;
+      }
+    }
+    gm->InvalidateFramebuffer(GL_DRAW_FRAMEBUFFER, count, attachments);
   }
 
   // Possibly restore state.
@@ -5361,10 +6083,18 @@ void Renderer::ResourceBinder::DrawScene(const NodePtr& node,
       SetCurrentFramebuffer(FramebufferObjectPtr());
     }
     // Shader program.
-    if (flags.test(kRestoreShaderProgram))
-      BindProgram(*GetSavedId(kSaveShaderProgram), nullptr);
-    else if (flags.test(kClearShaderProgram))
+    if (flags.test(kRestoreShaderProgram)) {
+      GLuint program_id = static_cast<GLuint>(*GetSavedId(kSaveShaderProgram));
+      // Check the saved ID, since we might have saved a program marked for
+      // deletion, and we won't be able to bind it again. If that's the case,
+      // reset the used program to zero.
+      if (gm->IsProgram(program_id))
+        BindProgram(*GetSavedId(kSaveShaderProgram), nullptr);
+      else
+        BindProgram(0U, nullptr);
+    } else if (flags.test(kClearShaderProgram)) {
       BindProgram(0U, nullptr);
+    }
     // StateTable.
     if (flags.test(kRestoreStateTable)) {
       UpdateFromStateTable(*saved_state_table_, gl_state_table_.Get(), gm);
@@ -5372,7 +6102,7 @@ void Renderer::ResourceBinder::DrawScene(const NodePtr& node,
                                                *saved_state_table_);
     }
     // Vertex array.
-    if (gm->IsFunctionGroupAvailable(GraphicsManager::kVertexArrays)) {
+    if (gm->IsFeatureAvailable(GraphicsManager::kVertexArrays)) {
       if (flags.test(kRestoreVertexArray))
         BindVertexArray(*GetSavedId(kSaveVertexArray), nullptr);
       else if (flags.test(kClearVertexArray))
@@ -5386,7 +6116,7 @@ void Renderer::ResourceBinder::DrawScene(const NodePtr& node,
         ActivateUnit(i);
         gm->BindTexture(GL_TEXTURE_CUBE_MAP, 0);
         ClearTextureBinding(0U, i);
-        if (gm->IsFunctionGroupAvailable(GraphicsManager::kTexture3d)) {
+        if (gm->IsFeatureAvailable(GraphicsManager::kTexture3d)) {
           gm->BindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, 0);
           ClearTextureBinding(0U, i);
         }
@@ -5398,9 +6128,13 @@ void Renderer::ResourceBinder::DrawScene(const NodePtr& node,
         ActivateUnit(i);
         gm->BindTexture(GL_TEXTURE_2D, 0);
         ClearTextureBinding(0U, i);
-        if (gm->IsFunctionGroupAvailable(GraphicsManager::kTexture3d)) {
+        if (gm->IsFeatureAvailable(GraphicsManager::kTextureArray1d)) {
           gm->BindTexture(GL_TEXTURE_1D_ARRAY, 0);
+        }
+        if (gm->IsFeatureAvailable(GraphicsManager::kTextureArray2d)) {
           gm->BindTexture(GL_TEXTURE_2D_ARRAY, 0);
+        }
+        if (gm->IsFeatureAvailable(GraphicsManager::kTexture3d)) {
           gm->BindTexture(GL_TEXTURE_3D, 0);
         }
         if (gm->IsExtensionSupported("image_external")) {
@@ -5575,10 +6309,8 @@ template ION_API void Renderer::ClearResources<ShaderProgram>(
     const ShaderProgram*);
 template ION_API void Renderer::ClearResources<Texture>(const Texture*);
 
-void Renderer::ClearAllResources() {
-  for (int i = 0; i < kNumResourceTypes; ++i)
-    resource_manager_->ReleaseTypedResources(static_cast<ResourceType>(i));
-  ReleaseResources();
+void Renderer::ClearAllResources(bool force_abandon) {
+  resource_manager_->DestroyOrAbandonAllResources(force_abandon);
 }
 
 void Renderer::ClearTypedResources(ResourceType type) {
@@ -5589,11 +6321,41 @@ void Renderer::ClearTypedResources(ResourceType type) {
 void Renderer::ReleaseResources() {
   ResourceBinder* resource_binder = GetOrCreateInternalResourceBinder(__LINE__);
   if (resource_binder)
-    resource_manager_->ReleaseAll(resource_binder);
+    resource_manager_->ProcessReleases(resource_binder);
 }
 
 size_t Renderer::GetGpuMemoryUsage(ResourceType type) const {
   return resource_manager_->GetGpuMemoryUsage(type);
+}
+
+void Renderer::BeginTransformFeedback(const TransformFeedbackPtr& tf) {
+  DCHECK(GetGraphicsManager()->IsFeatureAvailable(
+      GraphicsManager::kTransformFeedback));
+  ResourceBinder* resource_binder = GetOrCreateInternalResourceBinder(__LINE__);
+  if (resource_binder) {
+    TransformFeedbackResource* tfr =
+        resource_manager_->GetResource(tf.Get(), resource_binder);
+    DCHECK(tfr);
+    // Bind the transform feedback object, but do not call the low level
+    // BeginTransformFeedback function yet.  We defer it until Node rendering
+    // because that's when we'll have a valid shader program.
+    tfr->Bind(resource_binder);
+  }
+}
+
+void Renderer::EndTransformFeedback() {
+  GetGraphicsManager()->EndTransformFeedback();
+  ResourceBinder* resource_binder = GetOrCreateInternalResourceBinder(__LINE__);
+  if (resource_binder) {
+    TransformFeedbackResource* tfr =
+        resource_binder->GetActiveTransformFeedback();
+    DCHECK(tfr);
+    // OpenGL doesn't require us to unbind the transform feedback object,
+    // but we need to do so because use the binding as an internal signal to
+    // start the capture in DrawNode.
+    resource_binder->BindTransformFeedback(0, nullptr);
+    tfr->StopCapturing();
+  }
 }
 
 const ShaderProgramPtr Renderer::CreateDefaultShaderProgram(
@@ -5643,7 +6405,7 @@ void Renderer::ResourceBinder::DrawNode(const Node& node, GraphicsManager* gm) {
   if (!node.IsEnabled())
     return;
 
-  ScopedLabel label(this, &node, node.GetLabel());
+  ScopedLabel label(this, &node, node.GetLabel(), ION_PRETTY_FUNCTION);
 
   if (const StateTable* st = node.GetStateTable().Get()) {
     // Store the current client state; it will be restored after drawing and
@@ -5687,6 +6449,28 @@ void Renderer::ResourceBinder::DrawNode(const Node& node, GraphicsManager* gm) {
     // Bind the shader program to use. Note that it may already be bound in
     // OpenGL, but we still need to update the resource.
     resource_manager_->GetResource(current_shader_program_, this)->Bind(this);
+
+    // If requested, start transform feedback.
+    TransformFeedbackResource* tfr = GetActiveTransformFeedback();
+    if (tfr && !tfr->IsCapturing()) {
+      DCHECK(!current_shader_program_->GetCapturedVaryings().empty()) <<
+          node.GetLabel() << " has a shader program with no captured varyings.";
+      // In the future, we could add support for capturing multiple shapes, but
+      // only if they all have the same primitive type.  Note that clients would
+      // need to create a large enough transform feedback buffer to hold
+      // aggregated data across all shapes.
+      DCHECK_EQ(1, num_shapes) << "Transform feedback is active for "
+                               << node.GetLabel()
+                               << ", but it has more than one shape.";
+      // Child nodes might have shapes with differing primitive types, so we
+      // can't allow transform feedback for them either.
+      DCHECK_EQ(0, node.GetChildren().size())
+          << "Transform feedback is active for " << node.GetLabel()
+          << ", but it has children.";
+      GetGraphicsManager()->BeginTransformFeedback(
+          base::EnumHelper::GetConstant(shapes[0]->GetPrimitiveType()));
+      tfr->StartCapturing();
+    }
 
     // Draw shapes.
     for (size_t i = 0; i < num_shapes; ++i)
@@ -5733,13 +6517,13 @@ void Renderer::ResourceBinder::DrawShape(const Shape& shape,
       (shape.GetIndexBuffer().Get() && !shape.GetIndexBuffer()->GetCount()))
     return;
 
-  ScopedLabel label(this, &shape, shape.GetLabel());
+  ScopedLabel label(this, &shape, shape.GetLabel(), ION_PRETTY_FUNCTION);
 
   // Bind the vertex array. We can only use vertex arrays if they are available
   // on the local platform. If they are not, we simply use the default global
   // array that is always active.
   VertexArrayResource* var;
-  if (gm->IsFunctionGroupAvailable(GraphicsManager::kVertexArrays))
+  if (gm->IsFeatureAvailable(GraphicsManager::kVertexArrays))
     var = resource_manager_->GetResource(&attribute_array, this);
   else
     var = resource_manager_->GetResource(
@@ -5771,12 +6555,11 @@ void Renderer::ResourceBinder::DrawIndexedShape(const Shape& shape,
   const BufferObject::Spec& spec = ib.GetSpec(0);
   DCHECK(!base::IsInvalidReference(spec));
   const GLenum data_type = base::EnumHelper::GetConstant(spec.type);
-  if (gm->GetGlApiStandard() == GraphicsManager::kEs &&
-      gm->GetGlVersion() < 30 &&
+  if (!gm->IsFeatureAvailable(GraphicsManager::kElementIndex32Bit) &&
       (data_type == GL_INT || data_type == GL_UNSIGNED_INT)) {
-    LOG(ERROR) << "***ION: Unable to draw shape " << shape.GetLabel()
-               << " using index buffer: "
-               << "The component type is not supported on this platform";
+    LOG(ERROR) << "***ION: Unable to draw shape '" << shape.GetLabel()
+               << "' using index buffer: "
+               << "32-bit element indices are not supported on this platform";
   }
   const GLenum prim_type =
       base::EnumHelper::GetConstant(shape.GetPrimitiveType());
@@ -5791,8 +6574,7 @@ void Renderer::ResourceBinder::DrawIndexedShape(const Shape& shape,
         const int instance_count = shape.GetVertexRangeInstanceCount(i);
         // The start_index is taken into account as an offset into the buffer.
         if (instance_count &&
-            gm->IsFunctionGroupAvailable(
-                GraphicsManager::kInstancedDrawing)) {
+            gm->IsFeatureAvailable(GraphicsManager::kDrawInstanced)) {
           gm->DrawElementsInstanced(prim_type, count, data_type,
                                     reinterpret_cast<const GLvoid*>(
                                         start_index * ib.GetStructSize()),
@@ -5814,7 +6596,7 @@ void Renderer::ResourceBinder::DrawIndexedShape(const Shape& shape,
     // No vertex ranges, so draw all indices.
     const int instance_count = shape.GetInstanceCount();
     if (instance_count &&
-        gm->IsFunctionGroupAvailable(GraphicsManager::kInstancedDrawing)) {
+        gm->IsFeatureAvailable(GraphicsManager::kDrawInstanced)) {
       gm->DrawElementsInstanced(
           prim_type, static_cast<GLsizei>(ib.GetCount()), data_type,
           reinterpret_cast<const GLvoid*>(0), instance_count);
@@ -5845,7 +6627,7 @@ void Renderer::ResourceBinder::DrawNonindexedShape(const Shape& shape,
         DCHECK_GT(count, 0);
         const int instance_count = shape.GetVertexRangeInstanceCount(i);
         if (instance_count &&
-            gm->IsFunctionGroupAvailable(GraphicsManager::kInstancedDrawing)) {
+            gm->IsFeatureAvailable(GraphicsManager::kDrawInstanced)) {
           gm->DrawArraysInstanced(prim_type, start_index, count,
                                   instance_count);
         } else {
@@ -5863,7 +6645,7 @@ void Renderer::ResourceBinder::DrawNonindexedShape(const Shape& shape,
     // No vertex ranges, so draw all indices.
     const int instance_count = shape.GetInstanceCount();
     if (instance_count &&
-        gm->IsFunctionGroupAvailable(GraphicsManager::kInstancedDrawing)) {
+        gm->IsFeatureAvailable(GraphicsManager::kDrawInstanced)) {
       gm->DrawArraysInstanced(prim_type, 0, static_cast<GLsizei>(vertex_count),
                               instance_count);
     } else {
@@ -5879,32 +6661,40 @@ void Renderer::ResourceBinder::DrawNonindexedShape(const Shape& shape,
 
 void Renderer::ResourceBinder::BindBuffer(BufferObject::Target target,
                                           GLuint id, BufferResource* resource) {
-  if (id != active_buffers_[target].buffer) {
-    active_buffers_[target].buffer = id;
+  if (id != active_buffers_[target].gl_id) {
+    active_buffers_[target].gl_id = id;
     active_buffers_[target].resource = resource;
-    GetGraphicsManager()->BindBuffer(base::EnumHelper::GetConstant(target), id);
-    if (target == BufferObject::kElementBuffer && active_vertex_array_resource_)
-      active_vertex_array_resource_->SetElementArrayBinding(id, resource);
+    const GLenum gltarget = base::EnumHelper::GetConstant(target);
+    // For transform feedback, we do not yet support ranges or non-interleaved
+    // capture buffers, so just specify the entire range of buffer 0.
+    if (target == BufferObject::kTransformFeedbackBuffer) {
+      size_t nbytes = resource->GetSize();
+      GetGraphicsManager()->BindBufferRange(gltarget, 0, id, 0, nbytes);
+      return;
+    }
+    GetGraphicsManager()->BindBuffer(gltarget, id);
+    if (target == BufferObject::kElementBuffer && active_vertex_array_.resource)
+      active_vertex_array_.resource->SetElementArrayBinding(id, resource);
   }
 }
 
 void Renderer::ResourceBinder::BindFramebuffer(GLuint id,
                                                FramebufferResource* fbo) {
-  if (id != active_framebuffer_) {
+  if (id != active_framebuffer_.gl_id) {
     DCHECK(!fbo || id == fbo->GetId());
-    active_framebuffer_ = id;
-    active_framebuffer_resource_ = fbo;
+    active_framebuffer_.gl_id = id;
+    active_framebuffer_.resource = fbo;
     GetGraphicsManager()->BindFramebuffer(GL_FRAMEBUFFER, id);
   }
 }
 
 bool Renderer::ResourceBinder::BindProgram(GLuint id,
                                            ShaderProgramResource* resource) {
-  if (id != active_shader_id_) {
+  if (id != active_shader_.gl_id) {
     DCHECK(!resource || id == resource->GetId());
-    active_shader_id_ = id;
+    active_shader_.gl_id = id;
     GetGraphicsManager()->UseProgram(id);
-    active_shader_resource_ = resource;
+    active_shader_.resource = resource;
     return true;
   } else {
     return false;
@@ -5913,10 +6703,10 @@ bool Renderer::ResourceBinder::BindProgram(GLuint id,
 
 void Renderer::ResourceBinder::BindVertexArray(GLuint id,
                                                VertexArrayResource* resource) {
-  if (id != active_vertex_array_) {
+  if (id != active_vertex_array_.gl_id) {
     DCHECK(!resource || id == resource->GetId());
-    active_vertex_array_ = id;
-    active_vertex_array_resource_ = resource;
+    active_vertex_array_.gl_id = id;
+    active_vertex_array_.resource = resource;
     // Element buffer binding is part of vertex array object state.
     // However, some drivers are buggy and treat it as part of global state.
     // As a workaround, we always clear the element buffer binding
@@ -5951,6 +6741,16 @@ void Renderer::ResourceBinder::BindTextureToUnit(TextureResource* resource,
   }
 }
 
+void Renderer::ResourceBinder::BindTransformFeedback(
+    GLuint id, TransformFeedbackResource* tf) {
+  if (id != active_transform_feedback_.gl_id) {
+    DCHECK(!tf || id == tf->GetId());
+    active_transform_feedback_.gl_id = id;
+    active_transform_feedback_.resource = tf;
+    GetGraphicsManager()->BindTransformFeedback(GL_TRANSFORM_FEEDBACK, id);
+  }
+}
+
 void Renderer::ResourceBinder::ClearTextureBinding(GLuint id, GLuint unit) {
   TextureResource*& resource = image_units_[unit].resource;
   if (!id || (resource && id == resource->GetId())) {
@@ -5959,15 +6759,15 @@ void Renderer::ResourceBinder::ClearTextureBinding(GLuint id, GLuint unit) {
 }
 
 void Renderer::ResourceBinder::ClearVertexArrayBinding(GLuint id) {
-  if (!id || id == active_vertex_array_) {
-    active_vertex_array_ = 0;
-    if (active_vertex_array_resource_ &&
-        active_vertex_array_resource_->GetElementArrayBinding().buffer) {
+  if (!id || id == active_vertex_array_.gl_id) {
+    active_vertex_array_.gl_id = 0;
+    if (active_vertex_array_.resource &&
+        active_vertex_array_.resource->GetElementArrayBinding().gl_id) {
       ClearBufferBinding(
           BufferObject::kElementBuffer,
-          active_vertex_array_resource_->GetElementArrayBinding().buffer);
+          active_vertex_array_.resource->GetElementArrayBinding().gl_id);
     }
-    active_vertex_array_resource_ = nullptr;
+    active_vertex_array_.resource = nullptr;
   }
 }
 
@@ -6028,24 +6828,36 @@ void Renderer::ResourceBinder::SendUniform(const Uniform& uniform, int location,
                reinterpret_cast<const elem_type*>(&uniform.GetValue<type>())); \
   }
 
-#define SEND_TEXTURE_UNIFORM(type)                                  \
-  /* Get the texture resource from each holder. */                  \
-  if (uniform.IsArrayOf<type##Ptr>()) {                             \
-    const size_t count = uniform.GetCount();                        \
-    const base::AllocatorPtr& allocator =                           \
-        base::AllocationManager::GetDefaultAllocatorForLifetime(    \
-            base::kShortTerm);                                      \
-    base::AllocVector<GLint> ids(allocator);                        \
-    ids.reserve(count);                                             \
-    /* Each resource holds its own id. */                           \
-    for (size_t i = 0; i < count; ++i)                              \
-      if (TextureResource* txr = resource_manager_->GetResource(    \
-              uniform.GetValueAt<type##Ptr>(i).Get(), this))        \
-        ids.push_back(GetLastBoundUnit(txr));                       \
-    gm->Uniform1iv(location, static_cast<GLsizei>(count), &ids[0]); \
-  } else if (TextureResource* txr = resource_manager_->GetResource( \
-                 uniform.GetValue<type##Ptr>().Get(), this)) {      \
-    gm->Uniform1i(location, GetLastBoundUnit(txr));                 \
+#define SEND_TEXTURE_UNIFORM(type)                                             \
+  /* Get the texture resource from each holder. */                             \
+  if (uniform.IsArrayOf<type##Ptr>()) {                                        \
+    const size_t count = uniform.GetCount();                                   \
+    const base::AllocatorPtr& allocator =                                      \
+        base::AllocationManager::GetDefaultAllocatorForLifetime(               \
+            base::kShortTerm);                                                 \
+    base::AllocVector<GLint> ids(allocator);                                   \
+    ids.reserve(count);                                                        \
+    int non_null_texture_count = 0;                                            \
+    /* Each resource holds its own id. */                                      \
+    for (size_t i = 0; i < count; ++i) {                                       \
+      /* Null values in sampler arrays will be assigned the value of zero.  */ \
+      /* This is not perfect, but we don't know what will happen if we send */ \
+      /* an invalid value, such as -1. The array will be sent if at least   */ \
+      /* one non-null texture is set.                                       */ \
+      TextureResource* txr = nullptr;                                          \
+      type* holder = uniform.GetValueAt<type##Ptr>(i).Get();                   \
+      if (holder) txr = resource_manager_->GetResource(holder, this);          \
+      ids.push_back(txr ? GetLastBoundUnit(txr) : 0);                          \
+      if (txr) ++non_null_texture_count;                                       \
+    }                                                                          \
+    if (non_null_texture_count > 0)                                            \
+      gm->Uniform1iv(location, static_cast<GLsizei>(count), &ids[0]);          \
+  } else {                                                                     \
+    TextureResource* txr = nullptr;                                            \
+    type* holder = uniform.GetValue<type##Ptr>().Get();                        \
+    /* Setting a null Texture as uniform value does not send anything. */      \
+    if (holder) txr = resource_manager_->GetResource(holder, this);            \
+    if (txr) gm->Uniform1i(location, GetLastBoundUnit(txr));                   \
   }
 
   // Ion stores matrices in row-major order and OpenGL expects column-major, so
@@ -6244,7 +7056,13 @@ void Renderer::ResourceManager::FillInfoFromResource(BufferInfo* info,
 template <>
 void Renderer::ResourceManager::FillInfoFromResource(
     FramebufferInfo* info, FramebufferResource* resource, ResourceBinder* rb) {
-  info->color0_renderbuffer.id = resource->GetColor0Id();
+  const int max_attachments = GetGraphicsManager()->GetCapabilityValue<int>(
+      GraphicsManager::kMaxColorAttachments);
+  info->color.resize(max_attachments);
+  info->color_renderbuffers.resize(max_attachments);
+  for (int i = 0; i < max_attachments; ++i) {
+    info->color_renderbuffers[i].id = resource->GetColorId(i);
+  }
   info->depth_renderbuffer.id = resource->GetDepthId();
   info->stencil_renderbuffer.id = resource->GetStencilId();
 }
@@ -6254,6 +7072,8 @@ void Renderer::ResourceManager::FillInfoFromResource(
     ProgramInfo* info, ShaderProgramResource* resource, ResourceBinder* rb) {
   if (ShaderResource* shader = resource->GetVertexResource())
     info->vertex_shader = shader->GetId();
+  if (ShaderResource* shader = resource->GetGeometryResource())
+    info->geometry_shader = shader->GetId();
   if (ShaderResource* shader = resource->GetFragmentResource())
     info->fragment_shader = shader->GetId();
 }
@@ -6284,6 +7104,20 @@ void Renderer::ResourceManager::FillInfoFromResource(
   }
 }
 
+template <>
+void Renderer::ResourceManager::FillInfoFromResource(
+    TransformFeedbackInfo* info, TransformFeedbackResource* resource,
+    ResourceBinder* rb) {
+  const TransformFeedback& tf = resource->GetTransformFeedback();
+  if (BufferObject* buf = tf.GetCaptureBuffer().Get()) {
+    auto bufresource = GetResource(buf, rb);
+    info->buffer = bufresource->GetId();
+  } else {
+    info->buffer = 0;
+  }
+  info->active = resource->IsCapturing();
+}
+
 // Instantiate the GetResource() function for supported resource types.
 template Renderer::BufferResource* Renderer::ResourceManager::GetResource(
     const BufferObject*, Renderer::ResourceBinder*, GLuint);
@@ -6300,6 +7134,9 @@ Renderer::ResourceManager::GetResource(const ShaderProgram*,
                                        Renderer::ResourceBinder*, GLuint);
 template Renderer::TextureResource* Renderer::ResourceManager::GetResource(
     const Texture*, Renderer::ResourceBinder*, GLuint);
+template Renderer::TransformFeedbackResource*
+Renderer::ResourceManager::GetResource(const TransformFeedback*,
+                                       Renderer::ResourceBinder*, GLuint);
 template Renderer::VertexArrayResource* Renderer::ResourceManager::GetResource(
     const AttributeArray*, Renderer::ResourceBinder*, GLuint);
 

@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@
         ],
         'defines': [
           'U_DISABLE_RENAMING',
+          'NO_GOOGLE_STRING_PIECE_IN_ICU',
         ],
       },  # all_dependent_settings
       'include_dirs': [
@@ -38,17 +39,28 @@
       ],
       'cflags_cc': [
         '-Wno-deprecated-declarations',
+        '-Wno-unused-function',
       ],
       'cflags_cc!': [
         '-Wconversion',
       ],
       'defines': [
         'U_DISABLE_RENAMING',
+        'U_COMMON_IMPLEMENTATION',
+        'U_STATIC_IMPLEMENTATION',
+        'U_IMPORT=',
+        'U_EXPORT=',
+        'GOOGLE_VENDOR_SRC_BRANCH',
       ],
       'msvs_disabled_warnings': [
         '4005', # Macro redefinition. ICU headers define WIN32_LEAN_AND_MEAN.
+        '4018', # Signed/unsigned mismatch in comparisons.
+        '4091', # Signed/unsigned mismatch in comparisons.
         '4244', # Conversion from 64-bit to 32-bit types.
         '4267', # Conversion from 64-bit to 32-bit types.
+        '4333', # Right shift by too large amount, data loss.
+        '4554', # & operator precedence.
+        '4595', # Non-member new/delete inline.
         '4996', # 'uidna_toASCII': was declared deprecated.
       ],
       'sources': [
@@ -71,6 +83,8 @@
         '<(icu_src_dir)/source/common/cmemory.c',
         '<(icu_src_dir)/source/common/cmemory.h',
         '<(icu_src_dir)/source/common/cpputils.h',
+        '<(icu_src_dir)/source/common/cstr.cpp',
+        '<(icu_src_dir)/source/common/cstr.h',
         '<(icu_src_dir)/source/common/cstring.c',
         '<(icu_src_dir)/source/common/cstring.h',
         '<(icu_src_dir)/source/common/cwchar.c',
@@ -94,6 +108,7 @@
         '<(icu_src_dir)/source/common/locbased.cpp',
         '<(icu_src_dir)/source/common/locbased.h',
         '<(icu_src_dir)/source/common/locdispnames.cpp',
+        '<(icu_src_dir)/source/common/locdspnm.cpp',
         '<(icu_src_dir)/source/common/locid.cpp',
         '<(icu_src_dir)/source/common/loclikely.cpp',
         '<(icu_src_dir)/source/common/locmap.c',
@@ -142,6 +157,7 @@
         '<(icu_src_dir)/source/common/rbbitblb.h',
         '<(icu_src_dir)/source/common/resbund.cpp',
         '<(icu_src_dir)/source/common/resbund_cnv.cpp',
+        '<(icu_src_dir)/source/common/resource.h',
         '<(icu_src_dir)/source/common/ruleiter.cpp',
         '<(icu_src_dir)/source/common/ruleiter.h',
         '<(icu_src_dir)/source/common/schriter.cpp',
@@ -157,8 +173,7 @@
         '<(icu_src_dir)/source/common/servslkf.cpp',
         '<(icu_src_dir)/source/common/sharedobject.cpp',
         '<(icu_src_dir)/source/common/sharedobject.h',
-        '<(icu_src_dir)/source/common/simplepatternformatter.cpp',
-        '<(icu_src_dir)/source/common/simplepatternformatter.h',
+        '<(icu_src_dir)/source/common/simpleformatter.cpp',
         '<(icu_src_dir)/source/common/sprpimpl.h',
         '<(icu_src_dir)/source/common/stringpiece.cpp',
         '<(icu_src_dir)/source/common/stringtriebuilder.cpp',
@@ -225,6 +240,8 @@
         '<(icu_src_dir)/source/common/ucol_data.h',
         '<(icu_src_dir)/source/common/ucol_swp.cpp',
         '<(icu_src_dir)/source/common/ucol_swp.h',
+        '<(icu_src_dir)/source/common/ucurr.cpp',
+        '<(icu_src_dir)/source/common/ucurrimp.h',
         '<(icu_src_dir)/source/common/udata.cpp',
         '<(icu_src_dir)/source/common/udatamem.c',
         '<(icu_src_dir)/source/common/udatamem.h',
@@ -333,18 +350,14 @@
         '<(icu_src_dir)/source/common/wintz.h',
       ],  # sources
       'conditions': [
-        ['_type == "static_library"', {
-          'defines': [
-            'U_COMMON_IMPLEMENTATION',
-            'GOOGLE_VENDOR_SRC_BRANCH',
-          ],
-          'all_dependent_settings': {
-            'defines': [
-              'NO_GOOGLE_STRING_PIECE_IN_ICU',
+        ['OS == "win"', {
+          'link_settings': {
+            'libraries': [
+              '-ladvapi32',
             ],
-          },  # all_dependent_settings
+          },
         }],
-      ],  # conditions
+      ],
     },  # target: ionicu
   ],  # targets
 }

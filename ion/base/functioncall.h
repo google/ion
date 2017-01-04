@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -71,7 +71,7 @@ class FunctionCall<ReturnType(Types...)> : public FunctionCallBase {
   // Constructor for a std::function (returned by std::bind()).
   FunctionCall(const std::function<ReturnType(Types...)>& func,
                Types&&... args)  // NOLINT
-      : free_func_(NULL),
+      : free_func_(nullptr),
         std_func_(func),
         args_(std::make_tuple(std::forward<Types>(args)...)) {}
 

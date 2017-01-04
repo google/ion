@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -118,6 +118,14 @@ class IonSimpleDraw : public DemoBase {
     root_ = BuildGraph(width, height);
   }
   ~IonSimpleDraw() override {}
+
+  ion::gfx::ImagePtr GrabScreenshot(
+      const ion::base::AllocatorPtr& al) override {
+    return renderer_->ReadImage(
+        ion::math::Range2i(ion::math::Point2i(0, 0),
+                           ion::math::Point2i(width_, height_)),
+        ion::gfx::Image::kRgba8888, al);
+  }
 
   void Resize(int width, int height) override {
     DCHECK(root_->GetStateTable().Get());

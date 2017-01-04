@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -84,6 +84,7 @@ uint64 GetProcessResidentMemorySize() {
   mach_msg_type_number_t info_count = TASK_BASIC_INFO_COUNT;
   const int error_code = task_info(mach_task_self(), TASK_BASIC_INFO,
                                    (task_info_t)&info, &info_count);
+  (void)error_code;  // Silence unused variable warning.
   assert(error_code == KERN_SUCCESS);
   return info.resident_size;
 #elif defined(ION_PLATFORM_WINDOWS)
@@ -105,7 +106,8 @@ uint64 GetSystemMemorySize() {
   mib[1] = HW_MEMSIZE;
   int64 system_memory_size;
   size_t size = sizeof(system_memory_size);
-  const int error_code = sysctl(mib, 2, &system_memory_size, &size, NULL, 0);
+  const int error_code = sysctl(mib, 2, &system_memory_size, &size, nullptr, 0);
+  (void)error_code;  // Silence unused variable warning.
   assert(error_code != ENOMEM);
   return system_memory_size;
 #elif defined(ION_PLATFORM_WINDOWS)

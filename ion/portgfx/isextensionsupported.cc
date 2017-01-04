@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,8 +30,6 @@ namespace portgfx {
 ION_API bool IsExtensionSupported(const std::string& unprefixed_extension,
                                   const std::string& extensions_string) {
   if (unprefixed_extension.empty())
-    return false;
-  if (IsExtensionIncomplete(unprefixed_extension.c_str()))
     return false;
 
   // An extension is supported if it is in the list of GL extensions.
@@ -83,16 +81,6 @@ ION_API bool IsExtensionSupported(const char* unprefixed_extension) {
   const std::string unprefixed(unprefixed_extension);
   return IsExtensionSupported(std::string(unprefixed_extension),
                               std::string(extensions));
-}
-
-ION_API bool IsExtensionIncomplete(const char* unprefixed_extension) {
-#if defined(ION_PLATFORM_ANDROID) || defined(ION_PLATFORM_GENERIC_ARM)
-  // Disable vertex arrays on Android since there seems to be a buggy
-  // implementation of them in the SDK.
-  if (!strcmp(unprefixed_extension, "vertex_array_object"))
-    return true;
-#endif
-  return false;
 }
 
 }  // namespace portgfx

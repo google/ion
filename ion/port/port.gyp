@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -72,6 +72,9 @@
           },
         }],
         ['OS == "ios"', {
+          'sources': [
+            'logging_ios.mm',
+          ],
           'xcode_settings': {
             # Force all files to compile as Objective-C++ because fileutils.cc
             # has some objective-c++ in it. Easier than calling it out
@@ -122,7 +125,7 @@
             ],
           }
         }],
-        ['OS not in ["android", "nacl"]', {
+        ['OS not in ["android", "nacl", "ios"]', {
           'sources': [ 'logging_cerr.cc' ],
         }],
         ['OS == "asmjs"', {

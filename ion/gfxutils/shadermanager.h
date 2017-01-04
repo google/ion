@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -44,7 +44,9 @@ class ION_API ShaderManager : public base::Referent {
   const gfx::ShaderProgramPtr CreateShaderProgram(
       const std::string& name, const ion::gfx::ShaderInputRegistryPtr& registry,
       const ShaderSourceComposerPtr& vertex_source_composer,
-      const ShaderSourceComposerPtr& fragment_source_composer);
+      const ShaderSourceComposerPtr& fragment_source_composer,
+      const ShaderSourceComposerPtr& geometry_source_composer =
+        ShaderSourceComposerPtr());
 
   // Returns a ReferentPtr to a ShaderProgram that has the passed name. If no
   // program with the passed name exists, returns a NULL ShaderProgramPtr.
@@ -60,7 +62,8 @@ class ION_API ShaderManager : public base::Referent {
   void GetShaderProgramComposers(
       const std::string& name,
       ShaderSourceComposerPtr* vertex_source_composer,
-      ShaderSourceComposerPtr* fragment_source_composer);
+      ShaderSourceComposerPtr* fragment_source_composer,
+      ShaderSourceComposerPtr* geometry_source_composer = nullptr);
 
   // Reconstructs all shaders from their composers.
   void RecreateAllShaderPrograms();
@@ -82,8 +85,7 @@ class ION_API ShaderManager : public base::Referent {
   DISALLOW_COPY_AND_ASSIGN(ShaderManager);
 };
 
-typedef base::ReferentPtr<ShaderManager>::Type ShaderManagerPtr;
-
+using ShaderManagerPtr = base::SharedPtr<ShaderManager>;
 
 }  // namespace gfxutils
 }  // namespace ion

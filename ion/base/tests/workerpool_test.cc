@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ class TestWorker : public WorkerPool::Worker {
  public:
   TestWorker()
       : current_work_count_(0), total_work_count_(0), available_work_count_(0),
-        barrier_one_(NULL), barrier_two_(NULL), work_sema_(NULL) {}
+        barrier_one_(nullptr), barrier_two_(nullptr), work_sema_(nullptr) {}
 
   void SetBarriers(ion::port::Barrier* one, ion::port::Barrier* two) {
     ion::base::LockGuard lock(&work_mutex_);
@@ -61,12 +61,12 @@ class TestWorker : public WorkerPool::Worker {
 
   void WaitUntilDoneWithBarriers() {
     alldone_sema_.Wait();
-    SetBarriers(NULL, NULL);
+    SetBarriers(nullptr, nullptr);
   }
 
   void DoWork() override {
-    ion::port::Barrier* one = NULL;
-    ion::port::Barrier* two = NULL;
+    ion::port::Barrier* one = nullptr;
+    ion::port::Barrier* two = nullptr;
 
     {
       ion::base::LockGuard lock(&work_mutex_);

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -249,6 +249,7 @@ TEST_F(HttpServerTest, RequestHandlers) {
             server_->GetUriData("index.html"));
 
 #if !defined(ION_PLATFORM_ASMJS) && !defined(ION_PLATFORM_NACL)
+  const size_t instance_length = response_.data.size();
   // Get part of a file. The length should be 9 bytes since the range is
   // inclusive.
   response_ = client_.GetRange(localhost_ + "/index.html", 5, 80);
@@ -257,7 +258,9 @@ TEST_F(HttpServerTest, RequestHandlers) {
   EXPECT_EQ(206, response_.status);
   EXPECT_FALSE(response_.data.empty());
   EXPECT_EQ("text/html", response_.headers["Content-Type"]);
-  EXPECT_EQ("bytes 5-80/694", response_.headers["Content-Range"]);
+  std::stringstream content_range;
+  content_range << "bytes 5-80/" << instance_length;
+  EXPECT_EQ(content_range.str(), response_.headers["Content-Range"]);
   EXPECT_EQ(index_range, response_.data);
 #endif
 

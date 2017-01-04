@@ -750,6 +750,10 @@ static int ply_read_list_property(p_ply ply, p_ply_element element,
 
 static int ply_read_scalar_property(p_ply ply, p_ply_element element, 
         p_ply_property property, p_ply_argument argument) {
+    if (property->type == (e_ply_type)(-1)) {
+      ply_error(ply, "Invalid property type");
+      return 0;
+    }
     p_ply_read_cb read_cb = property->read_cb;
     p_ply_ihandler *driver = ply->idriver->ihandler; 
     p_ply_ihandler handler = driver[property->type];

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -165,8 +165,73 @@ const Image::PixelFormat& Image::GetPixelFormat(Format format) {
                                       GL_UNSIGNED_INT},
       /* kTextureDepth16Short     */ {GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT,
                                       GL_UNSIGNED_SHORT},
+      /* kTextureDepth24          */ {GL_DEPTH_COMPONENT24, GL_DEPTH_COMPONENT,
+                                      GL_UNSIGNED_INT},
+      /* kTextureDepth24Stencil8  */ {GL_DEPTH_STENCIL, GL_DEPTH_STENCIL,
+                                      GL_UNSIGNED_INT_24_8},
+      /* kTextureDepth32f         */ {GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT,
+                                      GL_FLOAT},
+      /* kTextureDepth32fStencil8 */ {GL_DEPTH32F_STENCIL8,
+                                      GL_DEPTH_STENCIL,
+                                      GL_FLOAT_32_UNSIGNED_INT_24_8_REV},
       /* kStencil8                */ {GL_STENCIL_INDEX8, GL_STENCIL,
                                       GL_UNSIGNED_BYTE},
+      /* kAstc4x4Rgba             */ {GL_COMPRESSED_RGBA_ASTC_4x4_KHR, GL_RGBA,
+                                      GL_UNSIGNED_BYTE},
+      /* kAstc5x4Rgba             */ {GL_COMPRESSED_RGBA_ASTC_5x4_KHR, GL_RGBA,
+                                      GL_UNSIGNED_BYTE},
+      /* kAstc5x5Rgba             */ {GL_COMPRESSED_RGBA_ASTC_5x5_KHR, GL_RGBA,
+                                      GL_UNSIGNED_BYTE},
+      /* kAstc6x5Rgba             */ {GL_COMPRESSED_RGBA_ASTC_6x5_KHR, GL_RGBA,
+                                      GL_UNSIGNED_BYTE},
+      /* kAstc6x6Rgba             */ {GL_COMPRESSED_RGBA_ASTC_6x6_KHR, GL_RGBA,
+                                      GL_UNSIGNED_BYTE},
+      /* kAstc8x5Rgba             */ {GL_COMPRESSED_RGBA_ASTC_8x5_KHR, GL_RGBA,
+                                      GL_UNSIGNED_BYTE},
+      /* kAstc8x6Rgba             */ {GL_COMPRESSED_RGBA_ASTC_8x6_KHR, GL_RGBA,
+                                      GL_UNSIGNED_BYTE},
+      /* kAstc8x8Rgba             */ {GL_COMPRESSED_RGBA_ASTC_8x8_KHR, GL_RGBA,
+                                      GL_UNSIGNED_BYTE},
+      /* kAstc10x5Rgba            */ {GL_COMPRESSED_RGBA_ASTC_10x5_KHR, GL_RGBA,
+                                      GL_UNSIGNED_BYTE},
+      /* kAstc10x6Rgba            */ {GL_COMPRESSED_RGBA_ASTC_10x6_KHR, GL_RGBA,
+                                      GL_UNSIGNED_BYTE},
+      /* kAstc10x8Rgba            */ {GL_COMPRESSED_RGBA_ASTC_10x8_KHR, GL_RGBA,
+                                      GL_UNSIGNED_BYTE},
+      /* kAstc10x10Rgba           */ {GL_COMPRESSED_RGBA_ASTC_10x10_KHR,
+                                      GL_RGBA, GL_UNSIGNED_BYTE},
+      /* kAstc12x10Rgba           */ {GL_COMPRESSED_RGBA_ASTC_12x10_KHR,
+                                      GL_RGBA, GL_UNSIGNED_BYTE},
+      /* kAstc12x12Rgba           */ {GL_COMPRESSED_RGBA_ASTC_12x12_KHR,
+                                      GL_RGBA, GL_UNSIGNED_BYTE},
+      /* kAstc4x4Srgba            */ {GL_COMPRESSED_SRGB8_ALPHA8_ASTC_4x4_KHR,
+                                      GL_RGBA, GL_UNSIGNED_BYTE},
+      /* kAstc5x4Srgba            */ {GL_COMPRESSED_SRGB8_ALPHA8_ASTC_5x4_KHR,
+                                      GL_RGBA, GL_UNSIGNED_BYTE},
+      /* kAstc5x5Srgba            */ {GL_COMPRESSED_SRGB8_ALPHA8_ASTC_5x5_KHR,
+                                      GL_RGBA, GL_UNSIGNED_BYTE},
+      /* kAstc6x5Srgba            */ {GL_COMPRESSED_SRGB8_ALPHA8_ASTC_6x5_KHR,
+                                      GL_RGBA, GL_UNSIGNED_BYTE},
+      /* kAstc6x6Srgba            */ {GL_COMPRESSED_SRGB8_ALPHA8_ASTC_6x6_KHR,
+                                      GL_RGBA, GL_UNSIGNED_BYTE},
+      /* kAstc8x5Srgba            */ {GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x5_KHR,
+                                      GL_RGBA, GL_UNSIGNED_BYTE},
+      /* kAstc8x6Srgba            */ {GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x6_KHR,
+                                      GL_RGBA, GL_UNSIGNED_BYTE},
+      /* kAstc8x8Srgba            */ {GL_COMPRESSED_SRGB8_ALPHA8_ASTC_8x8_KHR,
+                                      GL_RGBA, GL_UNSIGNED_BYTE},
+      /* kAstc10x5Srgba           */ {GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x5_KHR,
+                                      GL_RGBA, GL_UNSIGNED_BYTE},
+      /* kAstc10x6Srgba           */ {GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x6_KHR,
+                                      GL_RGBA, GL_UNSIGNED_BYTE},
+      /* kAstc10x8Srgba           */ {GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x8_KHR,
+                                      GL_RGBA, GL_UNSIGNED_BYTE},
+      /* kAstc10x10Srgba          */ {GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x10_KHR,
+                                      GL_RGBA, GL_UNSIGNED_BYTE},
+      /* kAstc12x10Srgba          */ {GL_COMPRESSED_SRGB8_ALPHA8_ASTC_12x10_KHR,
+                                      GL_RGBA, GL_UNSIGNED_BYTE},
+      /* kAstc12x12Srgba          */ {GL_COMPRESSED_SRGB8_ALPHA8_ASTC_12x12_KHR,
+                                      GL_RGBA, GL_UNSIGNED_BYTE},
       /* kDxt1                    */ {GL_COMPRESSED_RGB_S3TC_DXT1_EXT,
                                       GL_RGB,
                                       GL_UNSIGNED_BYTE},
@@ -178,6 +243,12 @@ const Image::PixelFormat& Image::GetPixelFormat(Format format) {
                                       GL_UNSIGNED_BYTE},
       /* kEtc1                    */ {GL_ETC1_RGB8_OES, GL_RGB,
                                       GL_UNSIGNED_BYTE},
+      /* kEtc2Rgb                 */ {GL_COMPRESSED_RGB8_ETC2, GL_RGB,
+                                      GL_UNSIGNED_BYTE},
+      /* kEtc2Rgba                */ {GL_COMPRESSED_RGBA8_ETC2_EAC, GL_RGBA,
+                                      GL_UNSIGNED_BYTE},
+      /* kEtc2Rgba1               */
+      {GL_COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2, GL_RGBA, GL_UNSIGNED_BYTE},
       /* kPvrtc1Rgb2              */ {GL_COMPRESSED_RGB_PVRTC_2BPPV1_IMG,
                                       GL_RGB,
                                       GL_UNSIGNED_BYTE},
@@ -212,6 +283,11 @@ const Image::PixelFormat& Image::GetPixelFormat(Format format) {
       /* kRgba4Byte               */ {GL_RGBA4, GL_RGBA, GL_UNSIGNED_BYTE},
       /* kRgba4Short              */ {GL_RGBA4, GL_RGBA,
                                       GL_UNSIGNED_SHORT_4_4_4_4}};
+  // Note EglImage doesn't have a table entry here, hence kNumFormats - 1.
+  ION_STATIC_ASSERT(ARRAYSIZE(kPixelFormats) == kNumFormats - 1,
+                    "Missing entries in kPixelFormats; it must define an entry "
+                    "for every entry of Image::Format, except kInvalid, which "
+                    "must be last, immediately preceded by kEglImage.");
   static const PixelFormat kInvalidPixelFormat = {0, 0, 0};
 
   return (format == kInvalid || format == kEglImage) ? kInvalidPixelFormat
@@ -282,11 +358,46 @@ const char* Image::GetFormatString(Format format) {
       "RenderbufferDepth32fStencil8",
       "TextureDepth16Int",
       "TextureDepth16Short",
+      "TextureDepth24",
+      "TextureDepth24Stencil8",
+      "TextureDepth32f",
+      "TextureDepth32fStencil8",
       "Stencil8",
+      "Astc4x4Rgba",
+      "Astc5x4Rgba",
+      "Astc5x5Rgba",
+      "Astc6x5Rgba",
+      "Astc6x6Rgba",
+      "Astc8x5Rgba",
+      "Astc8x6Rgba",
+      "Astc8x8Rgba",
+      "Astc10x5Rgba",
+      "Astc10x6Rgba",
+      "Astc10x8Rgba",
+      "Astc10x10Rgba",
+      "Astc12x10Rgba",
+      "Astc12x12Rgba",
+      "Astc4x4Srgba",
+      "Astc5x4Srgba",
+      "Astc5x5Srgba",
+      "Astc6x5Srgba",
+      "Astc6x6Srgba",
+      "Astc8x5Srgba",
+      "Astc8x6Srgba",
+      "Astc8x8Srgba",
+      "Astc10x5Srgba",
+      "Astc10x6Srgba",
+      "Astc10x8Srgba",
+      "Astc10x10Srgba",
+      "Astc12x10Srgba",
+      "Astc12x12Srgba",
       "Dxt1",
       "Dxt1Rgba",
       "Dxt5",
       "Etc1",
+      "Etc2Rgb",
+      "Etc2Rgba",
+      "Etc2Rgba1",
       "Pvrtc1Rgb2",
       "Pvrtc1Rgb4",
       "Pvrtc1Rgba2",
@@ -308,6 +419,10 @@ const char* Image::GetFormatString(Format format) {
       "Rgba4Short",
       "EGLImage"
   };
+  ION_STATIC_ASSERT(ARRAYSIZE(kStrings) == kNumFormats,
+                    "Missing entries in kStrings; it must define an entry "
+                    "for every entry of Image::Format, except kInvalid, which "
+                    "must be last.");
   return static_cast<uint32>(format) >= kNumFormats ? "<UNKNOWN>"
                                                     : kStrings[format];
 }
@@ -320,6 +435,8 @@ int Image::GetNumComponentsForFormat(Format format) {
     case kRenderbufferDepth32f:
     case kTextureDepth16Int:
     case kTextureDepth16Short:
+    case kTextureDepth24:
+    case kTextureDepth32f:
     case kStencil8:
     case kLuminance:
     case kR8:
@@ -337,6 +454,8 @@ int Image::GetNumComponentsForFormat(Format format) {
 
     case kRenderbufferDepth24Stencil8:
     case kRenderbufferDepth32fStencil8:
+    case kTextureDepth24Stencil8:
+    case kTextureDepth32fStencil8:
     case kLuminanceAlpha:
     case kRg8:
     case kRgSigned8:
@@ -353,6 +472,7 @@ int Image::GetNumComponentsForFormat(Format format) {
 
     case kDxt1:
     case kEtc1:
+    case kEtc2Rgb:
     case kPvrtc1Rgb2:
     case kPvrtc1Rgb4:
     case kRgb565:
@@ -379,8 +499,38 @@ int Image::GetNumComponentsForFormat(Format format) {
     case kSrgb8:
       return 3;
 
+    case kAstc4x4Rgba:
+    case kAstc5x4Rgba:
+    case kAstc5x5Rgba:
+    case kAstc6x5Rgba:
+    case kAstc6x6Rgba:
+    case kAstc8x5Rgba:
+    case kAstc8x6Rgba:
+    case kAstc8x8Rgba:
+    case kAstc10x5Rgba:
+    case kAstc10x6Rgba:
+    case kAstc10x8Rgba:
+    case kAstc10x10Rgba:
+    case kAstc12x10Rgba:
+    case kAstc12x12Rgba:
+    case kAstc4x4Srgba:
+    case kAstc5x4Srgba:
+    case kAstc5x5Srgba:
+    case kAstc6x5Srgba:
+    case kAstc6x6Srgba:
+    case kAstc8x5Srgba:
+    case kAstc8x6Srgba:
+    case kAstc8x8Srgba:
+    case kAstc10x5Srgba:
+    case kAstc10x6Srgba:
+    case kAstc10x8Srgba:
+    case kAstc10x10Srgba:
+    case kAstc12x10Srgba:
+    case kAstc12x12Srgba:
     case kDxt1Rgba:
     case kDxt5:
+    case kEtc2Rgba:
+    case kEtc2Rgba1:
     case kPvrtc1Rgba2:
     case kPvrtc1Rgba4:
     case kRgb10a2:
@@ -418,6 +568,20 @@ int Image::GetNumComponentsForFormat(Format format) {
   }
 }
 
+namespace {
+
+// Converts image dimensions and block size to the required byte size for an
+// ASTC encoded image.
+size_t AstcTotalBytesFromImageSize(int width, int height, int footprint_width,
+                                   int footprint_height) {
+  // Each MxN block of pixels requires 16 bytes. Round up image dimensions to
+  // block size.
+  return 16 * ((width + footprint_width - 1) / footprint_width) *
+         ((height + footprint_height - 1) / footprint_height);
+}
+
+}  // namespace
+
 size_t Image::ComputeDataSize(Format format, uint32 width, uint32 height) {
   switch (format) {
     case kAlpha:
@@ -432,9 +596,12 @@ size_t Image::ComputeDataSize(Format format, uint32 width, uint32 height) {
     case kDxt1:
     case kDxt1Rgba:
     case kEtc1:
+    case kEtc2Rgb:
+    case kEtc2Rgba1:
       // Each 4x4 block of pixels requires 8 bytes.
       return 8 * ((width + 3) / 4) * ((height + 3) / 4);
 
+    case kEtc2Rgba:
     case kDxt5:
       // Each 4x4 block of pixels requires 16 bytes.
       return 16 * ((width + 3) / 4) * ((height + 3) / 4);
@@ -471,6 +638,49 @@ size_t Image::ComputeDataSize(Format format, uint32 width, uint32 height) {
     case kPvrtc1Rgba4:
       return width * height / 2;
 
+    case kAstc4x4Rgba:
+    case kAstc4x4Srgba:
+      return AstcTotalBytesFromImageSize(width, height, 4, 4);
+    case kAstc5x4Rgba:
+    case kAstc5x4Srgba:
+      return AstcTotalBytesFromImageSize(width, height, 5, 4);
+    case kAstc5x5Rgba:
+    case kAstc5x5Srgba:
+      return AstcTotalBytesFromImageSize(width, height, 5, 5);
+    case kAstc6x5Rgba:
+    case kAstc6x5Srgba:
+      return AstcTotalBytesFromImageSize(width, height, 6, 5);
+    case kAstc6x6Rgba:
+    case kAstc6x6Srgba:
+      return AstcTotalBytesFromImageSize(width, height, 6, 6);
+    case kAstc8x5Rgba:
+    case kAstc8x5Srgba:
+      return AstcTotalBytesFromImageSize(width, height, 8, 5);
+    case kAstc8x6Rgba:
+    case kAstc8x6Srgba:
+      return AstcTotalBytesFromImageSize(width, height, 8, 6);
+    case kAstc8x8Rgba:
+    case kAstc8x8Srgba:
+      return AstcTotalBytesFromImageSize(width, height, 8, 8);
+    case kAstc10x5Rgba:
+    case kAstc10x5Srgba:
+      return AstcTotalBytesFromImageSize(width, height, 10, 5);
+    case kAstc10x6Rgba:
+    case kAstc10x6Srgba:
+      return AstcTotalBytesFromImageSize(width, height, 10, 6);
+    case kAstc10x8Rgba:
+    case kAstc10x8Srgba:
+      return AstcTotalBytesFromImageSize(width, height, 10, 8);
+    case kAstc10x10Rgba:
+    case kAstc10x10Srgba:
+      return AstcTotalBytesFromImageSize(width, height, 10, 10);
+    case kAstc12x10Rgba:
+    case kAstc12x10Srgba:
+      return AstcTotalBytesFromImageSize(width, height, 12, 10);
+    case kAstc12x12Rgba:
+    case kAstc12x12Srgba:
+      return AstcTotalBytesFromImageSize(width, height, 12, 12);
+
     case kRgb888:
     case kRgb8:
     case kRgbSigned8:
@@ -494,8 +704,11 @@ size_t Image::ComputeDataSize(Format format, uint32 width, uint32 height) {
     case kRgba8i:
     case kRgba8ui:
     case kRenderbufferDepth24:
-    case kRenderbufferDepth32f:
     case kRenderbufferDepth24Stencil8:
+    case kRenderbufferDepth32f:
+    case kTextureDepth24:
+    case kTextureDepth24Stencil8:
+    case kTextureDepth32f:
     case kRgb11f_11f_10f_Rev:
     case kRgb11f_11f_10f_RevFloat:
     case kRgb11f_11f_10f_RevHalf:
@@ -519,6 +732,7 @@ size_t Image::ComputeDataSize(Format format, uint32 width, uint32 height) {
     case kRgba16i:
     case kRgba16ui:
     case kRenderbufferDepth32fStencil8:
+    case kTextureDepth32fStencil8:
       return 8 * width * height;
 
     case kRgb32f:

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -47,6 +47,12 @@ class Rotation {
               static_cast<T>(1));
   }
 
+  // Copy constructor from an instance of any value type that is compatible (via
+  // static_cast) with this instance's type.
+  template <typename U>
+  explicit Rotation(const Rotation<U> other)
+      : quat_(other.GetQuaternion()) {}
+
   // Returns an identity Rotation, which has no effect.
   static Rotation Identity() {
     return Rotation();
@@ -89,7 +95,7 @@ class Rotation {
     return r;
   }
 
-  // Convienance function that constructs and returns a Rotation given a
+  // Convenience function that constructs and returns a Rotation given a
   // quaternion.
   static Rotation FromQuaternion(const QuaternionType& quat) {
     Rotation r;
@@ -97,9 +103,19 @@ class Rotation {
     return r;
   }
 
-  // Convienance function that constructs and returns a Rotation given a
+  // Convenience function that constructs and returns a Rotation given a
   // rotation matrix R with $R^\top R = I && det(R) = 1$.
   static Rotation FromRotationMatrix(const Matrix<3, T>& mat);
+
+  // Convenience function that constructs and returns a Rotation given Euler
+  // angles that are applied in the order of rotate-Y by yaw, rotate-X by pitch,
+  // rotate-Z by roll (same as GetEulerAngles).
+  static Rotation FromEulerAngles(
+      const AngleType& yaw, const AngleType& pitch, const AngleType& roll) {
+    Vector3d x(1, 0, 0), y(0, 1, 0), z(0, 0, 1);
+    return FromAxisAndAngle(z, roll) * (FromAxisAndAngle(x, pitch) *
+                                        FromAxisAndAngle(y, yaw));
+  }
 
   // Constructs and returns a Rotation that rotates one vector to another along
   // the shortest arc. This returns an identity rotation if either vector has
@@ -134,8 +150,8 @@ class Rotation {
   }
 
   // Multiply a Rotation and a Vector/Point to get a Vector/Point.
-  const VectorType operator*(const VectorType& v) const;
-  const Point<3, T> operator*(const Point<3, T>& p) const;
+  VectorType operator*(const VectorType& v) const;
+  Point<3, T> operator*(const Point<3, T>& p) const;
 
   // Exact equality and inequality comparisons.
   friend bool operator==(const Rotation& v0, const Rotation& v1) {
@@ -170,13 +186,13 @@ class Rotation {
 };
 
 template <typename T>
-const typename Rotation<T>::VectorType Rotation<T>::operator*(
+typename Rotation<T>::VectorType Rotation<T>::operator*(
     const typename Rotation<T>::VectorType& v) const {
   return ApplyToVector(v);
 }
 
 template <typename T>
-const Point<3, T> Rotation<T>::operator*(const Point<3, T>& p) const {
+Point<3, T> Rotation<T>::operator*(const Point<3, T>& p) const {
   return ApplyToVector(p - Point<3, T>::Zero()) + Point<3, T>::Zero();
 }
 

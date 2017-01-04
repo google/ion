@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@ limitations under the License.
 
 #include "ion/portgfx/setswapinterval.h"
 
-#include "ion/portgfx/getglprocaddress.h"
 #include "ion/portgfx/glheaders.h"
+#include "ion/portgfx/visual.h"
 
 namespace ion {
 namespace portgfx {
@@ -41,8 +41,13 @@ namespace portgfx {
 // There are also numerous reports that eglSwapInterval does nothing on many
 // Android devices.
 bool SetSwapInterval(int interval) {
-  if (interval < 0)
+  VisualPtr visual = Visual::GetCurrent();
+  if (!visual) {
     return false;
+  }
+  if (interval < 0) {
+    return false;
+  }
 #if defined(ION_PLATFORM_IOS) || defined(ION_PLATFORM_ANDROID) || \
     defined(ION_PLATFORM_ASMJS) || defined(ION_PLATFORM_NACL) || \
     defined(ION_PLATFORM_GENERIC_ARM)
@@ -50,7 +55,7 @@ bool SetSwapInterval(int interval) {
 #elif defined(ION_PLATFORM_LINUX)
   typedef int (ION_APIENTRY *SwapIntervalProc)(int interval);
   SwapIntervalProc vsync_func = reinterpret_cast<SwapIntervalProc>(
-      GetGlProcAddress("glXSwapIntervalSGI", false));
+      visual->GetProcAddress("glXSwapIntervalSGI", false));
   return vsync_func && vsync_func(interval) == 0;
 #elif defined(ION_PLATFORM_MAC)
   if (CGLContextObj context = CGLGetCurrentContext()) {
@@ -64,9 +69,9 @@ bool SetSwapInterval(int interval) {
   typedef BOOL (ION_APIENTRY *SwapIntervalProc)(int interval);
   typedef int (ION_APIENTRY *GetSwapIntervalProc)();
   SwapIntervalProc vsync_set_func = reinterpret_cast<SwapIntervalProc>(
-      GetGlProcAddress("wglSwapIntervalEXT", false));
+      visual->GetProcAddress("wglSwapIntervalEXT", false));
   GetSwapIntervalProc vsync_get_func = reinterpret_cast<GetSwapIntervalProc>(
-      GetGlProcAddress("wglGetSwapIntervalEXT", false));
+      visual->GetProcAddress("wglGetSwapIntervalEXT", false));
   if (vsync_get_func && vsync_set_func) {
     BOOL set_val = vsync_set_func(interval);
     int get_val = vsync_get_func();

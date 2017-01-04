@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ limitations under the License.
 #include <windows.h>
 #else
 #include <dirent.h>
+#include <errno.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <cstdlib>
@@ -36,6 +37,41 @@ limitations under the License.
 
 namespace ion {
 namespace port {
+
+namespace {
+
+bool MakeSingleDirectory(const std::string& directory) {
+  if (directory.empty()) {
+    return false;
+  }
+#if defined(ION_PLATFORM_WINDOWS)
+  if (directory.size() > MAX_PATH) {
+    return false;
+  }
+  const std::wstring wide = ion::port::Utf8ToWide(directory);
+  // Use default security file descriptor. The ACLs from the parent directory
+  // are inherited.
+  if (::CreateDirectoryW(wide.c_str(), NULL)) {
+    return true;
+  }
+  // Don't return false if directory already exists.
+  return ::GetLastError() == ERROR_ALREADY_EXISTS;
+#elif !defined(ION_PLATFORM_NACL)
+  if (directory.size() > PATH_MAX) {
+    return false;
+  }
+  errno = 0;
+  // Make directory with permissions read, write, execute/search by owner.
+  if (mkdir(directory.c_str(), S_IRWXU) == 0) {
+    return true;
+  }
+  // Don't return false if directory already exists.
+  return errno == EEXIST;
+#endif
+  return false;
+}
+
+}  // namespace
 
 std::string GetCanonicalFilePath(const std::string& path) {
 #if defined(ION_PLATFORM_WINDOWS)
@@ -84,8 +120,8 @@ bool GetFileModificationTime(const std::string& path,
   bool retval = false;
   const std::wstring wide = Utf8ToWide(path);
   HANDLE handle = ::CreateFileW(wide.c_str(), GENERIC_READ,
-                                FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                                OPEN_EXISTING, 0, NULL);
+                                FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                                OPEN_EXISTING, 0, nullptr);
   FILETIME create_time, access_time, write_time;
   // FILETIME structures have 100 nanosecond resolution.
   if (handle != INVALID_HANDLE_VALUE) {
@@ -193,6 +229,11 @@ bool ReadDataFromFile(const std::string& path, std::string* out) {
     // Determine the length of the file.
     fseek(file, 0, SEEK_END);
     const size_t length = ftell(file);
+    if (length == 0U) {
+      *out = "";
+      fclose(file);
+      return true;
+    }
     rewind(file);
 
     // Load the data.
@@ -247,6 +288,50 @@ std::vector<std::string> ListDirectory(const std::string& path) {
   }
 #endif
   return files;
+}
+
+bool FileExists(const std::string& path) {
+#if defined(ION_PLATFORM_NACL)
+  return false;
+#elif defined(ION_PLATFORM_WINDOWS)
+  const std::wstring wide = ion::port::Utf8ToWide(path);
+  return ::GetFileAttributesW(wide.c_str()) != INVALID_FILE_ATTRIBUTES;
+#else
+  struct stat info;
+  return stat(path.c_str(), &info) == 0;
+#endif
+}
+
+bool MakeDirectory(const std::string& directory) {
+  if (directory.empty()) {
+    return false;
+  }
+  const std::string canonical_dir = GetCanonicalFilePath(directory);
+  std::string path;
+  for (auto begin_split = canonical_dir.begin(),
+       it = canonical_dir.begin() + 1;
+       it != canonical_dir.end(); ++it) {
+    if (*it == '/') {
+      const auto& end_split = it + 1;
+      path.append(std::string(begin_split, end_split));
+      if (!FileExists(path) && !MakeSingleDirectory(path)) {
+        return false;
+      }
+      begin_split = end_split;
+    }
+  }
+  // Make final directory.
+  return MakeSingleDirectory(canonical_dir);
+}
+
+bool RemoveEmptyDirectory(const std::string& directory) {
+#if defined(ION_PLATFORM_NACL)
+  return false;
+#elif defined(ION_PLATFORM_WINDOWS)
+  return ::RemoveDirectoryW(Utf8ToWide(directory).c_str()) != 0;
+#else
+  return rmdir(directory.c_str()) == 0;
+#endif
 }
 
 }  // namespace port

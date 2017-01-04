@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -121,16 +121,13 @@ EnumHelper::GetEnumData() {
 
 template <> ION_API const EnumHelper::EnumData<BufferObject::Target>
 EnumHelper::GetEnumData() {
-  static const GLenum kValues[] = { GL_ARRAY_BUFFER,
-                                    GL_ELEMENT_ARRAY_BUFFER,
-                                    GL_COPY_READ_BUFFER,
-                                    GL_COPY_WRITE_BUFFER
+  static const GLenum kValues[] = {
+    GL_ARRAY_BUFFER, GL_ELEMENT_ARRAY_BUFFER, GL_COPY_READ_BUFFER,
+    GL_COPY_WRITE_BUFFER, GL_TRANSFORM_FEEDBACK_BUFFER
   };
   static const char* kStrings[] = {
-    "ArrayBuffer",
-    "Elementbuffer",
-    "CopyReadBuffer",
-    "CopyWriteBuffer"
+    "ArrayBuffer", "Elementbuffer", "CopyReadBuffer", "CopyWriteBuffer",
+    "TransformFeedbackBuffer"
   };
   ION_STATIC_ASSERT(ARRAYSIZE(kValues) == ARRAYSIZE(kStrings),
                     "EnumHelper size mismatch");

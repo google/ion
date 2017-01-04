@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ class ION_API HttpServer {
   // instantiated Websocket for a specific connection request.
   class Websocket : public base::Referent {
    public:
-    Websocket() : helper_(NULL) {}
+    Websocket() : helper_(nullptr) {}
     ~Websocket() override {}
 
     // Override to take some action when the connection is first established.
@@ -62,7 +62,7 @@ class ION_API HttpServer {
     friend class WebsocketHelper;
     WebsocketHelper* helper_;
   };
-  typedef base::ReferentPtr<Websocket>::Type WebsocketPtr;
+  using WebsocketPtr = base::SharedPtr<Websocket>;
 
   // RequestHandlers handle requests for a file or path.
   class RequestHandler : public base::Referent {
@@ -112,7 +112,7 @@ class ION_API HttpServer {
    private:
     const std::string base_path_;
   };
-  typedef base::ReferentPtr<RequestHandler>::Type RequestHandlerPtr;
+  using RequestHandlerPtr = base::SharedPtr<RequestHandler>;
   typedef std::map<std::string, RequestHandlerPtr> HandlerMap;
 
   // Starts a HttpServer on the passed port with the passed number of handler

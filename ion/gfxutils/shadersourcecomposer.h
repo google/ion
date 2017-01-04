@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ limitations under the License.
 namespace ion {
 namespace gfxutils {
 
-// A ShaderSourceComposer is a generic interface for constructing a shader
+// ShaderSourceComposer provides basic functionality for constructing a shader
 // source string. Subclasses implement the details of how the source is created.
 // For example, a subclass may read shader code from a file, or construct a
 // string programatically based on arguments passed to its constructor. A
@@ -50,6 +50,15 @@ namespace gfxutils {
 // identify files or other resources in shaders; Composers must support
 // returning a meaningful name given an identifier.
 //
+// Each Composer can also load shaders from a resource that includes other
+// resources using the special directive '$input "name"'. The function passed to
+// the constructor loads data given a resource name. Optionally injects #line
+// directives in the shader source if it contains any $input directives. The
+// filenames in $input directives should have UNIX style path separators
+// ('/'). Filenames passed to the loader and saver also contain UNIX style path
+// separators ('/'), and can be converted to the local platform style using
+// port::GetCanonicalFilePath().
+//
 //-----------------------------------------------------------------------------
 //
 // Base class for all composers.
@@ -57,89 +66,83 @@ namespace gfxutils {
 //-----------------------------------------------------------------------------
 class ION_API ShaderSourceComposer : public base::Referent {
  public:
+  // A function that returns a string source given a filename.
+  typedef std::function<const std::string(const std::string& name)>
+      SourceLoader;
+  // A function that saves a string source given a filename. Returns whether
+  // the file was successfully saved.
+  typedef std::function<bool(const std::string& name,  // NOLINT
+                             const std::string& source)>
+      SourceSaver;
+  // A function that returns the last time the source in filename was modified.
+  typedef std::function<bool(const std::string& filename,
+                             std::chrono::system_clock::time_point* timestamp)>
+      SourceModificationTime;
+  ShaderSourceComposer();
+  // This constructor takes a base identifier that represents the top-level
+  // name, functions for loading, saving, and seeing if sources have changed,
+  // and whether #line directives should be injected in the source when $input
+  // directives are processed.  If this seems complex, consider using one of
+  // the derived classes that have simpler constructors.
+  ShaderSourceComposer(const std::string& filename,
+                       const SourceLoader& source_loader,
+                       const SourceSaver& source_saver,
+                       const SourceModificationTime& source_time,
+                       bool insert_line_directives);
+  // Sets a string that will be prepended to all dependency names loaded by this
+  // composer.  This is especially useful for file paths.
+  void SetBasePath(const std::string& path);
   // Returns the source string of a shader.
-  virtual const std::string GetSource() = 0;
+  virtual const std::string GetSource();
   // Returns whether this composer depends on the named dependency, which might
   // be a filename or some other identifier that this recognizes.
-  virtual bool DependsOn(const std::string& dependency) const = 0;
+  virtual bool DependsOn(const std::string& dependency) const;
   // Returns the source of the passed dependency.
   virtual const std::string GetDependencySource(
-      const std::string& dependency) const = 0;
+      const std::string& dependency) const;
   // Requests that the composer set the source of the dependency. Returns
   // whether the composer actually changes the source.
   virtual bool SetDependencySource(const std::string& dependency,
-                                   const std::string& source) = 0;
+                                   const std::string& source);
   // Returns the name of a dependency identified by the passed id. The id is
   // an integral value used by OpenGL to identify a shader file. Returns an
   // empty string if the id is unknown or if there are no dependencies.
-  virtual const std::string GetDependencyName(unsigned int id) const = 0;
+  virtual const std::string GetDependencyName(unsigned int id) const;
   // Returns a vector containing all names that this composer depends on, or an
   // empty vector if there are no dependencies.
-  virtual const std::vector<std::string> GetDependencyNames() const = 0;
+  virtual const std::vector<std::string> GetDependencyNames() const;
   // Determines if any dependencies have changed (e.g., if a file has changed on
   // disk since the last call to Get(Source|DependencySource)()) and updates
   // them. Returns a vector containing the names of the dependencies that have
   // changed.
-  virtual const std::vector<std::string> GetChangedDependencies() = 0;
+  virtual const std::vector<std::string> GetChangedDependencies();
 
  protected:
-  // The constructor is protected since this is an abstract base class.
-  ShaderSourceComposer();
   // The destructor is protected since this is derived from base::Referent.
   ~ShaderSourceComposer() override;
+
+ private:
+  class IncludeDirectiveHelper;
+  std::unique_ptr<IncludeDirectiveHelper> helper_;
 };
-typedef base::ReferentPtr<ShaderSourceComposer>::Type ShaderSourceComposerPtr;
+using ShaderSourceComposerPtr = base::SharedPtr<ShaderSourceComposer>;
 
 //-----------------------------------------------------------------------------
 //
-// Simple composer that just returns the string passed to its constructor.
+// Simple composer that returns the source string passed to its constructor,
+// expanding all $input directives if they are present.  The label is used to
+// resolve $input directives.
 //
 //-----------------------------------------------------------------------------
 class ION_API StringComposer : public ShaderSourceComposer {
  public:
-  explicit StringComposer(const std::string& dependency_name,
-                          const std::string& source)
-      : dependency_(dependency_name),
-        source_(source) {}
-
-  const std::string GetSource() override { return source_; }
-  bool DependsOn(const std::string& dependency) const override {
-    return dependency == dependency_;
-  }
-  const std::string GetDependencySource(
-      const std::string& dependency) const override {
-    return dependency == dependency_ ? source_ : std::string();
-  }
-  bool SetDependencySource(const std::string& dependency,
-                           const std::string& source) override {
-    if (dependency == dependency_) {
-      source_ = source;
-      return true;
-    } else {
-      return false;
-    }
-  }
-  const std::string GetDependencyName(unsigned int id) const override {
-    return dependency_;
-  }
-  const std::vector<std::string> GetDependencyNames() const override {
-    std::vector<std::string> names;
-    names.push_back(dependency_);
-    return names;
-  }
-  const std::vector<std::string> GetChangedDependencies() override {
-    return std::vector<std::string>();
-  }
+  StringComposer(const std::string& label, const std::string& source);
 
  protected:
   // The destructor is protected since this is derived from base::Referent.
-  ~StringComposer() override {}
-
- private:
-  std::string dependency_;
-  std::string source_;
+  ~StringComposer() override;
 };
-typedef base::ReferentPtr<StringComposer>::Type StringComposerPtr;
+using StringComposerPtr = base::SharedPtr<StringComposer>;
 
 //-----------------------------------------------------------------------------
 //
@@ -182,65 +185,7 @@ class ION_API FilterComposer : public ShaderSourceComposer {
   ShaderSourceComposerPtr base_;
   StringFilter transformer_;
 };
-typedef base::ReferentPtr<FilterComposer>::Type FilterComposerPtr;
-
-//-----------------------------------------------------------------------------
-//
-// Loads a shader source from a resource that may include other resources using
-// the special directive '$input "name"'. The function passed to the constructor
-// loads data given a resource name. Optionally injects #line directives in the
-// shader source if it contains any $input directives. The filenames in $input
-// directives should have UNIX style path separators ('/'). Filenames passed to
-// the loader and saver also contain UNIX style path separators ('/'), and can
-// be converted to the local platform style using port::GetCanonicalFilePath().
-//
-//-----------------------------------------------------------------------------
-class ION_API IncludeComposer : public ShaderSourceComposer {
- public:
-  // A function that returns a string source given a filename.
-  typedef std::function<const std::string(const std::string& name)>
-      SourceLoader;
-  // A function that saves a string source given a filename. Returns whether
-  // the file was successfully saved.
-  typedef std::function<bool(const std::string& name,  // NOLINT
-                             const std::string& source)> SourceSaver;
-  // A function that returns the last time the source in filename was modified.
-  typedef std::function<bool(const std::string& filename,
-                             std::chrono::system_clock::time_point* timestamp)>
-      SourceModificationTime;
-
-  // The constructor requires a base filename that represents the top-level
-  // file, functions for loading, saving, and seeing if sources have changed,
-  // and whether #line directives should be injected in the source when $input
-  // directives are processed.
-  IncludeComposer(const std::string& filename,
-                  const SourceLoader& source_loader,
-                  const SourceSaver& source_saver,
-                  const SourceModificationTime& source_time,
-                  bool insert_line_directives);
-  // Sets a path that will be prepended to all files (including the top-level
-  // filename) loaded by this composer.
-  void SetBasePath(const std::string& path);
-
-  const std::string GetSource() override;
-  bool DependsOn(const std::string& dependency) const override;
-  const std::string GetDependencySource(
-      const std::string& dependency) const override;
-  bool SetDependencySource(const std::string& dependency,
-                           const std::string& source) override;
-  const std::string GetDependencyName(unsigned int id) const override;
-  const std::vector<std::string> GetDependencyNames() const override;
-  const std::vector<std::string> GetChangedDependencies() override;
-
- protected:
-  // The destructor is protected since this is derived from base::Referent.
-  ~IncludeComposer() override;
-
- private:
-  class IncludeComposerHelper;
-  std::unique_ptr<IncludeComposerHelper> helper_;
-};
-typedef base::ReferentPtr<IncludeComposer>::Type IncludeComposerPtr;
+using FilterComposerPtr = base::SharedPtr<FilterComposer>;
 
 //-----------------------------------------------------------------------------
 //
@@ -248,7 +193,7 @@ typedef base::ReferentPtr<IncludeComposer>::Type IncludeComposerPtr;
 // assets.
 //
 //-----------------------------------------------------------------------------
-class ION_API ZipAssetComposer : public IncludeComposer {
+class ION_API ZipAssetComposer : public ShaderSourceComposer {
  public:
   ZipAssetComposer(const std::string& filename, bool insert_line_directives);
 
@@ -256,7 +201,7 @@ class ION_API ZipAssetComposer : public IncludeComposer {
   // The destructor is protected since this is derived from base::Referent.
   ~ZipAssetComposer() override;
 };
-typedef base::ReferentPtr<ZipAssetComposer>::Type ZipAssetComposerPtr;
+using ZipAssetComposerPtr = base::SharedPtr<ZipAssetComposer>;
 
 }  // namespace gfxutils
 }  // namespace ion

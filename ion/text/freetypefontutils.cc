@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,22 +20,15 @@ limitations under the License.
 #include <algorithm>
 #include <cctype>
 #include <locale>
-#include <mutex>  // NOLINT(build/c++11): only using std::call_once, not mutex.
-#include <vector>
 
 #include "ion/base/invalid.h"
-#include "ion/base/stlalloc/allocvector.h"
-#include "ion/base/stringutils.h"
 #include "ion/base/utf8iterator.h"
 #include "ion/math/range.h"
 #include "ion/math/rangeutils.h"
-#include "ion/port/environment.h"
-#include "ion/port/fileutils.h"
-#include "ion/port/memorymappedfile.h"
 #include "ion/text/freetypefont.h"
+#include "ion/text/icuutils.h"
 
 #if defined(ION_USE_ICU)
-#include "third_party/icu/icu4c/source/common/unicode/udata.h"
 #include "third_party/icu/icu4c/source/common/unicode/uloc.h"
 #include "third_party/icu/icu4c/source/common/unicode/unistr.h"
 #include "third_party/iculx_hb/include/layout/ParagraphLayout.h"
@@ -55,12 +48,6 @@ using math::Vector2f;
 // Helper functions.
 //
 //-----------------------------------------------------------------------------
-
-// Returns true if a character specified by Unicode index is white space.
-static bool IsSpace(CharIndex c) {
-  // The isspace() function is guaranteed to work only for ASCII characters.
-  return c <= 255U && std::isspace(static_cast<char>(c));
-}
 
 // Returns the width in pixels of a single line of text. Returns 0 if there are
 // any UTF8 encoding errors in the string.
@@ -238,8 +225,12 @@ const FreeTypeFontTransformData ComputeTransformData(
   FreeTypeFontTransformData transform_data;
 
   // Compute the scale based on the text size in pixels and the target size. If
-  // one of the target size dimensions is 0, use the other dimension's scale.
-  if (target_size[0] == 0.0f) {
+  // both the target size dimensions are 0, then do the layout in pixels with no
+  // scaling. If only one of the target size dimensions is 0, use the other
+  // dimension's scale.
+  if (target_size == Vector2f::Zero()) {
+    transform_data.scale = Vector2f::Fill(1.0f);
+  } else if (target_size[0] == 0.0f) {
     DCHECK_GT(target_size[1], 0.0f);
     const float s = target_size[1] / rect_size[1];
     transform_data.scale.Set(s, s);
@@ -319,68 +310,42 @@ static void AddGlyphToLayout(GlyphIndex glyph_index, size_t line_index,
                     tight_bounds, offset)));
 }
 
+// Lays out one line of text, adding glyphs to the Layout.
+static void SimpleLayOutLine(
+    const FreeTypeFont& font,
+    const std::string& line,
+    size_t line_index,
+    const FreeTypeFontTransformData& transform_data,
+    Layout* layout) {
+  float x_min = 0.0f;
+  base::Utf8Iterator it(line);
+  CharIndex prev_c = 0;
+  CharIndex c;
+  while ((c = it.Next()) != base::Utf8Iterator::kInvalidCharIndex) {
+    const GlyphIndex g = font.GetDefaultGlyphForChar(c);
+    const FreeTypeFont::GlyphMetrics& glyph_metrics = font.GetGlyphMetrics(g);
+    if (base::IsInvalidReference(glyph_metrics)) {
+      // Zero-width invalid character.
+    } else {
+      float y_min =
+          transform_data.line_y_offset_in_pixels *
+          static_cast<float>(line_index) +
+          (glyph_metrics.bitmap_offset[1] - glyph_metrics.size[1]);
+      if (prev_c) {
+        const Vector2f kerning = font.GetKerning(prev_c, c);
+        x_min += kerning[0];
+        y_min += kerning[1];
+      }
+      Point2f glyph_min(x_min + glyph_metrics.bitmap_offset[0], y_min);
+      AddGlyphToLayout(g, line_index, glyph_min, glyph_metrics, transform_data,
+                       font.GetSdfPadding(), layout);
+      x_min += glyph_metrics.advance[0];
+    }
+    prev_c = c;
+  }
+}
+
 #if defined(ION_USE_ICU)
-
-std::once_flag icu_initialize_once_flag;
-
-// If |status| indicates a problem, log the error string and return
-// false. Otherwise return true to indicate no error.
-static bool CheckIcuStatus(UErrorCode status) {
-  if (U_FAILURE(status)) {
-    LOG(ERROR) << "ICU library error: " << u_errorName(status);
-    return false;
-  } else {
-    return true;
-  }
-}
-
-static void TryInitializeIcu(bool* success) {
-  *success = false;
-
-  // On Android, the ICU data file is in /system/usr/icu/, but the
-  // filename can change from system to system (e.g. icudt51l.dat on a
-  // Moto X but icudt46l.dat on a Galaxy S3). We list the files in
-  // that directory, and use what we find.
-  // On Mac, there are ICU data file(s) in /usr/share/icu/. List and
-  // use what we find.
-  // Elsewhere, assume we're a developer and assume an environment variable
-  // (set in a test or manually) will tell us where to look.
-  const std::string icu_data_directory =
-#if defined(ION_PLATFORM_ANDROID)
-      "/system/usr/icu/";
-#elif defined(ION_PLATFORM_MAC)
-      "/usr/share/icu/";
-#else
-      port::GetEnvironmentVariableValue("ION_ICU_DIR");
-#endif
-
-  std::string icu_data;
-  std::vector<std::string> files = port::ListDirectory(icu_data_directory);
-  for (auto it = files.begin(); icu_data.empty() && it != files.end(); ++it) {
-    if (base::StartsWith(*it, "icudt") && base::EndsWith(*it, ".dat"))
-      icu_data = icu_data_directory + *it;
-  }
-  if (icu_data.empty()) {
-    LOG(ERROR) << "Unable to find ICU data file in: " << icu_data_directory;
-    return;
-  }
-  port::MemoryMappedFile icu_mmap(icu_data);
-  if (!icu_mmap.GetData() || !icu_mmap.GetLength())
-    return;
-
-  UErrorCode error = U_ZERO_ERROR;
-  udata_setAppData(icu_data.c_str(), icu_mmap.GetData(), &error);
-  CHECK(CheckIcuStatus(error));
-
-  *success = true;
-}
-
-static bool InitializeIcu() {
-  static bool icu_initialized = false;
-  std::call_once(icu_initialize_once_flag,
-                 std::bind(TryInitializeIcu, &icu_initialized));
-  return icu_initialized;
-}
 
 // Get the glyph index and position offsets for a single glyph from a laid-out
 // VisualRun.
@@ -400,7 +365,9 @@ static float IcuLayoutEngineLayoutLine(
     size_t line_index,
     const FreeTypeFontTransformData& transform_data,
     Layout* layout) {
-  if (!InitializeIcu()) {
+  if (!InitializeIcu("")) {
+    // If ICU isn't initialized, fallback to simple layout.
+    SimpleLayOutLine(font, text, line_index, transform_data, layout);
     return 0.0f;
   }
 
@@ -416,7 +383,7 @@ static float IcuLayoutEngineLayoutLine(
   font.GetFontRunsForText(chars, &runs);
   LEErrorCode status = LE_NO_ERROR;
   std::unique_ptr<iculx::ParagraphLayout> icu_layout(new iculx::ParagraphLayout(
-      chars.getBuffer(), chars.length(), &runs, NULL, NULL, NULL,
+      chars.getBuffer(), chars.length(), &runs, nullptr, nullptr, nullptr,
       UBIDI_DEFAULT_LTR, false /* is_vertical */, status));
   if (status != LE_NO_ERROR) {
     DLOG(ERROR) << "new ParagraphLayout error: " << status;
@@ -436,7 +403,7 @@ static float IcuLayoutEngineLayoutLine(
   float glyph_x = -1;
   float glyph_y = -1;
 
-  if (layout != NULL) {  // Caller wants all the glyph descriptors
+  if (layout != nullptr) {  // Caller wants all the glyph descriptors
     layout->Reserve(chars.length());
     for (int i = 0; i < line->countRuns(); ++i) {
       const iculx::ParagraphLayout::VisualRun *run = line->getVisualRun(i);
@@ -534,43 +501,6 @@ static float IcuLayoutEngineLayoutLine(
 }
 
 #endif  // ION_USE_ICU
-
-// Lays out one line of text, adding glyphs to the Layout.
-static void SimpleLayOutLine(
-    const FreeTypeFont& font,
-    const std::string& line,
-    size_t line_index,
-    const FreeTypeFontTransformData& transform_data,
-    Layout* layout) {
-  float x_min = 0.0f;
-  base::Utf8Iterator it(line);
-  CharIndex prev_c = 0;
-  CharIndex c;
-  while ((c = it.Next()) != base::Utf8Iterator::kInvalidCharIndex) {
-    const GlyphIndex g = font.GetDefaultGlyphForChar(c);
-    const FreeTypeFont::GlyphMetrics& glyph_metrics = font.GetGlyphMetrics(g);
-    if (base::IsInvalidReference(glyph_metrics)) {
-      // Zero-width invalid character.
-    } else if (IsSpace(c)) {
-      x_min += glyph_metrics.advance[0];
-    } else {
-      float y_min =
-          transform_data.line_y_offset_in_pixels *
-          static_cast<float>(line_index) +
-          (glyph_metrics.bitmap_offset[1] - glyph_metrics.size[1]);
-      if (prev_c) {
-        const Vector2f kerning = font.GetKerning(prev_c, c);
-        x_min += kerning[0];
-        y_min += kerning[1];
-      }
-      Point2f glyph_min(x_min + glyph_metrics.bitmap_offset[0], y_min);
-      AddGlyphToLayout(g, line_index, glyph_min, glyph_metrics, transform_data,
-                       font.GetSdfPadding(), layout);
-      x_min += glyph_metrics.advance[0];
-    }
-    prev_c = c;
-  }
-}
 
 // Returns a Layout populated by glyphs representing |lines| of text.
 const Layout LayOutText(const FreeTypeFont& font, bool use_icu,

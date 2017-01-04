@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -145,7 +145,7 @@ ION_API ThreadLocalStorageKey CreateThreadLocalStorageKey();
 ION_API bool SetThreadLocalStorage(ThreadLocalStorageKey key, void* ptr);
 
 // Returns the pointer to the thread-local storage area indicated by
-// key. Returns NULL on error or if no thread-local storage was set.
+// key. Returns nullptr on error or if no thread-local storage was set.
 ION_API void* GetThreadLocalStorage(ThreadLocalStorageKey key);
 
 // Deletes a key returned by CreateThreadLocalStorageKey(). Returns false on

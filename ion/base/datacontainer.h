@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ namespace base {
 
 // Convenience typedefs for shared pointers to a DataContainer.
 class DataContainer;
-typedef base::ReferentPtr<DataContainer>::Type DataContainerPtr;
+using DataContainerPtr = base::SharedPtr<DataContainer>;
 typedef base::WeakReferentPtr<DataContainer> DataContainerWeakPtr;
 
 // The DataContainer class encapsulates arbitrary user data passed to Ion. It
@@ -130,7 +130,7 @@ class ION_API DataContainer : public base::Notifier {
       T* data, const Deleter& data_deleter, bool is_wipeable,
       const AllocatorPtr& container_allocator) {
     if (data_deleter && !AddOrRemoveDataFromCheck(data, true))
-      return DataContainerPtr(NULL);
+      return DataContainerPtr(nullptr);
     DataContainer* container =
         Allocate(0, data_deleter, is_wipeable, container_allocator);
     container->data_ = data;
@@ -141,6 +141,16 @@ class ION_API DataContainer : public base::Notifier {
   template <typename T>
   static DataContainerPtr CreateAndCopy(
       const T* data, size_t count, bool is_wipeable,
+      const AllocatorPtr& container_and_data_allocator) {
+    return CreateAndCopy(data, sizeof(T), count, is_wipeable,
+                         container_and_data_allocator);
+  }
+
+  // Overload of CreateAndCopy for use when the size of the
+  // datatype of the pointer does not correspond to the size of each element.
+  template <typename T>
+  static DataContainerPtr CreateAndCopy(
+      const T* data, size_t element_size, size_t count, bool is_wipeable,
       const AllocatorPtr& container_and_data_allocator) {
     DataContainer* container =
         Allocate(0, kNullFunction, is_wipeable, container_and_data_allocator);
@@ -158,10 +168,9 @@ class ION_API DataContainer : public base::Notifier {
         std::bind(DataContainer::AllocatorDeleter, container->data_allocator_,
                   std::placeholders::_1);
     container->data_ =
-        container->data_allocator_->AllocateMemory(sizeof(T) * count);
+        container->data_allocator_->AllocateMemory(element_size * count);
     // Copy the input data to the container.
-    if (data)
-      memcpy(container->data_, data, sizeof(T) * count);
+    if (data) memcpy(container->data_, data, element_size * count);
     return DataContainerPtr(container);
   }
 

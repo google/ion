@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -81,7 +81,7 @@ class VectorBase {
   void Print(std::ostream& out, const char tag) const {  // NOLINT
     out << tag << "[";
     for (int i = 0; i < Dimension; ++i) {
-      out << elem_[i];
+      out << +elem_[i];
       if (i != Dimension - 1)
         out << ", ";
     }
@@ -122,10 +122,10 @@ class VectorBase {
   template <typename U> explicit VectorBase(const VectorBase<Dimension, U>& v);
 
   // Returns an instance containing all zeroes.
-  static const VectorBase Zero();
+  static VectorBase Zero();
 
   // Returns an instance with all elements set to the given value.
-  static const VectorBase Fill(T value);
+  static VectorBase Fill(T value);
 
   //
   // Derived classes use these protected functions to implement type-safe
@@ -142,24 +142,25 @@ class VectorBase {
   void Divide(T s);
 
   // Unary negation.
-  const VectorBase Negation() const;
+  VectorBase Negation() const;
 
   // Binary component-wise multiplication.
-  static const VectorBase Product(const VectorBase& v0, const VectorBase& v1);
+  static VectorBase Product(const VectorBase& v0, const VectorBase& v1);
   // Binary component-wise division.
-  static const VectorBase Quotient(const VectorBase& v0, const VectorBase& v1);
+  static VectorBase Quotient(const VectorBase& v0, const VectorBase& v1);
   // Binary component-wise addition.
-  static const VectorBase Sum(const VectorBase& v0, const VectorBase& v1);
+  static VectorBase Sum(const VectorBase& v0, const VectorBase& v1);
   // Binary component-wise subtraction.
-  static const VectorBase Difference(const VectorBase& v0,
-                                     const VectorBase& v1);
+  static VectorBase Difference(const VectorBase& v0, const VectorBase& v1);
   // Binary multiplication by a scalar.
-  static const VectorBase Scale(const VectorBase& v, T s);
+  static VectorBase Scale(const VectorBase& v, T s);
   // Binary division by a scalar.
-  static const VectorBase Divide(const VectorBase& v, T s);
+  static VectorBase Divide(const VectorBase& v, T s);
+  // Reciprocal and multiplication by a scalar, i.e., s / v.
+  static VectorBase LeftDivide(T s, const VectorBase& v);
 
-  // Helper struct to aid in Zero, Fill, and Axis functions. It is a struct to
-  // allow partial template specialization.
+  // Helper struct to aid in Axis functions. It is a struct to allow partial
+  // template specialization.
   template <int Dim, typename U> struct StaticHelper;
 
  private:
@@ -194,19 +195,19 @@ class Vector : public VectorBase<Dimension, T> {
       : BaseType(v) {}
 
   // Returns a Vector containing all zeroes.
-  static const Vector Zero() { return ToVector(BaseType::Zero()); }
+  static Vector Zero() { return ToVector(BaseType::Zero()); }
 
   // Returns a Vector with all elements set to the given value.
-  static const Vector Fill(T value) { return ToVector(BaseType::Fill(value)); }
+  static Vector Fill(T value) { return ToVector(BaseType::Fill(value)); }
 
   // Returns a Vector representing the X axis.
-  static const Vector AxisX();
+  static Vector AxisX();
   // Returns a Vector representing the Y axis if it exists.
-  static const Vector AxisY();
+  static Vector AxisY();
   // Returns a Vector representing the Z axis if it exists.
-  static const Vector AxisZ();
+  static Vector AxisZ();
   // Returns a Vector representing the W axis if it exists.
-  static const Vector AxisW();
+  static Vector AxisW();
 
   // Self-modifying operators.
   void operator+=(const Vector& v) { BaseType::Add(v); }
@@ -215,33 +216,33 @@ class Vector : public VectorBase<Dimension, T> {
   void operator/=(T s) { BaseType::Divide(s); }
 
   // Unary negation operator.
-  const Vector operator-() const { return ToVector(BaseType::Negation()); }
+  Vector operator-() const { return ToVector(BaseType::Negation()); }
 
   // Binary operators.
-  friend const Vector operator+(const Vector& v0, const Vector& v1) {
+  friend Vector operator+(const Vector& v0, const Vector& v1) {
     return ToVector(BaseType::Sum(v0, v1));
   }
-  friend const Vector operator-(const Vector& v0, const Vector& v1) {
+  friend Vector operator-(const Vector& v0, const Vector& v1) {
     return ToVector(BaseType::Difference(v0, v1));
   }
-  friend const Vector operator*(const Vector& v, T s) {
+  friend Vector operator*(const Vector& v, T s) {
     return ToVector(BaseType::Scale(v, s));
   }
-  friend const Vector operator*(T s, const Vector& v) {
+  friend Vector operator*(T s, const Vector& v) {
     // Assume the commutative property holds for type T.
     return ToVector(BaseType::Scale(v, s));
   }
-  friend const Vector operator*(const Vector& v, const Vector& s) {
+  friend Vector operator*(const Vector& v, const Vector& s) {
     return ToVector(BaseType::Product(v, s));
   }
-  friend const Vector operator/(const Vector& v, const Vector& s) {
+  friend Vector operator/(const Vector& v, const Vector& s) {
     return ToVector(BaseType::Quotient(v, s));
   }
-  friend const Vector operator/(const Vector& v, T s) {
+  friend Vector operator/(const Vector& v, T s) {
     return ToVector(BaseType::Divide(v, s));
   }
-  friend const Vector operator/(T s, const Vector& v) {
-    return Vector(s / v[0], s / v[1], s / v[2]);
+  friend Vector operator/(T s, const Vector& v) {
+    return ToVector(BaseType::LeftDivide(s, v));
   }
 
   // Exact equality and inequality comparisons.
@@ -257,7 +258,7 @@ class Vector : public VectorBase<Dimension, T> {
   typedef VectorBase<Dimension, T> BaseType;
 
   // Converts a VectorBase of the correct type to a Vector.
-  static const Vector ToVector(const BaseType& b) {
+  static Vector ToVector(const BaseType& b) {
     // This is safe because Vector is the same size as VectorBase and has no
     // virtual functions. It's ugly, but better than the alternatives.
     return static_cast<const Vector&>(b);
@@ -311,10 +312,10 @@ class Point : public VectorBase<Dimension, T> {
       : BaseType(p) {}
 
   // Returns a Point containing all zeroes.
-  static const Point Zero() { return ToPoint(BaseType::Zero()); }
+  static Point Zero() { return ToPoint(BaseType::Zero()); }
 
   // Returns a Point with all elements set to the given value.
-  static const Point Fill(T value) { return ToPoint(BaseType::Fill(value)); }
+  static Point Fill(T value) { return ToPoint(BaseType::Fill(value)); }
 
   // Self-modifying operators.
   void operator+=(const Point& v) { BaseType::Add(v); }
@@ -324,44 +325,44 @@ class Point : public VectorBase<Dimension, T> {
   void operator/=(T s) { BaseType::Divide(s); }
 
   // Unary operators.
-  const Point operator-() const { return ToPoint(BaseType::Negation()); }
+  Point operator-() const { return ToPoint(BaseType::Negation()); }
 
   // Adding two Points produces another Point.
-  friend const Point operator+(const Point& p0, const Point& p1) {
+  friend Point operator+(const Point& p0, const Point& p1) {
     return ToPoint(BaseType::Sum(p0, p1));
   }
   // Adding a Vector to a Point produces another Point.
-  friend const Point operator+(const Point& p, const VectorType& v) {
+  friend Point operator+(const Point& p, const VectorType& v) {
     return ToPoint(BaseType::Sum(p, v));
   }
-  friend const Point operator+(const VectorType& v, const Point& p) {
+  friend Point operator+(const VectorType& v, const Point& p) {
     return ToPoint(BaseType::Sum(p, v));
   }
 
   // Subtracting a Vector from a Point produces another Point.
-  friend const Point operator-(const Point& p, const VectorType& v) {
+  friend Point operator-(const Point& p, const VectorType& v) {
     return ToPoint(BaseType::Difference(p, v));
   }
   // Subtracting two Points results in a Vector.
-  friend const VectorType operator-(const Point& p0, const Point& p1) {
+  friend VectorType operator-(const Point& p0, const Point& p1) {
     return ToVector(BaseType::Difference(p0, p1));
   }
 
   // Binary scale and division operators.
-  friend const Point operator*(const Point& p, T s) {
+  friend Point operator*(const Point& p, T s) {
     return ToPoint(BaseType::Scale(p, s));
   }
-  friend const Point operator*(T s, const Point& p) {
+  friend Point operator*(T s, const Point& p) {
     // Assume the commutative property holds for type T.
     return ToPoint(BaseType::Scale(p, s));
   }
-  friend const Point operator*(const Point& v, const Point& s) {
+  friend Point operator*(const Point& v, const Point& s) {
     return ToPoint(BaseType::Product(v, s));
   }
-  friend const Point operator/(const Point& v, const Point& s) {
+  friend Point operator/(const Point& v, const Point& s) {
     return ToPoint(BaseType::Quotient(v, s));
   }
-  friend const Point operator/(const Point& p, T s) {
+  friend Point operator/(const Point& p, T s) {
     return ToPoint(BaseType::Divide(p, s));
   }
 
@@ -378,13 +379,13 @@ class Point : public VectorBase<Dimension, T> {
   typedef VectorBase<Dimension, T> BaseType;
 
   // Converts a VectorBase of the correct type to a Point.
-  static const Point ToPoint(const BaseType& b) {
+  static Point ToPoint(const BaseType& b) {
     // This is safe because Point is the same size as VectorBase and has no
     // virtual functions. It's ugly, but better than the alternatives.
     return *static_cast<const Point*>(&b);
   }
   // Converts a VectorBase of the correct type to the corresponding Vector type.
-  static const VectorType ToVector(const BaseType& b) {
+  static VectorType ToVector(const BaseType& b) {
     return VectorType::ToVector(b);
   }
 };
@@ -487,43 +488,29 @@ template <int Dimension, typename T>
 template <typename U>
 struct VectorBase<Dimension, T>::StaticHelper<1, U> {
   typedef math::Vector<1, U> Vector;
-  typedef math::VectorBase<1, U> VectorBase;
-  static const Vector AxisX() {
-    return Vector(static_cast<U>(1));
-  }
-  static const VectorBase Fill(U value) { return VectorBase(value); }
+  static Vector AxisX() { return Vector(static_cast<U>(1)); }
 };
 
 template <int Dimension, typename T>
 template <typename U>
 struct VectorBase<Dimension, T>::StaticHelper<2, U> {
   typedef math::Vector<2, U> Vector;
-  typedef math::VectorBase<2, U> VectorBase;
-  static const Vector AxisX() {
-    return Vector(static_cast<U>(1), static_cast<U>(0));
-  }
-  static const Vector AxisY() {
-    return Vector(static_cast<U>(0), static_cast<U>(1));
-  }
-  static const VectorBase Fill(U value) { return VectorBase(value, value); }
+  static Vector AxisX() { return Vector(static_cast<U>(1), static_cast<U>(0)); }
+  static Vector AxisY() { return Vector(static_cast<U>(0), static_cast<U>(1)); }
 };
 
 template <int Dimension, typename T>
 template <typename U>
 struct VectorBase<Dimension, T>::StaticHelper<3, U> {
   typedef math::Vector<3, U> Vector;
-  typedef math::VectorBase<3, U> VectorBase;
-  static const Vector AxisX() {
+  static Vector AxisX() {
     return Vector(static_cast<U>(1), static_cast<U>(0), static_cast<U>(0));
   }
-  static const Vector AxisY() {
+  static Vector AxisY() {
     return Vector(static_cast<U>(0), static_cast<U>(1), static_cast<U>(0));
   }
-  static const Vector AxisZ() {
+  static Vector AxisZ() {
     return Vector(static_cast<U>(0), static_cast<U>(0), static_cast<U>(1));
-  }
-  static const VectorBase Fill(U value) {
-    return VectorBase(value, value, value);
   }
 };
 
@@ -531,67 +518,65 @@ template <int Dimension, typename T>
 template <typename U>
 struct VectorBase<Dimension, T>::StaticHelper<4, U> {
   typedef math::Vector<4, U> Vector;
-  typedef math::VectorBase<4, U> VectorBase;
-  static const Vector AxisX() {
+  static Vector AxisX() {
     return Vector(static_cast<U>(1), static_cast<U>(0), static_cast<U>(0),
                   static_cast<U>(0));
   }
-  static const Vector AxisY() {
+  static Vector AxisY() {
     return Vector(static_cast<U>(0), static_cast<U>(1), static_cast<U>(0),
                   static_cast<U>(0));
   }
-  static const Vector AxisZ() {
+  static Vector AxisZ() {
     return Vector(static_cast<U>(0), static_cast<U>(0), static_cast<U>(1),
                   static_cast<U>(0));
   }
-  static const Vector AxisW() {
+  static Vector AxisW() {
     return Vector(static_cast<U>(0), static_cast<U>(0), static_cast<U>(0),
                   static_cast<U>(1));
   }
-  static const VectorBase Fill(U value) {
-    return VectorBase(value, value, value, value);
-  }
 };
 
-// Zero, Fill, and the Vector::Axis? functions use the above static methods.
+// The Vector::Axis? functions use the above static methods.
 template <int Dimension, typename T>
-const VectorBase<Dimension, T> VectorBase<Dimension, T>::Zero() {
-  static VectorBase<Dimension, T> v =
-      StaticHelper<Dimension, T>::Fill(static_cast<T>(0));
-  return v;
-}
-
-template <int Dimension, typename T>
-const VectorBase<Dimension, T> VectorBase<Dimension, T>::Fill(T value) {
-  return StaticHelper<Dimension, T>::Fill(value);
-}
-
-template <int Dimension, typename T>
-const Vector<Dimension, T> Vector<Dimension, T>::AxisX() {
+Vector<Dimension, T> Vector<Dimension, T>::AxisX() {
   static const Vector<Dimension, T> v =
       BaseType::template StaticHelper<Dimension, T>::AxisX();
   return v;
 }
 
 template <int Dimension, typename T>
-const Vector<Dimension, T> Vector<Dimension, T>::AxisY() {
+Vector<Dimension, T> Vector<Dimension, T>::AxisY() {
   static const Vector<Dimension, T> v =
       BaseType::template StaticHelper<Dimension, T>::AxisY();
   return v;
 }
 
 template <int Dimension, typename T>
-const Vector<Dimension, T> Vector<Dimension, T>::AxisZ() {
+Vector<Dimension, T> Vector<Dimension, T>::AxisZ() {
   static const Vector<Dimension, T> v =
       BaseType::template StaticHelper<Dimension, T>::AxisZ();
   return v;
 }
 
 template <int Dimension, typename T>
-const Vector<Dimension, T> Vector<Dimension, T>::AxisW() {
+Vector<Dimension, T> Vector<Dimension, T>::AxisW() {
   static const Vector<Dimension, T> v =
       BaseType::template StaticHelper<Dimension, T>::AxisW();
   return v;
+}
+
+template <int Dimension, typename T>
+VectorBase<Dimension, T> VectorBase<Dimension, T>::Zero() {
+  static VectorBase<Dimension, T> v;
+  return v;
+}
+
+template <int Dimension, typename T>
+VectorBase<Dimension, T> VectorBase<Dimension, T>::Fill(T value) {
+  VectorBase<Dimension, T> result;
+  for (int i = 0; i < Dimension; ++i)
+    result[i] = value;
+  return result;
 }
 
 template <int Dimension, typename T>
@@ -621,7 +606,7 @@ void VectorBase<Dimension, T>::Divide(T s) {
 }
 
 template <int Dimension, typename T>
-const VectorBase<Dimension, T> VectorBase<Dimension, T>::Negation() const {
+VectorBase<Dimension, T> VectorBase<Dimension, T>::Negation() const {
   VectorBase result;
   for (int i = 0; i < Dimension; ++i)
     result.elem_[i] = static_cast<T>(-elem_[i]);
@@ -629,7 +614,7 @@ const VectorBase<Dimension, T> VectorBase<Dimension, T>::Negation() const {
 }
 
 template <int Dimension, typename T>
-const VectorBase<Dimension, T> VectorBase<Dimension, T>::Product(
+VectorBase<Dimension, T> VectorBase<Dimension, T>::Product(
     const VectorBase& v0, const VectorBase& v1) {
   VectorBase result;
   for (int i = 0; i < Dimension; ++i)
@@ -638,7 +623,7 @@ const VectorBase<Dimension, T> VectorBase<Dimension, T>::Product(
 }
 
 template <int Dimension, typename T>
-const VectorBase<Dimension, T> VectorBase<Dimension, T>::Quotient(
+VectorBase<Dimension, T> VectorBase<Dimension, T>::Quotient(
     const VectorBase& v0, const VectorBase& v1) {
   VectorBase result;
   for (int i = 0; i < Dimension; ++i)
@@ -647,8 +632,8 @@ const VectorBase<Dimension, T> VectorBase<Dimension, T>::Quotient(
 }
 
 template <int Dimension, typename T>
-const VectorBase<Dimension, T> VectorBase<Dimension, T>::Sum(
-    const VectorBase& v0, const VectorBase& v1) {
+VectorBase<Dimension, T> VectorBase<Dimension, T>::Sum(const VectorBase& v0,
+                                                       const VectorBase& v1) {
   VectorBase result;
   for (int i = 0; i < Dimension; ++i)
     result.elem_[i] = static_cast<T>(v0.elem_[i] + v1.elem_[i]);
@@ -656,7 +641,7 @@ const VectorBase<Dimension, T> VectorBase<Dimension, T>::Sum(
 }
 
 template <int Dimension, typename T>
-const VectorBase<Dimension, T> VectorBase<Dimension, T>::Difference(
+VectorBase<Dimension, T> VectorBase<Dimension, T>::Difference(
     const VectorBase& v0, const VectorBase& v1) {
   VectorBase result;
   for (int i = 0; i < Dimension; ++i)
@@ -665,8 +650,8 @@ const VectorBase<Dimension, T> VectorBase<Dimension, T>::Difference(
 }
 
 template <int Dimension, typename T>
-const VectorBase<Dimension, T> VectorBase<Dimension, T>::Scale(
-    const VectorBase& v, T s) {
+VectorBase<Dimension, T> VectorBase<Dimension, T>::Scale(const VectorBase& v,
+                                                         T s) {
   VectorBase result;
   for (int i = 0; i < Dimension; ++i)
     result.elem_[i] = static_cast<T>(v.elem_[i] * s);
@@ -674,11 +659,20 @@ const VectorBase<Dimension, T> VectorBase<Dimension, T>::Scale(
 }
 
 template <int Dimension, typename T>
-const VectorBase<Dimension, T> VectorBase<Dimension, T>::Divide(
-    const VectorBase& v, T s) {
+VectorBase<Dimension, T> VectorBase<Dimension, T>::Divide(const VectorBase& v,
+                                                          T s) {
   VectorBase result;
   for (int i = 0; i < Dimension; ++i)
     result.elem_[i] = static_cast<T>(v.elem_[i] / s);
+  return result;
+}
+
+template <int Dimension, typename T>
+VectorBase<Dimension, T> VectorBase<Dimension, T>::LeftDivide(
+    T s, const VectorBase& v) {
+  VectorBase result;
+  for (int i = 0; i < Dimension; ++i)
+    result.elem_[i] = static_cast<T>(s / v.elem_[i]);
   return result;
 }
 

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ limitations under the License.
 #ifndef ION_GFX_RENDERER_H_
 #define ION_GFX_RENDERER_H_
 
+#include <stdint.h>
 #include <bitset>
 #include <memory>
 
@@ -31,18 +32,15 @@ limitations under the License.
 #include "ion/gfx/node.h"
 #include "ion/gfx/resourcemanager.h"
 #include "ion/gfx/shaderprogram.h"
+#include "ion/gfx/shape.h"
 #include "ion/gfx/statetable.h"
+#include "ion/gfx/transformfeedback.h"
 #include "ion/gfx/uniform.h"
 #include "ion/math/range.h"
+#include "ion/portgfx/visual.h"
 
 namespace ion {
-namespace portgfx {
-class Visual;
-}  // namespace portgfx
 namespace gfx {
-
-class IndexBuffer;
-class Shape;
 
 // The Renderer class handles rendering ION scene graphs using OpenGL. It is
 // also responsible for setting up the default shader program and global
@@ -56,8 +54,17 @@ class ION_API Renderer : public base::Referent {
     // that have been made through this Renderer's ResourceManager.
     kProcessInfoRequests,
     // Release any internal resources that have been marked for destruction,
-    // including OpenGL objects.
+    // including OpenGL objects. Note that this flag also affects other calls
+    // that may create new OpenGL objects, such as BindFramebuffer() and
+    // CreateOrUpdateResources(). If you disable this flag, you are responsible
+    // for periodically calling ReleaseResources().
     kProcessReleases,
+
+    // Invalidate attachments when DrawScene is done.
+    kInvalidateColorAttachment,
+    kInvalidateDepthAttachment =
+        kInvalidateColorAttachment + kColorAttachmentSlotCount,
+    kInvalidateStencilAttachment,
 
     // Whether to clear (set to 0) certain GL objects when drawing is finished.
     // Both Ion's internal state _and_ OpenGL are cleared. Note that the Restore
@@ -107,8 +114,9 @@ class ION_API Renderer : public base::Referent {
     kShaderProgram,
     kShader,
     kTexture,
+    kTransformFeedback,
   };
-  static const int kNumResourceTypes = kTexture + 1;
+  static const int kNumResourceTypes = kTransformFeedback + 1;
 
   // The possible ways a BufferObject's data can be mapped. Buffers mapped
   // read-only must not be written to, and those mapped write-only must not be
@@ -119,6 +127,26 @@ class ION_API Renderer : public base::Referent {
     kReadWrite,
     kWriteOnly
   };
+
+  // What to do when the OpenGL context changes, and the new context is in a
+  // different share group.
+  enum ContextChangePolicy {
+    // Forgets and recreates all resources. This policy is appropriate when the
+    // old context is expected to have been already destroyed, and the
+    // renderer should not try to do any cleanup.
+    kAbandonResources,
+    // Aborts the program. This is the default.
+    kAbort,
+    // Do not take any action when the context changes.  Abandon all resources
+    // when the Renderer is destroyed.  Similar to kAbandonResources, but does
+    // not attempt to detect when the context changes or becomes lost.
+    kIgnore,
+  };
+
+  // Flags identifying the different FBO attachment types.
+  static const uint32_t kColorBufferBit = 1 << 0;
+  static const uint32_t kDepthBufferBit = 1 << 1;
+  static const uint32_t kStencilBufferBit = 1 << 2;
 
   // The constructor is passed a GraphicsManager instance to use for rendering.
   explicit Renderer(const GraphicsManagerPtr& gm);
@@ -133,6 +161,7 @@ class ION_API Renderer : public base::Referent {
   // Convenience functions that return std::bitsets of Flags.
   static const Flags& AllFlags();
   static const Flags& AllClearFlags();
+  static const Flags& AllInvalidateFlags();
   static const Flags& AllProcessFlags();
   static const Flags& AllRestoreFlags();
   static const Flags& AllSaveFlags();
@@ -160,6 +189,22 @@ class ION_API Renderer : public base::Referent {
   // calling BindFramebuffer() with a NULL FramebufferObject binds this default
   // framebuffer (see above).
   const FramebufferObjectPtr GetCurrentFramebuffer() const;
+
+  // Creates an Ion framebuffer object that wraps the currently-bound OpenGL
+  // framebuffer.  This is useful only when the Ion renderer is working in
+  // concert with another renderer that creates FBO's.  A valid GL context must
+  // be current at this time of this call.  The returned framebuffer object
+  // isn't precisely representative of the actual framebuffer; e.g., only
+  // a single color attachment is reflected.  This is generally fine since it's
+  // just a proxy object.  We can make this more accurate in the future by
+  // adding additional arguments.  After creation, subsequent changes to the
+  // proxy object will be honored in the underlying GL resource.  Changes made
+  // outside the Ion renderer are potentially clobbered.
+  ion::gfx::FramebufferObjectPtr CreateExternalFramebufferProxy(
+      const ion::math::Range2i::Size& size,
+      ion::gfx::Image::Format color_format,
+      ion::gfx::Image::Format depth_format,
+      int num_samples);
 
   // Immediately creates internal GL resources for the passed holder, uploading
   // any data and binding the resource. Note that unlike
@@ -234,10 +279,13 @@ class ION_API Renderer : public base::Referent {
   void SetInitialUniformValue(const Uniform& u);
 
   // Resolve a multisampled framebuffer 'ms_fbo' into a single sampled
-  // framebuffer 'dest_fbo'. Caller is responsible to make sure ms_fbo and
-  // dest_fbo are compatible for resolving.
+  // framebuffer 'dest_fbo'. |mask| determines which attachments to resolve
+  // and must be a bit combination of |kColorBufferBit|, |kDepthBufferBit| and
+  // |kStencilBufferBit| - or 0, in which case this is a NOP. Caller is
+  // responsible to make sure ms_fbo and dest_fbo are compatible for resolving.
   void ResolveMultisampleFramebuffer(const FramebufferObjectPtr& ms_fbo,
-                                     const FramebufferObjectPtr& dest_fbo);
+                                     const FramebufferObjectPtr& dest_fbo,
+                                     uint32_t mask = kColorBufferBit);
 
   // Draws the scene rooted by the given node into the currently bound
   // framebuffer.
@@ -353,19 +401,39 @@ class ION_API Renderer : public base::Referent {
   void ClearResources(const HolderType* holder);
 
   // Immediately clears all internal resources of the Renderer.
-  void ClearAllResources();
+  // This will delete the GL resources only if they are accessible, i.e., if the
+  // GL context where the resources were created is current. Otherwise, it will
+  // just forget the resource IDs without deleting them. This may lead to
+  // resource leaks in multi-context situations, so use this function with care.
+  // If the client knows that the original OpenGL context has been destroyed
+  // (and potentially recreated), it should pass true to force_abandon, to
+  // ensure that Ion does not try to free resources that no longer exist.
+  void ClearAllResources(bool force_abandon = false);
 
-  // Immediately releases all internal resources of the Renderer which are
-  // pending release.
+  // Cleans up internal resources and deletes OpenGL objects which are no longer
+  // in use. You need to call this yourself from time to time if you disable the
+  // kProcessReleases flag.
   void ReleaseResources();
 
   // Immediately clears the internal resources of all ResourceHolders of the
   // passed type.
   void ClearTypedResources(ResourceType type);
 
+  // Retrieves the renderer's current setting of what should be done when a GL
+  // context change is detected.
+  ContextChangePolicy GetContextChangePolicy() const {
+    return gl_context_change_policy_;
+  }
+  // Specifies what to do when an OpenGL context change is detected and the
+  // Renderer's resources are no longer accessible from the new context. See the
+  // documentation for the |ContextChangePolicy| enum for details.
+  void SetContextChangePolicy(ContextChangePolicy policy) {
+    gl_context_change_policy_ = policy;
+  }
+
   // Destroys the internal state cache associated with the passed Visual. Does
   // nothing if the visual has no associated state cache.
-  static void DestroyStateCache(const portgfx::Visual* visual);
+  static void DestroyStateCache(const portgfx::VisualPtr& visual);
 
   // Destroys the internal state cache associated with the current Visual or GL
   // context.
@@ -375,6 +443,15 @@ class ION_API Renderer : public base::Referent {
   // that only BufferObjects, FrameBufferObjects, and (CubeMap)Textures are
   // considered to use GPU memory.
   size_t GetGpuMemoryUsage(ResourceType type) const;
+
+  // Binds and activates a transform feedback object, used for recording
+  // the outputs from the vertex shader or geometry shader.  Due to various
+  // restrictions imposed by OpenGL, only a single non-indexed shape can be
+  // rendered while transform feedback is active.
+  void BeginTransformFeedback(const TransformFeedbackPtr& tf);
+
+  // Unbinds and de-activates a transform feedback object.
+  void EndTransformFeedback();
 
  protected:
   // The destructor is protected because all base::Referent classes must have
@@ -394,6 +471,7 @@ class ION_API Renderer : public base::Referent {
   class ShaderProgramResource;
   class ShaderResource;
   class TextureResource;
+  class TransformFeedbackResource;
   class VertexArrayResource;
   class VertexArrayEmulatorResource;
 
@@ -404,11 +482,12 @@ class ION_API Renderer : public base::Referent {
   // Ideally this would be a map of unique_ptrs, but gcc < 4.5 (QNX) does not
   // allow containers of unique_ptrs.
   // TODO(user): Make this unique_ptr when all toolchains support it.
-  typedef base::AllocUnorderedMap<size_t, std::shared_ptr<ResourceBinder> >
+  typedef base::AllocUnorderedMap<uintptr_t, std::shared_ptr<ResourceBinder> >
       ResourceBinderMap;
   static ResourceBinderMap& GetResourceBinderMap();
   ResourceBinder* GetOrCreateInternalResourceBinder(int line) const;
-  ResourceBinder* GetInternalResourceBinder(size_t* visual_id) const;
+  ResourceBinder* GetInternalResourceBinder(uintptr_t* visual_id) const;
+  void CheckContextChange() const;
 
   static const ShaderProgramPtr CreateDefaultShaderProgram(
       const base::AllocatorPtr& allocator);
@@ -422,10 +501,14 @@ class ION_API Renderer : public base::Referent {
 
   // The default shader program.
   ShaderProgramPtr default_shader_;
+
+  // What to do when the GL context changes and previously created OpenGL
+  // resources are no longer accessible.
+  ContextChangePolicy gl_context_change_policy_;
 };
 
 // Convenience typedef for shared pointer to a Renderer.
-typedef base::ReferentPtr<Renderer>::Type RendererPtr;
+using RendererPtr = base::SharedPtr<Renderer>;
 
 }  // namespace gfx
 }  // namespace ion

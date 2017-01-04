@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,6 +26,19 @@ namespace ion {
 namespace gfx {
 
 namespace {
+
+const Image::Format kAstcFormatTable[] = {
+    Image::kAstc4x4Rgba,    Image::kAstc5x4Rgba,    Image::kAstc5x5Rgba,
+    Image::kAstc6x5Rgba,    Image::kAstc6x6Rgba,    Image::kAstc8x5Rgba,
+    Image::kAstc8x6Rgba,    Image::kAstc8x8Rgba,    Image::kAstc10x5Rgba,
+    Image::kAstc10x6Rgba,   Image::kAstc10x8Rgba,   Image::kAstc10x10Rgba,
+    Image::kAstc12x10Rgba,  Image::kAstc12x12Rgba,  Image::kAstc4x4Srgba,
+    Image::kAstc5x4Srgba,   Image::kAstc5x5Srgba,   Image::kAstc6x5Srgba,
+    Image::kAstc6x6Srgba,   Image::kAstc8x5Srgba,   Image::kAstc8x6Srgba,
+    Image::kAstc8x8Srgba,   Image::kAstc10x5Srgba,  Image::kAstc10x6Srgba,
+    Image::kAstc10x8Srgba,  Image::kAstc10x10Srgba, Image::kAstc12x10Srgba,
+    Image::kAstc12x12Srgba,
+};
 
 // Returns an invalid format for error-checking.
 static Image::Format InvalidFormat() {
@@ -93,7 +106,7 @@ TEST(ImageTest, Set) {
   EXPECT_FALSE(image->IsCompressed());
 
   base::DataContainerPtr data = base::DataContainer::Create<uint8>(
-      NULL, kNullFunction, false, image->GetAllocator());
+      nullptr, kNullFunction, false, image->GetAllocator());
 
   // Test some basic formats.
   image->Set(Image::kRgb888, 4, 4, data);
@@ -159,7 +172,7 @@ TEST(ImageTest, Set) {
 TEST(ImageTest, SetArray) {
   ImagePtr image(new Image);
   base::DataContainerPtr data = base::DataContainer::Create<uint8>(
-      NULL, kNullFunction, false, image->GetAllocator());
+      nullptr, kNullFunction, false, image->GetAllocator());
 
   // Test some basic formats.
   image->SetArray(Image::kRgb888, 4, 4, data);
@@ -225,7 +238,7 @@ TEST(ImageTest, SetArray) {
 TEST(ImageTest, Notifications) {
   ImagePtr image(new Image);
   base::DataContainerPtr data = base::DataContainer::Create<uint8>(
-      NULL, kNullFunction, false, image->GetAllocator());
+      nullptr, kNullFunction, false, image->GetAllocator());
 
   image->Set(Image::kRgb888, 4, 4, data);
   EXPECT_EQ(1U, data->GetReceiverCount());
@@ -238,7 +251,7 @@ TEST(ImageTest, SetEglImage) {
 
   // Construct a data container to wrap the pointer.
   base::DataContainerPtr data = base::DataContainer::Create<void>(
-      NULL, kNullFunction, false, image->GetAllocator());
+      nullptr, kNullFunction, false, image->GetAllocator());
 
   // Test some basic formats.
   image->SetEglImage(data);
@@ -247,8 +260,8 @@ TEST(ImageTest, SetEglImage) {
   EXPECT_EQ(0U, image->GetWidth());
   EXPECT_EQ(0U, image->GetHeight());
   EXPECT_EQ(0U, image->GetDepth());
-  ASSERT_TRUE(image->GetData().Get() != NULL);
-  EXPECT_TRUE(image->GetData()->GetData() == NULL);
+  ASSERT_TRUE(image->GetData());
+  EXPECT_TRUE(image->GetData()->GetData() == nullptr);
   EXPECT_EQ(0U, image->GetDataSize());
 
   // This is deliberately not const since the interface to Set*EglImage requires
@@ -263,8 +276,8 @@ TEST(ImageTest, SetEglImage) {
   EXPECT_EQ(0U, image->GetWidth());
   EXPECT_EQ(0U, image->GetHeight());
   EXPECT_EQ(0U, image->GetDepth());
-  ASSERT_TRUE(image->GetData().Get() != NULL);
-  EXPECT_TRUE(image->GetData()->GetData<uint8>() == kData);
+  ASSERT_TRUE(image->GetData());
+  EXPECT_EQ(kData, image->GetData()->GetData<uint8>());
 }
 
 TEST(ImageTest, GetFormatString) {
@@ -347,9 +360,59 @@ TEST(ImageTest, GetFormatString) {
                       Image::GetFormatString(Image::kTextureDepth16Int)));
   EXPECT_EQ(0, strcmp("TextureDepth16Short",
                       Image::GetFormatString(Image::kTextureDepth16Short)));
+  EXPECT_EQ(0, strcmp("TextureDepth24",
+                      Image::GetFormatString(Image::kTextureDepth24)));
+  EXPECT_EQ(0, strcmp("TextureDepth24Stencil8",
+                      Image::GetFormatString(Image::kTextureDepth24Stencil8)));
+  EXPECT_EQ(0, strcmp("TextureDepth32f",
+                      Image::GetFormatString(Image::kTextureDepth32f)));
+  EXPECT_EQ(
+      0, strcmp("TextureDepth32fStencil8",
+                Image::GetFormatString(Image::kTextureDepth32fStencil8)));
+  struct AstcCharacteristics {
+    std::string format_name;
+    Image::Format format_enum;
+  };
+  const AstcCharacteristics kAstcCharacteristicsTable[] = {
+    {"Astc4x4Rgba",   Image::kAstc4x4Rgba},
+    {"Astc5x4Rgba",   Image::kAstc5x4Rgba},
+    {"Astc5x5Rgba",   Image::kAstc5x5Rgba},
+    {"Astc6x5Rgba",   Image::kAstc6x5Rgba},
+    {"Astc6x6Rgba",   Image::kAstc6x6Rgba},
+    {"Astc8x5Rgba",   Image::kAstc8x5Rgba},
+    {"Astc8x6Rgba",   Image::kAstc8x6Rgba},
+    {"Astc8x8Rgba",   Image::kAstc8x8Rgba},
+    {"Astc10x5Rgba",  Image::kAstc10x5Rgba},
+    {"Astc10x6Rgba",  Image::kAstc10x6Rgba},
+    {"Astc10x8Rgba",  Image::kAstc10x8Rgba},
+    {"Astc10x10Rgba", Image::kAstc10x10Rgba},
+    {"Astc12x10Rgba", Image::kAstc12x10Rgba},
+    {"Astc12x12Rgba", Image::kAstc12x12Rgba},
+    {"Astc4x4Srgba",   Image::kAstc4x4Srgba},
+    {"Astc5x4Srgba",   Image::kAstc5x4Srgba},
+    {"Astc5x5Srgba",   Image::kAstc5x5Srgba},
+    {"Astc6x5Srgba",   Image::kAstc6x5Srgba},
+    {"Astc6x6Srgba",   Image::kAstc6x6Srgba},
+    {"Astc8x5Srgba",   Image::kAstc8x5Srgba},
+    {"Astc8x6Srgba",   Image::kAstc8x6Srgba},
+    {"Astc8x8Srgba",   Image::kAstc8x8Srgba},
+    {"Astc10x5Srgba",  Image::kAstc10x5Srgba},
+    {"Astc10x6Srgba",  Image::kAstc10x6Srgba},
+    {"Astc10x8Srgba",  Image::kAstc10x8Srgba},
+    {"Astc10x10Srgba", Image::kAstc10x10Srgba},
+    {"Astc12x10Srgba", Image::kAstc12x10Srgba},
+    {"Astc12x12Srgba", Image::kAstc12x12Srgba},
+  };
+  for (const auto& astc_characteristics : kAstcCharacteristicsTable) {
+    EXPECT_EQ(astc_characteristics.format_name,
+              Image::GetFormatString(astc_characteristics.format_enum));
+  }
   EXPECT_EQ(0, strcmp("Dxt1", Image::GetFormatString(Image::kDxt1)));
   EXPECT_EQ(0, strcmp("Dxt5", Image::GetFormatString(Image::kDxt5)));
   EXPECT_EQ(0, strcmp("Etc1", Image::GetFormatString(Image::kEtc1)));
+  EXPECT_EQ(0, strcmp("Etc2Rgb", Image::GetFormatString(Image::kEtc2Rgb)));
+  EXPECT_EQ(0, strcmp("Etc2Rgba", Image::GetFormatString(Image::kEtc2Rgba)));
+  EXPECT_EQ(0, strcmp("Etc2Rgba1", Image::GetFormatString(Image::kEtc2Rgba1)));
   EXPECT_EQ(0,
             strcmp("Pvrtc1Rgb2", Image::GetFormatString(Image::kPvrtc1Rgb2)));
   EXPECT_EQ(0,
@@ -456,9 +519,21 @@ TEST(ImageTest, GetNumComponentsForFormat) {
                    Image::kRenderbufferDepth32fStencil8));
   EXPECT_EQ(1, Image::GetNumComponentsForFormat(Image::kTextureDepth16Int));
   EXPECT_EQ(1, Image::GetNumComponentsForFormat(Image::kTextureDepth16Short));
+  EXPECT_EQ(1, Image::GetNumComponentsForFormat(Image::kTextureDepth24));
+  EXPECT_EQ(2,
+            Image::GetNumComponentsForFormat(Image::kTextureDepth24Stencil8));
+  EXPECT_EQ(1, Image::GetNumComponentsForFormat(Image::kTextureDepth32f));
+  EXPECT_EQ(2, Image::GetNumComponentsForFormat(
+                   Image::kTextureDepth32fStencil8));
+  for (const auto& astc_format : kAstcFormatTable) {
+    EXPECT_EQ(4, Image::GetNumComponentsForFormat(astc_format));
+  }
   EXPECT_EQ(3, Image::GetNumComponentsForFormat(Image::kDxt1));
   EXPECT_EQ(4, Image::GetNumComponentsForFormat(Image::kDxt5));
   EXPECT_EQ(3, Image::GetNumComponentsForFormat(Image::kEtc1));
+  EXPECT_EQ(3, Image::GetNumComponentsForFormat(Image::kEtc2Rgb));
+  EXPECT_EQ(4, Image::GetNumComponentsForFormat(Image::kEtc2Rgba));
+  EXPECT_EQ(4, Image::GetNumComponentsForFormat(Image::kEtc2Rgba1));
   EXPECT_EQ(3, Image::GetNumComponentsForFormat(Image::kPvrtc1Rgb2));
   EXPECT_EQ(3, Image::GetNumComponentsForFormat(Image::kPvrtc1Rgb4));
   EXPECT_EQ(4, Image::GetNumComponentsForFormat(Image::kPvrtc1Rgba2));
@@ -555,9 +630,19 @@ TEST(ImageTest, IsCompressedFormat) {
   EXPECT_FALSE(Image::IsCompressedFormat(Image::kRenderbufferDepth32fStencil8));
   EXPECT_FALSE(Image::IsCompressedFormat(Image::kTextureDepth16Int));
   EXPECT_FALSE(Image::IsCompressedFormat(Image::kTextureDepth16Short));
+  EXPECT_FALSE(Image::IsCompressedFormat(Image::kTextureDepth24));
+  EXPECT_FALSE(Image::IsCompressedFormat(Image::kTextureDepth24Stencil8));
+  EXPECT_FALSE(Image::IsCompressedFormat(Image::kTextureDepth32f));
+  EXPECT_FALSE(Image::IsCompressedFormat(Image::kTextureDepth32fStencil8));
+  for (const auto& astc_format : kAstcFormatTable) {
+    EXPECT_TRUE(Image::IsCompressedFormat(astc_format));
+  }
   EXPECT_TRUE(Image::IsCompressedFormat(Image::kDxt1));
   EXPECT_TRUE(Image::IsCompressedFormat(Image::kDxt5));
   EXPECT_TRUE(Image::IsCompressedFormat(Image::kEtc1));
+  EXPECT_TRUE(Image::IsCompressedFormat(Image::kEtc2Rgb));
+  EXPECT_TRUE(Image::IsCompressedFormat(Image::kEtc2Rgba));
+  EXPECT_TRUE(Image::IsCompressedFormat(Image::kEtc2Rgba1));
   EXPECT_TRUE(Image::IsCompressedFormat(Image::kPvrtc1Rgb2));
   EXPECT_TRUE(Image::IsCompressedFormat(Image::kPvrtc1Rgb4));
   EXPECT_TRUE(Image::IsCompressedFormat(Image::kPvrtc1Rgba2));
@@ -647,10 +732,20 @@ TEST(ImageTest, Is8bpcFormat) {
       Image::kRenderbufferDepth32fStencil8));
   EXPECT_FALSE(Image::Is8BitPerChannelFormat(Image::kTextureDepth16Int));
   EXPECT_FALSE(Image::Is8BitPerChannelFormat(Image::kTextureDepth16Short));
+  EXPECT_FALSE(Image::Is8BitPerChannelFormat(Image::kTextureDepth24));
+  EXPECT_FALSE(Image::Is8BitPerChannelFormat(Image::kTextureDepth24Stencil8));
+  EXPECT_FALSE(Image::Is8BitPerChannelFormat(Image::kTextureDepth32f));
+  EXPECT_FALSE(Image::Is8BitPerChannelFormat(Image::kTextureDepth32fStencil8));
   EXPECT_TRUE(Image::Is8BitPerChannelFormat(Image::kStencil8));
+  for (const auto& astc_format : kAstcFormatTable) {
+    EXPECT_FALSE(Image::Is8BitPerChannelFormat(astc_format));
+  }
   EXPECT_FALSE(Image::Is8BitPerChannelFormat(Image::kDxt1));
   EXPECT_FALSE(Image::Is8BitPerChannelFormat(Image::kDxt5));
   EXPECT_FALSE(Image::Is8BitPerChannelFormat(Image::kEtc1));
+  EXPECT_FALSE(Image::Is8BitPerChannelFormat(Image::kEtc2Rgb));
+  EXPECT_FALSE(Image::Is8BitPerChannelFormat(Image::kEtc2Rgba));
+  EXPECT_FALSE(Image::Is8BitPerChannelFormat(Image::kEtc2Rgba1));
   EXPECT_FALSE(Image::Is8BitPerChannelFormat(Image::kPvrtc1Rgb2));
   EXPECT_FALSE(Image::Is8BitPerChannelFormat(Image::kPvrtc1Rgb4));
   EXPECT_FALSE(Image::Is8BitPerChannelFormat(Image::kPvrtc1Rgba2));
@@ -736,6 +831,10 @@ TEST(ImageTest, ComputeDataSize) {
   EXPECT_TRUE(VerifyDataSize(8, Image::kRenderbufferDepth32fStencil8));
   EXPECT_TRUE(VerifyDataSize(2, Image::kTextureDepth16Int));
   EXPECT_TRUE(VerifyDataSize(2, Image::kTextureDepth16Short));
+  EXPECT_TRUE(VerifyDataSize(4, Image::kTextureDepth24));
+  EXPECT_TRUE(VerifyDataSize(4, Image::kTextureDepth32f));
+  EXPECT_TRUE(VerifyDataSize(4, Image::kTextureDepth24Stencil8));
+  EXPECT_TRUE(VerifyDataSize(8, Image::kTextureDepth32fStencil8));
   EXPECT_TRUE(VerifyDataSize(3, Image::kSrgb8));
   EXPECT_TRUE(VerifyDataSize(4, Image::kSrgba8));
   EXPECT_TRUE(VerifyDataSize(4, Image::kRgb11f_11f_10f_Rev));
@@ -755,6 +854,15 @@ TEST(ImageTest, ComputeDataSize) {
   EXPECT_TRUE(VerifyDataSize(0, Image::kInvalid));
 
   // Compressed formats have fractional bytes per pixel.
+  for (const auto& astc_format : kAstcFormatTable) {
+    EXPECT_EQ(0U, Image::ComputeDataSize(astc_format, 0U, 0U));
+    EXPECT_EQ(0U, Image::ComputeDataSize(astc_format, 0U, 16U));
+    EXPECT_EQ(0U, Image::ComputeDataSize(astc_format, 20U, 0U));
+    // All ASTC block sizes have 16 bytes. 4x4 is smallest, but will round up
+    // to each format's size.
+    EXPECT_EQ(16U, Image::ComputeDataSize(astc_format, 4U, 4U));
+  }
+
   EXPECT_EQ(0U, Image::ComputeDataSize(Image::kDxt1, 0U, 0U));
   EXPECT_EQ(0U, Image::ComputeDataSize(Image::kDxt1, 0U, 16U));
   EXPECT_EQ(0U, Image::ComputeDataSize(Image::kDxt1, 20U, 0U));
@@ -769,6 +877,21 @@ TEST(ImageTest, ComputeDataSize) {
   EXPECT_EQ(0U, Image::ComputeDataSize(Image::kEtc1, 0U, 16U));
   EXPECT_EQ(0U, Image::ComputeDataSize(Image::kEtc1, 20U, 0U));
   EXPECT_EQ(160U, Image::ComputeDataSize(Image::kEtc1, 20U, 16U));
+
+  EXPECT_EQ(0U, Image::ComputeDataSize(Image::kEtc2Rgb, 0U, 0U));
+  EXPECT_EQ(0U, Image::ComputeDataSize(Image::kEtc2Rgb, 0U, 16U));
+  EXPECT_EQ(0U, Image::ComputeDataSize(Image::kEtc2Rgb, 20U, 0U));
+  EXPECT_EQ(160U, Image::ComputeDataSize(Image::kEtc2Rgb, 20U, 16U));
+
+  EXPECT_EQ(0U, Image::ComputeDataSize(Image::kEtc2Rgba, 0U, 0U));
+  EXPECT_EQ(0U, Image::ComputeDataSize(Image::kEtc2Rgba, 0U, 16U));
+  EXPECT_EQ(0U, Image::ComputeDataSize(Image::kEtc2Rgba, 20U, 0U));
+  EXPECT_EQ(320U, Image::ComputeDataSize(Image::kEtc2Rgba, 20U, 16U));
+
+  EXPECT_EQ(0U, Image::ComputeDataSize(Image::kEtc2Rgba1, 0U, 0U));
+  EXPECT_EQ(0U, Image::ComputeDataSize(Image::kEtc2Rgba1, 0U, 16U));
+  EXPECT_EQ(0U, Image::ComputeDataSize(Image::kEtc2Rgba1, 20U, 0U));
+  EXPECT_EQ(160U, Image::ComputeDataSize(Image::kEtc2Rgba1, 20U, 16U));
 
   EXPECT_EQ(0U, Image::ComputeDataSize(Image::kPvrtc1Rgb2, 0U, 0U));
   EXPECT_EQ(0U, Image::ComputeDataSize(Image::kPvrtc1Rgb2, 0U, 16U));

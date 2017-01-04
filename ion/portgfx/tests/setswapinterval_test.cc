@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,21 +30,13 @@ TEST(SetSwapInterval, SetSwapInterval) {
 
   // Setting the swap interval only requires a valid visual on non-Angle
   // Windows, but always creating one is fine.
-  std::unique_ptr<ion::portgfx::Visual> visual(
-      ion::portgfx::Visual::CreateVisual());
-  ion::portgfx::Visual::MakeCurrent(visual.get());
-
-  // On Windows and Mac SetSwapInterval() will fail without an OpenGL context.
-  // The same is true of headless Linux machines. On other platforms OpenGL is
-  // not required.
-#if (defined(ION_PLATFORM_LINUX) && !defined(ION_GOOGLE_INTERNAL)) || \
-    defined(ION_PLATFORM_NACL) || defined(ION_PLATFORM_WINDOWS) || \
-    defined(ION_PLATFORM_ASMJS) || defined(ION_PLATFORM_MAC)
-  if (!visual->IsValid()) {
+  ion::portgfx::VisualPtr visual = ion::portgfx::Visual::CreateVisual();
+  if (!visual || !visual->IsValid()) {
     LOG(INFO) << "Unable to create an OpenGL context. This test "
               << "cannot run and will now exit.";
     return;
   }
+  ion::portgfx::Visual::MakeCurrent(visual);
 
   // Check that the local OpenGL is at least version 2.0, and if not, print a
   // notification and exit gracefully.
@@ -57,7 +49,6 @@ TEST(SetSwapInterval, SetSwapInterval) {
               << "cannot run and will now exit.";
     return;
   }
-#endif
 
   // Some Mesa implementations do not support changing the swap interval to 0
   // in certain modes.

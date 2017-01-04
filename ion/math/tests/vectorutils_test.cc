@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,6 +24,15 @@ limitations under the License.
 
 namespace ion {
 namespace math {
+
+TEST(VectorUtils, WithoutDimension) {
+  EXPECT_EQ(WithoutDimension(Vector4d(1.0, 2.0, 3.0, 4.0), 0),
+            Vector3d(2.0, 3.0, 4.0));
+  EXPECT_EQ(WithoutDimension(Vector4d(1.0, 2.0, 3.0, 4.0), 1),
+            Vector3d(1.0, 3.0, 4.0));
+  EXPECT_EQ(WithoutDimension(Vector4d(1.0, 2.0, 3.0, 4.0), 3),
+            Vector3d(1.0, 2.0, 3.0));
+}
 
 TEST(VectorUtils, Dot) {
   EXPECT_EQ((2.0 * -6.0) + (3.0 * 7.5) + (4.0 * 8.0) + (-5.5 * -9.0),
@@ -122,6 +131,11 @@ TEST(VectorUtils, DistanceToSegment) {
   EXPECT_NEAR(5., DistanceToSegment(p, start2, end2), 1e-6);
   EXPECT_NEAR(25., DistanceSquaredToSegment(p, start2, end2), 1e-6);
   EXPECT_EQ(Point3d(10, 0, 10), ClosestPointOnSegment(p, start2, end2));
+
+  // Test floating point version to ensure there are no double to float casts
+  // which would generate compiler errors.
+  EXPECT_EQ(Point3f(Point3d(10, 0, 10)),
+            ClosestPointOnSegment(Point3f(p), Point3f(start2), Point3f(end2)));
 }
 
 TEST(VectorUtils, Normalize) {

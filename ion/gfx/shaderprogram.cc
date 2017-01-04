@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,7 +24,10 @@ namespace gfx {
 
 ShaderProgram::ShaderProgram(const ShaderInputRegistryPtr& registry)
     : vertex_shader_(kVertexShaderChanged, ShaderPtr(), this),
+      geometry_shader_(kGeometryShaderChanged, ShaderPtr(), this),
       fragment_shader_(kFragmentShaderChanged, ShaderPtr(), this),
+      varyings_(kCapturedVaryingsChanged, base::AllocVector<std::string>(*this),
+                this),
       registry_(registry),
       concurrent_(false),
       concurrent_set_(false) {
@@ -34,14 +37,27 @@ ShaderProgram::ShaderProgram(const ShaderInputRegistryPtr& registry)
 ShaderProgram::~ShaderProgram() {
   if (Shader* shader = vertex_shader_.Get().Get())
     shader->RemoveReceiver(this);
+  if (Shader* shader = geometry_shader_.Get().Get())
+    shader->RemoveReceiver(this);
   if (Shader* shader = fragment_shader_.Get().Get())
     shader->RemoveReceiver(this);
 }
 
-const ShaderProgramPtr ShaderProgram::BuildFromStrings(
+ShaderProgramPtr ShaderProgram::BuildFromStrings(
     const std::string& id_string,
     const ShaderInputRegistryPtr& registry_ptr,
     const std::string& vertex_shader_string,
+    const std::string& fragment_shader_string,
+    const base::AllocatorPtr& allocator) {
+  return BuildFromStrings(id_string, registry_ptr, vertex_shader_string,
+                          "", fragment_shader_string, allocator);
+}
+
+ShaderProgramPtr ShaderProgram::BuildFromStrings(
+    const std::string& id_string,
+    const ShaderInputRegistryPtr& registry_ptr,
+    const std::string& vertex_shader_string,
+    const std::string& geometry_shader_string,
     const std::string& fragment_shader_string,
     const base::AllocatorPtr& allocator) {
   ShaderProgramPtr program(new(allocator) ShaderProgram(registry_ptr));
@@ -49,6 +65,11 @@ const ShaderProgramPtr ShaderProgram::BuildFromStrings(
   program->SetVertexShader(
       ShaderPtr(new(allocator) Shader(vertex_shader_string)));
   program->GetVertexShader()->SetLabel(id_string + " vertex shader");
+  if (!geometry_shader_string.empty()) {
+    program->SetGeometryShader(
+          ShaderPtr(new(allocator) Shader(geometry_shader_string)));
+    program->GetGeometryShader()->SetLabel(id_string + " geometry shader");
+  }
   program->SetFragmentShader(
       ShaderPtr(new(allocator) Shader(fragment_shader_string)));
   program->GetFragmentShader()->SetLabel(id_string + " fragment shader");
@@ -59,6 +80,8 @@ void ShaderProgram::OnNotify(const base::Notifier* notifier) {
   if (GetResourceCount()) {
     if (notifier == vertex_shader_.Get().Get())
       OnChanged(kVertexShaderChanged);
+    else if (notifier == geometry_shader_.Get().Get())
+      OnChanged(kGeometryShaderChanged);
     else if (notifier == fragment_shader_.Get().Get())
       OnChanged(kFragmentShaderChanged);
   }

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -60,11 +60,12 @@ struct ReflectionMapFaceData {
   Matrix4f view_matrix;
 };
 
-static bool ReflectionThread(const ion::portgfx::Visual* visual,
+static bool ReflectionThread(const ion::portgfx::VisualPtr& visual,
                              const ion::gfx::RendererPtr& renderer,
                              ion::gfx::NodePtr scene,
                              ion::gfx::CubeMapTexturePtr reflection_map,
                              Vector3f* sphere_position,
+                             bool* finished,
                              ion::port::Barrier* start_barrier,
                              ion::port::Barrier* reflection_barrier) {
   LOG(INFO) << "Spawned reflection map thread, ID: "
@@ -133,8 +134,12 @@ static bool ReflectionThread(const ion::portgfx::Visual* visual,
   start_barrier->Wait();
 
   while (true) {
-    // Wait until drawing is requested.
+    // Wait until drawing or quitting is requested.
     start_barrier->Wait();
+    if (*finished) {
+      ion::portgfx::Visual::CleanupThread();
+      return true;
+    }
 
     for (int i = 0; i < kCubeMapFaces; ++i) {
       Vector3f offset = *sphere_position;
@@ -204,32 +209,30 @@ static ion::gfx::NodePtr BuildTemple() {
 class IonThreadingDemo : public ViewerDemoBase {
  public:
   IonThreadingDemo(int width, int height);
-  ~IonThreadingDemo() override {}
+  ~IonThreadingDemo() override;
   void Update() override;
   void RenderFrame() override;
   void Keyboard(int key, int x, int y, bool is_press) override {}
   std::string GetDemoClassName() const override { return "ThreadingDemo"; }
 
  private:
-  ion::gfx::GraphicsManagerPtr gm_;
   ion::gfx::NodePtr draw_root_;
-  ion::gfx::NodePtr aux_root_;
   ion::gfx::NodePtr scene_;
   ion::gfx::NodePtr sphere_;
   Vector3f sphere_position_;
   size_t sphere_position_index_;
   ion::port::Barrier start_barrier_;
   ion::port::Barrier reflection_barrier_;
+  bool finished_ = false;
 
   // Lists are used instead of vectors to prevent the reallocation of elements.
   std::list<std::function<bool()>> thread_functions_;
   std::list<ion::port::ThreadId> thread_ids_;
-  std::list<std::unique_ptr<ion::portgfx::Visual>> visuals_;
+  std::list<ion::portgfx::VisualPtr> visuals_;
 };
 
 IonThreadingDemo::IonThreadingDemo(int width, int height)
     : ViewerDemoBase(width, height),
-      gm_(new ion::gfx::GraphicsManager),
       draw_root_(new ion::gfx::Node),
       scene_(new ion::gfx::Node),
       sphere_(new ion::gfx::Node),
@@ -351,15 +354,29 @@ IonThreadingDemo::IonThreadingDemo(int width, int height)
   renderer->CreateOrUpdateResources(draw_root_);
   renderer->CreateOrUpdateResources(sphere_);
 
+  // Ensure that the very first frame is reasonable.
+  UpdateViewUniforms();
+
   // Create reflection map rendering thread.
   visuals_.emplace_back(
       ion::portgfx::Visual::CreateVisualInCurrentShareGroup());
-  thread_functions_.emplace_back(std::bind(&ReflectionThread,
-      visuals_.back().get(), renderer, reflection_root, reflection_map,
-      &sphere_position_, &start_barrier_, &reflection_barrier_));
+  thread_functions_.emplace_back(
+      std::bind(&ReflectionThread, visuals_.back(), renderer, reflection_root,
+                reflection_map, &sphere_position_, &finished_, &start_barrier_,
+                &reflection_barrier_));
   thread_ids_.push_back(ion::port::SpawnThreadStd(&thread_functions_.back()));
 
+  InitRemoteHandlers({reflection_root, draw_root_});
   start_barrier_.Wait();
+}
+
+IonThreadingDemo::~IonThreadingDemo() {
+  finished_ = true;
+  start_barrier_.Wait();
+  for (ion::port::ThreadId tid : thread_ids_) {
+    bool success = ion::port::JoinThread(tid);
+    DCHECK(success) << "Unable to join reflection thread.";
+  }
 }
 
 void IonThreadingDemo::Update() {

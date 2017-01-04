@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -75,7 +75,7 @@ jQuery(document).ready(function() {
     var ul = $('<ul></ul>\n');
     // Write each field.
     $.each(obj, function(key, value) {
-      // Recursively write structs.
+      // Recursively write structs and arrays.
       if (typeof value == 'object') {
         var li = $('<li>' + toCamelCase(String(key)) + '</li>\n');
         li.append(writeStruct(value));
@@ -84,29 +84,35 @@ jQuery(document).ready(function() {
         // Field values that are resource references end in '_glid'. We will
         // add a link to that resource for easy navigation.
         var add_link = false;
-        if (key == 'source') {
-          // Shader sources are mime64 encoded.
-          value = atob(value);
-        }
-        if (endsWith(key, '_glid') && value != 0) {
-          key = key.substring(0, key.length - 5);
-          add_link = true;
-        }
-        var li = $('<li>' + toCamelCase(key) + ': ' + value + '</li>\n');
-        if (add_link) {
-          // Add a pseudo-link to the referenced resource.
-          var span = $('<span class="gl_link">(Go to resource)</span>\n');
-          span.click(function() {
-            if (key == 'vertex_shader' || key == 'fragment_shader')
-              key = 'shader';
-            // Get the correct main tab and activate it.
-            var tab_name = key + 's';
-            $('#tabs').tabs('option', 'active', tab_index_map[tab_name]);
-            // Select the option with the right object id.
-            $('#' + tab_name + '_select').val(value);
-            $('#' + tab_name + '_select').change();
-          });
-          li.append(span);
+        var li = null;
+        if (typeof key == "number") {
+          // This is an array.
+          li = $('<li>' + value + '</li>\n');
+        } else {
+          if (key == 'source') {
+            // Shader sources are mime64 encoded.
+            value = atob(value);
+          }
+          if (endsWith(key, '_glid') && value != 0) {
+            key = key.substring(0, key.length - 5);
+            add_link = true;
+          }
+          li = $('<li>' + toCamelCase(key) + ': ' + value + '</li>\n');
+          if (add_link) {
+            // Add a pseudo-link to the referenced resource.
+            var span = $('<span class="gl_link">(Go to resource)</span>\n');
+            span.click(function() {
+              if (endsWith(key, '_shader'))
+                key = 'shader';
+              // Get the correct main tab and activate it.
+              var tab_name = key + 's';
+              $('#tabs').tabs('option', 'active', tab_index_map[tab_name]);
+              // Select the option with the right object id.
+              $('#' + tab_name + '_select').val(value);
+              $('#' + tab_name + '_select').change();
+            });
+            li.append(span);
+          }
         }
         ul.append(li);
       }

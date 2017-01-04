@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -138,14 +138,14 @@ void TextureManager::SetUnitRange(const math::Range1i& units) {
 
   // Initialize the links and data pointers.
   items_[front_].prev = kEnd;
-  items_[front_].texture = NULL;
+  items_[front_].texture = nullptr;
   items_[front_].next = (front_ < back_) ? front_ + 1 : kEnd;
   items_[back_].prev = (front_ < back_) ? back_ - 1 : kEnd;
-  items_[back_].texture = NULL;
+  items_[back_].texture = nullptr;
   items_[back_].next = kEnd;
   for (int i = front_ + 1; i < back_; ++i) {
     items_[i].prev = i - 1;
-    items_[i].texture = NULL;
+    items_[i].texture = nullptr;
     items_[i].next = i + 1;
   }
 }

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -99,7 +99,7 @@ TEST(Array2Test, SetAndGet) {
     EXPECT_TRUE(log_checker.HasMessage("ERROR", "Bad indices"));
     EXPECT_EQ(base::InvalidReference<int>(), a.Get(0U, 13U));
     EXPECT_TRUE(log_checker.HasMessage("ERROR", "Bad indices"));
-    EXPECT_TRUE(a.GetMutable(0U, 13U) == NULL);
+    EXPECT_TRUE(a.GetMutable(0U, 13U) == nullptr);
     EXPECT_TRUE(log_checker.HasMessage("ERROR", "Bad indices"));
   }
   EXPECT_FALSE(log_checker.HasAnyMessages());
@@ -163,9 +163,9 @@ TEST(Array2Test, StructData) {
   EXPECT_EQ(uninitialized, *a.GetMutable(3, 2));
   EXPECT_EQ(uninitialized, *a.GetMutable(3, 3));
   // Invalid indices.
-  EXPECT_TRUE(a.GetMutable(4, 0) == NULL);
+  EXPECT_TRUE(a.GetMutable(4, 0) == nullptr);
   EXPECT_TRUE(log_checker.HasMessage("ERROR", "Bad indices"));
-  EXPECT_TRUE(a.GetMutable(0, 4) == NULL);
+  EXPECT_TRUE(a.GetMutable(0, 4) == nullptr);
   EXPECT_TRUE(log_checker.HasMessage("ERROR", "Bad indices"));
 
   // Clear the array.

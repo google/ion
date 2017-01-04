@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -80,6 +80,20 @@
         'particles_assets.iad',
       ],
     },  # target: particles_assets
+
+    {
+      'target_name': 'physics_assets',
+      'type': 'static_library',
+      'includes': [
+        '../dev/zipasset_generator.gypi',
+      ],
+      'dependencies': [
+        '<(ion_dir)/port/port.gyp:ionport',
+      ],
+      'sources': [
+        'physics_assets.iad',
+      ],
+    },  # target: physics_assets
 
     {
       'target_name': 'gearsdemo_assets',
@@ -200,7 +214,37 @@
     },
 
     {
+      'target_name': 'physics',
+      'defines': [
+        'ION_DEMO_CORE_PROFILE=1',
+      ],
+      'includes': [ 'demobase.gypi', ],
+      'variables': {
+        'demo_class_name': 'IonPhysicsDemo'
+      },
+      'sources': [
+        'physics.cc',
+      ],
+      'dependencies': [
+        ':physics_assets',
+        '<(ion_dir)/external/freetype2.gyp:ionfreetype2',
+      ],
+    },
+    {
+      'variables': {
+        'make_this_target_into_an_app_param': 'physics',
+        'apk_class_name_param': 'IonPhysicsDemo',
+      },
+      'includes': [
+        'demo_apk_variables.gypi',
+      ],
+    },
+
+    {
       'target_name': 'gearsdemo',
+      'defines': [
+        'ION_DEMO_CORE_PROFILE=1',
+      ],
       'includes': [ 'demobase.gypi', ],
       'variables': {
         'demo_class_name': 'IonGearsDemo'

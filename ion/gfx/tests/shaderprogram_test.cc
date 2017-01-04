@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ class ShaderProgramTest : public ::testing::Test {
     resource_.reset(new MockShaderProgramResource);
     vertex_.Reset(new Shader());
     fragment_.Reset(new Shader());
+    geometry_.Reset(new Shader());
     program_.Reset(new ShaderProgram(registry_));
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());
     program_->SetResource(0U, 0, resource_.get());
@@ -47,12 +48,13 @@ class ShaderProgramTest : public ::testing::Test {
   }
 
   // This is to ensure that the resource holder goes away before the resource.
-  void TearDown() override { program_.Reset(NULL); }
+  void TearDown() override { program_.Reset(nullptr); }
 
   ShaderInputRegistryPtr registry_;
   std::unique_ptr<MockShaderProgramResource> resource_;
   ShaderPtr vertex_;
   ShaderPtr fragment_;
+  ShaderPtr geometry_;
   ShaderProgramPtr program_;
 };
 
@@ -71,6 +73,17 @@ TEST_F(ShaderProgramTest, SetLabel) {
   EXPECT_TRUE(resource_->TestOnlyModifiedBit(ResourceHolder::kLabelChanged));
 }
 
+TEST_F(ShaderProgramTest, SetCapturedVaryings) {
+  // Check that there are no captured varyings.
+  EXPECT_TRUE(program_->GetCapturedVaryings().empty());
+
+  // Check C++11 initializer notation can be used.
+  program_->SetCapturedVaryings({"foo", "bar"});
+
+  // Check that we can get back a varying string.
+  EXPECT_EQ("foo", program_->GetCapturedVaryings()[0]);
+}
+
 TEST_F(ShaderProgramTest, SetDocString) {
   // Check that the initial doc is empty.
   EXPECT_TRUE(program_->GetDocString().empty());
@@ -83,7 +96,7 @@ TEST_F(ShaderProgramTest, SetDocString) {
 
 TEST_F(ShaderProgramTest, SetVertexShader) {
   // Check that the initial shader is NULL.
-  EXPECT_TRUE(program_->GetVertexShader().Get() == NULL);
+  EXPECT_FALSE(program_->GetVertexShader());
 
   EXPECT_FALSE(resource_->AnyModifiedBitsSet());
   program_->SetVertexShader(vertex_);
@@ -120,7 +133,7 @@ TEST_F(ShaderProgramTest, SetVertexShader) {
 
 TEST_F(ShaderProgramTest, SetFragmentShader) {
   // Check that the initial shader is NULL.
-  EXPECT_TRUE(program_->GetFragmentShader().Get() == NULL);
+  EXPECT_FALSE(program_->GetFragmentShader());
 
   EXPECT_FALSE(resource_->AnyModifiedBitsSet());
   program_->SetFragmentShader(fragment_);
@@ -146,6 +159,43 @@ TEST_F(ShaderProgramTest, SetFragmentShader) {
 
   // Check that the shader is set.
   EXPECT_EQ(new_shader.Get(), program_->GetFragmentShader().Get());
+  // Check that this did not change a bit.
+  EXPECT_FALSE(resource_->AnyModifiedBitsSet());
+
+  // The program should remove itself as a receiver when it goes away.
+  EXPECT_EQ(1U, new_shader->GetReceiverCount());
+  program_.Reset();
+  EXPECT_EQ(0U, new_shader->GetReceiverCount());
+}
+
+TEST_F(ShaderProgramTest, SetGeometryShader) {
+  // Check that the initial shader is NULL.
+  EXPECT_FALSE(program_->GetGeometryShader());
+
+  EXPECT_FALSE(resource_->AnyModifiedBitsSet());
+  program_->SetGeometryShader(geometry_);
+  // Check that the proper bit is set.
+  EXPECT_TRUE(resource_->TestOnlyModifiedBit(
+      ShaderProgram::kGeometryShaderChanged));
+  resource_->ResetModifiedBit(ShaderProgram::kGeometryShaderChanged);
+  EXPECT_FALSE(resource_->AnyModifiedBitsSet());
+
+  // Modifying the shader should also trigger a Notifier change.
+  geometry_->SetSource("new source");
+  EXPECT_TRUE(resource_->TestOnlyModifiedBit(
+      ShaderProgram::kGeometryShaderChanged));
+  resource_->ResetModifiedBit(ShaderProgram::kGeometryShaderChanged);
+  ShaderPtr new_shader(new Shader());
+  EXPECT_EQ(1U, geometry_->GetReceiverCount());
+  program_->SetGeometryShader(new_shader);
+  EXPECT_EQ(0U, geometry_->GetReceiverCount());
+  EXPECT_TRUE(resource_->TestOnlyModifiedBit(
+      ShaderProgram::kGeometryShaderChanged));
+  resource_->ResetModifiedBit(ShaderProgram::kGeometryShaderChanged);
+  EXPECT_FALSE(resource_->AnyModifiedBitsSet());
+
+  // Check that the shader is set.
+  EXPECT_EQ(new_shader.Get(), program_->GetGeometryShader().Get());
   // Check that this did not change a bit.
   EXPECT_FALSE(resource_->AnyModifiedBitsSet());
 

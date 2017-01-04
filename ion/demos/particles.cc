@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -75,7 +75,7 @@ static ion::gfx::NodePtr s_plane;
 static ion::gfx::TexturePtr s_plane_texture;
 static ion::gfx::NodePtr s_flying_particles;
 static ion::gfx::NodePtr s_hud;
-static ion::port::Timer* s_timer = NULL;
+static ion::port::Timer* s_timer = nullptr;
 static ion::gfx::BufferObjectPtr s_particles_buffer_object;
 static const int kHudWidth  = 128;
 static const int kHudHeight = 128;
@@ -214,7 +214,7 @@ static ion::gfx::BufferObjectPtr BuildParticlesBufferObject(
     particles[i].offset_length.Set(start_offset, inverse_length);
   }
 
-  if (s_particles_buffer_object.Get() == NULL)
+  if (s_particles_buffer_object.Get() == nullptr)
     s_particles_buffer_object.Reset(new ion::gfx::BufferObject);
   // This will destroy the old data.
   ion::base::DataContainerPtr container =
@@ -333,7 +333,7 @@ static const ion::gfx::NodePtr BuildParticles(
               new ion::gfxutils::ZipAssetComposer(fragment_name, false)));
   node->SetShaderProgram(shader);
 
-  // reg now points to NULL since the shader owns it.
+  // reg now points to nullptr since the shader owns it.
   ion::gfx::ShapePtr shape = BuildParticlesShape();
   shape->SetAttributeArray(attribute_array);
 
@@ -474,7 +474,7 @@ IonParticlesDemo::IonParticlesDemo(int width, int height)
 
   ion::gfx::ImagePtr image(new ion::gfx::Image);
   image->Set(ion::gfx::Image::kRgba8888, kFboWidth, kFboHeight,
-             ion::base::DataContainerPtr(NULL));
+             ion::base::DataContainerPtr(nullptr));
   s_plane_texture = new ion::gfx::Texture();
   ion::gfx::SamplerPtr sampler(new ion::gfx::Sampler);
   s_plane_texture->SetSampler(sampler);
@@ -514,13 +514,13 @@ IonParticlesDemo::IonParticlesDemo(int width, int height)
 }
 
 IonParticlesDemo::~IonParticlesDemo() {
-  s_fbo.Reset(NULL);
-  s_plane.Reset(NULL);
-  s_plane_texture.Reset(NULL);
-  s_flying_particles.Reset(NULL);
-  s_hud.Reset(NULL);
+  s_fbo.Reset(nullptr);
+  s_plane.Reset(nullptr);
+  s_plane_texture.Reset(nullptr);
+  s_flying_particles.Reset(nullptr);
+  s_hud.Reset(nullptr);
   delete s_timer;
-  s_particles_buffer_object.Reset(NULL);
+  s_particles_buffer_object.Reset(nullptr);
 }
 
 void IonParticlesDemo::Resize(int width, int height) {

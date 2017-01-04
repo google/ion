@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -67,6 +67,9 @@
         'weakreferent_test.cc',
         'workerpool_test.cc',
         'zipassetmanager_test.cc',
+      ],
+      'cflags_cc': [
+        '-Wno-tautological-undefined-compare',  # invalid_test.cc
       ],
       'conditions': [
         # Threads don't exist in asmjs, so remove those tests.

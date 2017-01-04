@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -43,6 +43,8 @@
         'fontmacros.h',
         'fontmanager.cc',
         'fontmanager.h',
+        'icuutils.cc',
+        'icuutils.h',
         'layout.cc',
         'layout.h',
         'outlinebuilder.cc',
@@ -72,8 +74,16 @@
         }, {  # else
           'conditions': [
             ['use_icu', {
+              'include_dirs': [
+                '<(root_dir)/third_party/icu/icu4c/source/common', # For cmemory.h
+              ],
               'dependencies': [
                 '<(ion_dir)/external/iculx_hb.gyp:ioniculx_hb',
+              ],
+              'defines': [
+                'U_STATIC_IMPLEMENTATION',
+                'U_IMPORT=',
+                'U_EXPORT=',
               ],
             }],  # use_icu
           ],

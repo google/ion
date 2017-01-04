@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ TEST(Vector, VectorDefaultConstructorZeroInitializes) {
   // For a pointer type, zero-initialized means nullptr.  (Just to test
   // something other than a scalar type.)
   Vector<1, void*> v1p;
-  EXPECT_EQ(NULL, v1p[0]);
+  EXPECT_EQ(nullptr, v1p[0]);
 
   // Test a vector with several elements to ensure they're all zeroed.
   Vector4d v4d;
@@ -555,7 +555,9 @@ TEST(Vector, VectorUnaryAndBinaryMathOperators) {
   EXPECT_EQ(Vector4d(12.0, 16.5, 10.5, 21.0), 3.0 * v1);
   EXPECT_EQ(Vector4d(0.75, 1.0, 3.25, -2.0), v0 / 2.0);
 
+  EXPECT_EQ(Vector2d(4.0, 3.0), 12.0 / Vector2d(3.0, 4.0));
   EXPECT_EQ(Vector3d(6.0, 4.0, 3.0), 12.0 / Vector3d(2.0, 3.0, 4.0));
+  EXPECT_EQ(Vector4d(12.0, 6.0, 4.0, 3.0), 12.0 / Vector4d(1.0, 2.0, 3.0, 4.0));
 
   EXPECT_EQ(Vector4d(6.0, 11.0, 22.75, -28.0), v0 * v1);
   EXPECT_EQ(Vector4d(6.0, 11.0, 22.75, -28.0), v1 * v0);

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ namespace ion {
 namespace gfx {
 
 class GraphicsManager;
+class TracingStream;
 
 namespace testing {
 
@@ -43,6 +44,7 @@ namespace testing {
 // different platforms.
 class TraceVerifier {
  public:
+  using ArgSpec = std::vector<std::pair<int, std::string>>;
   // The constructor is passed a GraphicsManager instance that is used for
   // verification. It calls GraphicsManager::SetTracingStream() to send tracing
   // information to an internal string stream, which is used by the
@@ -56,11 +58,13 @@ class TraceVerifier {
   // Returns the number of times the passed call start occurs in the trace
   // stream.
   size_t GetCountOf(const std::string& start) const;
+  size_t GetCountOf(const ArgSpec& name_and_args) const;
 
   // Returns the index of the nth call in the trace stream beginning with
   // start, if it exists, otherwise returns base::kInvalidIndex. Note that
   // n == 0 returns the first index, n == 1 returns the second index, and so on.
   size_t GetNthIndexOf(size_t n, const std::string& start) const;
+  size_t GetNthIndexOf(size_t n, const ArgSpec& name_and_args) const;
 
   // Verifies that one or more OpenGL calls were made in arbitrary order, using
   // the trace strings from the GraphicsManager.  This assumes the expected
@@ -121,6 +125,7 @@ class TraceVerifier {
     explicit Call(const std::string& call);
     Call(const Call& other);
     Call& HasArg(size_t index, const std::string& arg_start);
+    std::string GetArg(size_t index) { return args_.at(index); }
     operator ::testing::AssertionResult() const { return *result_; }
    private:
     std::string call_;
@@ -137,10 +142,7 @@ class TraceVerifier {
   // whitespace from each call and ignoring markers that start with - or >.
   const std::vector<std::string> GetCalls() const;
 
-  GraphicsManager* graphics_manager_;
-
-  // Holds the GraphicsManager's previous tracing stream, so it can be restored.
-  std::ostream* prev_stream_;
+  TracingStream& tracing_stream_;
 
   // String stream used to save the tracing results.
   std::ostringstream trace_stream_;

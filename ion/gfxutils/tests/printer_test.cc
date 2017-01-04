@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -132,7 +132,6 @@ static const char kTestSceneText[] =
     "    Depth Function: DepthNotEqual\n"
     "    Depth Range: R[0.2, 0.6]\n"
     "    Depth Write Mask: false\n"
-    "    Draw Buffer: BackLeft\n"
     "    Generate Mipmap Hint: HintNicest\n"
     "    Line Width: 0.4\n"
     "    Polygon Offset: Factor=0.5, Units=2\n"
@@ -1267,7 +1266,6 @@ static const StateTablePtr CreateFullStateTable() {
   st->SetDepthFunction(StateTable::kDepthNotEqual);
   st->SetDepthRange(Range1f(0.2f, 0.6f));
   st->SetDepthWriteMask(false);
-  st->SetDrawBuffer(StateTable::kBackLeft);
   st->SetHint(StateTable::kGenerateMipmapHint, StateTable::kHintNicest);
   st->SetLineWidth(0.4f);
   st->SetPolygonOffset(0.5f, 2.0f);
@@ -1624,7 +1622,7 @@ static const NodePtr BuildTestScene() {
     IndexBufferPtr index_buffer(new IndexBuffer);
     index_buffer->AddSpec(BufferObject::kByte, 0, 0);
     index_buffer->SetData(base::DataContainer::Create<int8>(
-                              NULL, kNullFunction, false,
+                              nullptr, kNullFunction, false,
                               index_buffer->GetAllocator()),
                           1U, 1U, BufferObject::kStaticDraw);
     node_with_shapes->GetShapes().back()->SetIndexBuffer(index_buffer);

@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,6 +39,8 @@
         'allocator.h',
         'argcount.h',
         'array2.h',
+        'bufferbuilder.cc',
+        'bufferbuilder.h',
         'circularbuffer.h',
         'calllist.cc',
         'calllist.h',
@@ -56,8 +58,6 @@
         'lockguards.h',
         'logchecker.cc',
         'logchecker.h',
-        'logging.cc',
-        'logging.h',
         'memoryzipstream.cc',
         'memoryzipstream.h',
         'notifier.cc',
@@ -78,8 +78,8 @@
         'spinmutex.cc',
         'spinmutex.h',
         'static_assert.h',
-        'staticsafedeclare.cc',
-        'staticsafedeclare.h',
+        'stringtable.cc',
+        'stringtable.h',
         'stringutils.cc',
         'stringutils.h',
         'threadspawner.cc',
@@ -98,6 +98,7 @@
         'zipassetmanagermacros.h',
       ],
       'dependencies': [
+        ':ionlogging',
         '<(ion_dir)/port/port.gyp:ionport',
         '<(ion_dir)/external/external.gyp:ionb64',
         '<(ion_dir)/external/external.gyp:ionzlib',
@@ -109,6 +110,7 @@
       'type': 'static_library',
       'sources': [
         'tests/badwritecheckingallocator.h',
+        'tests/logging_test_util.h',
         'tests/multilinestringsequal.h',
         'tests/testallocator.cc',
         'tests/testallocator.h',
@@ -117,5 +119,19 @@
         ':ionbase',
       ],
     },  # target: ionbase_for_tests
+
+    {
+      'target_name': 'ionlogging',
+      'type': 'static_library',
+      'sources': [
+        'logging.cc',
+        'logging.h',
+        'staticsafedeclare.cc',
+        'staticsafedeclare.h',
+      ],
+      'dependencies': [
+        '<(ion_dir)/port/port.gyp:ionport',
+      ],
+    },  # target: ionlogging
   ],
 }

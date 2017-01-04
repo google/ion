@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -201,7 +201,7 @@ Attribute* AttributeArray::GetMutableAttribute(const size_t attribute_index) {
     else
       return GetMutableSimpleAttribute(attr_index.index);
   } else {
-    return NULL;
+    return nullptr;
   }
 }
 
@@ -210,7 +210,7 @@ AttributeArray::Index* AttributeArray::FindIndexOfAttribute(
   const Index target(type, index);
   base::AllocVector<Index>::iterator it =
       std::find(attribute_indices_.begin(), attribute_indices_.end(), target);
-  return it == attribute_indices_.end() ? NULL : &(*it);
+  return it == attribute_indices_.end() ? nullptr : &(*it);
 }
 
 void AttributeArray::RemoveAttribute(const Index& attr_index) {

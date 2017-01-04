@@ -50,7 +50,8 @@ zlib_filefunc_def* pzlib_filefunc_def;
 {
   unz64_s us;
   unz64_s* s;
-  uLong central_pos, uL;
+  ZPOS64_T central_pos;
+  uLong uL;
 
   uLong number_disk;         /* number of the current dist, used for
                                 spaning ZIP, unsupported, always 0*/
@@ -92,9 +93,10 @@ zlib_filefunc_def* pzlib_filefunc_def;
     err = UNZ_ERRNO;
 
   /* total number of entries in the central dir on this disk */
-  if (unz64local_getShort(&us.z_filefunc, us.filestream, &us.gi.number_entry) !=
+  if (unz64local_getShort(&us.z_filefunc, us.filestream, &uL) !=
       UNZ_OK)
     err = UNZ_ERRNO;
+  us.gi.number_entry = uL;
 
   /* total number of entries in the central dir */
   if (unz64local_getShort(&us.z_filefunc, us.filestream, &number_entry_CD) !=
@@ -106,15 +108,17 @@ zlib_filefunc_def* pzlib_filefunc_def;
     err = UNZ_BADZIPFILE;
 
   /* size of the central directory */
-  if (unz64local_getLong(&us.z_filefunc, us.filestream, &us.size_central_dir) !=
+  if (unz64local_getLong(&us.z_filefunc, us.filestream, &uL) !=
       UNZ_OK)
     err = UNZ_ERRNO;
+  us.size_central_dir = uL;
 
   /* offset of start of central directory with respect to the
         starting disk number */
-  if (unz64local_getLong(&us.z_filefunc, us.filestream,
-                         &us.offset_central_dir) != UNZ_OK)
+  if (unz64local_getLong(&us.z_filefunc, us.filestream, &uL) !=
+      UNZ_OK)
     err = UNZ_ERRNO;
+  us.offset_central_dir = uL;
 
   /* zipfile comment length */
   if (unz64local_getShort(&us.z_filefunc, us.filestream, &us.gi.size_comment) !=

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -178,4 +178,107 @@ TEST(AngleUtils, AngleBetween) {
               AngleBetween(Vector2f::AxisX(),
                            Vector2f::AxisY()).Degrees(),
               std::numeric_limits<float>::epsilon() * 100);
+}
+
+TEST(AngleUtils, WrapTwoPi) {
+  using ion::math::WrapTwoPi;
+  using ion::math::Angled;
+  using ion::math::Anglef;
+
+  // Test double values.
+  EXPECT_NEAR(0.0, WrapTwoPi(Angled::FromRadians(2 * M_PI)).Radians(), 1e-10);
+  EXPECT_NEAR(M_PI, WrapTwoPi(Angled::FromRadians(3 * M_PI)).Radians(), 1e-10);
+  EXPECT_NEAR(M_PI, WrapTwoPi(Angled::FromRadians(-1 * M_PI)).Radians(), 1e-10);
+  EXPECT_NEAR(0.0, WrapTwoPi(Angled::FromRadians(-2 * M_PI)).Radians(), 1e-10);
+  EXPECT_NEAR(1.2373 * M_PI,
+              WrapTwoPi(Angled::FromRadians(13.2373 * M_PI)).Radians(),
+              1e-10);
+  EXPECT_NEAR(1.877 * M_PI,
+              WrapTwoPi(Angled::FromRadians(-12.123 * M_PI)).Radians(),
+              1e-10);
+
+  // Test float values.
+  static const float kPif = static_cast<float>(M_PI);
+  EXPECT_NEAR(0.0f, WrapTwoPi(Anglef::FromRadians(2 * kPif)).Radians(), 1e-6);
+  EXPECT_NEAR(kPif, WrapTwoPi(Anglef::FromRadians(3 * kPif)).Radians(), 1e-6);
+  EXPECT_NEAR(kPif, WrapTwoPi(Anglef::FromRadians(-1 * kPif)).Radians(), 1e-6);
+  EXPECT_NEAR(0.0f, WrapTwoPi(Anglef::FromRadians(-2 * kPif)).Radians(), 1e-6);
+  // Only 7 decimal digits of precision available for IEEE-754 floats, 5 after
+  // decimal point for numbers greater than 10.
+  EXPECT_NEAR(1.2373f * kPif,
+              WrapTwoPi(Angled::FromRadians(13.2373f * kPif)).Radians(),
+              1e-5);
+  EXPECT_NEAR(1.877f * kPif,
+              WrapTwoPi(Angled::FromRadians(-12.123f * kPif)).Radians(),
+              1e-5);
+}
+
+TEST(AngleUtils, AngleLerp) {
+  using ion::math::AngleLerp;
+  using ion::math::Angled;
+  using ion::math::Anglef;
+
+  // Test double values.
+  EXPECT_NEAR(1.5 * M_PI,
+              AngleLerp(Angled::FromRadians(6 * M_PI),
+                        Angled::FromRadians(3 * M_PI), -0.5).Radians(),
+              1e-10);
+  EXPECT_NEAR(0.0,
+              AngleLerp(Angled::FromRadians(6 * M_PI),
+                        Angled::FromRadians(3 * M_PI), 0.0).Radians(),
+              1e-10);
+  EXPECT_NEAR(0.5 * M_PI,
+              AngleLerp(Angled::FromRadians(6 * M_PI),
+                        Angled::FromRadians(3 * M_PI), 0.5).Radians(),
+              1e-10);
+  EXPECT_NEAR(M_PI,
+              AngleLerp(Angled::FromRadians(6 * M_PI),
+                        Angled::FromRadians(3 * M_PI), 1.0).Radians(),
+              1e-10);
+  EXPECT_NEAR(1.5 * M_PI,
+              AngleLerp(Angled::FromRadians(6 * M_PI),
+                        Angled::FromRadians(3 * M_PI), 1.5).Radians(),
+              1e-10);
+  EXPECT_NEAR(1.95 * M_PI,
+              AngleLerp(Angled::FromRadians(0.1 * M_PI),
+                        Angled::FromRadians(1.9 * M_PI), 0.75).Radians(),
+              1e-10);
+  EXPECT_NEAR(1.85842 * M_PI,
+              AngleLerp(Angled::FromRadians(-9.4325 * M_PI),
+                        Angled::FromRadians(-14.1789 * M_PI), 0.95).Radians(),
+              1e-10);
+
+
+  // Test float values.
+  static const float kPif = static_cast<float>(M_PI);
+  EXPECT_NEAR(1.5f * kPif,
+              AngleLerp(Angled::FromRadians(6 * kPif),
+                        Angled::FromRadians(3 * kPif), -0.5f).Radians(),
+              1e-6);
+  EXPECT_NEAR(0.0f,
+              AngleLerp(Angled::FromRadians(6 * kPif),
+                        Angled::FromRadians(3 * kPif), 0.0f).Radians(),
+              1e-6);
+  EXPECT_NEAR(0.5f * kPif,
+              AngleLerp(Angled::FromRadians(6 * kPif),
+                        Angled::FromRadians(3 * kPif), 0.5f).Radians(),
+              1e-6);
+  EXPECT_NEAR(kPif,
+              AngleLerp(Angled::FromRadians(6 * kPif),
+                        Angled::FromRadians(3 * kPif), 1.0f).Radians(),
+              1e-6);
+  EXPECT_NEAR(1.5f * kPif,
+              AngleLerp(Angled::FromRadians(6 * kPif),
+                        Angled::FromRadians(3 * kPif), 1.5f).Radians(),
+              1e-6);
+  EXPECT_NEAR(1.95f * kPif,
+              AngleLerp(Angled::FromRadians(0.1f * kPif),
+                        Angled::FromRadians(1.9f * kPif), 0.75f).Radians(),
+              1e-6);
+  // Only 7 decimal digits of precision available for IEEE-754 floats, 5 after
+  // decimal point for numbers greater than 10.
+  EXPECT_NEAR(1.85842f * M_PI,
+              AngleLerp(Angled::FromRadians(-9.4325f * kPif),
+                        Angled::FromRadians(-14.1789f * kPif), 0.95f).Radians(),
+              1e-5);
 }

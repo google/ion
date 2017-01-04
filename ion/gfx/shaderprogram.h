@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,21 +26,23 @@ namespace ion {
 namespace gfx {
 
 class ShaderInputRegistry;
-typedef base::ReferentPtr<ShaderInputRegistry>::Type ShaderInputRegistryPtr;
+using ShaderInputRegistryPtr = base::SharedPtr<ShaderInputRegistry>;
 
 // Convenience typedefs for shared pointers to a ShaderProgram.
 class ShaderProgram;
-typedef base::ReferentPtr<ShaderProgram>::Type ShaderProgramPtr;
+using ShaderProgramPtr = base::SharedPtr<ShaderProgram>;
 typedef base::WeakReferentPtr<ShaderProgram> ShaderProgramWeakPtr;
 
 // A ShaderProgram represents an OpenGL shader program that can be applied to
-// shapes. It contains vertex and fragments shaders.
+// shapes. It contains vertex, fragment, and geometry shaders.
 class ION_API ShaderProgram : public ShaderBase {
  public:
   // Changes that affect the resource.
   enum Changes {
     kVertexShaderChanged = kNumBaseChanges,
+    kGeometryShaderChanged,
     kFragmentShaderChanged,
+    kCapturedVaryingsChanged,
     kNumChanges
   };
 
@@ -62,6 +64,18 @@ class ION_API ShaderProgram : public ShaderBase {
     return vertex_shader_.Get();
   }
 
+  // Sets/returns the geometry shader stage.
+  void SetGeometryShader(const ShaderPtr& shader) {
+    if (Shader* old_shader = geometry_shader_.Get().Get())
+      old_shader->RemoveReceiver(this);
+    geometry_shader_.Set(shader);
+    if (shader.Get())
+      shader->AddReceiver(this);
+  }
+  const ShaderPtr& GetGeometryShader() const {
+    return geometry_shader_.Get();
+  }
+
   // Sets/returns the fragment shader stage.
   void SetFragmentShader(const ShaderPtr& shader) {
     if (Shader* old_shader = fragment_shader_.Get().Get())
@@ -72,6 +86,15 @@ class ION_API ShaderProgram : public ShaderBase {
   }
   const ShaderPtr& GetFragmentShader() const {
     return fragment_shader_.Get();
+  }
+
+  // Sets/returns the names of vertex shader outputs and geometry shader
+  // outputs that should be captured when transform feedback is active.
+  void SetCapturedVaryings(const std::vector<std::string>& varyings) {
+    varyings_.Set(base::AllocVector<std::string>(*this, varyings));
+  }
+  const base::AllocVector<std::string>& GetCapturedVaryings() const {
+    return varyings_.Get();
   }
 
   // Sets/returns whether this shader program should have per-thread state.
@@ -91,16 +114,23 @@ class ION_API ShaderProgram : public ShaderBase {
   // Convenience function that builds and returns a new ShaderProgram instance
   // that uses the given ShaderInputRegistry and that points to new vertex and
   // fragment Shader instances whose sources are specified as strings. The
-  // ShaderProgram's label is set to id_string, the vertex Shader's label is
-  // set to id_string + " vertex shader", and the fragment Shader's label is
-  // set to id_string + " fragment shader". The allocator is used for the
-  // ShaderProgram and both Shaders.
-  static const ShaderProgramPtr BuildFromStrings(
-    const std::string& id_string,
-    const ShaderInputRegistryPtr& registry_ptr,
-    const std::string& vertex_shader_string,
-    const std::string& fragment_shader_string,
-    const base::AllocatorPtr& allocator);
+  // ShaderProgram's label is set to id_string and the Shader labels are set to
+  // id_string + (type of shader) + " shader". The allocator is used for the
+  // ShaderProgram and all Shaders.
+  static ShaderProgramPtr BuildFromStrings(
+      const std::string& id_string,
+      const ShaderInputRegistryPtr& registry_ptr,
+      const std::string& vertex_shader_string,
+      const std::string& geometry_shader_string,
+      const std::string& fragment_shader_string,
+      const base::AllocatorPtr& allocator);
+  // This variant omits the geometry shader.
+  static ShaderProgramPtr BuildFromStrings(
+      const std::string& id_string,
+      const ShaderInputRegistryPtr& registry_ptr,
+      const std::string& vertex_shader_string,
+      const std::string& fragment_shader_string,
+      const base::AllocatorPtr& allocator);
 
  protected:
   // The destructor is protected because all base::Referent classes must have
@@ -112,7 +142,9 @@ class ION_API ShaderProgram : public ShaderBase {
   void OnNotify(const base::Notifier* notifier) override;
 
   Field<ShaderPtr> vertex_shader_;
+  Field<ShaderPtr> geometry_shader_;
   Field<ShaderPtr> fragment_shader_;
+  Field<base::AllocVector<std::string>> varyings_;
   ShaderInputRegistryPtr registry_;
   // True if each thread should have its own copy of this program object.
   bool concurrent_;

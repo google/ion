@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -70,8 +70,7 @@ static void ClearBuffers(const StateTable& st, StateTable* save_state,
 }
 
 // Makes GraphicsManager calls to update capability settings that differ
-// between two StateTable instances, but only for capabilities that are set in
-// state_to_test.
+// between two StateTable instances.
 static void UpdateAndSetCapability(StateTable::Capability cap,
                                    const StateTable& new_state,
                                    StateTable* save_state,
@@ -221,15 +220,6 @@ static void UpdateDepthWriteMask(
   }
 }
 
-static void UpdateDrawBuffer(const StateTable& st0, const StateTable& st1,
-                             GraphicsManager* gm) {
-  const StateTable::DrawBuffer buf = st1.GetDrawBuffer();
-  if (gm->IsFunctionGroupAvailable(GraphicsManager::kChooseBuffer) &&
-      (st1.AreSettingsEnforced() || buf != st0.GetDrawBuffer())) {
-    gm->DrawBuffer(base::EnumHelper::GetConstant(buf));
-  }
-}
-
 static void UpdateHints(
     const StateTable& st0, const StateTable& st1, GraphicsManager* gm) {
   const StateTable::HintMode mipmap_hint =
@@ -245,6 +235,15 @@ static void UpdateLineWidth(
   const float width = st1.GetLineWidth();
   if (st1.AreSettingsEnforced() || width != st0.GetLineWidth())
     gm->LineWidth(width);
+}
+
+static void UpdateMinSampleShading(
+    const StateTable& st0, const StateTable& st1, GraphicsManager* gm) {
+  if (gm->IsFeatureAvailable(GraphicsManager::kSampleShading)) {
+    const float fraction = st1.GetMinSampleShading();
+    if (st1.AreSettingsEnforced() || fraction != st0.GetMinSampleShading())
+      gm->MinSampleShading(fraction);
+  }
 }
 
 static void UpdatePolygonOffset(
@@ -474,8 +473,6 @@ static void CopyValues(GraphicsManager* gm, StateTable* st) {
     st->SetDepthRange(math::Range1f(range[0], range[1]));
   }
   st->SetDepthWriteMask(GetBool(gm, GL_DEPTH_WRITEMASK));
-  if (gm->IsFunctionGroupAvailable(GraphicsManager::kChooseBuffer))
-    st->SetDrawBuffer(ION_GET_ENUM(DrawBuffer, GL_DRAW_BUFFER));
   st->SetHint(StateTable::kGenerateMipmapHint,
               ION_GET_ENUM(HintMode, GL_GENERATE_MIPMAP_HINT));
   st->SetLineWidth(GetFloat(gm, GL_LINE_WIDTH));
@@ -551,9 +548,6 @@ static void CopySetValues(GraphicsManager* gm, StateTable* st) {
   }
   if (st->IsValueSet(StateTable::kDepthWriteMaskValue))
     st->SetDepthWriteMask(GetBool(gm, GL_DEPTH_WRITEMASK));
-  if (st->IsValueSet(StateTable::kDrawBufferValue) &&
-      gm->IsFunctionGroupAvailable(GraphicsManager::kChooseBuffer))
-    st->SetDrawBuffer(ION_GET_ENUM(DrawBuffer, GL_DRAW_BUFFER));
   if (st->IsValueSet(StateTable::kLineWidthValue))
     st->SetLineWidth(GetFloat(gm, GL_LINE_WIDTH));
   if (st->IsValueSet(StateTable::kPolygonOffsetValue))
@@ -635,9 +629,9 @@ static void ResetValues(const StateTable& default_st, StateTable* st) {
   ION_RESET1(kDepthFunctionValue, GetDepthFunction());
   ION_RESET1(kDepthRangeValue, GetDepthRange());
   ION_RESET1(kDepthWriteMaskValue, GetDepthWriteMask());
-  ION_RESET1(kDrawBufferValue, GetDrawBuffer());
   ION_RESET1(kHintsValue, GetHint(StateTable::kGenerateMipmapHint));
   ION_RESET1(kLineWidthValue, GetLineWidth());
+  ION_RESET1(kMinSampleShadingValue, GetMinSampleShading());
   ION_RESET2(kPolygonOffsetValue,
              GetPolygonOffsetFactor(), GetPolygonOffsetUnits());
   ION_RESET2(kSampleCoverageValue,
@@ -708,9 +702,11 @@ void ClearFromStateTable(const StateTable& new_state,
                          GraphicsManager* gm) {
   UpdateAndSetCapability(StateTable::kDither, new_state, save_state, gm);
   UpdateAndSetCapability(StateTable::kScissorTest, new_state, save_state, gm);
+  UpdateAndSetCapability(StateTable::kRasterizerDiscard, new_state, save_state,
+                         gm);
   if (new_state.GetSetValueCount()) {
-    // Write masks, the scissor box, and dithering affect Clear()ing. Dithering
-    // and the scissor test are handled above.
+    // Write masks, the scissor box, rasterizer discard, and dithering affect
+    // Clear(). Everything but the write masks are handled above.
     ION_UPDATE_CLEAR_VALUE(kScissorBoxValue, UpdateScissorBox);
     // Only send the write mask values if we are actually going to do a clear.
     // Otherwise, they will be sent via UpdateFromStateTable before drawing
@@ -755,10 +751,10 @@ void UpdateFromStateTable(const StateTable& new_state,
     ION_UPDATE_VALUE(kDepthFunctionValue, UpdateDepthFunction);
     ION_UPDATE_VALUE(kDepthRangeValue, UpdateDepthRange);
     ION_UPDATE_CLEAR_VALUE(kDepthWriteMaskValue, UpdateDepthWriteMask);
-    ION_UPDATE_VALUE(kDrawBufferValue, UpdateDrawBuffer);
     ION_UPDATE_VALUE(kFrontFaceModeValue, UpdateFrontFaceMode);
     ION_UPDATE_VALUE(kHintsValue, UpdateHints);
     ION_UPDATE_VALUE(kLineWidthValue, UpdateLineWidth);
+    ION_UPDATE_VALUE(kMinSampleShadingValue, UpdateMinSampleShading);
     ION_UPDATE_VALUE(kPolygonOffsetValue, UpdatePolygonOffset);
     ION_UPDATE_VALUE(kSampleCoverageValue, UpdateSampleCoverage);
     ION_UPDATE_CLEAR_VALUE(kScissorBoxValue, UpdateScissorBox);

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -79,11 +79,11 @@ TEST(FileUtils, GetTemporaryFileModificationTimeMatchesSystemTime) {
   // Open the file, write to it, and close it.
   const std::string data("Some string\nto write\n");
   FILE* fp = OpenFile(path, "wb");
-  EXPECT_FALSE(fp == NULL);
+  EXPECT_FALSE(fp == nullptr);
   EXPECT_EQ(data.length(),
             fwrite(data.c_str(), sizeof(data[0]), data.length(), fp));
   fclose(fp);
-  fp = NULL;
+  fp = nullptr;
 
   // Get the file's modification time; it should be close to the system clock's
   // now.  Since this does a disk write, expect a generous 1 minute accuracy.
@@ -125,11 +125,11 @@ TEST(FileUtils, GetTemporaryFilenameModificationTimeOpenFileRemoveFile) {
 
   // Open the file, write to it, and close it.
   FILE* fp = OpenFile(path, "wb");
-  EXPECT_FALSE(fp == NULL);
+  EXPECT_FALSE(fp == nullptr);
   EXPECT_EQ(data.length(),
             fwrite(data.c_str(), sizeof(data[0]), data.length(), fp));
   fclose(fp);
-  fp = NULL;
+  fp = nullptr;
 
   // Get the file's modification time, it should be at or after the current
   // time.
@@ -139,7 +139,7 @@ TEST(FileUtils, GetTemporaryFilenameModificationTimeOpenFileRemoveFile) {
 
   // Open the file, read from it, and close it.
   fp = OpenFile(path, "rb");
-  EXPECT_FALSE(fp == NULL);
+  EXPECT_FALSE(fp == nullptr);
   std::string read_data;
   read_data.resize(data.length());
   EXPECT_EQ(read_data.length(),
@@ -165,7 +165,7 @@ TEST(FileUtils, NonAsciiFilename) {
   const std::string path = temp_path + alpha_beta_gamma;
 
   FILE* fp = ion::port::OpenFile(path, "wb");
-  EXPECT_FALSE(fp == NULL);
+  EXPECT_FALSE(fp == nullptr);
   fclose(fp);
   EXPECT_TRUE(ion::port::RemoveFile(path));
 
@@ -183,7 +183,7 @@ TEST(FileUtils, TestListDirectory) {
 
   std::string filename = GetTemporaryFilename();
   FILE* f = OpenFile(filename, "w");
-  ASSERT_TRUE(f != NULL);
+  ASSERT_TRUE(f != nullptr);
   ASSERT_EQ(fclose(f), 0);
 
   std::vector<std::string> files = ListDirectory(GetTemporaryDirectory());
@@ -208,7 +208,7 @@ TEST(FileUtils, TestReadDataFromFile) {
   EXPECT_EQ(data.length(),
             fwrite(data.c_str(), sizeof(data[0]), data.length(), fp));
   fclose(fp);
-  fp = NULL;
+  fp = nullptr;
 
   // Now read it back into a string.
   std::string output;
@@ -219,6 +219,117 @@ TEST(FileUtils, TestReadDataFromFile) {
   // Also try the failure case where the file isn't available.
   std::string output2;
   EXPECT_FALSE(ReadDataFromFile("blah", &output2));
+}
+
+TEST(FileUtils, TestReadDataFromFile_EmptyFile) {
+  using ion::port::OpenFile;
+  using ion::port::RemoveFile;
+  using ion::port::ReadDataFromFile;
+  using ion::port::GetTemporaryFilename;
+
+  // Create a temporary file that is empty.
+  const std::string path = GetTemporaryFilename();
+  FILE* fp = OpenFile(path, "wb");
+  fclose(fp);
+  fp = nullptr;
+
+  // Now read it back into a string.
+  std::string output;
+  EXPECT_TRUE(ReadDataFromFile(path, &output));
+  EXPECT_EQ("", output);
+  EXPECT_TRUE(RemoveFile(path));
+}
+
+TEST(FileUtils, TestFileExists) {
+  using ion::port::FileExists;
+  using ion::port::GetTemporaryDirectory;
+
+  // We expect temp directory to already exist.
+  const std::string temp_dir = GetTemporaryDirectory();
+  EXPECT_TRUE(FileExists(temp_dir));
+  EXPECT_FALSE(FileExists("this/path/is/unlikely/to/exist.anywhere"));
+}
+
+TEST(FileUtils, TestMakeDirectoryEmpty) {
+  EXPECT_FALSE(ion::port::MakeDirectory(""));
+}
+
+TEST(FileUtils, TestMakeDirectoryMaxPath) {
+  std::string path;
+#if defined(ION_PLATFORM_WINDOWS)
+  path.resize(MAX_PATH + 1);
+#else
+  path.resize(PATH_MAX + 1);
+#endif
+  EXPECT_FALSE(ion::port::MakeDirectory(path));
+}
+
+TEST(FileUtils, TestMakeDirectoryExists) {
+  using ion::port::GetTemporaryDirectory;
+  using ion::port::MakeDirectory;
+
+  // We expect temp directory to already exist.
+  EXPECT_TRUE(MakeDirectory(GetTemporaryDirectory()));
+}
+
+TEST(FileUtils, TestMakeDirectorySingleDirectory) {
+  using ion::port::FileExists;
+  using ion::port::GetTemporaryDirectory;
+  using ion::port::MakeDirectory;
+  using ion::port::RemoveEmptyDirectory;
+
+  const std::string dir_to_create = GetTemporaryDirectory() + "/createdirtest";
+  // Make sure it doesn't exist first.
+  RemoveEmptyDirectory(dir_to_create);
+
+  EXPECT_TRUE(MakeDirectory(dir_to_create));
+  EXPECT_TRUE(FileExists(dir_to_create));
+
+  // Cleanup.
+  EXPECT_TRUE(RemoveEmptyDirectory(dir_to_create));
+}
+
+TEST(FileUtils, TestMakeDirectoryMultipleDirectories) {
+  using ion::port::FileExists;
+  using ion::port::GetTemporaryDirectory;
+  using ion::port::MakeDirectory;
+  using ion::port::RemoveEmptyDirectory;
+
+  // Test 3 directories are created.
+  const std::string dir_to_create = GetTemporaryDirectory() + "/one/two/three";
+  // Make sure it doesn't exist first.
+  RemoveEmptyDirectory(dir_to_create);
+  RemoveEmptyDirectory(GetTemporaryDirectory() + "/one/two");
+  RemoveEmptyDirectory(GetTemporaryDirectory() + "/one");
+
+  EXPECT_TRUE(MakeDirectory(dir_to_create));
+  EXPECT_TRUE(FileExists(dir_to_create));
+
+  // Cleanup.
+  EXPECT_TRUE(RemoveEmptyDirectory(dir_to_create));
+  EXPECT_TRUE(RemoveEmptyDirectory(GetTemporaryDirectory() + "/one/two"));
+  EXPECT_TRUE(RemoveEmptyDirectory(GetTemporaryDirectory() + "/one"));
+}
+
+TEST(FileUtils, TestRemoveEmptyDirectory) {
+  using ion::port::FileExists;
+  using ion::port::GetTemporaryDirectory;
+  using ion::port::MakeDirectory;
+  using ion::port::RemoveEmptyDirectory;
+
+  const std::string parent_dir = GetTemporaryDirectory() + "/one";
+  const std::string dir = parent_dir + "/two";
+  EXPECT_TRUE(MakeDirectory(dir));
+
+  // Directory is not empty so expect false.
+  EXPECT_FALSE(RemoveEmptyDirectory(parent_dir));
+
+  EXPECT_TRUE(RemoveEmptyDirectory(dir));
+  EXPECT_FALSE(FileExists(dir));
+
+  // Now it's empty!
+  EXPECT_TRUE(RemoveEmptyDirectory(parent_dir));
+  EXPECT_FALSE(FileExists(parent_dir));
 }
 
 #endif  // !ION_PLATFORM_NACL

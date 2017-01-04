@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ limitations under the License.
 
 #define JNI_EXPORT extern "C" __attribute__((visibility("default")))
 
-static DemoBase* demo = NULL;
+static DemoBase* demo = nullptr;
 
 JNI_EXPORT void Java___jni_name___IonRenderer_nativeInit(
     JNIEnv* env, jobject thiz, jint w, jint h) {

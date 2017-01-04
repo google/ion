@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ limitations under the License.
 // If the target platform is android, use the ION_ATRACE_* macros to assist in
 // performing a systrace, otherwise define them as no-ops.
 
-#if defined(ION_PLATFORM_ANDROID)
+#if !ION_PRODUCTION && defined(ION_PLATFORM_ANDROID)
   #include "ion/port/android/trace.h"
 #else
   #define ION_ATRACE_CALL()

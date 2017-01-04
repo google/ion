@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -39,13 +39,13 @@ inline bool IsFinite(T x) {
 
 // Returns the absolute value of a number in a type-safe way.
 template <typename T>
-inline const T Abs(const T& val) {
+inline T Abs(const T& val) {
   return val >= static_cast<T>(0) ? val : -val;
 }
 
 // Squares a value.
 template <typename T>
-inline const T Square(const T& val) {
+inline T Square(const T& val) {
   return val * val;
 }
 
@@ -201,15 +201,21 @@ inline int64 Log2(int64 n) {
 // Clamps a value to lie between a minimum and maximum, inclusive. This is
 // supported for any type for which std::min() and std::max() are implemented.
 template <typename T>
-inline const T Clamp(const T& val, const T& min_val, const T& max_val) {
+inline T Clamp(const T& val, const T& min_val, const T& max_val) {
   return std::min(std::max(val, min_val), max_val);
 }
 
 // Linearly interpolates between two values. T must have multiplication and
 // addition operators defined. Performs extrapolation for t outside [0, 1].
-template<typename T, typename U>
-inline const U Lerp(const U& begin, const U& end, const T& t) {
+template <typename T, typename U>
+inline U Lerp(const U& begin, const U& end, const T& t) {
   return static_cast<U>(begin + t * (end - begin));
+}
+
+// Suppress implicit int-to-float warning. Assume users know what they're doing.
+inline int Lerp(int begin, int end, float t) {
+  return static_cast<int>(static_cast<float>(begin) +
+                          t * static_cast<float>(end - begin));
 }
 
 // Returns true if a value is a power of two.

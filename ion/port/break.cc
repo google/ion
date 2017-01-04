@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -62,7 +62,7 @@ bool IsDebuggerAttached() {
     const char *const kTracerPid = "TracerPid:\t";
     buf[len - 1] = '\0';
     const char *p = strstr(buf, kTracerPid);
-    if (p != NULL) {
+    if (p != nullptr) {
       rc = (strncmp(p + strlen(kTracerPid), "0\n", 2) != 0);
     }
   }
@@ -96,13 +96,8 @@ bool IsDebuggerAttached() {
 
   // Call sysctl.
   size = sizeof(info);
-  junk = sysctl(
-      mib,
-      static_cast<u_int>(sizeof(mib) / sizeof(*mib)),
-      &info,
-      &size,
-      NULL,
-      0);
+  junk = sysctl(mib, static_cast<u_int>(sizeof(mib) / sizeof(*mib)), &info,
+                &size, nullptr, 0);
   assert(junk == 0);
 
   // We're being debugged if the P_TRACED flag is set.

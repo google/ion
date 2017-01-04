@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -69,7 +69,7 @@ limitations under the License.
 // new_variable. If the swap fails then destroys new_variable.
 #define ION_SAFE_ASSIGN_STATIC_POINTER(                          \
     type, variable, new_variable, add_func, destroyer) \
-  type null = NULL;                                              \
+  type null = nullptr;                                           \
   if (variable.compare_exchange_strong(null, new_variable)) {    \
     add_func(#type, new_variable);                               \
   } else {                                                       \
@@ -212,10 +212,10 @@ class ION_API StaticDeleterDeleter : public Shareable {
   // Returns a pointer to the global instance.
   static StaticDeleterDeleter* GetInstance();
 
-  // Returns the deleter at the passed index. Returns NULL if the index is
+  // Returns the deleter at the passed index. Returns nullptr if the index is
   // invalid.
   const StaticDeleterBase* GetDeleterAt(size_t index) const {
-    return index < deleters_.size() ? deleters_[index] : NULL;
+    return index < deleters_.size() ? deleters_[index] : nullptr;
   }
 
   // Returns the number of deleters in this.

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ namespace gfx {
 class ShaderInputRegistry;
 
 // Convenience typedef for shared pointer to a ShaderInputRegistry.
-typedef base::ReferentPtr<ShaderInputRegistry>::Type ShaderInputRegistryPtr;
+using ShaderInputRegistryPtr = base::SharedPtr<ShaderInputRegistry>;
 
 // A ShaderInputRegistry is used to manage a collection of shader inputs
 // to a specific ShaderProgram (both uniforms and attributes). The registry
@@ -140,7 +140,7 @@ class ION_API ShaderInputRegistry : public ResourceHolder {
           doc_string(doc_string_in),
           index(0),
           registry_id(0),
-          registry(NULL),
+          registry(nullptr),
           combine_function(combine_function_in),
           generate_function(generate_function_in) {}
 
@@ -235,11 +235,11 @@ class ION_API ShaderInputRegistry : public ResourceHolder {
     if (it == spec_map_.end()) {
       // Neither this regisry nor its includes contains a spec with the right
       // name.
-      return NULL;
+      return nullptr;
     } else if (it->second.tag != T::GetTag()) {
       // A spec with the same name but different type already exists in this
       // registry.
-      return NULL;
+      return nullptr;
     } else {
       // This registry has a spec of the right type. Return it.
       return &GetSpecs<T>()[it->second.index];
@@ -264,7 +264,7 @@ class ION_API ShaderInputRegistry : public ResourceHolder {
     std::string name;
     ShaderInputType input;
     size_t index = 0, registry_id = 0, array_index = 0;
-    ShaderInputRegistry* registry = NULL;
+    ShaderInputRegistry* registry = nullptr;
     if (ParseShaderInputName(name_in, &name, &array_index)) {
       if (!Find<ShaderInputType>(name))
         Add<ShaderInputType>(Spec<ShaderInputType>(name, value_type));
@@ -286,7 +286,7 @@ class ION_API ShaderInputRegistry : public ResourceHolder {
     std::string name;
     ShaderInputType input;
     size_t index = 0, registry_id = 0, array_index = 0;
-    ShaderInputRegistry* registry = NULL;
+    ShaderInputRegistry* registry = nullptr;
     if (ParseShaderInputName(name_in, &name, &array_index) &&
         ValidateNameAndType<ShaderInputType>(name, value_type, 0U, &registry,
                                              &registry_id, &index))
@@ -311,7 +311,7 @@ class ION_API ShaderInputRegistry : public ResourceHolder {
         StoredType;
     Uniform input;
     size_t index = 0, registry_id = 0, array_index = 0;
-    ShaderInputRegistry* registry = NULL;
+    ShaderInputRegistry* registry = nullptr;
     UniformType value_type = Uniform::GetTypeByValue<StoredType>();
     std::string name;
     if (ParseShaderInputName(name_in, &name, &array_index)) {
@@ -332,7 +332,7 @@ class ION_API ShaderInputRegistry : public ResourceHolder {
         StoredType;
     Uniform input;
     size_t index = 0, registry_id = 0, array_index = 0;
-    ShaderInputRegistry* registry = NULL;
+    ShaderInputRegistry* registry = nullptr;
     UniformType value_type = Uniform::GetTypeByValue<StoredType>();
     std::string name;
     if (ParseShaderInputName(name_in, &name, &array_index) &&
@@ -344,11 +344,11 @@ class ION_API ShaderInputRegistry : public ResourceHolder {
   }
 
   // Convenience function that returns a pointer to the Spec associated with an
-  // Attribute or Uniform instance. These returns NULL if the Attribute or
+  // Attribute or Uniform instance. These return NULL if the Attribute or
   // Uniform is not valid.
   template <typename T>
   static const Spec<T>* GetSpec(const T& input) {
-    return !input.IsValid() ? NULL :
+    return !input.IsValid() ? nullptr :
         &input.GetRegistry().template GetSpecs<T>()[input.GetIndexInRegistry()];
   }
 

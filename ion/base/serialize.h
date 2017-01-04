@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ limitations under the License.
 #ifndef ION_BASE_SERIALIZE_H_
 #define ION_BASE_SERIALIZE_H_
 
+#include <chrono> // NOLINT
 #include <sstream>
 #include <string>
 #include <utility>
@@ -105,6 +106,37 @@ inline bool StringToValue(std::istringstream& in,  // NOLINT
   } else {
     return false;
   }
+}
+
+// Overload for std::chrono::duration types.
+template <typename R, typename P>
+inline bool StringToValue(std::istringstream& in,
+                          std::chrono::duration<R, P>* val) {
+  using std::chrono::duration;
+  using std::chrono::duration_cast;
+  using OutputDuration = duration<R, P>;
+
+  // First read the count of ticks of type R.
+  R rep;
+  if (!StringToValue(in, &rep)) {
+    return false;
+  }
+
+  // Now read the input period and convert |rep| to the output period P.
+  std::string period_identifier;
+  in >> period_identifier;
+  if (period_identifier == "ns") {
+    *val = duration_cast<OutputDuration>(duration<R, std::nano>(rep));
+  } else if (period_identifier == "us") {
+    *val = duration_cast<OutputDuration>(duration<R, std::micro>(rep));
+  } else if (period_identifier == "ms") {
+    *val = duration_cast<OutputDuration>(duration<R, std::milli>(rep));
+  } else if (period_identifier == "s") {
+    *val = duration_cast<OutputDuration>(duration<R>(rep));
+  } else {
+    return false;
+  }
+  return true;
 }
 
 // Constructs a STL container from a stream. If any errors occur then the
@@ -251,6 +283,43 @@ template <typename T, typename U>
 inline std::string ValueToString(const std::pair<const T, U>& val) {
   std::ostringstream out;
   out << ValueToString(val.first) << " : " << ValueToString(val.second);
+  return out.str();
+}
+
+// Overload for std::chrono::duration types.
+template <typename R, typename P>
+inline std::string ValueToString(const std::chrono::duration<R, P>& val) {
+  using std::chrono::duration;
+  using std::chrono::duration_cast;
+
+  // Determine the smallest std::ratio for the given input period and value.
+  R rep = val.count();
+  R ratio = P::den / P::num;
+  while (std::abs(rep) > 0 && rep % 1000 == 0) {
+    rep /= 1000;
+    ratio /= 1000;
+  }
+
+  // Populate a stream based on the value of |val| and |ratio|.
+  std::ostringstream out;
+  switch (ratio) {
+    case 1000000000:
+      out << duration_cast<duration<R, std::nano>>(val).count() << " ns";
+      break;
+    case 1000000:
+      out << duration_cast<duration<R, std::micro>>(val).count() << " us";
+      break;
+    case 1000:
+      out << duration_cast<duration<R, std::milli>>(val).count() << " ms";
+      break;
+    default:
+      // |ratio| is either 1 or something we don't explicitly support, so we
+      // default to seconds.
+      out << duration_cast<duration<R>>(val).count() << " s";
+      break;
+  }
+
+  // Extract a string from the previously populated stream.
   return out.str();
 }
 

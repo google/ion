@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ limitations under the License.
 #include "ion/base/logging.h"
 #include "ion/base/memoryzipstream.h"
 #include "ion/base/staticsafedeclare.h"
+#include "ion/base/tests/multilinestringsequal.h"
 #include "ion/base/zipassetmanagermacros.h"
 #include "ion/port/fileutils.h"
 #include "ion/port/timer.h"
@@ -42,7 +43,7 @@ namespace {
 // Returns the contents of a file on disk.
 static const std::string GetFileContents(const std::string& filename) {
   FILE* fp = port::OpenFile(filename, "rb");
-  EXPECT_FALSE(fp == NULL);
+  EXPECT_FALSE(fp == nullptr);
   char buffer[2048];
   const size_t count = fread(buffer, sizeof(buffer[0]), 2048, fp);
   fclose(fp);
@@ -79,15 +80,10 @@ TEST(ZipAssetManager, LoadAssetsAndReset) {
   EXPECT_FALSE(ZipAssetManager::IsFileCached("path/file2.txt"));
 
   // Check file contents.
-  // If this fails on Windows because the actual file has CR+LF instead of '\n',
-  // then Git changed the line endings on you.  To disable this feature in Git:
-  //    $ git config --global core.autocrlf false
-  // And then rebuild your repository.
-  // Details:  https://help.github.com/articles/dealing-with-line-endings
   std::string f1_data("This is\nFile 1");
   std::string f2_data("This is\nFile\n2");
-  EXPECT_EQ(f1_data, ZipAssetManager::GetFileData("zipasset_file1.txt"));
-  EXPECT_EQ(f1_data, *ZipAssetManager::GetFileDataPtr("zipasset_file1.txt"));
+  EXPECT_EQ_ML(f1_data, ZipAssetManager::GetFileData("zipasset_file1.txt"));
+  EXPECT_EQ_ML(f1_data, *ZipAssetManager::GetFileDataPtr("zipasset_file1.txt"));
   EXPECT_TRUE(ZipAssetManager::IsFileCached("zipasset_file1.txt"));
   EXPECT_FALSE(ZipAssetManager::IsFileCached("zipasset_file2.txt"));
   EXPECT_FALSE(ZipAssetManager::IsFileCached("dir/file1.txt"));
@@ -95,37 +91,37 @@ TEST(ZipAssetManager, LoadAssetsAndReset) {
   EXPECT_FALSE(ZipAssetManager::IsFileCached("path/file1.txt"));
   EXPECT_FALSE(ZipAssetManager::IsFileCached("path/file2.txt"));
   EXPECT_FALSE(ZipAssetManager::IsFileCached("__asset_manifest__.txt"));
-  EXPECT_EQ(f2_data, ZipAssetManager::GetFileData("zipasset_file2.txt"));
-  EXPECT_EQ(f2_data, *ZipAssetManager::GetFileDataPtr("zipasset_file2.txt"));
+  EXPECT_EQ_ML(f2_data, ZipAssetManager::GetFileData("zipasset_file2.txt"));
+  EXPECT_EQ_ML(f2_data, *ZipAssetManager::GetFileDataPtr("zipasset_file2.txt"));
   EXPECT_TRUE(ZipAssetManager::IsFileCached("zipasset_file2.txt"));
   EXPECT_FALSE(ZipAssetManager::IsFileCached("dir/file1.txt"));
   EXPECT_FALSE(ZipAssetManager::IsFileCached("dir/file2.txt"));
   EXPECT_FALSE(ZipAssetManager::IsFileCached("path/file1.txt"));
   EXPECT_FALSE(ZipAssetManager::IsFileCached("path/file2.txt"));
   EXPECT_FALSE(ZipAssetManager::IsFileCached("__asset_manifest__.txt"));
-  EXPECT_EQ(f1_data, ZipAssetManager::GetFileData("dir/file1.txt"));
-  EXPECT_EQ(f1_data, *ZipAssetManager::GetFileDataPtr("dir/file1.txt"));
+  EXPECT_EQ_ML(f1_data, ZipAssetManager::GetFileData("dir/file1.txt"));
+  EXPECT_EQ_ML(f1_data, *ZipAssetManager::GetFileDataPtr("dir/file1.txt"));
 
   EXPECT_TRUE(ZipAssetManager::IsFileCached("dir/file1.txt"));
   EXPECT_FALSE(ZipAssetManager::IsFileCached("dir/file2.txt"));
   EXPECT_FALSE(ZipAssetManager::IsFileCached("path/file1.txt"));
   EXPECT_FALSE(ZipAssetManager::IsFileCached("path/file2.txt"));
   EXPECT_FALSE(ZipAssetManager::IsFileCached("__asset_manifest__.txt"));
-  EXPECT_EQ(f2_data, ZipAssetManager::GetFileData("dir/file2.txt"));
+  EXPECT_EQ_ML(f2_data, ZipAssetManager::GetFileData("dir/file2.txt"));
 
-  EXPECT_EQ(f2_data, *ZipAssetManager::GetFileDataPtr("dir/file2.txt"));
+  EXPECT_EQ_ML(f2_data, *ZipAssetManager::GetFileDataPtr("dir/file2.txt"));
   EXPECT_TRUE(ZipAssetManager::IsFileCached("dir/file2.txt"));
   EXPECT_FALSE(ZipAssetManager::IsFileCached("path/file1.txt"));
   EXPECT_FALSE(ZipAssetManager::IsFileCached("path/file2.txt"));
   EXPECT_FALSE(ZipAssetManager::IsFileCached("__asset_manifest__.txt"));
-  EXPECT_EQ(f1_data, ZipAssetManager::GetFileData("path/file1.txt"));
-  EXPECT_EQ(f1_data, *ZipAssetManager::GetFileDataPtr("path/file1.txt"));
+  EXPECT_EQ_ML(f1_data, ZipAssetManager::GetFileData("path/file1.txt"));
+  EXPECT_EQ_ML(f1_data, *ZipAssetManager::GetFileDataPtr("path/file1.txt"));
   EXPECT_TRUE(ZipAssetManager::IsFileCached("path/file1.txt"));
   EXPECT_FALSE(ZipAssetManager::IsFileCached("path/file2.txt"));
   EXPECT_FALSE(ZipAssetManager::IsFileCached("__asset_manifest__.txt"));
-  EXPECT_EQ(f2_data, ZipAssetManager::GetFileData("path/file2.txt"));
+  EXPECT_EQ_ML(f2_data, ZipAssetManager::GetFileData("path/file2.txt"));
 
-  EXPECT_EQ(f2_data, *ZipAssetManager::GetFileDataPtr("path/file2.txt"));
+  EXPECT_EQ_ML(f2_data, *ZipAssetManager::GetFileDataPtr("path/file2.txt"));
   EXPECT_TRUE(ZipAssetManager::IsFileCached("path/file2.txt"));
 
   EXPECT_TRUE(
@@ -192,21 +188,21 @@ TEST(ZipAssetManager, GetFileDataNoCache) {
   std::string f2_data("This is\nFile\n2");
   std::string out;
   EXPECT_TRUE(ZipAssetManager::GetFileDataNoCache("zipasset_file1.txt", &out));
-  EXPECT_EQ(f1_data, out);
+  EXPECT_EQ_ML(f1_data, out);
   EXPECT_FALSE(ZipAssetManager::IsFileCached("zipasset_file1.txt"));
 
   EXPECT_TRUE(ZipAssetManager::GetFileDataNoCache("dir/file2.txt", &out));
-  EXPECT_EQ(f2_data, out);
+  EXPECT_EQ_ML(f2_data, out);
   EXPECT_FALSE(ZipAssetManager::IsFileCached("dir/file2.txt"));
 
   EXPECT_FALSE(ZipAssetManager::GetFileDataNoCache("does_not_exist", &out));
   EXPECT_FALSE(ZipAssetManager::IsFileCached("does_not_exist"));
 
   // Now populate file cache.
-  EXPECT_EQ(f1_data, ZipAssetManager::GetFileData("zipasset_file1.txt"));
+  EXPECT_EQ_ML(f1_data, ZipAssetManager::GetFileData("zipasset_file1.txt"));
   EXPECT_TRUE(ZipAssetManager::IsFileCached("zipasset_file1.txt"));
 
-  EXPECT_EQ(f2_data, ZipAssetManager::GetFileData("dir/file2.txt"));
+  EXPECT_EQ_ML(f2_data, ZipAssetManager::GetFileData("dir/file2.txt"));
   EXPECT_TRUE(ZipAssetManager::IsFileCached("dir/file2.txt"));
 
   EXPECT_TRUE(IsInvalidReference(
@@ -215,11 +211,11 @@ TEST(ZipAssetManager, GetFileDataNoCache) {
 
   // GetFileDataNoCache should return bytes and also clear cache.
   EXPECT_TRUE(ZipAssetManager::GetFileDataNoCache("zipasset_file1.txt", &out));
-  EXPECT_EQ(f1_data, out);
+  EXPECT_EQ_ML(f1_data, out);
   EXPECT_FALSE(ZipAssetManager::IsFileCached("zipasset_file1.txt"));
 
   EXPECT_TRUE(ZipAssetManager::GetFileDataNoCache("dir/file2.txt", &out));
-  EXPECT_EQ(f2_data, out);
+  EXPECT_EQ_ML(f2_data, out);
   EXPECT_FALSE(ZipAssetManager::IsFileCached("dir/file2.txt"));
 
   EXPECT_FALSE(ZipAssetManager::GetFileDataNoCache("does_not_exist", &out));
@@ -232,23 +228,23 @@ TEST(ZipAssetManager, SetFileData) {
   ZipAssetTest::RegisterAssets();
   std::string f1_data("This is\nFile 1");
   std::string f2_data("This is\nFile\n2");
-  EXPECT_EQ(f1_data, ZipAssetManager::GetFileData("zipasset_file1.txt"));
-  EXPECT_EQ(f2_data, ZipAssetManager::GetFileData("zipasset_file2.txt"));
-  EXPECT_EQ(f1_data, ZipAssetManager::GetFileData("path/file1.txt"));
-  EXPECT_EQ(f2_data, ZipAssetManager::GetFileData("path/file2.txt"));
+  EXPECT_EQ_ML(f1_data, ZipAssetManager::GetFileData("zipasset_file1.txt"));
+  EXPECT_EQ_ML(f2_data, ZipAssetManager::GetFileData("zipasset_file2.txt"));
+  EXPECT_EQ_ML(f1_data, ZipAssetManager::GetFileData("path/file1.txt"));
+  EXPECT_EQ_ML(f2_data, ZipAssetManager::GetFileData("path/file2.txt"));
 
   f1_data = "This is some new data for file 1.";
   EXPECT_TRUE(ZipAssetManager::SetFileData("zipasset_file1.txt", f1_data));
-  EXPECT_EQ(f1_data, ZipAssetManager::GetFileData("zipasset_file1.txt"));
-  EXPECT_EQ(f2_data, ZipAssetManager::GetFileData("zipasset_file2.txt"));
-  EXPECT_NE(f1_data, ZipAssetManager::GetFileData("path/file1.txt"));
-  EXPECT_EQ(f2_data, ZipAssetManager::GetFileData("path/file2.txt"));
+  EXPECT_EQ_ML(f1_data, ZipAssetManager::GetFileData("zipasset_file1.txt"));
+  EXPECT_EQ_ML(f2_data, ZipAssetManager::GetFileData("zipasset_file2.txt"));
+  EXPECT_NEQ_ML(f1_data, ZipAssetManager::GetFileData("path/file1.txt"));
+  EXPECT_EQ_ML(f2_data, ZipAssetManager::GetFileData("path/file2.txt"));
   f2_data = "This is some new data for file 2.";
   EXPECT_TRUE(ZipAssetManager::SetFileData("zipasset_file2.txt", f2_data));
-  EXPECT_EQ(f1_data, ZipAssetManager::GetFileData("zipasset_file1.txt"));
-  EXPECT_EQ(f2_data, ZipAssetManager::GetFileData("zipasset_file2.txt"));
-  EXPECT_NE(f1_data, ZipAssetManager::GetFileData("path/file1.txt"));
-  EXPECT_NE(f2_data, ZipAssetManager::GetFileData("path/file2.txt"));
+  EXPECT_EQ_ML(f1_data, ZipAssetManager::GetFileData("zipasset_file1.txt"));
+  EXPECT_EQ_ML(f2_data, ZipAssetManager::GetFileData("zipasset_file2.txt"));
+  EXPECT_NEQ_ML(f1_data, ZipAssetManager::GetFileData("path/file1.txt"));
+  EXPECT_NEQ_ML(f2_data, ZipAssetManager::GetFileData("path/file2.txt"));
 
   EXPECT_FALSE(ZipAssetManager::SetFileData("does not exist", f1_data));
   ZipAssetManager::Reset();
@@ -316,7 +312,7 @@ TEST(ZipAssetManager, SaveFileDataUpdateFileIfChanged) {
   const std::string new_data = "Some new file\ndata\nto test some more\n";
   // Open the temp file and write data into it.
   FILE* fp = port::OpenFile(temp_filename, "wb");
-  EXPECT_FALSE(fp == NULL);
+  EXPECT_FALSE(fp == nullptr);
   EXPECT_EQ(data.length(),
             fwrite(data.c_str(), sizeof(data[0]), data.length(), fp));
   fclose(fp);
@@ -354,7 +350,7 @@ TEST(ZipAssetManager, SaveFileDataUpdateFileIfChanged) {
   const std::string changed_data = "A brave new\nworld\n";
   // Open the temp file and write some new data into it.
   fp = port::OpenFile(temp_filename, "wb");
-  EXPECT_FALSE(fp == NULL);
+  EXPECT_FALSE(fp == nullptr);
   EXPECT_EQ(changed_data.length(),
             fwrite(changed_data.c_str(), sizeof(changed_data[0]),
                    changed_data.length(), fp));

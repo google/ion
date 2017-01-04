@@ -116,6 +116,12 @@ static const  int32 kint32min  = (( int32) ~0x7FFFFFFF);
 static const  int32 kint32max  = (( int32) 0x7FFFFFFF);
 static const  int64 kint64min  = (( int64) GG_LONGLONG(~0x7FFFFFFFFFFFFFFF));
 static const  int64 kint64max  = (( int64) GG_LONGLONG(0x7FFFFFFFFFFFFFFF));
+// The following are not real constants, but we list them so CodeSearch and
+// other tools find them, in case people are looking for the above constants
+// under different names:
+// kMaxUint8, kMaxUint16, kMaxUint32, kMaxUint64
+// kMinInt8, kMaxInt8, kMinInt16, kMaxInt16, kMinInt32, kMaxInt32,
+// kMinInt64, kMaxInt64
 
 // TODO(user): remove this eventually.
 // No object has kIllegalFprint as its Fingerprint.

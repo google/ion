@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -37,12 +37,16 @@ static void TestDefaultStateTable(const StateTable& st,
                                   int default_width, int default_height) {
   // All items are reset by default.
   EXPECT_FALSE(st.IsCapabilitySet(StateTable::kBlend));
+  for (GLenum i = 0; i < StateTable::kClipDistanceCount; ++i)
+    EXPECT_FALSE(st.IsCapabilitySet(static_cast<StateTable::Capability>(
+        StateTable::kClipDistance0 + i)));
   EXPECT_FALSE(st.IsCapabilitySet(StateTable::kCullFace));
   EXPECT_FALSE(st.IsCapabilitySet(StateTable::kDebugOutputSynchronous));
   EXPECT_FALSE(st.IsCapabilitySet(StateTable::kDepthTest));
   EXPECT_FALSE(st.IsCapabilitySet(StateTable::kDither));
   EXPECT_FALSE(st.IsCapabilitySet(StateTable::kMultisample));
   EXPECT_FALSE(st.IsCapabilitySet(StateTable::kPolygonOffsetFill));
+  EXPECT_FALSE(st.IsCapabilitySet(StateTable::kRasterizerDiscard));
   EXPECT_FALSE(st.IsCapabilitySet(StateTable::kSampleAlphaToCoverage));
   EXPECT_FALSE(st.IsCapabilitySet(StateTable::kSampleCoverage));
   EXPECT_FALSE(st.IsCapabilitySet(StateTable::kScissorTest));
@@ -58,9 +62,9 @@ static void TestDefaultStateTable(const StateTable& st,
   EXPECT_FALSE(st.IsValueSet(StateTable::kDepthFunctionValue));
   EXPECT_FALSE(st.IsValueSet(StateTable::kDepthRangeValue));
   EXPECT_FALSE(st.IsValueSet(StateTable::kDepthWriteMaskValue));
-  EXPECT_FALSE(st.IsValueSet(StateTable::kDrawBufferValue));
   EXPECT_FALSE(st.IsValueSet(StateTable::kHintsValue));
   EXPECT_FALSE(st.IsValueSet(StateTable::kLineWidthValue));
+  EXPECT_FALSE(st.IsValueSet(StateTable::kMinSampleShadingValue));
   EXPECT_FALSE(st.IsValueSet(StateTable::kPolygonOffsetValue));
   EXPECT_FALSE(st.IsValueSet(StateTable::kSampleCoverageValue));
   EXPECT_FALSE(st.IsValueSet(StateTable::kScissorBoxValue));
@@ -74,17 +78,21 @@ static void TestDefaultStateTable(const StateTable& st,
 
   // All capabilities except dithering are disabled by default.
   EXPECT_FALSE(st.IsEnabled(StateTable::kBlend));
+  for (GLenum i = 0; i < StateTable::kClipDistanceCount; ++i)
+    EXPECT_FALSE(st.IsEnabled(static_cast<StateTable::Capability>(
+        StateTable::kClipDistance0 + i)));
   EXPECT_FALSE(st.IsEnabled(StateTable::kCullFace));
   EXPECT_FALSE(st.IsEnabled(StateTable::kDebugOutputSynchronous));
   EXPECT_FALSE(st.IsEnabled(StateTable::kDepthTest));
   EXPECT_TRUE(st.IsEnabled(StateTable::kDither));
-  EXPECT_FALSE(st.IsEnabled(StateTable::kMultisample));
+  EXPECT_TRUE(st.IsEnabled(StateTable::kMultisample));
   EXPECT_FALSE(st.IsEnabled(StateTable::kPolygonOffsetFill));
+  EXPECT_FALSE(st.IsEnabled(StateTable::kRasterizerDiscard));
   EXPECT_FALSE(st.IsEnabled(StateTable::kSampleAlphaToCoverage));
   EXPECT_FALSE(st.IsEnabled(StateTable::kSampleCoverage));
   EXPECT_FALSE(st.IsEnabled(StateTable::kScissorTest));
   EXPECT_FALSE(st.IsEnabled(StateTable::kStencilTest));
-  EXPECT_EQ(1U, st.GetEnabledCount());
+  EXPECT_EQ(2U, st.GetEnabledCount());
 
   // All other state values have documented defaults.
   EXPECT_EQ(math::Vector4f(0, 0, 0, 0), st.GetBlendColor());
@@ -105,10 +113,10 @@ static void TestDefaultStateTable(const StateTable& st,
   EXPECT_EQ(StateTable::kDepthLess, st.GetDepthFunction());
   EXPECT_EQ(math::Range1f(0.0f, 1.0f), st.GetDepthRange());
   EXPECT_TRUE(st.GetDepthWriteMask());
-  EXPECT_EQ(StateTable::kBack, st.GetDrawBuffer());
   EXPECT_EQ(StateTable::kHintDontCare,
             st.GetHint(StateTable::kGenerateMipmapHint));
   EXPECT_EQ(1.0f, st.GetLineWidth());
+  EXPECT_EQ(0.0f, st.GetMinSampleShading());
   EXPECT_EQ(0.0f, st.GetPolygonOffsetFactor());
   EXPECT_EQ(0.0f, st.GetPolygonOffsetUnits());
   EXPECT_EQ(1.0f, st.GetSampleCoverageValue());
@@ -130,9 +138,12 @@ static void TestDefaultStateTable(const StateTable& st,
 }
 
 static void TestCapability(StateTable* st, StateTable::Capability cap) {
-  // Dithering is a special case that is enabled by default.
-  const bool initial_value = cap == StateTable::kDither;
-  const size_t num_other_enabled = cap == StateTable::kDither ? 0U : 1U;
+  const bool initial_value =
+      cap == StateTable::kDither || cap == StateTable::kMultisample;
+  const size_t num_other_enabled =
+      (cap == StateTable::kDither || cap == StateTable::kMultisample) ? 1U : 2U;
+
+  std::cout << base::EnumHelper::GetString(cap) << std::endl;
 
   // Verify that the capability has the correct initial value and is not set.
   EXPECT_EQ(initial_value, st->IsEnabled(cap));
@@ -161,7 +172,7 @@ static void TestCapability(StateTable* st, StateTable::Capability cap) {
   st->ResetCapability(cap);
   EXPECT_EQ(initial_value, st->IsEnabled(cap));
   EXPECT_FALSE(st->IsCapabilitySet(cap));
-  EXPECT_EQ(1U, st->GetEnabledCount());
+  EXPECT_EQ(2U, st->GetEnabledCount());
   EXPECT_EQ(0U, st->GetSetCapabilityCount());
 
   // Enable it again, then reset again. It should still be disabled and not set.
@@ -169,7 +180,7 @@ static void TestCapability(StateTable* st, StateTable::Capability cap) {
   st->ResetCapability(cap);
   EXPECT_EQ(initial_value, st->IsEnabled(cap));
   EXPECT_FALSE(st->IsCapabilitySet(cap));
-  EXPECT_EQ(1U, st->GetEnabledCount());
+  EXPECT_EQ(2U, st->GetEnabledCount());
   EXPECT_EQ(0U, st->GetSetCapabilityCount());
 
   // Enable it again, then reset the instance. The capability should still have
@@ -178,7 +189,7 @@ static void TestCapability(StateTable* st, StateTable::Capability cap) {
   st->Reset();
   EXPECT_EQ(initial_value, st->IsEnabled(cap));
   EXPECT_FALSE(st->IsCapabilitySet(cap));
-  EXPECT_EQ(1U, st->GetEnabledCount());
+  EXPECT_EQ(2U, st->GetEnabledCount());
   EXPECT_EQ(0U, st->GetSetCapabilityCount());
 }
 
@@ -229,14 +240,14 @@ static void CompareTableValues(const StateTable& st0, const StateTable& st1,
   if (except_val != StateTable::kDepthWriteMaskValue) {
     ION_COMPARE_VALUES(GetDepthWriteMask());
   }
-  if (except_val != StateTable::kDrawBufferValue) {
-    ION_COMPARE_VALUES(GetDrawBuffer());
-  }
   if (except_val != StateTable::kHintsValue) {
     ION_COMPARE_VALUES(GetHint(StateTable::kGenerateMipmapHint));
   }
   if (except_val != StateTable::kLineWidthValue) {
     ION_COMPARE_VALUES(GetLineWidth());
+  }
+  if (except_val != StateTable::kMinSampleShadingValue) {
+    ION_COMPARE_VALUES(GetMinSampleShading());
   }
   if (except_val != StateTable::kPolygonOffsetValue) {
     ION_COMPARE_VALUES(GetPolygonOffsetFactor());
@@ -509,11 +520,15 @@ TEST(StateTable, Default) {
 TEST(StateTable, Capabilities) {
   StateTablePtr st(new StateTable(100, 100));
   TestCapability(st.Get(), StateTable::kBlend);
+  for (GLenum i = 0; i < StateTable::kClipDistanceCount; ++i)
+    TestCapability(st.Get(), static_cast<StateTable::Capability>(
+        StateTable::kClipDistance0 + i));
   TestCapability(st.Get(), StateTable::kCullFace);
   TestCapability(st.Get(), StateTable::kDepthTest);
   TestCapability(st.Get(), StateTable::kDither);
   TestCapability(st.Get(), StateTable::kMultisample);
   TestCapability(st.Get(), StateTable::kPolygonOffsetFill);
+  TestCapability(st.Get(), StateTable::kRasterizerDiscard);
   TestCapability(st.Get(), StateTable::kSampleAlphaToCoverage);
   TestCapability(st.Get(), StateTable::kSampleCoverage);
   TestCapability(st.Get(), StateTable::kScissorTest);
@@ -598,11 +613,6 @@ TEST(StateTable, Values) {
       false,
       &StateTable::SetDepthWriteMask, &StateTable::GetDepthWriteMask);
 
-  TestValue1<StateTable::DrawBuffer>(
-      *default_st, st.Get(), StateTable::kDrawBufferValue,
-      StateTable::kBackLeft, &StateTable::SetDrawBuffer,
-      &StateTable::GetDrawBuffer);
-
   // Hints are a special case that don't work with the templated functions.
   TestHints(*default_st, st.Get());
 
@@ -610,6 +620,11 @@ TEST(StateTable, Values) {
       *default_st, st.Get(), StateTable::kLineWidthValue,
       0.25f,
       &StateTable::SetLineWidth, &StateTable::GetLineWidth);
+
+  TestValue1<float>(
+      *default_st, st.Get(), StateTable::kMinSampleShadingValue,
+      0.5f,
+      &StateTable::SetMinSampleShading, &StateTable::GetMinSampleShading);
 
   TestValue2<float, float>(
       *default_st, st.Get(), StateTable::kPolygonOffsetValue,
@@ -723,6 +738,7 @@ TEST(StateTable, CopyFrom) {
   // Set a few things in the state.
   st0->Enable(StateTable::kBlend, true);
   st0->Enable(StateTable::kCullFace, true);
+  st0->Enable(StateTable::kSampleShading, true);
   st0->SetBlendColor(math::Vector4f(.2f, .3f, .4f, .5f));
   st0->SetBlendEquations(StateTable::kReverseSubtract, StateTable::kSubtract);
   st0->SetBlendFunctions(StateTable::kDstColor, StateTable::kOne,
@@ -734,9 +750,9 @@ TEST(StateTable, CopyFrom) {
   st0->SetClearDepthValue(0.8f);
   st0->SetDepthRange(math::Range1f(.2f, .4f));
   st0->SetDepthWriteMask(false);
-  st0->SetDrawBuffer(StateTable::kBackRight);
   st0->SetHint(StateTable::kGenerateMipmapHint, StateTable::kHintNicest);
   st0->SetLineWidth(.4f);
+  st0->SetMinSampleShading(.7f);
   st0->SetPolygonOffset(.5f, .2f);
   st0->SetSampleCoverage(.6f, true);
   st0->SetScissorBox(math::Range2i::BuildWithSize(math::Point2i(10, 20),
@@ -752,15 +768,20 @@ TEST(StateTable, CopyFrom) {
   // Copy and test.
   st1->CopyFrom(*st0);
   EXPECT_TRUE(st1->IsEnabled(StateTable::kBlend));
+  for (size_t i = 0; i < StateTable::kClipDistanceCount; ++i)
+    EXPECT_FALSE(st1->IsEnabled(
+        static_cast<StateTable::Capability>(StateTable::kClipDistance0 + i)));
   EXPECT_TRUE(st1->IsEnabled(StateTable::kCullFace));
   EXPECT_FALSE(st1->IsEnabled(StateTable::kDepthTest));
   EXPECT_TRUE(st1->IsEnabled(StateTable::kDither));
   EXPECT_FALSE(st1->IsEnabled(StateTable::kPolygonOffsetFill));
+  EXPECT_FALSE(st1->IsEnabled(StateTable::kRasterizerDiscard));
   EXPECT_FALSE(st1->IsEnabled(StateTable::kSampleAlphaToCoverage));
   EXPECT_FALSE(st1->IsEnabled(StateTable::kSampleCoverage));
+  EXPECT_TRUE(st1->IsEnabled(StateTable::kSampleShading));
   EXPECT_FALSE(st1->IsEnabled(StateTable::kScissorTest));
   EXPECT_FALSE(st1->IsEnabled(StateTable::kStencilTest));
-  EXPECT_EQ(3U, st1->GetEnabledCount());
+  EXPECT_EQ(5U, st1->GetEnabledCount());
   // Test BlendColor and Viewport explicitly.
   EXPECT_EQ(st0->GetBlendColor(), st1->GetBlendColor());
   EXPECT_EQ(st0->GetViewport(), st1->GetViewport());
@@ -833,6 +854,7 @@ TEST(StateTable, MergeValues) {
 
   // Set a few things in the state.
   st0->Enable(StateTable::kBlend, true);
+  st0->Enable(StateTable::kClipDistance3, true);
   st0->Enable(StateTable::kCullFace, true);
   st0->SetBlendColor(math::Vector4f(.2f, .3f, .4f, .5f));
   st0->SetBlendEquations(StateTable::kReverseSubtract, StateTable::kSubtract);
@@ -867,15 +889,19 @@ TEST(StateTable, MergeValues) {
   // Merge and test.
   st1->MergeNonClearValuesFrom(*st0, *st0);
   EXPECT_TRUE(st1->IsEnabled(StateTable::kBlend));
+  for (size_t i = 0; i < StateTable::kClipDistanceCount; ++i)
+    EXPECT_EQ(i == 3, st1->IsEnabled(
+        static_cast<StateTable::Capability>(StateTable::kClipDistance0 + i)));
   EXPECT_TRUE(st1->IsEnabled(StateTable::kCullFace));
   EXPECT_FALSE(st1->IsEnabled(StateTable::kDepthTest));
   EXPECT_TRUE(st1->IsEnabled(StateTable::kDither));
   EXPECT_FALSE(st1->IsEnabled(StateTable::kPolygonOffsetFill));
+  EXPECT_FALSE(st1->IsEnabled(StateTable::kRasterizerDiscard));
   EXPECT_FALSE(st1->IsEnabled(StateTable::kSampleAlphaToCoverage));
   EXPECT_FALSE(st1->IsEnabled(StateTable::kSampleCoverage));
   EXPECT_FALSE(st1->IsEnabled(StateTable::kScissorTest));
   EXPECT_FALSE(st1->IsEnabled(StateTable::kStencilTest));
-  EXPECT_EQ(3U, st1->GetEnabledCount());
+  EXPECT_EQ(5U, st1->GetEnabledCount());
   // Test values.
   EXPECT_EQ(st0->GetBlendColor(), st1->GetBlendColor());
   EXPECT_EQ(st0->GetRgbBlendEquation(), st1->GetRgbBlendEquation());
@@ -945,15 +971,19 @@ TEST(StateTable, MergeValues) {
   EXPECT_EQ(st0->GetFrontStencilWriteMask(), st2->GetFrontStencilWriteMask());
   EXPECT_EQ(st0->GetBackStencilWriteMask(), st2->GetBackStencilWriteMask());
   EXPECT_TRUE(st2->IsEnabled(StateTable::kBlend));
+  for (size_t i = 0; i < StateTable::kClipDistanceCount; ++i)
+    EXPECT_EQ(i == 3, st1->IsEnabled(
+        static_cast<StateTable::Capability>(StateTable::kClipDistance0 + i)));
   EXPECT_TRUE(st2->IsEnabled(StateTable::kCullFace));
   EXPECT_FALSE(st2->IsEnabled(StateTable::kDepthTest));
   EXPECT_TRUE(st2->IsEnabled(StateTable::kDither));
   EXPECT_FALSE(st2->IsEnabled(StateTable::kPolygonOffsetFill));
+  EXPECT_FALSE(st2->IsEnabled(StateTable::kRasterizerDiscard));
   EXPECT_FALSE(st2->IsEnabled(StateTable::kSampleAlphaToCoverage));
   EXPECT_FALSE(st2->IsEnabled(StateTable::kSampleCoverage));
   EXPECT_FALSE(st2->IsEnabled(StateTable::kScissorTest));
   EXPECT_FALSE(st2->IsEnabled(StateTable::kStencilTest));
-  EXPECT_EQ(3U, st2->GetEnabledCount());
+  EXPECT_EQ(5U, st2->GetEnabledCount());
 
   // Since st1 did not set a depth function, the st2 value should be unchanged.
   EXPECT_EQ(StateTable::kDepthLess, st2->GetDepthFunction());
@@ -1005,8 +1035,16 @@ template <typename Type> static Type GetTooBigEnum(int max_value) {
 //-----------------------------------------------------------------------------
 
 TEST(StateTable, Capability) {
-  TEST_COUNT(Capability, 11U);
+  TEST_COUNT(Capability, 21U);
   TEST_CONSTANT(Capability, kBlend, GL_BLEND);
+  TEST_CONSTANT(Capability, kClipDistance0, GL_CLIP_DISTANCE0);
+  TEST_CONSTANT(Capability, kClipDistance1, GL_CLIP_DISTANCE1);
+  TEST_CONSTANT(Capability, kClipDistance2, GL_CLIP_DISTANCE2);
+  TEST_CONSTANT(Capability, kClipDistance3, GL_CLIP_DISTANCE3);
+  TEST_CONSTANT(Capability, kClipDistance4, GL_CLIP_DISTANCE4);
+  TEST_CONSTANT(Capability, kClipDistance5, GL_CLIP_DISTANCE5);
+  TEST_CONSTANT(Capability, kClipDistance6, GL_CLIP_DISTANCE6);
+  TEST_CONSTANT(Capability, kClipDistance7, GL_CLIP_DISTANCE7);
   TEST_CONSTANT(Capability, kCullFace, GL_CULL_FACE);
   TEST_CONSTANT(Capability, kDebugOutputSynchronous,
                 GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -1014,9 +1052,11 @@ TEST(StateTable, Capability) {
   TEST_CONSTANT(Capability, kDither, GL_DITHER);
   TEST_CONSTANT(Capability, kMultisample, GL_MULTISAMPLE);
   TEST_CONSTANT(Capability, kPolygonOffsetFill, GL_POLYGON_OFFSET_FILL);
+  TEST_CONSTANT(Capability, kRasterizerDiscard, GL_RASTERIZER_DISCARD);
   TEST_CONSTANT(Capability, kSampleAlphaToCoverage,
                 GL_SAMPLE_ALPHA_TO_COVERAGE);
   TEST_CONSTANT(Capability, kSampleCoverage, GL_SAMPLE_COVERAGE);
+  TEST_CONSTANT(Capability, kSampleShading, GL_SAMPLE_SHADING);
   TEST_CONSTANT(Capability, kScissorTest, GL_SCISSOR_TEST);
   TEST_CONSTANT(Capability, kStencilTest, GL_STENCIL_TEST);
 
@@ -1027,6 +1067,7 @@ TEST(StateTable, Capability) {
   TEST_STRING(Capability, Dither);
   TEST_STRING(Capability, Multisample);
   TEST_STRING(Capability, PolygonOffsetFill);
+  TEST_STRING(Capability, RasterizerDiscard);
   TEST_STRING(Capability, SampleAlphaToCoverage);
   TEST_STRING(Capability, SampleCoverage);
   TEST_STRING(Capability, ScissorTest);
@@ -1116,32 +1157,6 @@ TEST(StateTable, DepthFunction) {
   TEST_STRING(DepthFunction, DepthNever);
   TEST_STRING(DepthFunction, DepthNotEqual);
   TEST_INVALID_STRINGS(DepthFunction, kDepthNotEqual);
-}
-
-TEST(StateTable, DrawBuffer) {
-  TEST_COUNT(DrawBuffer, 10U);
-  TEST_CONSTANT(DrawBuffer, kBack, GL_BACK);
-  TEST_CONSTANT(DrawBuffer, kBackLeft, GL_BACK_LEFT);
-  TEST_CONSTANT(DrawBuffer, kBackRight, GL_BACK_RIGHT);
-  TEST_CONSTANT(DrawBuffer, kFront, GL_FRONT);
-  TEST_CONSTANT(DrawBuffer, kFrontAndBack, GL_FRONT_AND_BACK);
-  TEST_CONSTANT(DrawBuffer, kFrontLeft, GL_FRONT_LEFT);
-  TEST_CONSTANT(DrawBuffer, kFrontRight, GL_FRONT_RIGHT);
-  TEST_CONSTANT(DrawBuffer, kLeft, GL_LEFT);
-  TEST_CONSTANT(DrawBuffer, kNone, GL_NONE);
-  TEST_CONSTANT(DrawBuffer, kRight, GL_RIGHT);
-
-  TEST_STRING(DrawBuffer, Back);
-  TEST_STRING(DrawBuffer, BackLeft);
-  TEST_STRING(DrawBuffer, BackRight);
-  TEST_STRING(DrawBuffer, Front);
-  TEST_STRING(DrawBuffer, FrontAndBack);
-  TEST_STRING(DrawBuffer, FrontLeft);
-  TEST_STRING(DrawBuffer, FrontRight);
-  TEST_STRING(DrawBuffer, Left);
-  TEST_STRING(DrawBuffer, None);
-  TEST_STRING(DrawBuffer, Right);
-  TEST_INVALID_STRINGS(DrawBuffer, kRight);
 }
 
 TEST(StateTable, FrontFaceMode) {

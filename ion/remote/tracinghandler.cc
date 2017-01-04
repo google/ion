@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,14 +19,19 @@ limitations under the License.
 
 #include "ion/remote/tracinghandler.h"
 
+#include <functional>
+#include <memory>
+#include <sstream>
 #include <vector>
 
 #include "ion/base/invalid.h"
+#include "ion/base/lockguards.h"
 #include "ion/base/logging.h"
 #include "ion/base/serialize.h"
 #include "ion/base/stringutils.h"
 #include "ion/base/zipassetmanager.h"
 #include "ion/base/zipassetmanagermacros.h"
+#include "ion/gfx/tracingstream.h"
 
 ION_REGISTER_ASSETS(IonRemoteTracingRoot);
 
@@ -47,10 +52,10 @@ class TracingHtmlHelper {
   TracingHtmlHelper();
   ~TracingHtmlHelper();
 
-  // This takes the frame counter for the OpenGL trace and the string
-  // containing the tracing output and appends to a string containing the HTML
-  // for the structured output.
-  void AddHtml(uint64 frame_counter, const std::string& trace_string,
+  // This takes the section header for an OpenGL trace and the string
+  // containing the tracing output, and appends to a string containing
+  // the HTML for the structured output.
+  void AddHtml(const std::string& header, const std::string& trace_string,
                std::string* html_string);
 
  private:
@@ -70,10 +75,6 @@ class TracingHtmlHelper {
     std::string text;  // Tracing text with indentation stripped out.
   };
 
-  // Adds a header string with an optional horizontal rule to the stream.
-  void AddHeader(uint64 frame_counter, bool add_horizontal_rule,
-                 std::ostringstream& s);  // NOLINT
-
   // Parses a tracing string, returning a vector of ParsedLine instances.
   const std::vector<ParsedLine> ParseLines(const std::string& trace_string);
 
@@ -92,28 +93,16 @@ class TracingHtmlHelper {
 TracingHtmlHelper::TracingHtmlHelper() {}
 TracingHtmlHelper::~TracingHtmlHelper() {}
 
-void TracingHtmlHelper::AddHtml(uint64 frame_counter,
+void TracingHtmlHelper::AddHtml(const std::string& header,
                                 const std::string& trace_string,
                                 std::string* html_string) {
   // This ostringstream is used to construct the new HTML string.
   std::ostringstream s;
-
-  AddHeader(frame_counter, !html_string->empty(), s);
+  if (!html_string->empty()) s << "<hr>\n";
+  s << "<span class=\"trace_header\">" << header << "</span><br><br>\n";
   const std::vector<ParsedLine> parsed_lines = ParseLines(trace_string);
-
   AddHtmlForLines(parsed_lines, s);
-
   html_string->append(s.str());
-}
-
-void TracingHtmlHelper::AddHeader(uint64 frame_counter,
-                                  bool add_horizontal_rule,
-                                  std::ostringstream& s) {  // NOLINT
-  if (add_horizontal_rule)
-    s << "<hr>\n";
-
-  s << "<span class=\"trace_header\">OpenGL trace at frame "
-    << frame_counter << "</span><br><br>\n";
 }
 
 const std::vector<TracingHtmlHelper::ParsedLine> TracingHtmlHelper::ParseLines(
@@ -135,13 +124,15 @@ const TracingHtmlHelper::ParsedLine TracingHtmlHelper::ParseLine(
   const size_t length = line.size();
   ParsedLine parsed_line;
 
-  // Errors contain the string "GL error"
-  if (line.find("GL error") != std::string::npos) {
-    static const char kErrorHeader[] = "*** GL error after call to";
+  static const char kErrorHeader[] = "GetError() returned ";
+  size_t error_header_pos = line.find(kErrorHeader);
+  if (error_header_pos != std::string::npos) {
     parsed_line.type = ParsedLine::kError;
     parsed_line.level = 0;
-    // Remove "GL error after call to ".
-    parsed_line.text = line.substr(sizeof(kErrorHeader));
+    // The result of sizeof() includes the terminating null character, so we
+    // need to subtract it. Additionally, ignore any whitespace before the
+    // error header.
+    parsed_line.text = line.substr(error_header_pos + sizeof(kErrorHeader) - 1);
   } else if (line[0] == '>' || line[0] == '-') {
     // Labels start with ">" or "---->" with some even number of dashes.
     const size_t num_dashes = line.find_first_not_of('-');
@@ -253,12 +244,6 @@ TracingHtmlHelper::AddHtmlForCall(const std::string& line,
   s << ")";
 }
 
-//-----------------------------------------------------------------------------
-//
-// Helper functions.
-//
-//-----------------------------------------------------------------------------
-
 // Returns the ResourceType associated with the given string name.
 static gfx::Renderer::ResourceType GetResourceTypeFromName(
     const std::string& name) {
@@ -285,6 +270,49 @@ static gfx::Renderer::ResourceType GetResourceTypeFromName(
 
 //-----------------------------------------------------------------------------
 //
+// TracingHandler::TraceRequest.
+//
+//-----------------------------------------------------------------------------
+
+class TracingHandler::TraceRequest {
+ public:
+  explicit TraceRequest(std::string resources_to_delete)
+      : resources_to_delete_(std::move(resources_to_delete)),
+        frame_counter_(0) {}
+
+  void BeginFrame(const gfx::RendererPtr& renderer,
+                  const gfxutils::FramePtr& frame) {
+    if (!resources_to_delete_.empty()) {
+      // Resource names are separated by commas.
+      const std::vector<std::string> resources =
+          base::SplitString(resources_to_delete_, ",");
+      for (const auto& resource : resources) {
+        renderer->ClearTypedResources(GetResourceTypeFromName(resource));
+      }
+    }
+    frame_counter_ = frame->GetCounter();
+  }
+
+  void EndFrame(const gfx::RendererPtr& renderer) {
+    complete_.Post();
+  }
+
+  void WaitForCompletion() { complete_.Wait(); }
+
+  uint64 GetFrameCounter() const { return frame_counter_; }
+
+ private:
+  // String containing the names of renderer resources to delete before the next
+  // frame (may be empty).
+  const std::string resources_to_delete_;
+  // Stores the frame counter when this request was added.
+  uint64 frame_counter_;
+  // For blocking until the request is complete.
+  port::Semaphore complete_;
+};
+
+//-----------------------------------------------------------------------------
+//
 // TracingHandler functions.
 //
 //-----------------------------------------------------------------------------
@@ -293,10 +321,7 @@ TracingHandler::TracingHandler(const gfxutils::FramePtr& frame,
                                const gfx::RendererPtr& renderer)
     : HttpServer::RequestHandler("/ion/tracing"),
       frame_(frame),
-      renderer_(renderer),
-      prev_stream_(renderer_->GetGraphicsManager()->GetTracingStream()),
-      state_(kInactive),
-      frame_counter_(0) {
+      renderer_(renderer) {
   using std::bind;
   using std::placeholders::_1;
 
@@ -317,9 +342,6 @@ TracingHandler::~TracingHandler() {
     frame_->RemovePreFrameCallback("TracingHandler");
     frame_->RemovePostFrameCallback("TracingHandler");
   }
-
-  // Restore the previous stream.
-  renderer_->GetGraphicsManager()->SetTracingStream(prev_stream_);
 }
 
 const std::string TracingHandler::HandleRequest(
@@ -331,12 +353,13 @@ const std::string TracingHandler::HandleRequest(
     // Store the list of resources to delete, if any.
     const HttpServer::QueryMap::const_iterator it =
         args.find("resources_to_delete");
-    resources_to_delete_ = it != args.end() ? it->second : "";
     // Tests use the "nonblocking" flag to avoid blocking until a frame is
     // rendered.
-    TraceNextFrame(args.find("nonblocking") == args.end());
-    return html_string_;
+    return TraceNextFrame((it != args.end() ? it->second : ""),
+                          args.find("nonblocking") == args.end());
   } else if (path == "clear") {
+    base::LockGuard lock_guard(&html_string_mutex_);
+    renderer_->GetGraphicsManager()->GetTracingStream().Clear();
     html_string_.clear();
     return "clear";
   } else {
@@ -352,48 +375,74 @@ const std::string TracingHandler::HandleRequest(
   return std::string();
 }
 
-void TracingHandler::TraceNextFrame(bool block_until_frame_rendered) {
+std::string TracingHandler::TraceNextFrame(std::string resources_to_delete,
+                                           bool block_until_frame_rendered) {
   if (frame_.Get()) {
-    // Set the state so that tracing occurs during the next frame.
-    state_ = kWaitingForBeginFrame;
+    std::unique_ptr<TraceRequest> request(
+        new TraceRequest(std::move(resources_to_delete)));
+    {
+      base::LockGuard lock_guard(&pending_requests_mutex_);
+      pending_requests_.push_back(request.get());
+    }
     // If not blocking, just call Begin() and End() explicitly.
     if (!block_until_frame_rendered) {
       frame_->Begin();
       frame_->End();
     }
-    semaphore_.Wait();
-    DCHECK_EQ(state_, kInactive);
-    // Add HTML to the string and clear the tracing stream.
+    request->WaitForCompletion();
+    // Add HTML to the string.
     TracingHtmlHelper helper;
-    helper.AddHtml(frame_counter_, tracing_stream_.str(), &html_string_);
-    tracing_stream_.str("");
+    {
+      base::LockGuard lock_guard(&html_string_mutex_);
+      const auto& stream = renderer_->GetGraphicsManager()->GetTracingStream();
+      std::string frame_header =
+          "Frame " + ion::base::ValueToString(request->GetFrameCounter());
+      std::string visual_header = frame_header + ", Visual ";
+      if (stream.Keys().empty()) {
+        helper.AddHtml(frame_header, "", &html_string_);
+      }
+      for (auto key : stream.Keys()) {
+        helper.AddHtml(visual_header + ion::base::ValueToString(key),
+                       stream.String(key), &html_string_);
+      }
+      return html_string_;
+    }
+  }
+
+  {
+    base::LockGuard lock_guard(&html_string_mutex_);
+    return html_string_;
   }
 }
 
 void TracingHandler::BeginFrame(const gfxutils::Frame& frame) {
-  if (state_ == kWaitingForBeginFrame) {
-    // Delete named resources if requested.
-    if (!resources_to_delete_.empty()) {
-      // Resource names are separated by commas.
-      const std::vector<std::string> resources =
-          base::SplitString(resources_to_delete_, ",");
-      const size_t num_resources = resources.size();
-      for (size_t i = 0; i < num_resources; ++i)
-        renderer_->ClearTypedResources(GetResourceTypeFromName(resources[i]));
-      resources_to_delete_.clear();
-    }
-    frame_counter_ = frame.GetCounter();
-    renderer_->GetGraphicsManager()->SetTracingStream(&tracing_stream_);
-    state_ = kWaitingForEndFrame;
+  {
+    base::LockGuard lock_guard(&pending_requests_mutex_);
+    DCHECK(frame_active_requests_.empty());
+    std::swap(frame_active_requests_, pending_requests_);
+  }
+  if (!frame_active_requests_.empty()) {
+    renderer_->GetGraphicsManager()->GetTracingStream().StartTracing();
+  }
+  // Iterate over |frame_active_requests_| in reverse, so that the first request
+  // gets to set the tracing stream.  Calls to EndFrame() will be iterated in
+  // forward order, so essentially requests are "scoped" properly, nested in
+  // FIFO order.
+  auto frame_active_requests_iter = frame_active_requests_.rbegin();
+  while (frame_active_requests_iter != frame_active_requests_.rend()) {
+    (*frame_active_requests_iter)->BeginFrame(renderer_, frame_);
+    ++frame_active_requests_iter;
   }
 }
 
 void TracingHandler::EndFrame(const gfxutils::Frame& frame) {
-  if (state_ == kWaitingForEndFrame) {
-    renderer_->GetGraphicsManager()->SetTracingStream(prev_stream_);
-    state_ = kInactive;
-    // Clear the semaphore so HandleRequest() can proceed.
-    semaphore_.Post();
+  // Iterate over |frame_active_requests_| in forward order.
+  for (TraceRequest* request : frame_active_requests_) {
+    request->EndFrame(renderer_);
+  }
+  if (!frame_active_requests_.empty()) {
+    renderer_->GetGraphicsManager()->GetTracingStream().StopTracing();
+    frame_active_requests_.clear();
   }
 }
 

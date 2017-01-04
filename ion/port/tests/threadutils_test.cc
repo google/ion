@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -65,7 +65,7 @@ static bool FuncWithIntArg(int arg) {
 // thread-local storage of the calling thread.
 static bool LocalStorageFunc(const ThreadLocalStorageKey& key) {
   // Storage for this thread should start as NULL.
-  EXPECT_TRUE(GetThreadLocalStorage(key) == NULL);
+  EXPECT_TRUE(GetThreadLocalStorage(key) == nullptr);
 
   // Create storage for this thread.
   int my_storage;
@@ -73,8 +73,8 @@ static bool LocalStorageFunc(const ThreadLocalStorageKey& key) {
   EXPECT_EQ(&my_storage, GetThreadLocalStorage(key));
 
   // Reset to NULL.
-  EXPECT_TRUE(SetThreadLocalStorage(key, NULL));
-  EXPECT_TRUE(GetThreadLocalStorage(key) == NULL);
+  EXPECT_TRUE(SetThreadLocalStorage(key, nullptr));
+  EXPECT_TRUE(GetThreadLocalStorage(key) == nullptr);
 
   s_spawned_id = GetCurrentThreadId();
   return true;
@@ -162,15 +162,15 @@ TEST(ThreadUtils, LocalStorage) {
   EXPECT_EQ(&storage, GetThreadLocalStorage(key));
 
   // Reset to NULL.
-  EXPECT_TRUE(SetThreadLocalStorage(key, NULL));
-  EXPECT_TRUE(GetThreadLocalStorage(key) == NULL);
+  EXPECT_TRUE(SetThreadLocalStorage(key, nullptr));
+  EXPECT_TRUE(GetThreadLocalStorage(key) == nullptr);
 
   // Delete the key.
   EXPECT_TRUE(DeleteThreadLocalStorageKey(key));
 
   // These should fail.
   EXPECT_FALSE(DeleteThreadLocalStorageKey(kInvalidThreadLocalStorageKey));
-  EXPECT_FALSE(SetThreadLocalStorage(kInvalidThreadLocalStorageKey, NULL));
+  EXPECT_FALSE(SetThreadLocalStorage(kInvalidThreadLocalStorageKey, nullptr));
 }
 #endif  // !ION_PLATFORM_ASMJS
 

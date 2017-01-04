@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -55,8 +55,8 @@ class DerivedTestRef : public TestRef {
   static size_t num_destroys_;
 };
 
-typedef ion::base::ReferentPtr<TestRef>::Type TestRefPtr;
-typedef ion::base::ReferentPtr<DerivedTestRef>::Type DerivedTestRefPtr;
+using TestRefPtr = ion::base::SharedPtr<TestRef>;
+using DerivedTestRefPtr = ion::base::SharedPtr<DerivedTestRef>;
 typedef ion::base::WeakReferentPtr<TestRef> TestWeakRefPtr;
 
 // Thread helper for testing weak reference actions from a second thread.
@@ -99,7 +99,7 @@ class ConcurrentWeakRefHelper {
     if (drop_fast_) {
       // Immediately drop the ref for checking missed resurrection duplicate
       // dismantle.
-      ptr.Reset(NULL);
+      ptr.Reset(nullptr);
     }
 
     barrier_.Wait();
@@ -138,7 +138,7 @@ class ConcurrentStrongWeakRefHelper {
     barrier_.Wait();
 
     TestWeakRefPtr weak_ref(ref_);
-    ref_.Reset(NULL);
+    ref_.Reset(nullptr);
 
     barrier_.Wait();
 
@@ -174,9 +174,9 @@ TEST(Referent, Constructors) {
   DerivedTestRef::ClearNumDestroys();
 
   {
-    // Default ReferentPtr construction should have a NULL pointer.
+    // Default ReferentPtr construction should have a null pointer.
     TestRefPtr p;
-    EXPECT_TRUE(p.Get() == NULL);
+    EXPECT_FALSE(p);
   }
 
   {
@@ -222,7 +222,7 @@ TEST(Referent, Dismantle) {
   TestRef::ClearNumDestroys();
   DerivedTestRef::ClearNumDestroys();
 
-  // Default (NULL) pointer should not dismantle anything.
+  // Default (nullptr) pointer should not dismantle anything.
   {
     TestRefPtr p;
   }
@@ -277,8 +277,8 @@ TEST(Referent, Assignment) {
 
   TestRefPtr tp;
   DerivedTestRefPtr dp;
-  EXPECT_TRUE(tp.Get() == NULL);
-  EXPECT_TRUE(dp.Get() == NULL);
+  EXPECT_FALSE(tp);
+  EXPECT_FALSE(dp);
 
   // Assignment to raw pointer.
   tp = t;
@@ -295,7 +295,7 @@ TEST(Referent, Assignment) {
   tp2 = tp;
   EXPECT_EQ(t, tp2.Get());
   EXPECT_EQ(3, t->GetRefCount());
-  tp2 = NULL;
+  tp2 = nullptr;
   EXPECT_EQ(2, t->GetRefCount());
 
   // Assignment to compatible raw pointer.
@@ -304,9 +304,9 @@ TEST(Referent, Assignment) {
   EXPECT_EQ(1, t->GetRefCount());
   EXPECT_EQ(2, d->GetRefCount());
 
-  // Assignment to NULL.
-  tp = NULL;
-  EXPECT_TRUE(tp.Get() == NULL);
+  // Assignment to nullptr.
+  tp = nullptr;
+  EXPECT_FALSE(tp);
   EXPECT_EQ(1, t->GetRefCount());
   EXPECT_EQ(1, d->GetRefCount());
 
@@ -330,7 +330,7 @@ TEST(Referent, Operators) {
   // == and != operators.
   TestRef* t2 = new TestRef;
   TestRefPtr tp2;
-  // Pointer vs. NULL.
+  // Pointer vs. nullptr.
   EXPECT_FALSE(tp1 == tp2);
   EXPECT_TRUE(tp1 != tp2);
   // Pointer vs. pointer.
@@ -341,17 +341,17 @@ TEST(Referent, Operators) {
   tp1 = tp2;
   EXPECT_TRUE(tp1 == tp2);
   EXPECT_FALSE(tp1 != tp2);
-  // NULL pointers.
-  tp1 = tp2 = NULL;
+  // Null pointers.
+  tp1 = tp2 = nullptr;
   EXPECT_TRUE(tp1 == tp2);
   EXPECT_FALSE(tp1 != tp2);
 
-  // operator->() should DCHECK on NULL in debug mode.
+  // operator->() should DCHECK on nullptr in debug mode.
   {
     ion::base::LogChecker logchecker;
     ion::base::SetBreakHandler(kNullFunction);
     TestRefPtr tp3;
-    EXPECT_TRUE(tp3.operator->() == NULL);
+    EXPECT_TRUE(tp3.operator->() == nullptr);
     ion::base::RestoreDefaultBreakHandler();
 #if ION_DEBUG
     EXPECT_TRUE(
@@ -388,17 +388,17 @@ TEST(Referent, Swap) {
   EXPECT_EQ(1, t2->GetRefCount());
   EXPECT_EQ(0U, TestRef::GetNumDestroys());
 
-  // Swap pointer with NULL.
+  // Swap pointer with nullptr.
   TestRefPtr tp3;
   tp1.swap(tp3);
-  EXPECT_TRUE(tp1.Get() == NULL);
+  EXPECT_FALSE(tp1);
   EXPECT_EQ(t1, tp3.Get());
   EXPECT_EQ(0U, TestRef::GetNumDestroys());
 
-  // Swap NULL with pointer.
+  // Swap nullptr with pointer.
   tp1.swap(tp2);
   EXPECT_EQ(t2, tp1.Get());
-  EXPECT_TRUE(tp2.Get() == NULL);
+  EXPECT_FALSE(tp2);
   EXPECT_EQ(0U, TestRef::GetNumDestroys());
 }
 
@@ -406,9 +406,9 @@ TEST(WeakReferent, Constructors) {
   TestRef::ClearNumDestroys();
 
   {
-    // Default ReferentPtr construction should have a NULL pointer.
+    // Default ReferentPtr construction should have a null pointer.
     TestRefPtr p;
-    EXPECT_TRUE(p.Get() == NULL);
+    EXPECT_FALSE(p);
   }
 
   {
@@ -495,7 +495,7 @@ TEST(WeakReferent, Reset) {
 TEST(WeakReferent, Dismantle) {
   TestRef::ClearNumDestroys();
 
-  // Default (NULL) pointer should not dismantle anything.
+  // Default (nullptr) pointer should not dismantle anything.
   {
     TestRefPtr p;
   }
@@ -533,14 +533,14 @@ TEST(WeakReferent, Dismantle) {
     // Destroying the ReferentPtr should cause dismantling.
     delete p;
     EXPECT_EQ(1U, TestRef::GetNumDestroys());
-    // The WeakReferentPtrs should point to NULL.
-    EXPECT_TRUE(w1.Acquire().Get() == NULL);
-    EXPECT_TRUE(w2.Acquire().Get() == NULL);
+    // The WeakReferentPtrs should point to nullptr.
+    EXPECT_FALSE(w1.Acquire());
+    EXPECT_FALSE(w2.Acquire());
   }
 
   {
-    TestWeakRefPtr w(NULL);
-    EXPECT_TRUE(w.Acquire().Get() == NULL);
+    TestWeakRefPtr w(nullptr);
+    EXPECT_FALSE(w.Acquire());
   }
 }
 
@@ -553,8 +553,8 @@ TEST(WeakReferent, Operators) {
   // == and != operators.
   TestWeakRefPtr wp1(t1);
   {
-    TestWeakRefPtr wp2(NULL);
-    // Pointer vs. NULL.
+    TestWeakRefPtr wp2(nullptr);
+    // Pointer vs. nullptr.
     EXPECT_FALSE(wp1 == wp2);
     EXPECT_TRUE(wp1 != wp2);
   }
@@ -608,7 +608,7 @@ TEST(WeakReferent, ConcurrentAcquireWithRelease) {
           std::bind(&ConcurrentWeakRefHelper::Run, &helper));
       helper.GetBarrier()->Wait();
       // Drop the reference while the other is attempting to acquire.
-      ptr.Reset(NULL);
+      ptr.Reset(nullptr);
       helper.GetBarrier()->Wait();
       // At this point the second thread either acquired the reference or did
       // not.
@@ -650,7 +650,7 @@ TEST(WeakReferent, ConcurrentAcquireReleaseWithRelease) {
           std::bind(&ConcurrentWeakRefHelper::Run, &helper));
       helper.GetBarrier()->Wait();
       // Drop the reference while the other is attempting to acquire.
-      ptr.Reset(NULL);
+      ptr.Reset(nullptr);
       helper.GetBarrier()->Wait();
       // At this point the second thread acquired and released, so ref count
       // should now be 0 and dismantle should have happened once.
@@ -685,7 +685,7 @@ TEST(WeakReferent, ConcurrentConstructWithRelease) {
       helper.GetBarrier()->Wait();
       // Drop the reference while the other is attempting to construct weak
       // reference.
-      ptr.Reset(NULL);
+      ptr.Reset(nullptr);
       helper.GetBarrier()->Wait();
       // Wait for other thread to try and acquire now that release should
       // have been guaranteed.

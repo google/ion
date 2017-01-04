@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -70,7 +70,7 @@ TEST_F(LogChecker, Basic) {
   EXPECT_TRUE(log_checker.HasNoMessage("ERROR", "Fatal"));
   EXPECT_TRUE(log_checker.HasNoMessage("FATAL", "fatal"));
 
-  const int* null_int_ptr = NULL;
+  const int* null_int_ptr = nullptr;
   const int* null_int_ptr_result = CHECK_NOTNULL(null_int_ptr);
   EXPECT_FALSE(log_checker.HasMessage("ERROR", "NOTNULL"));
   EXPECT_FALSE(log_checker.HasMessage("FATAL", "Notnull"));
@@ -78,7 +78,7 @@ TEST_F(LogChecker, Basic) {
   EXPECT_TRUE(log_checker.HasMessage("FATAL", "NOTNULL"));
   EXPECT_TRUE(log_checker.HasNoMessage("ERROR", "NOTNULL"));
   EXPECT_TRUE(log_checker.HasNoMessage("FATAL", "Notnull"));
-  EXPECT_TRUE(null_int_ptr_result == NULL);
+  EXPECT_TRUE(null_int_ptr_result == nullptr);
 }
 
 TEST_F(LogChecker, GetAllMessages) {

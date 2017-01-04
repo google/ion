@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,7 +35,10 @@
         'mockgraphicsmanager_test.cc',
         'mockresource_test.cc',
         'node_test.cc',
+        'renderer_common.h',
+        'renderer_common.cc',
         'renderer_test.cc',
+        'renderer_texture_test.cc',
         'resourcemanager_test.cc',
         'sampler_test.cc',
         'shader_test.cc',
@@ -46,13 +49,17 @@
         'texture_test.cc',
         'texturemanager_test.cc',
         'tracecallextractor_test.cc',
+        'transformfeedback_test.cc',
         'uniform_test.cc',
         'uniformblock_test.cc',
         'uniformholder_test.cc',
         'updatestatetable_test.cc',
       ],
+      'cflags_cc': [
+        '-Wno-unused-function',
+      ],
       'conditions': [
-        ['OS == "windows" and not angle', {
+        ['OS == "win" and not angle', {
           'sources!': [
             'graphicsmanager_test.cc',
             'resourcemanager_test.cc',

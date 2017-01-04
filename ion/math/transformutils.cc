@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -82,7 +82,7 @@ void RotationMatrix3x3(const Rotation<T>& r, Matrix<Dimension, T>* matrix) {
 // -----------------------------------------------------------------------------
 
 template <typename T>
-const Matrix<4, T> OrthoInverseH(const Matrix<4, T>& m) {
+Matrix<4, T> OrthoInverseH(const Matrix<4, T>& m) {
   static const T kZero = static_cast<T>(0);
   static const T kOne = static_cast<T>(1);
   static const Vector<4, T> kZeroZeroZeroOne(kZero, kZero, kZero, kOne);
@@ -113,8 +113,8 @@ const Matrix<4, T> OrthoInverseH(const Matrix<4, T>& m) {
                       kZero, kZero, kZero, kOne);
 }
 
-template <typename T> ION_API
-const Matrix<4, T> RotationMatrixH(const Rotation<T>& r) {
+template <typename T>
+ION_API Matrix<4, T> RotationMatrixH(const Rotation<T>& r) {
   Matrix<4, T> m;
   RotationMatrix3x3(r, &m);
   for (int i = 0; i < 3; ++i)
@@ -123,24 +123,26 @@ const Matrix<4, T> RotationMatrixH(const Rotation<T>& r) {
   return m;
 }
 
-template <typename T> ION_API
-const Matrix<3, T> RotationMatrixNH(const Rotation<T>& r) {
+template <typename T>
+ION_API Matrix<3, T> RotationMatrixNH(const Rotation<T>& r) {
   Matrix<3, T> m;
   RotationMatrix3x3(r, &m);
   return m;
 }
 
-template <typename T> ION_API
-const Matrix<4, T> LookAtMatrixFromCenter(
-    const Point<3, T>& eye, const Point<3, T>& center, const Vector<3, T>& up) {
+template <typename T>
+ION_API Matrix<4, T> LookAtMatrixFromCenter(const Point<3, T>& eye,
+                                            const Point<3, T>& center,
+                                            const Vector<3, T>& up) {
   const Vector<3, T> dir = center - eye;
   // dir will be normalized below.
   return LookAtMatrixFromDir(eye, dir, up);
 }
 
-template <typename T> ION_API
-const Matrix<4, T> LookAtMatrixFromDir(
-    const Point<3, T>& eye, const Vector<3, T>& dir, const Vector<3, T>& up) {
+template <typename T>
+ION_API Matrix<4, T> LookAtMatrixFromDir(const Point<3, T>& eye,
+                                         const Vector<3, T>& dir,
+                                         const Vector<3, T>& up) {
   // Check for degenerate cases.
   DCHECK(eye == eye);
   DCHECK(dir == dir);
@@ -162,9 +164,10 @@ const Matrix<4, T> LookAtMatrixFromDir(
   return mat * TranslationMatrix(-eye);
 }
 
-template <typename T> ION_API
-const Matrix<4, T> OrthographicMatrixFromFrustum(
-    T x_left, T x_right, T y_bottom, T y_top, T z_near, T z_far) {
+template <typename T>
+ION_API Matrix<4, T> OrthographicMatrixFromFrustum(T x_left, T x_right,
+                                                   T y_bottom, T y_top,
+                                                   T z_near, T z_far) {
   if (x_left == x_right || y_bottom == y_top || z_near == z_far) {
     return Matrix<4, T>::Identity();
   }
@@ -182,9 +185,10 @@ const Matrix<4, T> OrthographicMatrixFromFrustum(
                             0, 0, 0, 1);
 }
 
-template <typename T> ION_API
-const Matrix<4, T> PerspectiveMatrixFromFrustum(
-    T x_left, T x_right, T y_bottom, T y_top, T z_near, T z_far) {
+template <typename T>
+ION_API Matrix<4, T> PerspectiveMatrixFromFrustum(T x_left, T x_right,
+                                                  T y_bottom, T y_top, T z_near,
+                                                  T z_far) {
   const T zero = static_cast<T>(0);
   if (x_left == x_right || y_bottom == y_top || z_near == z_far ||
       z_near <= zero || z_far <= zero) {
@@ -204,9 +208,9 @@ const Matrix<4, T> PerspectiveMatrixFromFrustum(
                             0, 0, -1, 0);
 }
 
-template <typename T> ION_API
-const Matrix<4, T> PerspectiveMatrixFromView(const Angle<T>& fovy, T aspect,
-                                             T z_near, T z_far) {
+template <typename T>
+ION_API Matrix<4, T> PerspectiveMatrixFromView(const Angle<T>& fovy, T aspect,
+                                               T z_near, T z_far) {
   const T zero = static_cast<T>(0);
   if (fovy.Radians() <= zero || aspect <= zero ||
       z_near <= zero || z_far <= zero || z_near == z_far) {
@@ -222,8 +226,8 @@ const Matrix<4, T> PerspectiveMatrixFromView(const Angle<T>& fovy, T aspect,
       x_left, x_right, y_bottom, y_top, z_near, z_far);
 }
 
-template <typename T> ION_API
-const Matrix<4, T> PerspectiveMatrixInverse(const Matrix<4, T>& m) {
+template <typename T>
+ION_API Matrix<4, T> PerspectiveMatrixInverse(const Matrix<4, T>& m) {
   static const T kZero = static_cast<T>(0);
   static const T kOne = static_cast<T>(1);
   // We assume that the matrix M has the following form:
@@ -263,28 +267,25 @@ const Matrix<4, T> PerspectiveMatrixInverse(const Matrix<4, T>& m) {
 //-----------------------------------------------------------------------------
 
 #define ION_INSTANTIATE_FUNCTIONS(type)                                       \
-template const Matrix<4, type> ION_API OrthoInverseH(                         \
-    const Matrix<4, type>& r);                                                \
-template const Matrix<4, type> ION_API RotationMatrixH(                       \
-    const Rotation<type>& r);                                                 \
-template const Matrix<3, type> ION_API RotationMatrixNH(                      \
-    const Rotation<type>& r);                                                 \
-template const Matrix<4, type> ION_API LookAtMatrixFromCenter(                \
-    const Point<3, type>& eye, const Point<3, type>& center,                  \
-    const Vector<3, type>& up);                                               \
-template const Matrix<4, type> ION_API LookAtMatrixFromDir(                   \
-    const Point<3, type>& eye, const Vector<3, type>& dir,                    \
-    const Vector<3, type>& up);                                               \
-template const Matrix<4, type> ION_API OrthographicMatrixFromFrustum(         \
-    type x_left, type x_right, type y_bottom, type y_top,                     \
-    type z_near, type z_far);                                                 \
-template const Matrix<4, type> ION_API PerspectiveMatrixFromFrustum(          \
-    type x_left, type x_right, type y_bottom, type y_top,                     \
-    type z_near, type z_far);                                                 \
-template const Matrix<4, type> ION_API PerspectiveMatrixFromView(             \
-    const Angle<type>& fovy, type aspect, type z_near, type z_far);           \
-template const Matrix<4, type> ION_API PerspectiveMatrixInverse(              \
-    const Matrix<4, type>& m)
+  template Matrix<4, type> ION_API OrthoInverseH(const Matrix<4, type>& r);   \
+  template Matrix<4, type> ION_API RotationMatrixH(const Rotation<type>& r);  \
+  template Matrix<3, type> ION_API RotationMatrixNH(const Rotation<type>& r); \
+  template Matrix<4, type> ION_API LookAtMatrixFromCenter(                    \
+      const Point<3, type>& eye, const Point<3, type>& center,                \
+      const Vector<3, type>& up);                                             \
+  template Matrix<4, type> ION_API LookAtMatrixFromDir(                       \
+      const Point<3, type>& eye, const Vector<3, type>& dir,                  \
+      const Vector<3, type>& up);                                             \
+  template Matrix<4, type> ION_API OrthographicMatrixFromFrustum(             \
+      type x_left, type x_right, type y_bottom, type y_top, type z_near,      \
+      type z_far);                                                            \
+  template Matrix<4, type> ION_API PerspectiveMatrixFromFrustum(              \
+      type x_left, type x_right, type y_bottom, type y_top, type z_near,      \
+      type z_far);                                                            \
+  template Matrix<4, type> ION_API PerspectiveMatrixFromView(                 \
+      const Angle<type>& fovy, type aspect, type z_near, type z_far);         \
+  template Matrix<4, type> ION_API PerspectiveMatrixInverse(                  \
+      const Matrix<4, type>& m)
 
 ION_INSTANTIATE_FUNCTIONS(double);  // NOLINT
 ION_INSTANTIATE_FUNCTIONS(float);   // NOLINT

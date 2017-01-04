@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -92,7 +92,7 @@ bool ZipAssetManager::RegisterAssetData(const void* data, size_t data_size) {
       // registration may replace it while it is being read.
       const std::vector<std::string> mappings =
           base::SplitString(
-              manager->GetFileDataLocked(kManifestFilename, NULL), "\n");
+              manager->GetFileDataLocked(kManifestFilename, nullptr), "\n");
       const size_t count = mappings.size();
       for (size_t i = 0; i < count; ++i) {
         std::vector<std::string> mapping =
@@ -148,7 +148,7 @@ std::shared_ptr<const std::string> ZipAssetManager::GetFileDataPtr(
     const std::string& filename) {
   ZipAssetManager* manager = GetManager();
   LockGuard guard(&manager->mutex_);
-  if (!IsInvalidReference(manager->GetFileDataLocked(filename, NULL))) {
+  if (!IsInvalidReference(manager->GetFileDataLocked(filename, nullptr))) {
     FileCache::iterator it = manager->file_cache_.find(filename);
     return it->second.data_ptr;
   }
@@ -158,7 +158,7 @@ std::shared_ptr<const std::string> ZipAssetManager::GetFileDataPtr(
 const std::string& ZipAssetManager::GetFileData(const std::string& filename) {
   ZipAssetManager* manager = GetManager();
   LockGuard guard(&manager->mutex_);
-  return manager->GetFileDataLocked(filename, NULL);
+  return manager->GetFileDataLocked(filename, nullptr);
 }
 
 bool ZipAssetManager::GetFileDataNoCache(const std::string& filename,
@@ -223,7 +223,7 @@ bool ZipAssetManager::SetFileData(const std::string& filename,
 bool ZipAssetManager::SaveFileData(const std::string& filename) {
   ZipAssetManager* manager = GetManager();
   LockGuard guard(&manager->mutex_);
-  const std::string& data = manager->GetFileDataLocked(filename, NULL);
+  const std::string& data = manager->GetFileDataLocked(filename, nullptr);
   // Find the filename in the cache.
   FileCache::const_iterator it = manager->file_cache_.find(filename);
   if (it != manager->file_cache_.end() &&

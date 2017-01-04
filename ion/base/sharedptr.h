@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -50,17 +50,18 @@ namespace base {
 // - Assignment from a SharedPtr of the same type.
 // - Operator* and Operator-> (although the latter is unlikely to be useful).
 // - Operator== and Operator!=.
+// - Operator bool().
 // - swap().
 // The remaining operators require a complete type:
 // - Construction from a T*.
 // - Copy construction requiring a type conversion.
-// - Reset(args) with any arguments, even NULL.
+// - Reset(args) with any arguments, even nullptr.
 // - Assignment from a T*.
 // - Assignment from a SharedPtr requiring a type conversion.
 template <typename T> class SharedPtr {
  public:
-  // The default constructor initializes the pointer to NULL.
-  SharedPtr() : ptr_(NULL), shr_(NULL) {}
+  // The default constructor initializes the pointer to nullptr.
+  SharedPtr() : ptr_(nullptr), shr_(nullptr) {}
 
   // Constructor that takes a raw shared pointer.
   explicit SharedPtr(T* shared) : ptr_(shared), shr_(shared) {
@@ -79,30 +80,30 @@ template <typename T> class SharedPtr {
     AddReference();
   }
 
-  ~SharedPtr() {
-    RemoveReference();
-    ptr_ = NULL;
-    shr_ = NULL;
-  }
+  ~SharedPtr() { Reset(); }
 
-  // Returns a raw pointer to the instance, which may be NULL.
+  // Returns a raw pointer to the instance, which may be nullptr.
   T* Get() const { return ptr_; }
 
-  // Changes the pointer to point to the given shared, which may be NULL.
+  // Changes the pointer to point to the given shared, which may be nullptr.
   void Reset(T* new_shared) {
     if (new_shared != ptr_) {
-      RemoveReference();
+      const Shareable* shr = shr_;
       ptr_ = new_shared;
       shr_ = new_shared;
       AddReference();
+      // Call RemoveReference() last in case it deletes memory containing this.
+      RemoveReference(shr);
     }
   }
 
-  // Make the SharedPtr point to NULL.
+  // Make the SharedPtr point to nullptr.
   void Reset() {
-    RemoveReference();
-    ptr_ = NULL;
-    shr_ = NULL;
+    const Shareable* shr = shr_;
+    ptr_ = nullptr;
+    shr_ = nullptr;
+    // Call RemoveReference() last in case it deletes memory containing this.
+    RemoveReference(shr);
   }
 
   // Assignment to a raw pointer is the same as Reset().
@@ -122,10 +123,12 @@ template <typename T> class SharedPtr {
   // We can do this version without that requirement.
   SharedPtr<T>& operator=(const SharedPtr<T>& p) {
     if (p.Get() != ptr_) {
-      RemoveReference();
+      const Shareable* shr = shr_;
       ptr_ = p.Get();
       shr_ = p.shr_;
       AddReference();
+      // Call RemoveReference() last in case it deletes memory containing this.
+      RemoveReference(shr);
     }
     return *this;
   }
@@ -148,6 +151,9 @@ template <typename T> class SharedPtr {
     return *ptr_;
   }
 
+  // Check that the pointer is non-null.
+  explicit operator bool() const { return ptr_ != nullptr; }
+
   // The equality operator returns true if the raw pointers are the same.
   bool operator==(const SharedPtr<T>& p) const {
     return p.ptr_ == ptr_;
@@ -166,16 +172,16 @@ template <typename T> class SharedPtr {
   }
 
  private:
-  // Increments the reference count in the instance if it is not NULL.
+  // Increments the reference count in the instance if it is not null.
   void AddReference() {
     if (shr_)
       shr_->IncrementRefCount();
   }
 
-  // Decrements the reference count in the instance, if it is not NULL.
-  void RemoveReference() {
-    if (shr_)
-      shr_->DecrementRefCount();
+  // Decrements the reference count in the instance, if it is not null.
+  void RemoveReference(const Shareable* shr) {
+    if (shr)
+      shr->DecrementRefCount();
   }
 
   T* ptr_;
@@ -186,11 +192,13 @@ template <typename T> class SharedPtr {
   const Shareable* shr_;
 };
 
+#if !ION_NO_RTTI
 // Allows casting SharedPtrs down a type hierarchy.
 template <typename To, typename From>
 SharedPtr<To> DynamicPtrCast(const SharedPtr<From>& orig) {
   return SharedPtr<To>(dynamic_cast<To*>(orig.Get()));
 }
+#endif
 
 // A similar StaticPtrCast could be written, but it is not clear
 // if this would ever make sense for intrusive reference counting.

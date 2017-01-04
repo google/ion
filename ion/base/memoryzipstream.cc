@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -137,13 +137,13 @@ static int ZCALLBACK ErrorZipStream(voidpf opaque, voidpf stream) {
 
 struct ScopedUnzip {
   explicit ScopedUnzip(MemoryZipStream::ZipStreamInfo* info)
-      : handle(info->buffer.size() ? unzAttach(&info->def, &info->def) : NULL) {
-  }
+      : handle(info->buffer.size() ? unzAttach(&info->def, &info->def)
+                                   : nullptr) {}
   ~ScopedUnzip() {
     if (handle)
       unzDetach(&handle);
   }
-  operator bool() { return handle != NULL; }
+  operator bool() { return handle != nullptr; }
 
   unzFile handle;
 };
@@ -151,13 +151,13 @@ struct ScopedUnzip {
 struct ScopedZip {
   explicit ScopedZip(MemoryZipStream::ZipStreamInfo* info)
       : handle(info->buffer.size()
-                   ? zipOpen2("", APPEND_STATUS_ADDINZIP, NULL, &info->def)
-                   : zipOpen2("", APPEND_STATUS_CREATE, NULL, &info->def)) {}
+                   ? zipOpen2("", APPEND_STATUS_ADDINZIP, nullptr, &info->def)
+                   : zipOpen2("", APPEND_STATUS_CREATE, nullptr, &info->def)) {}
   ~ScopedZip() {
     if (handle)
       zipClose(handle, "");
   }
-  operator bool() { return handle != NULL; }
+  operator bool() { return handle != nullptr; }
 
   zipFile handle;
 };
@@ -187,8 +187,8 @@ void MemoryZipStream::AddFile(const std::string& filename,
                               const DataVector& data) {
   if (ScopedZip zip = ScopedZip(info_.get())) {
     zipOpenNewFileInZip(
-        zip.handle, filename.c_str(), NULL, NULL, 0, NULL, 0, NULL, Z_DEFLATED,
-        Z_BEST_COMPRESSION);
+        zip.handle, filename.c_str(), nullptr, nullptr, 0, nullptr, 0, nullptr,
+        Z_DEFLATED, Z_BEST_COMPRESSION);
     zipWriteInFileInZip(zip.handle, data.data(),
                         static_cast<unsigned int>(data.size()));
     zipCloseFileInZip(zip.handle);
@@ -220,7 +220,7 @@ const MemoryZipStream::DataVector MemoryZipStream::GetFileData(
     char comment[kStringLength + 1];
     if (unzLocateFile(unz.handle, filename.c_str(), 0) == UNZ_OK &&
         unzOpenCurrentFile(unz.handle) == UNZ_OK &&
-        unzGetCurrentFileInfo(unz.handle, &info, NULL, 0, extra_field,
+        unzGetCurrentFileInfo(unz.handle, &info, nullptr, 0, extra_field,
                               kStringLength, comment, kStringLength) ==
             UNZ_OK) {
       // Resize the output buffer to accommodate the data.

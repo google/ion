@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ static const char* OpenFileCallback(
     *data_len = strlen(kIndexHtml);
     return kIndexHtml;
   } else {
-    return NULL;
+    return nullptr;
   }
 }
 
@@ -74,13 +74,13 @@ class HttpClientTest : public ::testing::Test {
     const int port = GetUnusedPort(500);
     const std::string port_string = base::ValueToString(port);
     localhost_ = "localhost:" + port_string;
-    const char *options[] = {"listening_ports", port_string.c_str(), NULL};
+    const char *options[] = {"listening_ports", port_string.c_str(), nullptr};
     mg_callbacks callbacks;
 
     memset(&callbacks, 0, sizeof(callbacks));
     callbacks.begin_request = RequestCallback;
     callbacks.open_file = OpenFileCallback;
-    context_ = mg_start(&callbacks, NULL, options);
+    context_ = mg_start(&callbacks, nullptr, options);
   }
 
   void TearDown() override {

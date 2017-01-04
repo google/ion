@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@
       'target_name' : 'ionprofile',
       'type': 'static_library',
       'dependencies': [
-        '../analytics/analytics.gyp:ionanalytics',
+        '../analytics/analytics_nogfx.gyp:ionanalytics_nogfx',
         '../external/external.gyp:ionjsoncpp',
       ],
       'sources' : [

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ class HttpServer::WebsocketHelper {
       : connection_(conn), ready_(false), binary_(false) {
   }
   ~WebsocketHelper() {
-    websocket_->helper_ = NULL;
+    websocket_->helper_ = nullptr;
   }
 
   void SetWebsocket(const WebsocketPtr& websocket) {
@@ -551,7 +551,7 @@ static int BeginRequestCallback(mg_connection* connection) {
   // other requests when calling the begin_request callback (it detects the
   // upgrade request later), so we need to avoid sending any data back before
   // Mongoose does the Websocket handshake.
-  if (NULL != mg_get_header(connection, "Sec-WebSocket-Key")) {
+  if (nullptr != mg_get_header(connection, "Sec-WebSocket-Key")) {
     return 0;
   }
   // Extract out the request method.
@@ -657,7 +657,7 @@ HttpServer::RequestHandler::RequestHandler(const std::string& base_path)
 HttpServer::RequestHandler::~RequestHandler() {}
 
 HttpServer::HttpServer(int port, int num_threads)
-    : context_(NULL),
+    : context_(nullptr),
       embed_local_sourced_files_(false) {
   if (port) {
     std::stringstream int_to_string;
@@ -672,7 +672,7 @@ HttpServer::HttpServer(int port, int num_threads)
     mg_callbacks callbacks;
     const char* options[] = { "listening_ports", port_cstr.c_str(),
                               "num_threads", num_threads_cstr.c_str(),
-                              NULL };
+                              nullptr };
 
     memset(&callbacks, 0, sizeof(callbacks));
     callbacks.log_message = LogCallback;
@@ -688,7 +688,7 @@ HttpServer::HttpServer(int port, int num_threads)
 HttpServer::~HttpServer() {
   if (context_) {
     mg_stop(context_);
-    context_ = NULL;
+    context_ = nullptr;
   }
 }
 
@@ -708,7 +708,7 @@ const std::string HttpServer::GetUriData(const std::string& uri) const {
 }
 
 bool HttpServer::IsRunning() const {
-  return context_ != NULL;
+  return context_ != nullptr;
 }
 
 void HttpServer::RegisterHandler(const RequestHandlerPtr& handler) {
@@ -741,7 +741,7 @@ HttpServer::WebsocketHelper* HttpServer::FindWebsocket(void* key) {
   base::LockGuard lock(&websocket_mutex_);
   WebsocketMap::iterator it = websockets_.find(key);
   return (it == websockets_.end())
-      ? static_cast<HttpServer::WebsocketHelper*>(NULL)
+      ? static_cast<HttpServer::WebsocketHelper*>(nullptr)
       : it->second;
 }
 
@@ -770,7 +770,7 @@ size_t HttpServer::WebsocketCount() {
 #else
 
 HttpServer::HttpServer(int port, int num_threads)
-    : context_(NULL),
+    : context_(nullptr),
       embed_local_sourced_files_(false) {}
 
 HttpServer::~HttpServer() {}

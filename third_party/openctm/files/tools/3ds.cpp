@@ -268,7 +268,7 @@ void Import_3DS(std::istream &f, Mesh * aMesh)
       case CHUNK_FACES:
         count = ReadInt16(f);
         if((!obj) || ((obj->mIndices.size() > 0) &&
-          (obj->mIndices.size() != count)))
+          (obj->mIndices.size() != 3 * count)))
         {
           f.seekg(count * 8, ios_base::cur);
           break;
@@ -283,7 +283,7 @@ void Import_3DS(std::istream &f, Mesh * aMesh)
           ReadInt16(f); // Skip face flag
         }
         break;
-        
+
       default:      // Unknown/ignored - skip past this one
         f.seekg(chunkLen - 6, ios_base::cur);
     }

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,19 +15,19 @@ limitations under the License.
 
 */
 
-#ifndef ION_PORTGFX_GETGLPROCADDRESS_H_
-#define ION_PORTGFX_GETGLPROCADDRESS_H_
+#include "ion/gfx/transformfeedback.h"
+
+#include "third_party/googletest/googletest/include/gtest/gtest.h"
 
 namespace ion {
-namespace portgfx {
+namespace gfx {
 
-// Returns a generic pointer to an OpenGL function or OpenGL extension function
-// with the given name. Returns NULL if the function is not found. The caller
-// must know whether the function is a "core" function or not, as they must be
-// looked up differently from extensions.
-ION_API void* GetGlProcAddress(const char* name, bool is_core);
+// Much like IndexBufferTest, this doesn't do a whole lot.  However,
+// renderer_test has more sophisticated testing of the relevent functionality.
+TEST(TransformFeedbackTest, Defaults) {
+  TransformFeedbackPtr tb(new TransformFeedback);
+  EXPECT_EQ(BufferObjectPtr(), tb->GetCaptureBuffer());
+}
 
-}  // namespace portgfx
+}  // namespace gfx
 }  // namespace ion
-
-#endif  // ION_PORTGFX_GETGLPROCADDRESS_H_

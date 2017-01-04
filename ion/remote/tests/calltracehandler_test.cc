@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -36,10 +36,8 @@ namespace {
 
 // Dummy function for testing Profiler functions.
 static void DummyFunc() {
-  static const int scope_event_id_ =
-      profile::GetCallTraceManager()->GetScopeEnterEvent("DummyFunc");
   profile::ScopedTracer scope_tracer_(
-      profile::GetCallTraceManager()->GetTraceRecorder(), scope_event_id_);
+      profile::GetCallTraceManager()->GetTraceRecorder(), "DummyFunc");
 }
 
 }  // anonymous namespace

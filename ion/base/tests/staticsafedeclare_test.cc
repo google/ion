@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -71,6 +71,14 @@ struct B : Base {
   Base* a;
 };
 
+struct StaticInDestructor {
+  StaticInDestructor() {}
+  ~StaticInDestructor() {
+    ION_DECLARE_SAFE_STATIC_POINTER_WITH_CONSTRUCTOR(int, test_int, new int(5));
+    DCHECK(this);
+  }
+};
+
 // A numeric type that increments its value each time it is default-construted.
 // Used to verify that ION_DECLARE_SAFE_STATIC_ARRAY is creating valid objects.
 static int default_int_val = 0;
@@ -90,7 +98,7 @@ static bool GetSafeStaticValue() {
   // Verify that reading both the safe statics and through them (in the pointer
   // case) is thread-safe.
   // Do the reads on separate lines for easier decoding of TSAN errors.
-  bool return_value = my_bool_p != static_cast<bool*>(NULL);
+  bool return_value = my_bool_p != static_cast<bool*>(nullptr);
   return_value &= *my_bool_p;
   return_value &= *my_int32 == kMagicConstant;
   return return_value;
@@ -110,10 +118,10 @@ TEST(StaticInitialize, InitializeVariables) {
   EXPECT_EQ(
       "int*",
       StaticDeleterDeleter::GetInstance()->GetDeleterAt(offset)->GetTypeName());
-  EXPECT_TRUE(foo_ptr != static_cast<int*>(NULL));
+  EXPECT_TRUE(foo_ptr != static_cast<int*>(nullptr));
   // Declare foo as an int* of 10 ints.
   ION_DECLARE_SAFE_STATIC_ARRAY(int, foo_array, 10);
-  EXPECT_TRUE(foo_array != static_cast<int*>(NULL));
+  EXPECT_TRUE(foo_array != static_cast<int*>(nullptr));
   EXPECT_EQ("int*",
             StaticDeleterDeleter::GetInstance()
                 ->GetDeleterAt(offset + 1)
@@ -143,7 +151,7 @@ TEST(StaticInitialize, InitializeVariables) {
                 ->GetTypeName());
 
   EXPECT_TRUE(StaticDeleterDeleter::GetInstance()->GetDeleterAt(offset + 5) ==
-              NULL);
+              nullptr);
 }
 
 TEST(StaticInitialize, Interdependencies) {
@@ -152,9 +160,14 @@ TEST(StaticInitialize, Interdependencies) {
   // these types' StaticDeleters will delete all instances of the type before
   // the other, meaning that one of these destructions would attempt to Call()
   // a deleted instance.
-  ION_DECLARE_SAFE_STATIC_POINTER_WITH_CONSTRUCTOR(A, a1, new A(NULL));
+  ION_DECLARE_SAFE_STATIC_POINTER_WITH_CONSTRUCTOR(A, a1, new A(nullptr));
   ION_DECLARE_SAFE_STATIC_POINTER_WITH_CONSTRUCTOR(B, b, new B(a1));
   ION_DECLARE_SAFE_STATIC_POINTER_WITH_CONSTRUCTOR(A, a2, new A(b));
+}
+
+TEST(StaticInitialize, StaticInDestructorDoesNotDeadlock) {
+  ION_DECLARE_SAFE_STATIC_POINTER(StaticInDestructor, s);
+  EXPECT_NE(s, nullptr);
 }
 
 // No thread support in asmjs means no test coverage for threads.

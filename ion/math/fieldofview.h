@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -51,6 +51,14 @@ class FieldOfView {
   // alpha.
   static FieldOfView<T> FromTangents(const T& left, const T& right,
                                      const T& bottom, const T& top);
+
+  // Shorthand for constructing a field of view from four angles in radians.
+  static FieldOfView<T> FromRadians(const T& left, const T& right,
+                                    const T& bottom, const T& top);
+
+  // Shorthand for constructing a field of view from four angles in degrees.
+  static FieldOfView<T> FromDegrees(const T& left, const T& right,
+                                    const T& bottom, const T& top);
 
   // Copy constructor from an instance of the same Dimension and any value type
   // that is compatible (via static_cast) with this instance's type.
@@ -206,6 +214,28 @@ inline FieldOfView<T> FieldOfView<T>::FromTangents(const T& left,
                         Angle<T>::FromRadians(std::atan(right)),
                         Angle<T>::FromRadians(std::atan(bottom)),
                         Angle<T>::FromRadians(std::atan(top)));
+}
+
+template <typename T>
+inline FieldOfView<T> FieldOfView<T>::FromRadians(const T& left,
+                                                  const T& right,
+                                                  const T& bottom,
+                                                  const T& top) {
+  return FieldOfView<T>(Angle<T>::FromRadians(left),
+                        Angle<T>::FromRadians(right),
+                        Angle<T>::FromRadians(bottom),
+                        Angle<T>::FromRadians(top));
+}
+
+template <typename T>
+inline FieldOfView<T> FieldOfView<T>::FromDegrees(const T& left,
+                                                  const T& right,
+                                                  const T& bottom,
+                                                  const T& top) {
+  return FieldOfView<T>(Angle<T>::FromDegrees(left),
+                        Angle<T>::FromDegrees(right),
+                        Angle<T>::FromDegrees(bottom),
+                        Angle<T>::FromDegrees(top));
 }
 
 template <typename T>

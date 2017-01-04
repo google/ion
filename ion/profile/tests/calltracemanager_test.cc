@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@ limitations under the License.
 
 #include "ion/profile/calltracemanager.h"
 
+#include <atomic>
+#include <chrono>  // NOLINT
 #include <fstream>  // NOLINT
 #include <functional>
 #include <limits>
@@ -35,6 +37,7 @@ limitations under the License.
 #include "ion/port/fileutils.h"
 #include "ion/port/threadutils.h"
 #include "ion/port/timer.h"
+#include "ion/portgfx/visual.h"
 #include "ion/profile/timeline.h"
 #include "ion/profile/timelineevent.h"
 #include "ion/profile/timelineframe.h"
@@ -128,7 +131,7 @@ struct Event {
 
       if (type == "ascii" || type == "utf8") {
         // Look up ascii/utf8 arguments from the string table, interpet as
-        // a singed integer.
+        // a signed integer.
         int32 string_index =
             *reinterpret_cast<const int32*>(&data[offset + local_offset]);
         local_offset += 4;
@@ -516,7 +519,7 @@ class TraceReader {
   }
 
   void ReadExtra(size_t expected_offset, size_t* actual_offset) {
-    ASSERT_TRUE(actual_offset != NULL);
+    ASSERT_TRUE(actual_offset != nullptr);
     ASSERT_LE(*actual_offset, expected_offset);
     if (*actual_offset != expected_offset) {
       // Read additional bytes until we're at the correct offset.
@@ -577,7 +580,8 @@ class CallTraceTest : public testing::Test {
   // Returns true if GPU tracing is supported.
   bool AllowGpuTracing() {
     // Enable mock GPU tracing.
-    mock_visual_.reset(new gfx::testing::MockVisual(1, 1));
+    visual_ = gfx::testing::MockVisual::Create(1, 1);
+    portgfx::Visual::MakeCurrent(visual_);
     mock_gfx_mgr_.Reset(new gfx::testing::MockGraphicsManager());
     gpu_profiler_->SetGraphicsManager(mock_gfx_mgr_);
     return gpu_profiler_->IsGpuProfilingSupported(mock_gfx_mgr_);
@@ -606,22 +610,17 @@ class CallTraceTest : public testing::Test {
 
   // Return the number of unique custom scope events recorded.
   size_t GetNumScopeEvents() const {
-    return call_trace_manager_->GetNumScopeEvents();
-  }
-
-  int GetScopeEnterEvent(const char* string_id) const {
-    return call_trace_manager_->GetScopeEnterEvent(string_id);
+    return call_trace_manager_->GetScopeEventTable()->GetSize();
   }
 
   std::unique_ptr<CallTraceManagerWithMockTimer> call_trace_manager_;
   std::unique_ptr<GpuProfiler> gpu_profiler_;
-  std::unique_ptr<gfx::testing::MockVisual> mock_visual_;
+  ion::portgfx::VisualPtr visual_;
   ion::gfx::GraphicsManagerPtr mock_gfx_mgr_;
 
  public:
   bool SetToSeventeen(int* arg) {
-    ScopedTracer scope(
-        GetTraceRecorder(), GetScopeEnterEvent("SetToSeventeen"));
+    ScopedTracer scope(GetTraceRecorder(), "SetToSeventeen");
     *arg = 17;
     return true;
   }
@@ -634,8 +633,7 @@ class CallTraceTest : public testing::Test {
 
   bool ThreadFunction(ThreadStruct* threadStruct) {
     for (int i = 0; i < threadStruct->count; ++i) {
-      ScopedTracer scope(
-          GetTraceRecorder(), GetScopeEnterEvent("For loop scope"));
+      ScopedTracer scope(GetTraceRecorder(), "For loop scope");
     }
     threadStruct->end_semaphore.Post();
     return true;
@@ -645,7 +643,7 @@ class CallTraceTest : public testing::Test {
     for (int i = 0; i < threadStruct->count; ++i) {
       std::string name = "Thread for loop " + base::ValueToString(i);
       call_trace_manager_->AdvanceTimer(2000U);
-      GetTraceRecorder()->EnterTimeRange(i, name.c_str(), NULL);
+      GetTraceRecorder()->EnterTimeRange(i, name.c_str(), nullptr);
       call_trace_manager_->AdvanceTimer(6000U);
       GetTraceRecorder()->LeaveTimeRange(i);
     }
@@ -658,7 +656,8 @@ class CallTraceTest : public testing::Test {
     for (int i = 0; i < threadStruct->count; ++i) {
       std::string name = "Thread timeStamp " + base::ValueToString(i);
       GetTraceRecorder()->CreateTimeStampAtTime(
-          base_timestamp + static_cast<uint32>(i) * 2000U, name.c_str(), NULL);
+          base_timestamp + static_cast<uint32>(i) * 2000U, name.c_str(),
+          nullptr);
     }
     threadStruct->end_semaphore.Post();
     return true;
@@ -682,13 +681,25 @@ class FakeTimelineMetric : public TimelineMetric {
   double value_;
 };
 
+class RunCountTimelineMetric : public TimelineMetric {
+ public:
+  explicit RunCountTimelineMetric(std::atomic<int>* run_count)
+      : run_count_(run_count) {}
+  void Run(const Timeline& timeline,
+           analytics::Benchmark* benchmark) const override {
+    ++(*run_count_);
+  }
+
+ private:
+  std::atomic<int>* const run_count_;
+};
+
 static bool EventLoop(CallTraceManagerWithMockTimer* call_trace_manager,
                       const std::string& thread_name,
                       const std::vector<const char*>& event_names) {
   call_trace_manager->GetTraceRecorder()->SetThreadName(thread_name);
   for (const char* event_name : event_names) {
-    ScopedTracer scope(call_trace_manager->GetTraceRecorder(),
-                       call_trace_manager->GetScopeEnterEvent(event_name));
+    ScopedTracer scope(call_trace_manager->GetTraceRecorder(), event_name);
     call_trace_manager->AdvanceTimer(10U);
   }
   return true;
@@ -734,11 +745,11 @@ TEST_F(CallTraceTest, ReserveBuffer) {
 TEST_F(CallTraceTest, BasicRecord) {
   {
     // This is the first scope.
-    ScopedTracer scope(GetTraceRecorder(), GetScopeEnterEvent("First scope"));
+    ScopedTracer scope(GetTraceRecorder(), "First scope");
   }
   {
     // This is the second scope.
-    ScopedTracer scope(GetTraceRecorder(), GetScopeEnterEvent("Second scope"));
+    ScopedTracer scope(GetTraceRecorder(), "Second scope");
   }
   EXPECT_EQ(2U, GetNumScopeEvents());
   EXPECT_EQ(4U, GetTraceRecorder()->GetNumTraces());
@@ -749,13 +760,11 @@ TEST_F(CallTraceTest, BasicGpuRecordEnabled) {
   EnableGpuTracing();
   {
     // This is the first scope.
-    ScopedGlTracer scope(GetGpuProfiler(),
-                         GetScopeEnterEvent("First scope"));
+    ScopedGlTracer scope(GetGpuProfiler(), "First scope");
   }
   {
     // This is the second scope.
-    ScopedGlTracer scope(GetGpuProfiler(),
-                         GetScopeEnterEvent("Second scope"));
+    ScopedGlTracer scope(GetGpuProfiler(), "Second scope");
   }
   EXPECT_EQ(2U, GetNumScopeEvents());
   EXPECT_EQ(0U, GetTraceRecorder()->GetNumTraces());
@@ -768,18 +777,14 @@ TEST_F(CallTraceTest, BasicGpuRecordEnabled) {
 
 TEST_F(CallTraceTest, BasicGpuRecordDisallowed) {
   EnableGpuTracing();
-  {
-    ScopedGlTracer scope(GetGpuProfiler(), GetScopeEnterEvent("test"));
-  }
+  { ScopedGlTracer scope(GetGpuProfiler(), "test"); }
   PollGlTimerQueries();
   EXPECT_EQ(0U, GetGpuTraceRecorder()->GetNumTraces());
 }
 
 TEST_F(CallTraceTest, BasicGpuRecordDisabled) {
   EXPECT_TRUE(AllowGpuTracing());
-  {
-    ScopedGlTracer scope(GetGpuProfiler(), GetScopeEnterEvent("test"));
-  }
+  { ScopedGlTracer scope(GetGpuProfiler(), "test"); }
   PollGlTimerQueries();
   EXPECT_EQ(0U, GetGpuTraceRecorder()->GetNumTraces());
 }
@@ -790,8 +795,7 @@ TEST_F(CallTraceTest, BasicGpuRecordDisabled) {
 TEST_F(CallTraceTest, ThreadRecord) {
   int x = 3;
   {
-    ScopedTracer scope(
-        GetTraceRecorder(), GetScopeEnterEvent("ThreadRecord Test Outer"));
+    ScopedTracer scope(GetTraceRecorder(), "ThreadRecord Test Outer");
 
     // Wait for the thread to finish.
     port::ThreadStdFunc func = std::bind(&CallTraceTest::SetToSeventeen,
@@ -839,7 +843,7 @@ TEST_F(CallTraceTest, MultipleThreads) {
 TEST_F(CallTraceTest, BasicTiming) {
   {
     // This is the first scope.
-    ScopedTracer scope(GetTraceRecorder(), GetScopeEnterEvent("First scope"));
+    ScopedTracer scope(GetTraceRecorder(), "First scope");
     call_trace_manager_->AdvanceTimer(8000U);
   }
   EXPECT_EQ(2U, GetTraceRecorder()->GetNumTraces());
@@ -860,11 +864,16 @@ TEST_F(CallTraceTest, BasicOutput) {
   const uint32 kNumIterations = 10;
   for (uint32 i = 0; i < kNumIterations; ++i) {
     call_trace_manager_->AdvanceTimer(2000U);
-    ScopedTracer scope(GetTraceRecorder(), GetScopeEnterEvent("First scope"));
+    ScopedTracer scope(GetTraceRecorder(), "First scope");
     call_trace_manager_->AdvanceTimer(6000U);
   }
-  // One enter and one exit event for each iteration.
-  EXPECT_EQ(kNumIterations*2, GetTraceRecorder()->GetNumTraces());
+  // Add an opened scope event. TraceRecorder::DumpTrace should close it in the
+  // dumped trace when CallTraceManager::SnapshotCallTraces is called.
+  GetTraceRecorder()->EnterScope(
+      GetTraceRecorder()->GetScopeEvent("First scope"));
+  // One enter and one exit event for each iteration, plus the additional enter
+  // event at the end.
+  EXPECT_EQ(kNumIterations*2+1, GetTraceRecorder()->GetNumTraces());
   // One scope.
   EXPECT_EQ(1U, GetNumScopeEvents());
 
@@ -873,8 +882,14 @@ TEST_F(CallTraceTest, BasicOutput) {
 
   // Query the events in the parser.
   const std::vector<Event>& eb = reader.GetMainEventBuffer();
-  // Two additional events marking the zero-scope level at the start and end.
-  EXPECT_EQ(kNumIterations * 2 + 2, eb.size());
+  // We should have the following events in the buffer:
+  // - 2 events to define the zone.
+  // - 2 events per iteration for the scope.
+  // - 2 events for the additional opened scope at the end. (One for entering
+  //   the scope, and the second added by TracerRecorder::DumpTrace to close
+  //   it.)
+  const uint32 event_buffer_size = static_cast<uint32>(eb.size());
+  EXPECT_EQ(2 + kNumIterations * 2 + 2, event_buffer_size);
 
   EXPECT_EQ("wtf.zone#create", eb[0].name);
   EXPECT_EQ(1U, eb[0].GetGenericArg("zoneId"));
@@ -894,6 +909,9 @@ TEST_F(CallTraceTest, BasicOutput) {
       EXPECT_EQ(2000U, one.time_value - prev.time_value);
     }
   }
+
+  EXPECT_EQ("First scope", eb[event_buffer_size-2].name);
+  EXPECT_EQ("wtf.scope#leave", eb[event_buffer_size-1].name);
 }
 
 TEST_F(CallTraceTest, AnnotatedOutput) {
@@ -901,7 +919,7 @@ TEST_F(CallTraceTest, AnnotatedOutput) {
   for (uint32 i = 0; i < kNumIterations; ++i) {
     std::ostringstream count;
     count << i;
-    ScopedTracer scope(GetTraceRecorder(), GetScopeEnterEvent("Loop scope"));
+    ScopedTracer scope(GetTraceRecorder(), "Loop scope");
     GetTraceRecorder()->AnnotateCurrentScope("Iter", count.str().c_str());
   }
   // Enter, leave, and appendData events per iteration.
@@ -945,8 +963,7 @@ TEST_F(CallTraceTest, BasicOutputWithFrames) {
         ScopedFrameTracer frame(GetTraceRecorder(), 999);
 
         call_trace_manager_->AdvanceTimer(2000U);
-        ScopedTracer scope(
-            GetTraceRecorder(), GetScopeEnterEvent("First scope"));
+        ScopedTracer scope(GetTraceRecorder(), "First scope");
         call_trace_manager_->AdvanceTimer(6000U);
       }
       // Check if it is inside of frame scope, and the frame number is correct.
@@ -957,7 +974,10 @@ TEST_F(CallTraceTest, BasicOutputWithFrames) {
     // Check if it is outside of frame scope.
     EXPECT_EQ(false, GetTraceRecorder()->IsInFrameScope());
   }
-  EXPECT_EQ(40U, GetTraceRecorder()->GetNumTraces());
+  // Add an opened frame event. TraceRecorder::DumpTrace should close it in the
+  // dumped trace when CallTraceManager::SnapshotCallTraces is called.
+  GetTraceRecorder()->EnterFrame(kNumIterations);
+  EXPECT_EQ(41U, GetTraceRecorder()->GetNumTraces());
   EXPECT_EQ(1U, GetNumScopeEvents());
 
   std::string output = call_trace_manager_->SnapshotCallTraces();
@@ -965,9 +985,14 @@ TEST_F(CallTraceTest, BasicOutputWithFrames) {
 
   // Query the events in the parser.
   const std::vector<Event>& eb = reader.GetMainEventBuffer();
-  // There are two events to define the zone, along with the frame and
-  // scope events.
-  EXPECT_EQ(kNumIterations * 4 + 2, static_cast<int>(eb.size()));
+  // We should have the following events in the buffer:
+  // - 2 events to define the zone.
+  // - 4 events per iteration for the frame and scope.
+  // - 2 events for the additional opened frame at the end. (One for entering
+  //   the frame, and the second added by TracerRecorder::DumpTrace to close
+  //   it.)
+  const int event_buffer_size = static_cast<int>(eb.size());
+  EXPECT_EQ(2 + kNumIterations * 4 + 2, event_buffer_size);
 
   EXPECT_EQ("wtf.zone#create", eb[0].name);
   EXPECT_EQ(1U, eb[0].GetGenericArg("zoneId"));
@@ -991,6 +1016,9 @@ TEST_F(CallTraceTest, BasicOutputWithFrames) {
       EXPECT_EQ(2000U, two.time_value - prev.time_value);
     }
   }
+
+  EXPECT_EQ("wtf.timing#frameStart", eb[event_buffer_size-2].name);
+  EXPECT_EQ("wtf.timing#frameEnd", eb[event_buffer_size-1].name);
 }
 
 // Test if more LeaveFrame is called than EnterFrame. In such case, the
@@ -1032,7 +1060,7 @@ TEST_F(CallTraceTest, BasicOutputWithThreads) {
   const int kThreadIterations = 7;
   for (int i = 0; i < kNumIterations; ++i) {
     call_trace_manager_->AdvanceTimer(2000U);
-    ScopedTracer scope(GetTraceRecorder(), GetScopeEnterEvent("First scope"));
+    ScopedTracer scope(GetTraceRecorder(), "First scope");
     call_trace_manager_->AdvanceTimer(6000U);
   }
   EXPECT_EQ(20U, GetTraceRecorder()->GetNumTraces());
@@ -1141,7 +1169,7 @@ TEST_F(CallTraceTest, BasicTimeRanges) {
     std::string name =
         std::string("For loop range ") + base::ValueToString(i);
     call_trace_manager_->AdvanceTimer(2000U);
-    GetTraceRecorder()->EnterTimeRange(i, name.c_str(), NULL);
+    GetTraceRecorder()->EnterTimeRange(i, name.c_str(), nullptr);
     call_trace_manager_->AdvanceTimer(6000U);
     GetTraceRecorder()->LeaveTimeRange(i);
   }
@@ -1157,14 +1185,26 @@ TEST_F(CallTraceTest, BasicTimeRanges) {
     GetTraceRecorder()->LeaveTimeRange(kNumIterations + i);
   }
 
+  // Add an opened time range event. TraceRecorder::DumpTrace should close it in
+  // the dumped trace when CallTraceManager::SnapshotCallTraces is called.
+  GetTraceRecorder()->EnterTimeRange(
+      kNumIterations * 2, "Dangling event", nullptr);
+
   EXPECT_EQ(0U, GetNumScopeEvents());
-  EXPECT_EQ(4U * kNumIterations, GetTraceRecorder()->GetNumTraces());
+  EXPECT_EQ(4U * kNumIterations + 1U, GetTraceRecorder()->GetNumTraces());
 
   std::string output = call_trace_manager_->SnapshotCallTraces();
   TraceReader reader(output);
 
   const std::vector<Event>& eb = reader.GetMainEventBuffer();
-  EXPECT_EQ(kNumIterations * 4 + 2, static_cast<int>(eb.size()));
+  // We should have the following events in the buffer:
+  // - 2 events to define the zone.
+  // - 2 events per iteration for the time range events, and 2 * kNumIterations
+  //   iterations are run.
+  // - 2 events for the additional opened time range event at the end. (One for
+  //   opening the event, and the second added by TracerRecorder::DumpTrace to
+  //   close it.)
+  EXPECT_EQ(2 + kNumIterations * 4 + 2, static_cast<int>(eb.size()));
 
   EXPECT_EQ("wtf.zone#create", eb[0].name);
   EXPECT_EQ(1U, eb[0].GetGenericArg("zoneId"));
@@ -1211,6 +1251,9 @@ TEST_F(CallTraceTest, BasicTimeRanges) {
     }
     event_i += 2;
   }
+
+  EXPECT_EQ("wtf.timeRange#begin", eb[event_i].name);
+  EXPECT_EQ("wtf.timeRange#end", eb[event_i+1].name);
 }
 
 #if !defined(ION_PLATFORM_ASMJS)  // ASMJS does not support threads.
@@ -1282,7 +1325,7 @@ TEST_F(CallTraceTest, BasicTimeRangesByName) {
     std::string name =
         std::string("For loop range ") + base::ValueToString(i);
     call_trace_manager_->AdvanceTimer(2000U);
-    uint32 id = GetTraceRecorder()->EnterTimeRange(name.c_str(), NULL);
+    uint32 id = GetTraceRecorder()->EnterTimeRange(name.c_str(), nullptr);
     call_trace_manager_->AdvanceTimer(6000U);
     GetTraceRecorder()->LeaveTimeRange(id);
   }
@@ -1332,7 +1375,7 @@ TEST_F(CallTraceTest, BasicTimeStamps) {
   for (int i = 0; i < kNumIterations; ++i) {
     std::string name =
         std::string("TimeStamp ") + base::ValueToString(i);
-    GetTraceRecorder()->CreateTimeStamp(name.c_str(), NULL);
+    GetTraceRecorder()->CreateTimeStamp(name.c_str(), nullptr);
     call_trace_manager_->AdvanceTimer(2000U);
   }
 
@@ -1353,10 +1396,10 @@ TEST_F(CallTraceTest, BasicTimeStamps) {
         std::string("TimeStamp ") +
         base::ValueToString(2 * kNumIterations + i);
     GetTraceRecorder()->CreateTimeStampAtTime(
-        base_timestamp + static_cast<uint32>(i) * 2000U, name.c_str(), NULL);
+        base_timestamp + static_cast<uint32>(i) * 2000U, name.c_str(), nullptr);
   }
 
-  // Zero because CallTraceManager::GetScopeEnterEvent() is not called.
+  // Zero because TraceRecorder::GetScopeEvent() is not called.
   EXPECT_EQ(0U, GetNumScopeEvents());
   EXPECT_EQ(3U * kNumIterations, GetTraceRecorder()->GetNumTraces());
 
@@ -1473,32 +1516,64 @@ TEST_F(CallTraceTest, ThreadedTimeStamps) {
 
 #endif  // !defined(ION_PLATFORM_ASMJS)
 
+TEST(CallTraceTesting, ClearTraceRecorder) {
+  // Each outermost scope enter/leave event pair takes 20 bytes (with the
+  // kEmptyScopeMarker), so 80 + 4 bytes is enough for 4 pairs + the initial
+  // kEmptyScopeMarker.
+  CallTraceManager manager(20 * 4 + 4);
+
+  // Add some events.
+  for (int i = 0; i < 3; ++i) {
+    ScopedTracer scope(manager.GetTraceRecorder(), "First scope");
+  }
+  { ScopedTracer scope(manager.GetTraceRecorder(), "Second scope"); }
+
+  EXPECT_EQ(2U, manager.GetScopeEventTable()->GetSize());
+  EXPECT_EQ(8U, manager.GetTraceRecorder()->GetNumTraces());
+
+  // Clear the event buffer.  This does not clear the reference map of
+  // previously seen scope events.
+  manager.GetTraceRecorder()->Clear();
+
+  EXPECT_EQ(2U, manager.GetScopeEventTable()->GetSize());
+  EXPECT_EQ(0U, manager.GetTraceRecorder()->GetNumTraces());
+
+  // Add more events.
+  for (int i = 0; i < 3; ++i) {
+    ScopedTracer scope(manager.GetTraceRecorder(), "First scope");
+  }
+  { ScopedTracer scope(manager.GetTraceRecorder(), "Second scope"); }
+
+  EXPECT_EQ(2U, manager.GetScopeEventTable()->GetSize());
+  EXPECT_EQ(8U, manager.GetTraceRecorder()->GetNumTraces());
+}
+
 TEST(CallTraceTesting, RingBufferNotFilled) {
-  // Each scope enter / leave event takes 8 bytes, so 80 bytes is enough for
-  // 10 events.
-  CallTraceManager manager(80);
+  // Each outermost scope enter/leave event pair takes 20 bytes (with the
+  // kEmptyScopeMarker), so 60 + 4 bytes is enough for 3 pairs + the initial
+  // kEmptyScopeMarker.
+  CallTraceManager manager(20 * 4 + 4);
 
   for (int i = 0; i < 3; ++i) {
-    ScopedTracer scope(
-        manager.GetTraceRecorder(), manager.GetScopeEnterEvent("First scope"));
+    ScopedTracer scope(manager.GetTraceRecorder(), "First scope");
   }
 
-  EXPECT_EQ(1U, manager.GetNumScopeEvents());
+  EXPECT_EQ(1U, manager.GetScopeEventTable()->GetSize());
   EXPECT_EQ(6U, manager.GetTraceRecorder()->GetNumTraces());
 }
 
 TEST(CallTraceTesting, RingBufferFilled) {
-  // Each scope enter / leave event takes 8 bytes, so 80 bytes is enough for
-  // 10 events (== 5 enter+leave events). Also add space for the empty scope
-  // markers.
-  CallTraceManager manager(80 + 4 * 6);
+  // Each outermost scope enter/leave event pair takes 20 bytes (with the
+  // kEmptyScopeMarker), so 100 + 4 bytes is enough for 5 pairs (== 10
+  // enter/leave events) + the initial kEmptyScopeMarker.
+  CallTraceManager manager(20 * 5 + 4);
   TraceRecorder *tr = manager.GetTraceRecorder();
 
   for (int i = 0; i < 7; ++i) {
-    ScopedTracer scope(tr, manager.GetScopeEnterEvent("First scope"));
+    ScopedTracer scope(tr, "First scope");
   }
 
-  EXPECT_EQ(1U, manager.GetNumScopeEvents());
+  EXPECT_EQ(1U, manager.GetScopeEventTable()->GetSize());
   EXPECT_EQ(10U, tr->GetNumTraces());
 
   std::string output = manager.SnapshotCallTraces();
@@ -1507,32 +1582,24 @@ TEST(CallTraceTesting, RingBufferFilled) {
 }
 
 TEST(CallTraceTesting, RingBufferFilledNested) {
-  // Each scope enter / leave event takes 8 bytes, so 80 bytes is enough for
-  // 10 events (== 5 enter+leave events). Also add space for the empty scope
-  // markers.
-  CallTraceManager manager(80 + 4 * 5);
+  // Each outermost scope enter/leave event pair takes 20 bytes (with the
+  // kEmptyScopeMarker), so 60 + 4 bytes is enough for 3 pairs + the initial
+  // kEmptyScopeMarker.
+  CallTraceManager manager(20 * 3 + 4);
   TraceRecorder *tr = manager.GetTraceRecorder();
 
   {
-    ScopedTracer scope(tr, manager.GetScopeEnterEvent("Scope_A"));
+    ScopedTracer scope(tr, "Scope_A");
     {
-      ScopedTracer scope(tr, manager.GetScopeEnterEvent("Scope_B"));
-      {
-        ScopedTracer scope(tr, manager.GetScopeEnterEvent("Scope_C"));
-      }
+      ScopedTracer scope(tr, "Scope_B");
+      { ScopedTracer scope(tr, "Scope_C"); }
     }
   }
-  {
-    ScopedTracer scope(tr, manager.GetScopeEnterEvent("Scope_A"));
-  }
-  {
-    ScopedTracer scope(tr, manager.GetScopeEnterEvent("Scope_A"));
-  }
-  {
-    ScopedTracer scope(tr, manager.GetScopeEnterEvent("Scope_A"));
-  }
+  { ScopedTracer scope(tr, "Scope_A"); }
+  { ScopedTracer scope(tr, "Scope_A"); }
+  { ScopedTracer scope(tr, "Scope_A"); }
 
-  EXPECT_EQ(3U, manager.GetNumScopeEvents());
+  EXPECT_EQ(3U, manager.GetScopeEventTable()->GetSize());
   EXPECT_EQ(6U, tr->GetNumTraces());
 
   std::string output = manager.SnapshotCallTraces();
@@ -1549,7 +1616,7 @@ TEST_F(CallTraceTest, WriteFile) {
     std::string name =
         std::string("For loop range ") + ion::base::ValueToString(i);
     call_trace_manager_->AdvanceTimer(2000U);
-    GetTraceRecorder()->EnterTimeRange(i, name.c_str(), NULL);
+    GetTraceRecorder()->EnterTimeRange(i, name.c_str(), nullptr);
     call_trace_manager_->AdvanceTimer(6000U);
     GetTraceRecorder()->LeaveTimeRange(i);
   }
@@ -1624,6 +1691,41 @@ TEST_F(CallTraceTest, RunTimelineMetrics) {
   EXPECT_EQ(2.0, constants[1].value);
 }
 
+TEST_F(CallTraceTest, RemoveAllTimelineMeetrics) {
+  // Add two TimelineMetric instances that count in |counter_0|, and run them.
+  std::atomic<int> counter_0(0);
+  std::atomic<int> counter_1(0);
+  call_trace_manager_->RegisterTimelineMetric(
+      std::unique_ptr<TimelineMetric>(new RunCountTimelineMetric(&counter_0)));
+  call_trace_manager_->RegisterTimelineMetric(
+      std::unique_ptr<TimelineMetric>(new RunCountTimelineMetric(&counter_0)));
+
+  call_trace_manager_->RunTimelineMetrics();
+  EXPECT_EQ(2, counter_0.load());
+  EXPECT_EQ(0, counter_1.load());
+
+  // Remove all TimelineMetric instances from |call_trace_manager_|.  Running
+  // the metrics now should not result in a change to the counters.
+  call_trace_manager_->RemoveAllTimelineMetrics();
+  call_trace_manager_->RunTimelineMetrics();
+  EXPECT_EQ(2, counter_0.load());
+  EXPECT_EQ(0, counter_1.load());
+
+  // Add two more TimelineMetrics to the |call_trace_manager_| and run them.
+  // These two instances now count in |counter_1|.
+  call_trace_manager_->RegisterTimelineMetric(
+      std::unique_ptr<TimelineMetric>(new RunCountTimelineMetric(&counter_1)));
+  call_trace_manager_->RegisterTimelineMetric(
+      std::unique_ptr<TimelineMetric>(new RunCountTimelineMetric(&counter_1)));
+  call_trace_manager_->RunTimelineMetrics();
+  EXPECT_EQ(2, counter_0.load());
+  EXPECT_EQ(2, counter_1.load());
+
+  // Clear the TimelineMetrics instances again to avoid a crash (since they
+  // hold pointers to |counter_1|.
+  call_trace_manager_->RemoveAllTimelineMetrics();
+}
+
 TEST_F(CallTraceTest, TimelineEmpty) {
   Timeline timeline = call_trace_manager_->BuildTimeline();
   auto event = timeline.begin();
@@ -1658,22 +1760,22 @@ TEST_F(CallTraceTest, TimelineMixedEvents) {
       ScopedFrameTracer frame(GetTraceRecorder(), 0U);
       call_trace_manager_->AdvanceTimer(1U);
       {
-        ScopedTracer scope(GetTraceRecorder(), GetScopeEnterEvent("S1"));
+        ScopedTracer scope(GetTraceRecorder(), "S1");
         call_trace_manager_->AdvanceTimer(3U);
       }
       call_trace_manager_->AdvanceTimer(2U);
       {
-        ScopedTracer scope(GetTraceRecorder(), GetScopeEnterEvent("S2"));
+        ScopedTracer scope(GetTraceRecorder(), "S2");
         call_trace_manager_->AdvanceTimer(3U);
       }
     }
     // Annotation with the same timestamp, but logged after the end of Frame#0
     // and before S3. Expected to be associated with R0.
     GetTraceRecorder()->AnnotateCurrentScope("annotation_A", "\"A\"");
-    { ScopedTracer scope(GetTraceRecorder(), GetScopeEnterEvent("S3")); }
+    { ScopedTracer scope(GetTraceRecorder(), "S3"); }
     call_trace_manager_->AdvanceTimer(2U);
     {
-      ScopedTracer scope(GetTraceRecorder(), GetScopeEnterEvent("S4"));
+      ScopedTracer scope(GetTraceRecorder(), "S4");
       // Annotation with same timestamp, but logged after the beginning of S4.
       // Expected to be associated with S4.
       GetTraceRecorder()->AnnotateCurrentScope("annotation_B", "\"B\"");
@@ -1688,12 +1790,12 @@ TEST_F(CallTraceTest, TimelineMixedEvents) {
     {
       ScopedFrameTracer frame(GetTraceRecorder(), 1U);
       {
-        ScopedTracer scope(GetTraceRecorder(), GetScopeEnterEvent("S5"));
+        ScopedTracer scope(GetTraceRecorder(), "S5");
         call_trace_manager_->AdvanceTimer(3U);
       }
       call_trace_manager_->AdvanceTimer(3U);
       {
-        ScopedTracer scope(GetTraceRecorder(), GetScopeEnterEvent("S6"));
+        ScopedTracer scope(GetTraceRecorder(), "S6");
         call_trace_manager_->AdvanceTimer(3U);
       }
       call_trace_manager_->AdvanceTimer(1U);
@@ -1837,6 +1939,108 @@ TEST_F(CallTraceTest, VSyncProfilerTest) {
     EXPECT_EQ(name.c_str(), event.GetAsciiArg("name"));
     EXPECT_EQ(i * 10000U, event.time_value);
   }
+}
+
+// This test benchmarks the TraceRecorder and CallTraceManager trace recording
+// and snapshot capabilities.  It is listed as a DISABLED_ test so it does not
+// run by default; this is because it is designed to take about a minute to run,
+// to gather timing data.
+TEST_F(CallTraceTest, DISABLED_SnapshotBenchmark) {
+  // The number of EnterFrame()/LeaveFrame() "frames" per run of the
+  // TraceRecorder.
+  const int kNumFramesPerTrace = 1024;
+  // The number of times the TraceRecorder is run per benchmark run.
+  const int kNumTraceIterations = 100;
+  // The number of times the CallTraecManager snapshots the TraceRecorder, per
+  // benchmark run.
+  const int kNumSnapshotIterations = 1000;
+
+  int frames = 0;
+  int scopes = 0;
+  int annotations = 0;
+
+  port::Timer timer;
+  for (int iteration = 0; iteration < kNumTraceIterations; ++iteration) {
+    GetTraceRecorder()->Clear();
+    for (int i = 0; i < kNumFramesPerTrace; ++i) {
+      GetTraceRecorder()->EnterFrame(i);
+      ++frames;
+      {
+        ScopedTracer scope(GetTraceRecorder(), "S0:0");
+        ++scopes;
+        GetTraceRecorder()->AnnotateCurrentScope("i", std::to_string(i));
+        ++annotations;
+      }
+      {
+        ScopedTracer scope(GetTraceRecorder(), "S1:0");
+        ++scopes;
+        for (int j = 0; j < 4; ++j) {
+          ScopedTracer scope(GetTraceRecorder(), "S1:0:0");
+          ++scopes;
+          for (int k = 0; k < 3; ++k) {
+            ScopedTracer scope(GetTraceRecorder(), "S1:0:0:0");
+            ++scopes;
+            for (int l = 0; l < 2; ++l) {
+              ScopedTracer scope(GetTraceRecorder(), "S1:0:0:0:0");
+              ++scopes;
+              GetTraceRecorder()->AnnotateCurrentScope("i", std::to_string(i));
+              GetTraceRecorder()->AnnotateCurrentScope("j", std::to_string(j));
+              GetTraceRecorder()->AnnotateCurrentScope("k", std::to_string(k));
+              GetTraceRecorder()->AnnotateCurrentScope("l", std::to_string(l));
+              annotations += 4;
+            }
+          }
+        }
+        for (int j = 0; j < 2; ++j) {
+          ScopedTracer scope(GetTraceRecorder(), "S1:1");
+          ++scopes;
+          GetTraceRecorder()->AnnotateCurrentScope("i", std::to_string(i));
+          GetTraceRecorder()->AnnotateCurrentScope("j", std::to_string(j));
+          annotations += 2;
+        }
+      }
+      {
+        ScopedTracer scope(GetTraceRecorder(), "S2:0");
+        ++scopes;
+      }
+      GetTraceRecorder()->LeaveFrame();
+    }
+  }
+  const port::Timer::Clock::duration build_duration = timer.Get();
+
+  LOG(INFO) << "frames=" << frames << ", scopes=" << scopes
+            << ", annotations=" << annotations;
+
+  timer.Reset();
+  for (int iteration = 0; iteration < kNumSnapshotIterations; ++iteration) {
+    call_trace_manager_->SnapshotCallTraces();
+  }
+  const port::Timer::Clock::duration snapshot_duration = timer.Get();
+
+  const int total_events = frames + scopes + annotations;
+  const int per_frame_events =
+      total_events * kNumSnapshotIterations / kNumTraceIterations;
+  LOG(INFO) << "build_duration="
+            << std::chrono::duration_cast<std::chrono::milliseconds>(
+                   build_duration)
+                   .count()
+            << " ms, snapshot_duration="
+            << std::chrono::duration_cast<std::chrono::milliseconds>(
+                   snapshot_duration)
+                   .count()
+            << " ms";
+  LOG(INFO)
+      << "build_event="
+      << std::chrono::duration_cast<std::chrono::duration<double, std::nano>>(
+             build_duration)
+                 .count() /
+             total_events
+      << " ns, snapshot_event="
+      << std::chrono::duration_cast<std::chrono::duration<double, std::nano>>(
+             snapshot_duration)
+                 .count() /
+             per_frame_events
+      << " ns";
 }
 
 }  // namespace profile

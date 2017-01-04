@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -216,9 +216,9 @@ static const std::string GetShadersRootString(const ShaderManagerPtr& sm,
         // Get the composer for the requested stage.
         ShaderSourceComposerPtr composer;
         if (names[1] == "vertex")
-          sm->GetShaderProgramComposers(names[0], &composer, NULL);
+          sm->GetShaderProgramComposers(names[0], &composer, nullptr);
         else if (names[1] == "fragment")
-          sm->GetShaderProgramComposers(names[0], NULL, &composer);
+          sm->GetShaderProgramComposers(names[0], nullptr, &composer);
         else if (names[1] == kInfoLogString)
           return GetShaderProgramInfoLog(program, composer, "link");
 
@@ -241,7 +241,7 @@ static const std::string GetShadersRootString(const ShaderManagerPtr& sm,
               // Serve either the info log or the dependency, restoring any '/'
               // in its name. Note that GetShaderProgramInfoLog() cannot be
               // called with an invalid stage since that would mean composer
-              // is NULL.
+              // is nullptr.
               if (names[2] == kInfoLogString)
                 return GetShaderProgramInfoLog(program, composer, names[1]);
               else
@@ -257,17 +257,15 @@ static const std::string GetShadersRootString(const ShaderManagerPtr& sm,
             sm->RecreateShaderProgramsThatDependOn(dep_name);
             // Now we have to wait for the programs to be recreated.
             if (renderer.Get()) {
-              const bool wait_for_completion =
-                  (args.find("nonblocking") == args.end());
               gfxutils::ProgramCallback::RefPtr callback(
-                  new(renderer->GetAllocatorForLifetime(base::kShortTerm))
-                      gfxutils::ProgramCallback(wait_for_completion));
+                  new (renderer->GetAllocatorForLifetime(base::kShortTerm))
+                      gfxutils::ProgramCallback());
               gfx::ResourceManager* rm = renderer->GetResourceManager();
               rm->RequestAllResourceInfos<gfx::ShaderProgram,
                   gfx::ResourceManager::ProgramInfo>(
                       std::bind(&gfxutils::ProgramCallback::Callback,
                           callback.Get(), std::placeholders::_1));
-              callback->WaitForCompletion(NULL);
+              callback->WaitForCompletion(nullptr);
             }
             return "Shader source changed.";
           }

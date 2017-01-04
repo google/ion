@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,10 +39,7 @@
       },  # all_dependent_settings
       'cflags_cc': [
         '-Wno-conversion',
-      ],
-      'defines': [
-        'HAVE_CONFIG_H',
-        '__ion__',
+        '-Wno-null-dereference',
       ],
       'sources': [
         '<(hb_config_dir)/config.h',
@@ -147,6 +144,57 @@
         'freetype2.gyp:ionfreetype2',
         'icu.gyp:ionicu',
       ],
-    },  # target: ionicu
+      'conditions': [
+        ['OS == "win"', {
+          'msvs_disabled_warnings': [
+            4005, # Macro redefinition (WIN32_LEAN_AND_MEAN on cmdline).
+            4244, # Conversion from 'x' to 'y', possible loss of data.
+            4267, # Conversion from 'x' to 'y', possible loss of data.
+            4334, # Result of 32-bit shift implicitly converted to 64 bits.
+            4996, # 'strdup': POSIX name is deprecated.
+          ],
+          'defines' : [
+            'ALIGNOF_STRUCT_CHAR__=1',
+            'HAVE_ATEXIT=1',
+            'HAVE_DLFCN_H=1',
+            'HAVE_FALLBACK=1',
+            'HAVE_FREETYPE=1',
+            'HAVE_FT_FACE_GETCHARVARIANTINDEX=1',
+            'HAVE_GETPAGESIZE=1',
+            'HAVE_ICU=1',
+            'HAVE_INTEL_ATOMIC_PRIMITIVES=1',
+            'HAVE_INTTYPES_H=1',
+            'HAVE_ISATTY=1',
+            'HAVE_MEMORY_H=1',
+            'HAVE_MMAP=1',
+            'HAVE_MPROTECT=1',
+            'HAVE_OT=1',
+            'HAVE_PTHREAD=1',
+            'HAVE_STDINT_H=1',
+            'HAVE_STDLIB_H=1',
+            'HAVE_STRINGS_H=1',
+            'HAVE_STRING_H=1',
+            'HAVE_SYSCONF=1',
+            'HAVE_SYS_STAT_H=1',
+            'HAVE_SYS_TYPES_H=1',
+            'HB_NO_UNICODE_FUNCS=1',
+            'LT_OBJDIR=".libs/"',
+            'PACKAGE_BUGREPORT="http://bugs.freedesktop.org/enter_bug.cgi?product=harfbuzz"',
+            'PACKAGE_NAME="HarfBuzz"',
+            'PACKAGE_STRING="HarfBuzz 0.9.33"',
+            'PACKAGE_TARNAME="harfbuzz"',
+            'PACKAGE_URL="http://harfbuzz.org/"',
+            'PACKAGE_VERSION="0.9.33"',
+            'STDC_HEADERS=1',
+          ],
+        },
+        {
+          'defines': [
+            'HAVE_CONFIG_H',
+            '__ion__',
+          ],
+        }],
+      ],
+    },  # target: ionharfbuzz
   ],  # targets
 }

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@ class ION_API UniformBlock : public ResourceHolder, public UniformHolder {
 };
 
 // Convenience typedef for shared pointer to a UniformBlock.
-typedef base::ReferentPtr<UniformBlock>::Type UniformBlockPtr;
+using UniformBlockPtr = base::SharedPtr<UniformBlock>;
 
 }  // namespace gfx
 }  // namespace ion

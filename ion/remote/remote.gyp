@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -115,6 +115,18 @@
     },
 
     {
+      'target_name': 'ionremote_test_utils',
+      'type': 'static_library',
+      'sources': [
+        'tests/getunusedport.cc',
+        'tests/getunusedport.h',
+      ],
+      'dependencies' : [
+        '<(ion_dir)/base/base.gyp:ionbase_for_tests',
+      ],
+    },  # target: ionremote_test_utils
+
+    {
       'target_name': 'ionremote_for_tests',
       'type': 'static_library',
       'sources': [
@@ -123,8 +135,9 @@
         'tests/httpservertest.h',
       ],
       'dependencies' : [
-        ':ionremote',
         ':httpclient',
+        ':ionremote',
+        ':ionremote_test_utils',
         '<(ion_dir)/base/base.gyp:ionbase_for_tests',
         '<(ion_dir)/gfx/gfx.gyp:iongfx_for_tests',
         '<(ion_dir)/gfxutils/gfxutils.gyp:iongfxutils_for_tests',

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -60,7 +60,7 @@ Font::GlyphGrid* Font::GetMutableGlyphGrid(GlyphIndex glyph_index) const {
 Font::GlyphGrid* Font::GetMutableGlyphGridLocked(GlyphIndex glyph_index) const {
   DCHECK(mutex_.IsLocked());
   if (!glyph_index) {
-    return NULL;
+    return nullptr;
   }
   const auto& it = glyph_grid_map_.find(glyph_index);
   if (it == glyph_grid_map_.end()) {
@@ -69,7 +69,7 @@ Font::GlyphGrid* Font::GetMutableGlyphGridLocked(GlyphIndex glyph_index) const {
       glyph_grid_map_[glyph_index] = glyph;
       return &glyph_grid_map_[glyph_index];
     }
-    return NULL;
+    return nullptr;
   }
   return &it->second;
 }

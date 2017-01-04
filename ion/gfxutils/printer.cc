@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -277,7 +277,7 @@ static const std::string GetBufferAttributeValue(const AttributeArray& aa,
         DCHECK(!base::IsInvalidReference(spec));
         const char* ptr =
             raw_data ? &raw_data[stride * vertex_index + spec.byte_offset]
-                     : NULL;
+                     : nullptr;
         PrintBufferDataByType(s, spec.type, ptr, spec.component_count);
       }
     }
@@ -511,7 +511,7 @@ static const Tree::Table GetIndexBufferTable(
   const size_t stride = ib.GetStructSize();
   const char* raw_data = ib.GetData().Get() ?
                          static_cast<const char*>(ib.GetData()->GetData()) :
-                         NULL;
+                         nullptr;
   const size_t index_count = ib.GetCount();
 
   // The table has this many columns of indices plus 1 for the label.
@@ -529,7 +529,7 @@ static const Tree::Table GetIndexBufferTable(
     std::ostringstream out;
     for (size_t col = 0; col < kNumColumns; ++col) {
       const char* ptr =
-          raw_data ? &raw_data[stride * cur_index + spec.byte_offset] : NULL;
+          raw_data ? &raw_data[stride * cur_index + spec.byte_offset] : nullptr;
       PrintBufferDataByType(out, spec.type, ptr, spec.component_count);
       table.Set(1U + col, row, out.str());
       out.str("");
@@ -599,7 +599,7 @@ class TreeBuilder {
    public:
     // The empty type indicates that this is a container object.
     explicit ContainerObject(Tree* tree)
-        : ScopedObjectBase(tree, NULL, "", "", true) {}
+        : ScopedObjectBase(tree, nullptr, "", "", true) {}
   };
 
   // Each of these functions adds an Object, fields, or other type to the
@@ -718,8 +718,6 @@ void TreeBuilder::AddStateTable(const StateTable& st) {
     tree_.AddField("Depth Range", st.GetDepthRange());
   if (st.IsValueSet(StateTable::kDepthWriteMaskValue))
     tree_.AddField("Depth Write Mask", st.GetDepthWriteMask());
-  if (st.IsValueSet(StateTable::kDrawBufferValue))
-    tree_.AddEnumField("Draw Buffer", st.GetDrawBuffer());
   if (st.IsValueSet(StateTable::kHintsValue))
     tree_.AddEnumField("Generate Mipmap Hint",
                        st.GetHint(StateTable::kGenerateMipmapHint));

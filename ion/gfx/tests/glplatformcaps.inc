@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,10 +30,11 @@ ION_PLATFORM_CAP(GLenum, ImplementationColorReadFormat);
 ION_PLATFORM_CAP(GLenum, ImplementationColorReadType);
 ION_PLATFORM_CAP(GLint, Max3dTextureSize);
 ION_PLATFORM_CAP(GLint, MaxArrayTextureLayers);
-ION_PLATFORM_CAP(GLint, MaxColorAttachments);
+ION_PLATFORM_CAP(GLuint, MaxClipDistances);
+ION_PLATFORM_CAP(GLuint, MaxColorAttachments);
 ION_PLATFORM_CAP(GLuint, MaxCombinedTextureImageUnits);
 ION_PLATFORM_CAP(GLint, MaxCubeMapTextureSize);
-ION_PLATFORM_CAP(GLint, MaxDrawBuffers);
+ION_PLATFORM_CAP(GLuint, MaxDrawBuffers);
 ION_PLATFORM_CAP(GLuint, MaxFragmentUniformComponents);
 ION_PLATFORM_CAP(GLuint, MaxFragmentUniformVectors);
 ION_PLATFORM_CAP(GLint, MaxRenderbufferSize);
@@ -52,6 +53,7 @@ ION_PLATFORM_CAP(GLuint, MaxVertexTextureImageUnits);
 ION_PLATFORM_CAP(GLuint, MaxVertexUniformComponents);
 ION_PLATFORM_CAP(GLuint, MaxVertexUniformVectors);
 ION_PLATFORM_CAP(GLuint, MaxViewportDims);
+ION_PLATFORM_CAP(GLint, MaxViews);
 ION_PLATFORM_CAP(GLint, TransformFeedbackVaryingMaxLength);
 ION_PLATFORM_CAP(GLint, MaxDebugLoggedMessages);
 ION_PLATFORM_CAP(GLint, MaxDebugMessageLength);

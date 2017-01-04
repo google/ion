@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -357,8 +357,8 @@ TEST(PlatformFontTest, FontAdvancedLayout) {
     LayoutOptions options;
     Layout no_reph = font->BuildLayout(no_reph_str, options);
     Layout with_reph = font->BuildLayout(with_reph_str, options);
-    GlyphSet no_reph_glyphs(base::AllocatorPtr(NULL));
-    GlyphSet with_reph_glyphs(base::AllocatorPtr(NULL));
+    GlyphSet no_reph_glyphs(base::AllocatorPtr(nullptr));
+    GlyphSet with_reph_glyphs(base::AllocatorPtr(nullptr));
     no_reph.GetGlyphSet(&no_reph_glyphs);
     with_reph.GetGlyphSet(&with_reph_glyphs);
     // Both layouts end up with 4 glyphs, but they are not the same glyphs!

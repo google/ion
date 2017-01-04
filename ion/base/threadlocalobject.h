@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -121,7 +121,7 @@ template <typename T> class ThreadLocalObject {
   // Creates an instance of a T with the default constructor and puts it in
   // thread-local storage. Returns NULL if the ThreadLocalStorageKey is invalid.
   T* CreateAndStoreInstance() {
-    T* instance = NULL;
+    T* instance = nullptr;
     if (key_ != port::kInvalidThreadLocalStorageKey) {
       instance = AllocateInstance(allocator_);
       port::SetThreadLocalStorage(key_, instance);

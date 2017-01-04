@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,985 +15,327 @@ limitations under the License.
 
 */
 
-// File used on all platforms but iOS, which must use a .mm file to invoke the
-// objective-c compiler.
-
-#if defined(ION_PLATFORM_WINDOWS)
-#  if defined(NOGDI)
-#    undef NOGDI
-#  endif
-#  include <windows.h>  // NOLINT
-#  undef ERROR  // This is defined in Windows headers.
-#endif
-
-// Must be below <windows.h>
 #include "ion/portgfx/visual.h"
 
-#if defined(ION_PLATFORM_ASMJS)
-#  include <emscripten.h>
-#endif
-
-#include <cstddef>  // For NULL.
-#include <cstring>  // For strchr().
+#include <atomic>
+#include <cstring>
 #include <unordered_map>
+#include <utility>
 
-#include "ion/portgfx/glheaders.h"
-
-#if defined(ION_PLATFORM_LINUX) && !defined(ION_GFX_OGLES20)
-#  include <GL/glx.h>  // NOLINT
-#  undef None  // Defined in X.h, but reused in gtest.h.
-#  undef Bool  // Defined in X.h, but reused in gtest.h.
-
-#elif defined(ION_PLATFORM_NACL)
-#  include "ppapi/cpp/graphics_3d.h"
-#  include "ppapi/cpp/instance.h"
-#  include "ppapi/cpp/module.h"
-#  include "ppapi/lib/gl/gles2/gl2ext_ppapi.h"
-#endif
-
+#include "ion/base/allocatable.h"
 #include "ion/base/lockguards.h"
 #include "ion/base/logging.h"
 #include "ion/base/staticsafedeclare.h"
-#include "ion/base/stringutils.h"
 #include "ion/base/threadlocalobject.h"
-#include "ion/port/environment.h"
 #include "ion/port/mutex.h"
+#include "ion/portgfx/glheaders.h"
 
 namespace ion {
 namespace portgfx {
-
 namespace {
 
-//-----------------------------------------------------------------------------
+// The StaticVisualData class holds:
 //
-// Visual thread local storage holder.
+// * The singleton mapping of OpenGL context IDs to Visual instances.  As this
+//   is global state, the mapping is queried and modified through static
+//   functions.
+// * The thread-local pointer to the current Visual on the thread.
 //
-//-----------------------------------------------------------------------------
-
-class VisualStorage {
+// Note that StaticVisualData holds base::Allocatable members and is itself
+// accessed as a singleton instance.  Thus it is itself is derived from
+// base::Allocatable to ensure correct destruction order of the instance with
+// respect to the Allocatable framework.
+class StaticVisualData : public base::Allocatable {
  public:
-  VisualStorage() : current_(NULL) {}
-  const Visual* GetCurrent() const { return current_; }
-  void SetCurrent(const Visual* value) { current_ = value; }
-
- private:
-  const Visual* current_;
-};
-
-// Returns the VisualStorage used by the calling thread.
-static VisualStorage* GetHolder() {
-  ION_DECLARE_SAFE_STATIC_POINTER(base::ThreadLocalObject<VisualStorage>,
-                                  s_helper);
-  return s_helper->Get();
-}
-
-//-----------------------------------------------------------------------------
-//
-// Global tracking of Visual instances, needed to properly track user-created
-// GL contexts created outside of Ion.
-//
-//-----------------------------------------------------------------------------
-
-// A map of Visual IDs to instances.
-typedef std::unordered_map<size_t, const Visual*> VisualMap;
-
-// Returns a map of GL context pointers to Visual objects.
-static VisualMap& GetVisualMap() {
-  ION_DECLARE_SAFE_STATIC_POINTER(VisualMap, visuals);
-  return *visuals;
-}
-
-// Returns a Mutex used to lock access to the global VisualMap.
-static port::Mutex* GetVisualMapMutex() {
-  ION_DECLARE_SAFE_STATIC_POINTER(port::Mutex, mutex);
-  return mutex;
-}
-
-#if defined(ION_PLATFORM_WINDOWS)
-
-// Windows window class creator.
-class IonWindowClass {
- public:
-  IonWindowClass() {
-    WNDCLASSEX window_class;
-    memset(&window_class, 0, sizeof(window_class));
-    window_class.cbSize = sizeof(window_class);
-    window_class.style = CS_OWNDC;
-    window_class.lpfnWndProc = &DefWindowProc;
-    window_class.hInstance = GetModuleHandle(nullptr);
-    window_class.lpszClassName = kClassName;
-    atom_ = RegisterClassEx(&window_class);
+  // Finds a Visual in the singleton mapping from GL context IDs to Visuals.
+  // Returns nullptr if not found.
+  static VisualPtr FindInVisualMap(uintptr_t gl_context_id) {
+    DCHECK_NE(0, gl_context_id);
+    VisualPtr visual;
+    StaticVisualData* const instance = GetInstance();
+    base::LockGuard lock(&instance->visual_map_mutex_);
+    auto iter = instance->visual_map_.find(gl_context_id);
+    if (iter != instance->visual_map_.end()) {
+      visual = iter->second.Acquire();
+      // If the Visual exists in the map, its destructor has not yet been
+      // called.
+      DCHECK(visual);
+    }
+    return visual;
   }
 
-  ~IonWindowClass() { UnregisterClass(kClassName, GetModuleHandle(nullptr)); }
+  // Inserts a Visual into the singleton mapping from GL context IDs to Visuals.
+  // Returns true iff the Visual was successfully inserted (no existing Visual
+  // has the same mapping).
+  static bool InsertIntoVisualMap(uintptr_t gl_context_id,
+                                  const VisualPtr& visual) {
+    DCHECK_NE(0, gl_context_id);
+    StaticVisualData* const instance = GetInstance();
+    base::LockGuard lock(&instance->visual_map_mutex_);
+    return instance->visual_map_
+        .insert({gl_context_id, base::WeakReferentPtr<Visual>(visual)})
+        .second;
+  }
 
-  ATOM GetAtom() const { return atom_; }
+  // Erases a Visual from the singleton mapping from GL context IDs to Visuals.
+  // Returns true iff a Visual was erased from the mapping.
+  static bool EraseFromVisualMap(uintptr_t gl_context_id) {
+    DCHECK_NE(0, gl_context_id);
+    StaticVisualData* const instance = GetInstance();
+    base::LockGuard lock(&instance->visual_map_mutex_);
+    const size_t erased = instance->visual_map_.erase(gl_context_id);
+    DCHECK_GE(1U, erased);
+    return erased;
+  }
+
+  // Returns the singleton thread-local VisualPtr holding a reference to the
+  // thread's current Visual.
+  static VisualPtr* GetThreadCurrentVisualPtr() {
+    return GetInstance()->thread_current_visual_.Get();
+  }
 
  private:
-  static const char kClassName[];
-
-  ATOM atom_;
-};
-
-const char IonWindowClass::kClassName[] = "ION";
-
-ATOM GetIonWindowClass() {
-  ION_DECLARE_SAFE_STATIC_POINTER(IonWindowClass, window_class);
-  return window_class->GetAtom();
-}
-
+  class VisualMap
+      : public std::unordered_map<uintptr_t, base::WeakReferentPtr<Visual>> {
+   public:
+    ~VisualMap() {
+#ifdef ION_PLATFORM_IOS
+      // On iOS we warn about memory leak rather than crash, because it
+      // allows end-to-end tests to pass. See bug.
+      if (!empty()) {
+        LOG(WARNING) << "VisualMap not empty";
+      }
+#else
+      DCHECK(empty());
 #endif
+    }
+  };
 
-}  // anonymous namespace
+  // Returns the singleton StaticVisualData instance.
+  static StaticVisualData* GetInstance() {
+    ION_DECLARE_SAFE_STATIC_POINTER(StaticVisualData, s_helper);
+    return s_helper;
+  }
 
-struct Visual::VisualInfo {
-  // These functions are in VisualInfo since they are used both here and in
-  // visual_darwin.mm.
+  // The Mutex protecting |visual_map_|.
+  port::Mutex visual_map_mutex_;
+
+  // The map of Visual context IDs to Visual instances.
+  VisualMap visual_map_;
+
+  // The thread-local current Visual pointer.  Note that this object holds a
+  // reference to to the Visual, so a Visual is never destroyed before it is
+  // made not current on all threads.
   //
-  // Returns the address of the currently bound GL context.
-  static void* GetCurrentContext();
-  // Clears the currently bound GL context (i.e., sets it to NULL).
-  static void ClearCurrentContext();
-
-#if defined(ION_PLATFORM_ANDROID) || defined(ION_PLATFORM_ASMJS) || \
-    defined(ION_PLATFORM_GENERIC_ARM) || \
-    (defined(ION_PLATFORM_LINUX) && defined(ION_GFX_OGLES20))
-  VisualInfo()
-      : display(NULL),
-        surface(NULL),
-        context(NULL) {}
-  void InitEgl(Type type);
-  EGLDisplay display;
-  EGLSurface surface;
-  EGLContext context;
-#elif defined(ION_PLATFORM_LINUX)
-  VisualInfo()
-      : display(NULL),
-        info(NULL),
-        context(NULL),
-        colormap(0),
-        window(0) {}
-  Display* display;
-  XVisualInfo* info;
-  GLXContext context;
-  Colormap colormap;
-  Window window;
-#elif defined(ION_PLATFORM_NACL)
-  VisualInfo() : context(0) {}
-  PP_Resource context;
-#elif defined(ION_PLATFORM_WINDOWS)
-  VisualInfo()
-#  if defined(ION_ANGLE)
-      : display(nullptr),
-        surface(nullptr),
-        context(nullptr),
-#  else
-      : device_context(nullptr),
-        context(nullptr),
-#  endif
-        window(nullptr) {
-  }
-#  if defined(ION_ANGLE)
-  void InitEgl(Type type);
-  EGLDisplay display;
-  EGLSurface surface;
-  EGLContext context;
-#  else
-  HDC device_context;
-  HGLRC context;
-#  endif
-  HWND window;  // Only populated if this VisualInfo created a window.
-#endif
+  // Note also that it is important that |visual_map_| outlives
+  // |thread_current_visual_|, as Visual removes itself from |visual_map_|
+  // during destruction, and |thread_current_visual_| holds a reference to the
+  // Visual.  This is ensured here by declaring |thread_current_visual_| after
+  // |visual_map_|.
+  base::ThreadLocalObject<VisualPtr> thread_current_visual_;
 };
 
-const Visual* Visual::GetCurrent() {
-  // If there is a valid GL context bound then see if we have a Visual which
-  // wraps it.
-  const Visual* current = GetHolder()->GetCurrent();
-  // Special case for tests, which use a MockVisual.
-  if (current && current->type_ == kMock)
-    return current;
+}  // namespace
 
-  // If the context ID reported by the windowing API and the ID of the Visual
-  // stored in the current thread's holder are the same, then we already have
-  // the correct Visual and can avoid taking a lock.
-  const size_t id = reinterpret_cast<size_t>(VisualInfo::GetCurrentContext());
-  if (current && id == current->GetId()) {
-    return current;
-  }
-
-  // Either we have not created a visual for this context yet, or someone else
-  // changed the current context when we weren't looking. We have to get the
-  // correct Visual from the visual map.
-  current = nullptr;
-
-  VisualMap& visuals = GetVisualMap();
-  base::LockGuard guard(GetVisualMapMutex());
-  if (id) {
-    // If we already have a Visual associated with the current context then
-    // return it.
-    VisualMap::iterator it = visuals.find(id);
-    if (it != visuals.end())
-      current = it->second;
-  }
-  if (current) {
-    // Ensure that this is actually the current Visual.
-    GetHolder()->SetCurrent(current);
-  } else if (id) {
-    // We have nothing mapped to a user-created GL context that is already
-    // bound. Create a new Visual that wraps the current context.
-    DCHECK(id);
-    DCHECK(visuals.find(id) == visuals.end());
-    Visual* new_visual = new Visual(kCurrent);
-    new_visual->UpdateId();
-    current = new_visual;
-    DCHECK_EQ(id, current->GetId());
-    visuals[id] = new_visual;
-    if (!MakeCurrent(current))
-      current = nullptr;
-  } else {
-    // There's no GL context bound, so make that explicit with the Visual.
-    GetHolder()->SetCurrent(nullptr);
-  }
-
-  return current;
-}
-
-bool Visual::MakeCurrent(const Visual* new_visual) {
-  if (!new_visual) {
-    if (const Visual* current = GetCurrent()) {
-      GetHolder()->SetCurrent(NULL);
-      if (current->type_ != kMock) {
-        VisualInfo::ClearCurrentContext();
-      }
-    }
-    return true;
-  } else if (new_visual->IsValid()) {
-    const bool success = new_visual->MakeCurrent();
-    if (success) {
-      GetHolder()->SetCurrent(new_visual);
-    } else {
-      GetHolder()->SetCurrent(NULL);
-    }
-    return success;
-  } else {
-    LOG(WARNING) << "Failed to make Visual current: " << new_visual;
-    return false;
-    // NOTE: this assumes that we know that a failed MakeCurrent() attempt
-    // doesn't change the current OpenGL context.
-  }
-}
-
-void Visual::DestroyWrappingVisual(const Visual* visual) {
-  if (visual) {
-    const Visual* visual_to_delete = NULL;
-    {
-      VisualMap& visuals = GetVisualMap();
-      base::LockGuard guard(GetVisualMapMutex());
-
-      // If the visual is of type kCurrent delete it (it will be removed from
-      // the VisualMap in its destructor).
-      VisualMap::iterator it = visuals.find(visual->GetId());
-      if (it != visuals.end()) {
-        DCHECK_EQ(visual, it->second);
-        // If the visual wraps a non-Visual GL context, delete it.
-        if (visual->type_ == kCurrent)
-          visual_to_delete = it->second;
-      }
-    }
-    if (visual_to_delete)
-      delete visual_to_delete;
-  }
-}
-
-size_t Visual::GetCurrentId() {
-  // Normally, we want to return the true ID as reported by the platform API.
-  // However, when testing, the platform API is not used and there is no
-  // OpenGL context active, so we treat whatever is in the thread-local holder
-  // as authoritative.
-  const Visual* ptr = GetHolder()->GetCurrent();
-  if (ptr && ptr->type_ == kMock) {
-    return ptr->GetId();
-  }
-  return reinterpret_cast<size_t>(VisualInfo::GetCurrentContext());
-}
-
-void Visual::TeardownVisual(Visual* visual) {
-  DCHECK(visual);
-  const bool was_current = visual == GetHolder()->GetCurrent();
-  if (was_current) {
-    GetHolder()->SetCurrent(NULL);
-  }
-  // Find the Visual in the global map and remove it.
-  if (visual->GetId()) {
-    base::LockGuard guard(GetVisualMapMutex());
-    VisualMap& visuals = GetVisualMap();
-    VisualMap::iterator it = visuals.find(visual->GetId());
-    DCHECK(it != visuals.end());
-    visuals.erase(it);
-  }
-
-  if (visual->type_ == kNew) {
-    // Unbind the context before nuking it.
-    if (was_current) {
-      VisualInfo::ClearCurrentContext();
-    }
-    visual->TeardownContextNew();
-  } else if (visual->type_ == kShare) {
-    visual->TeardownContextShared();
-  } else {
-    // Don't do any cleanup in kCurrent.
-  }
-}
-
-std::unique_ptr<Visual> Visual::CreateVisual() {
-  Visual* visual = new Visual(kNew);
-  visual->UpdateId();
-  RegisterVisual(visual);
-  return std::unique_ptr<Visual>(visual);
-}
-
-std::unique_ptr<Visual> Visual::CreateVisualInCurrentShareGroup() {
-  const Visual* current = GetCurrent();
-  if (!current || !current->IsValid()) {
-    LOG(WARNING) << "GetCurrent() returned NULL or InValid()";
-  }
-  Visual* visual = current ? current->CreateVisualInShareGroup() : NULL;
-  if (visual) {
-    visual->UpdateId();
-    RegisterVisual(visual);
-  }
-  return std::unique_ptr<Visual>(visual);
-}
-
-void Visual::RegisterVisual(Visual *visual) {
-  if (visual && visual->IsValid()) {
-    base::LockGuard guard(GetVisualMapMutex());
-    VisualMap& visuals = GetVisualMap();
-    visuals[visual->GetId()] = visual;
-  }
-}
-
-Visual* Visual::CreateVisualInShareGroup() const {
-  DCHECK_EQ(this, GetCurrent());
-  return new Visual(kShare);
-}
-
-#if defined(ION_PLATFORM_ANDROID) || defined(ION_PLATFORM_ASMJS) || \
-    defined(ION_PLATFORM_GENERIC_ARM) || defined(ION_ANGLE) || \
-    (defined(ION_PLATFORM_LINUX) && defined(ION_GFX_OGLES20))
-
-void Visual::VisualInfo::InitEgl(Visual::Type type) {
-  if (display == EGL_NO_DISPLAY) {
-    LOG(ERROR) << "Could not get EGL display";
-    return;
-  }
-
-  EGLint major = 0;
-  EGLint minor = 0;
-  if (!eglInitialize(display, &major, &minor)) {
-    LOG(ERROR) << "Could not init EGL";
-    return;
-  }
-  if (major < 1 || minor < 2) {
-    LOG(ERROR) << "System does not support at least EGL 1.2";
-    return;
-  }
-
-  if (type == kCurrent) {
-#if defined(ION_PLATFORM_ASMJS)
-    // Asmjs typically uses the browser to create and manage the current GL
-    // context.
-    context = reinterpret_cast<EGLContext>(EM_ASM_INT_V({
-      return Module.ctx ? 1 : 0;
-    }));
-#else
-    surface = eglGetCurrentSurface(EGL_DRAW);
-    if (surface == EGL_NO_SURFACE)
-      LOG(ERROR) <<
-          "Unable to get current surface while creating a kCurrent Visual.";
-    context = eglGetCurrentContext();
-    if (context == EGL_NO_CONTEXT)
-      LOG(ERROR) <<
-          "Unable to get current context while creating a kCurrent Visual.";
-#endif
-  } else {
-    EGLint attr[] = {
-      EGL_BUFFER_SIZE, 24,
-      EGL_RENDERABLE_TYPE,
-      EGL_OPENGL_ES2_BIT,
-      EGL_NONE
-    };
-
-    EGLConfig ecfg;
-    EGLint num_config;
-    if (!eglChooseConfig(display, attr, &ecfg, 1, &num_config)) {
-      LOG(ERROR) << "Could not to choose config (egl code: " << eglGetError()
-                 << ")";
-      return;
-    }
-
-#if defined(ION_PLATFORM_ANDROID) || defined(ION_PLATFORM_GENERIC_ARM) || \
-    (defined(ION_PLATFORM_LINUX) && defined(ION_GFX_OGLES20))
-    // Since we are only using new/shared contexts for background OpenGl uploads
-    // the width and height of our PBufferSurface are unimportant, except 0,0
-    // sized buffers will crash some platforms.
-    EGLint buffer_attr[] = {
-      EGL_WIDTH, 1,
-      EGL_HEIGHT, 1,
-      EGL_NONE
-    };
-    surface = eglCreatePbufferSurface(display, ecfg, buffer_attr);
-#elif defined(ION_PLATFORM_ASMJS)
-    surface = eglCreateWindowSurface(display, ecfg, NULL, NULL);
-#else
-    surface = eglCreateWindowSurface(display, ecfg, window, NULL);
-#endif
-    if (surface == EGL_NO_SURFACE) {
-      LOG(ERROR) << "Could not create EGL surface (egl code: " << eglGetError()
-                 << ")";
-      return;
-    }
-
-    const EGLint ctxattr[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
-    const EGLContext share_context =
-        type == kShare ? eglGetCurrentContext() : EGL_NO_CONTEXT;
-    if (kShare == type && EGL_NO_CONTEXT == share_context) {
-      LOG(ERROR) << "Attempting to share a NULL context.";
-    }
-    context = eglCreateContext(display, ecfg, share_context, ctxattr);
-    if (context == EGL_NO_CONTEXT)
-      LOG(ERROR) << "Could not create EGL context (egl code: " << eglGetError()
-                 << ").";
-  }
-}
-#endif
-
-#if defined(ION_PLATFORM_ANDROID) || defined(ION_PLATFORM_ASMJS) || \
-    defined(ION_PLATFORM_GENERIC_ARM) || \
-    (defined(ION_PLATFORM_LINUX) && defined(ION_GFX_OGLES20))
-void* Visual::VisualInfo::GetCurrentContext() {
-#if defined(ION_PLATFORM_ASMJS)
-  // Since asmjs has no threads, there will only be one context.
-  EGLContext context = reinterpret_cast<EGLContext>(EM_ASM_INT_V({
-    return Module.ctx ? 1 : 0;
-  }));
-  return context;
-#else
-  return eglGetCurrentSurface(EGL_DRAW) != EGL_NO_SURFACE ?
-      eglGetCurrentContext() : NULL;
-#endif
-}
-
-void Visual::VisualInfo::ClearCurrentContext() {
-  eglMakeCurrent(eglGetDisplay((EGLNativeDisplayType) EGL_DEFAULT_DISPLAY),
-                 EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-}
-
-Visual::Visual(Type type)
-    : visual_(new VisualInfo), type_(type) {
-  visual_->display = eglGetDisplay((EGLNativeDisplayType) EGL_DEFAULT_DISPLAY);
-  if (visual_->display == EGL_NO_DISPLAY)
-    return;
-  visual_->InitEgl(type);
-  if (type_ == kCurrent) {
-    MakeCurrent(this);
-  }
-}
-
-Visual::Visual() : visual_(new VisualInfo), type_(kMock) {}
-
-bool Visual::IsValid() const {
-  return visual_->context;
-}
-
-bool Visual::MakeCurrent() const {
-#if defined(ION_PLATFORM_ASMJS)
-  return visual_->context != 0;
-#endif
-  const EGLBoolean success = eglMakeCurrent(
-      visual_->display, visual_->surface, visual_->surface, visual_->context);
-  if (success == EGL_FALSE) {
-    LOG(ERROR) << "Unable to make Visual current.";
-    return false;
-  } else {
-    return true;
-  }
-}
-
-void Visual::TeardownContextNew() {
-  eglDestroyContext(visual_->display, visual_->context);
-  eglDestroySurface(visual_->display, visual_->surface);
-  eglTerminate(visual_->display);
-}
-
-void Visual::TeardownContextShared() {
-  if (eglGetCurrentContext() != visual_->context) {
-    eglDestroyContext(visual_->display, visual_->context);
-  }
-  if (eglGetCurrentSurface(EGL_DRAW) != visual_->surface) {
-    eglDestroySurface(visual_->display, visual_->surface);
-  }
-  if (eglGetDisplay((EGLNativeDisplayType) EGL_DEFAULT_DISPLAY) !=
-      visual_->display) {
-    eglTerminate(visual_->display);
-  }
-}
+Visual::Visual() : id_(0), share_group_id_(0), gl_context_id_(0) {}
 
 Visual::~Visual() {
-  TeardownVisual(this);
-}
-
-#elif defined(ION_PLATFORM_LINUX) && !defined(ION_GFX_OGLES20)
-namespace {
-
-// Returns a pointer to a Display object if there is an X server running,
-// otherwise returns NULL. Note that a non-NULL return value must be
-// closed with XCloseDisplay(). This wrapper is necessary because a
-// call to XOpenDisplay() when there is no X server running takes about
-// 6 seconds to timeout.
-Display* OpenDisplay() {
-  static const int x_return_value =
-      system("pgrep -c '^Xorg$' >& /dev/null");
-  static const bool is_x_running =
-      x_return_value == 0;
-  static const bool is_system_working =
-      x_return_value != -1;
-  Display* display = nullptr;
-  if (is_x_running || !is_system_working) {
-    std::string display_name = port::GetEnvironmentVariableValue("DISPLAY");
-    if (!display_name.empty()) {
-      display = XOpenDisplay(display_name.c_str());
-    } else {
-      display = XOpenDisplay(":0");
-    }
-  }
-  return display;
-}
-
-// Returns a Mutex to lock when creating or destroying X11 resources, since X11
-// is not thread-safe.
-port::Mutex* GetXMutex() {
-  ION_DECLARE_SAFE_STATIC_POINTER(port::Mutex, mutex);
-  return mutex;
-}
-
-}  // anonymous namespace
-
-void* Visual::VisualInfo::GetCurrentContext() {
-  return glXGetCurrentContext();
-}
-
-void Visual::VisualInfo::ClearCurrentContext() {
-  base::LockGuard guard(GetXMutex());
-  if (Display* display = OpenDisplay()) {
-    glXMakeCurrent(display, 0, NULL);
-    XCloseDisplay(display);
+  if (gl_context_id_ != 0) {
+    const bool erased = StaticVisualData::EraseFromVisualMap(gl_context_id_);
+    DCHECK(erased);
   }
 }
 
-Visual::Visual(Type type)
-    : visual_(new VisualInfo), type_(type) {
-  base::LockGuard guard(GetXMutex());
-  if (type == kCurrent) {
-    visual_->display = glXGetCurrentDisplay();
-    visual_->window = glXGetCurrentDrawable();
-    visual_->context = glXGetCurrentContext();
-    guard.Unlock();
-    MakeCurrent(this);
-    return;
+uintptr_t Visual::GetId() const { return id_; }
+
+uintptr_t Visual::GetShareGroupId() const { return share_group_id_; }
+
+void Visual::SetShareGroup(uintptr_t group) {
+  if (IsOwned()) {
+    LOG(ERROR) << "SetShareGroup can only be called on wrapped contexts.";
   } else {
-    // Open the first display.
-    visual_->display = OpenDisplay();
-    if (!visual_->display)
-      return;
-
-    int error_base, event_base;
-    // Ensure that the X server supports GLX.
-    if (!glXQueryExtension(visual_->display, &error_base, &event_base)) {
-      // If the server is not running or does not support GLX, just return,
-      // which will cause glGetString() to fail, and the test will not be run.
-      visual_->context = NULL;
-      return;
-    }
-
-    // Create the X Visual.
-    int attributes[] = { GLX_RGBA, 0 };
-    visual_->info = glXChooseVisual(
-        visual_->display, DefaultScreen(visual_->display), attributes);
-    if (!visual_->info)
-      return;
-
-    // Create the GL context.
-    GLXContext share_context = type == kShare ? glXGetCurrentContext() : NULL;
-    visual_->context =
-        glXCreateContext(visual_->display, visual_->info, share_context, True);
-    if (!visual_->context)
-      return;
-
-    // Create a colormap for the window.
-    visual_->colormap = XCreateColormap(
-        visual_->display, RootWindow(visual_->display, visual_->info->screen),
-        visual_->info->visual, AllocNone);
-    XSetWindowAttributes window_attributes;
-    window_attributes.border_pixel = 0;
-    window_attributes.colormap = visual_->colormap;
-    visual_->window = XCreateWindow(
-        visual_->display, RootWindow(visual_->display, visual_->info->screen),
-        0, 0, 1, 1, 0, visual_->info->depth, InputOutput, visual_->info->visual,
-        CWBorderPixel | CWColormap, &window_attributes);
+    share_group_id_ = group;
   }
 }
-
-Visual::Visual() : visual_(new VisualInfo), type_(kMock) {}
-
-bool Visual::IsValid() const {
-  return visual_->display && visual_->context && visual_->window;
-}
-
-bool Visual::MakeCurrent() const {
-  const int success =
-      glXMakeCurrent(visual_->display, visual_->window, visual_->context);
-  if (!success) {
-    LOG(ERROR) << "Unable to make Visual current.";
-    return false;
-  } else {
-    return true;
-  }
-}
-
-void Visual::TeardownContextNew() {
-  base::LockGuard guard(GetXMutex());
-
-  if (visual_->context)
-    glXDestroyContext(visual_->display, visual_->context);
-  if (visual_->window)
-    XDestroyWindow(visual_->display, visual_->window);
-  if (visual_->colormap)
-    XFreeColormap(visual_->display, visual_->colormap);
-  if (visual_->info)
-    XFree(visual_->info);
-  if (visual_->display)
-    XCloseDisplay(visual_->display);
-}
-
-void Visual::TeardownContextShared() {
-  base::LockGuard guard(GetXMutex());
-
-  const Display* display = glXGetCurrentDisplay();
-  const Window window = glXGetCurrentDrawable();
-  const GLXContext context = glXGetCurrentContext();
-
-  if (visual_->context && context != visual_->context)
-    glXDestroyContext(visual_->display, visual_->context);
-  if (visual_->window && window != visual_->window)
-    XDestroyWindow(visual_->display, visual_->window);
-  if (visual_->colormap)
-    XFreeColormap(visual_->display, visual_->colormap);
-  if (visual_->info)
-    XFree(visual_->info);
-  if (visual_->display && display != visual_->display)
-    XCloseDisplay(visual_->display);
-}
-
-Visual::~Visual() {
-  TeardownVisual(this);
-}
-
-#elif defined(ION_PLATFORM_NACL)
-void* Visual::VisualInfo::GetCurrentContext() {
-  return reinterpret_cast<void*>(glGetCurrentContextPPAPI());
-}
-
-void Visual::VisualInfo::ClearCurrentContext() {
-  glSetCurrentContextPPAPI(0);
-}
-
-Visual::Visual(Type type)
-    : visual_(new VisualInfo), type_(type) {
-  if (type == kCurrent) {
-    visual_->context = glGetCurrentContextPPAPI();
-    MakeCurrent(this);
-  } else {
-    pp::Module* module = pp::Module::Get();
-    if (!module || !glInitializePPAPI(module->get_browser_interface())) {
-      LOG(ERROR) << "Unable to initialize GL PPAPI since there is no browser!";
-      return;
-    }
-
-    const PPB_Graphics3D* interface = reinterpret_cast<const PPB_Graphics3D*>(
-        module->GetBrowserInterface(PPB_GRAPHICS_3D_INTERFACE));
-    if (!interface) {
-      LOG(ERROR) << "Unable to initialize PP Graphics3D interface!";
-      return;
-    }
-
-    int32_t attribs[] = {
-      PP_GRAPHICS3DATTRIB_ALPHA_SIZE, 8,
-      PP_GRAPHICS3DATTRIB_DEPTH_SIZE, 24,
-      PP_GRAPHICS3DATTRIB_STENCIL_SIZE, 8,
-      PP_GRAPHICS3DATTRIB_NONE
-    };
-
-    PP_Resource share_context =
-        type == kShare ? glGetCurrentContextPPAPI() : 0U;
-
-    const pp::Module::InstanceMap& instances = module->current_instances();
-    for (pp::Module::InstanceMap::const_iterator iter = instances.begin();
-         iter != instances.end(); ++iter) {
-      // Choose the first instance.
-      if (pp::Instance* instance = iter->second) {
-        visual_->context =
-            interface->Create(instance->pp_instance(), share_context, attribs);
-        break;
-      }
-    }
-  }
-}
-
-Visual::Visual() : visual_(new VisualInfo), type_(kMock) {}
-
-bool Visual::IsValid() const {
-  return visual_->context;
-}
-
-bool Visual::MakeCurrent() const {
-  glSetCurrentContextPPAPI(visual_->context);
-  if (visual_->context != glGetCurrentContextPPAPI()) {
-    LOG(ERROR) << "Unable to make Visual current.";
-    return false;
-  } else {
-    return true;
-  }
-}
-
-void Visual::TeardownContextNew() {
-  glTerminatePPAPI();
-}
-
-void Visual::TeardownContextShared() {
-}
-
-Visual::~Visual() {
-  TeardownVisual(this);
-}
-
-#elif defined(ION_PLATFORM_WINDOWS)
-void* Visual::VisualInfo::GetCurrentContext() {
-#  if defined(ION_ANGLE)
-  return eglGetCurrentContext();
-#  else
-  return wglGetCurrentContext();
-#  endif
-}
-
-void Visual::VisualInfo::ClearCurrentContext() {
-#  if defined(ION_ANGLE)
-  eglMakeCurrent(eglGetDisplay((EGLNativeDisplayType)EGL_DEFAULT_DISPLAY),
-                 EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-#  else
-  wglMakeCurrent(nullptr, nullptr);
-#  endif
-}
-
-Visual::Visual(Visual::Type type)
-    : visual_(new VisualInfo), type_(type) {
-  if (type == kCurrent) {
-#  if defined(ION_ANGLE)
-    visual_->context = eglGetCurrentContext();
-#  else
-    // wglMakeCurrent() can bind to an arbitrary device context to the OpenGL
-    // rendering context when it is called.  For the purposes of Visual, we
-    // assume that we will continue to bind the same device context that is
-    // currently bound to the current rendering context.
-    visual_->device_context = wglGetCurrentDC();
-    visual_->context = wglGetCurrentContext();
-
-    // If we're asked to bind to the current context, then there should exist
-    // current device and rendering contexts.
-    DCHECK(visual_->device_context);
-    DCHECK(visual_->context);
-#  endif
-    MakeCurrent(this);
-  } else {
-    const DWORD dwExStyle = 0;
-    const LPCTSTR lpClassName = reinterpret_cast<LPCTSTR>(GetIonWindowClass());
-    const LPCTSTR lpWindowName = "ION";
-    const DWORD dwStyle = 0;
-    const int x = CW_USEDEFAULT;
-    const int y = CW_USEDEFAULT;
-    const int nWidth = CW_USEDEFAULT;
-    const int nHeight = CW_USEDEFAULT;
-    const HWND hWndParent = nullptr;
-    const HMENU hMenu = nullptr;
-    const HINSTANCE hInstance = GetModuleHandle(nullptr);
-    const LPVOID lpParam = nullptr;
-    visual_->window =
-        CreateWindowEx(dwExStyle, lpClassName, lpWindowName, dwStyle, x, y,
-                       nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
-    if (!visual_->window)
-      return;
-
-    // |device_context| is retrieved from a window created with CS_OWNDC style,
-    // and does not need to be released.
-    const HDC device_context = GetDC(visual_->window);
-    if (!device_context)
-      return;
-
-    PIXELFORMATDESCRIPTOR format_descriptor;
-    memset(&format_descriptor, 0, sizeof(format_descriptor));
-    format_descriptor.nSize = sizeof(format_descriptor);
-    format_descriptor.nVersion = 1;
-    format_descriptor.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL;
-    format_descriptor.iPixelType = PFD_TYPE_RGBA;
-    format_descriptor.cColorBits = 24;
-    format_descriptor.cAlphaBits = 8;
-    format_descriptor.cDepthBits = 8;
-    format_descriptor.iLayerType = PFD_MAIN_PLANE;
-    const int pixel_format =
-        ChoosePixelFormat(device_context, &format_descriptor);
-    if (pixel_format == 0)
-      return;
-
-    if (!SetPixelFormat(device_context, pixel_format, &format_descriptor))
-      return;
-
-#if defined(ION_ANGLE)
-    visual_->display = eglGetDisplay((EGLNativeDisplayType)device_context);
-    if (visual_->display == EGL_NO_DISPLAY)
-      if ((visual_->display = eglGetDisplay(
-          (EGLNativeDisplayType) EGL_DEFAULT_DISPLAY)) == EGL_NO_DISPLAY)
-          return;
-
-    visual_->InitEgl(type);
-
-#else
-    visual_->context = wglCreateContext(device_context);
-    if (!visual_->context)
-      return;
-    if (type == kShare) {
-      const HGLRC share_context = wglGetCurrentContext();
-      wglShareLists(share_context, visual_->context);
-    }
-    visual_->device_context = device_context;
-#endif
-  }
-}
-
-Visual::Visual() : visual_(new VisualInfo), type_(kMock) {}
-
-bool Visual::IsValid() const { return visual_->context; }
-
-bool Visual::MakeCurrent() const {
-  bool succeeded = false;
-#  if defined(ION_ANGLE)
-  static const EGLBoolean kFailed = EGL_FALSE;
-  const EGLBoolean success = eglMakeCurrent(visual_->display, visual_->surface,
-                                            visual_->surface, visual_->context);
-#  else
-  static const BOOL kFailed = FALSE;
-  const BOOL success =
-      wglMakeCurrent(visual_->device_context, visual_->context);
-#  endif
-  if (success == kFailed) {
-    LOG(ERROR) << "Unable to make Visual current.";
-    return false;
-  } else {
-    return true;
-  }
-}
-
-#if defined(ION_ANGLE)
-void Visual::TeardownContextNew() {
-  eglDestroyContext(visual_->display, visual_->context);
-  eglDestroySurface(visual_->display, visual_->surface);
-  eglTerminate(visual_->display);
-}
-
-void Visual::TeardownContextShared() {
-  TeardownContextNew();
-}
-#else
-void Visual::TeardownContextNew() {
-  if (visual_->context)
-    wglDeleteContext(visual_->context);
-  // |visual_->device_context| was created from a window created with the
-  // CS_OWNED style, and does not need to be released here.
-}
-
-void Visual::TeardownContextShared() {
-  TeardownContextNew();
-}
-#endif
-
-Visual::~Visual() {
-  TeardownVisual(this);
-
-  if (visual_->window) {
-    DestroyWindow(visual_->window);
-  }
-}
-
-#elif !defined(ION_PLATFORM_IOS) && !defined(ION_PLATFORM_MAC)
-void* Visual::VisualInfo::GetCurrentContext() { return NULL; }
-void Visual::VisualInfo::ClearCurrentContext() {}
-
-// For platforms that we cannot (or do not know how to) create contexts.
-// iOS and Mac have their own objective-c implementations in visual_darwin.mm.
-Visual::Visual(Type type) : visual_(new VisualInfo), type_(type) {}
-Visual::Visual() : visual_(new VisualInfo), type_(kMock) {}
-bool Visual::IsValid() const { return false; }
-void Visual::MakeCurrent() const {}
-void Visual::TeardownContextNew() {}
-void Visual::TeardownContextShared() {}
-Visual::~Visual() {
-  TeardownVisual(this);
-}
-#endif
-
-#if !defined(ION_PLATFORM_IOS) && !defined(ION_PLATFORM_MAC)
-void Visual::UpdateId() {
-  SetId(reinterpret_cast<size_t>(reinterpret_cast<void*>(visual_->context)));
-}
-#endif
 
 int Visual::GetGlVersion() const {
-  // glGetIntegerv(GL_MAJOR_VERSION) is (surprisingly) not supported on all
-  // platforms (e.g. mac), so we use the GL_VERSION string instead.
-  const char* version_string = NULL;
-  const char* dot_string = NULL;
+  DCHECK_EQ(this, GetCurrent().Get());
 
-  // Try to get the local OpenGL version by looking for major.minor in the
-  // version string.
-  version_string = reinterpret_cast<const char*>(glGetString(GL_VERSION));
-  if (!version_string) {
+  // glGetIntegerv(GL_MAJOR_VERSION) is not part of core until OpenGL 3.0.
+  const char* const version_string =
+      reinterpret_cast<const char* const>(glGetString(GL_VERSION));
+  if (version_string == nullptr) {
     LOG(WARNING) << "This system does not seem to support OpenGL.";
     return 0;
   }
-  if (ion::base::StartsWith(version_string, "WebGL"))
-    version_string = "2.0";
-  dot_string = strchr(version_string, '.');
-  if (!dot_string) {
-    LOG(WARNING) << "Unable to determine the OpenGL version.";
+  const char* const major_dot = std::strchr(version_string, '.');
+  if (major_dot == nullptr || major_dot - version_string != 1) {
+    LOG(WARNING) << "Unable to determine the OpenGL major version.";
     return 0;
   }
-
-  int major = 0;
-  int minor = 0;
-  major = dot_string[-1] - '0';
-  minor = dot_string[1] - '0';
-  return major * 10 + minor;
+  const char* const minor_dot = std::strchr(major_dot + 1, '.');
+  if (minor_dot == nullptr || minor_dot - major_dot != 2) {
+    LOG(WARNING) << "Unable to determine the OpenGL minor version.";
+    return 0;
+  }
+  return (10 * (*(major_dot - 1) - '0')) + *(minor_dot - 1) - '0';
 }
 
-void Visual::RefreshCurrentVisual() {
-#if defined(ION_PLATFORM_ANDROID) || defined(ION_PLATFORM_ASMJS) || \
-    defined(ION_PLATFORM_GENERIC_ARM) || defined(ION_ANGLE) || \
-    (defined(ION_PLATFORM_LINUX) && defined(ION_GFX_OGLES20))
-  const Visual* visual = GetCurrent();
-  if (visual->type_ != kMock) {
-    visual->visual_->surface = eglGetCurrentSurface(EGL_DRAW);
+// static
+VisualPtr Visual::GetCurrent() {
+  VisualPtr* const thread_current_visual_ptr =
+      StaticVisualData::GetThreadCurrentVisualPtr();
+  VisualPtr new_thread_current_visual;
+
+  const uintptr_t current_gl_context_id = GetCurrentGlContextId();
+  // Reset the current visual, if it does not match the current GL context ID.
+  // This particular order of logic allows a Visual to be returned when there is
+  // no current OpenGL context, if the Visual's |gl_context_id_| is 0.  This is
+  // the case for MockVisual instances.
+  if (*thread_current_visual_ptr) {
+    if ((*thread_current_visual_ptr)->gl_context_id_ == current_gl_context_id) {
+      // The Visual in |thread_current_visual_ptr| is current.
+      new_thread_current_visual = *thread_current_visual_ptr;
+    } else {
+      // No-op.  |new_thread_current_visual| remains nullptr.
+    }
   }
-#endif
+  if (current_gl_context_id != 0) {
+    // If there is a current OpenGL context, there should exist a Visual
+    // managing it.  Find it, or create one.
+    new_thread_current_visual =
+        StaticVisualData::FindInVisualMap(current_gl_context_id);
+    if (!new_thread_current_visual) {
+      // No Visual managing this context exists, so create a new wrapping one.
+      new_thread_current_visual = CreateWrappingVisual();
+
+      // CreateWrappingVisual() should have added an entry into the visual map.
+      DCHECK_EQ(new_thread_current_visual.Get(),
+                StaticVisualData::FindInVisualMap(current_gl_context_id).Get());
+    }
+  }
+
+  // We defer assigning to |thread_current_visual_ptr| until the very end,
+  // outside of any locks taken, as the assignment may require releasing the old
+  // value (which may take locks while running the Visual destructor).
+  *thread_current_visual_ptr = new_thread_current_visual;
+  return *thread_current_visual_ptr;
+}
+
+// static
+bool Visual::MakeCurrent(const VisualPtr& visual) {
+  VisualPtr current_visual = GetCurrent();
+  if (visual == current_visual) {
+    // Return early if we are already current.
+    return true;
+  }
+
+  if (current_visual) {
+    // Clear the current context, if there was one.
+    current_visual->ClearCurrentContextImpl();
+  }
+
+  VisualPtr* const thread_current_visual_ptr =
+      StaticVisualData::GetThreadCurrentVisualPtr();
+  thread_current_visual_ptr->Reset();
+
+  if (visual) {
+    if (!visual->MakeContextCurrentImpl()) {
+      LOG(ERROR) << "Failed to make context current.";
+      return false;
+    }
+    *thread_current_visual_ptr = visual;
+  }
+  return true;
+}
+
+// static
+uintptr_t Visual::GetCurrentId() {
+  const VisualPtr current = GetCurrent();
+  if (!current) {
+    return 0;
+  }
+  return current->GetId();
+}
+
+// static
+VisualPtr Visual::CreateVisualInCurrentShareGroup(const VisualSpec& spec) {
+  const VisualPtr current = GetCurrent();
+  if (!current) {
+    return VisualPtr();
+  }
+  return current->CreateVisualInShareGroupImpl(spec);
+}
+
+// static
+void Visual::RefreshCurrentVisual() {
+  const VisualPtr current = GetCurrent();
+  if (!current) {
+    return;
+  }
+  current->RefreshVisualImpl();
+}
+
+void Visual::RefreshVisualImpl() {}
+
+void Visual::SetIds(uintptr_t id, uintptr_t share_group_id,
+                    uintptr_t gl_context_id) {
+  DCHECK_EQ(0, id_);
+  DCHECK_EQ(0, share_group_id_);
+  DCHECK_EQ(0, gl_context_id_);
+  id_ = id;
+  share_group_id_ = share_group_id;
+  gl_context_id_ = gl_context_id;
+
+  // Since we insert |this| into the visual map as a weak pointer, |this| must
+  // already be held in a SharedPtr; i.e. SetIds() cannot be called directly
+  // from a constructor.
+  DCHECK_LT(0, this->GetRefCount())
+      << "|this| not held in a SharedPtr "
+         "(is Visual::SetIds() being called directly from a constructor?)";
+  if (gl_context_id_ != 0) {
+    // Only attempt to insert into the visual map if |gl_context_id_| is
+    // non-zero.  (It should only be zero for the special case of the
+    // MockVisual.)
+    const bool inserted =
+        StaticVisualData::InsertIntoVisualMap(gl_context_id_, VisualPtr(this));
+
+    // If this insertion fails, we're basically hosed.  There's a previous
+    // Visual which *thinks* it manages the GL context at |gl_context_id_|, but
+    // now we're seeing that GL context again in a new Visual.  At this point
+    // we're not able to tell apart the two contexts.
+    //
+    // This is a limitation due to the fact that we track GL contexts by pointer
+    // value; if a GL context is destroyed and a new one created, there is no
+    // guarantee that the new context has a distinct pointer value.  It can
+    // occur if, for example:
+    //
+    // * Application creates a Visual.
+    // * Application destroys the GL context underlying that Visual directly
+    //   using platform API calls.
+    // * Application creates a new Visual, and the GL implementation allocates
+    //   the new context with the same context pointer value as the destroyed
+    //   one.
+    //
+    // To avoid this sort of situation, just Don't Do Weird Stuff Directly With
+    // Contexts.
+    CHECK(inserted) << "multiple Visuals created for gl_context_id="
+                    << gl_context_id_;
+  }
+}
+
+uintptr_t Visual::GetGlContextId() const { return gl_context_id_; }
+
+// static
+uintptr_t Visual::CreateId() {
+  static std::atomic<uintptr_t> next_id(1);
+  return next_id++;
+}
+
+// static
+uintptr_t Visual::CreateShareGroupId() {
+  static std::atomic<uintptr_t> next_share_group_id(1);
+  return next_share_group_id++;
 }
 
 }  // namespace portgfx

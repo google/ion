@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,7 +21,10 @@ limitations under the License.
 #include <vector>
 
 #include "ion/base/allocator.h"
+#include "ion/base/datacontainer.h"
+#include "ion/base/fullallocationtracker.h"
 #include "ion/base/logchecker.h"
+#include "ion/base/referent.h"
 #include "ion/base/stlalloc/allocmap.h"
 #include "ion/base/stlalloc/allocset.h"
 #include "ion/base/stlalloc/allocvector.h"
@@ -210,7 +213,8 @@ class AllocatableTest : public ::testing::Test {
 class AllocatableTest_TrivialType_Test {
  public:
   AllocatableTest_TrivialType_Test()
-      : placement_allocator_set_(Allocatable::GetPlacementAllocator() != NULL) {
+      : placement_allocator_set_(Allocatable::GetPlacementAllocator() !=
+                                 nullptr) {
   }
   bool WasPlacementAllocatorSet() { return placement_allocator_set_; }
 
@@ -224,8 +228,8 @@ TEST_F(AllocatableTest, StackAllocation) {
   ATest a1;
   EXPECT_TRUE(a0.WasConstructorCalled());
   EXPECT_TRUE(a1.WasConstructorCalled());
-  EXPECT_TRUE(a0.GetAllocator().Get() == NULL);
-  EXPECT_TRUE(a1.GetAllocator().Get() == NULL);
+  EXPECT_FALSE(a0.GetAllocator());
+  EXPECT_FALSE(a1.GetAllocator());
 
   // Allocating StackTest should also work.
   StackTest s0;
@@ -300,7 +304,7 @@ TEST_F(AllocatableTest, CopyConstruction) {
   EXPECT_EQ(AllocationManager::GetDefaultAllocator().Get(),
             c1->GetAllocator().Get());
   // Since c2 was allocated on the stack, it should have a NULL allocator.
-  EXPECT_TRUE(c2.GetAllocator().Get() == NULL);
+  EXPECT_FALSE(c2.GetAllocator());
 
   testing::TestAllocatorPtr allocator(new testing::TestAllocator);
   std::unique_ptr<CopyTest> c3(new(allocator) CopyTest(*c1));
@@ -333,7 +337,7 @@ TEST_F(AllocatableTest, Assignment) {
   EXPECT_EQ(AllocationManager::GetDefaultAllocator().Get(),
             c1->GetAllocator().Get());
   // Since c2 was allocated on the stack, it should have a NULL allocator.
-  EXPECT_TRUE(c2.GetAllocator().Get() == NULL);
+  EXPECT_FALSE(c2.GetAllocator());
 
   // Copying instances will copy their internal boolean value, but not their
   // allocators.
@@ -343,7 +347,7 @@ TEST_F(AllocatableTest, Assignment) {
             c0->GetAllocator().Get());
   EXPECT_EQ(AllocationManager::GetDefaultAllocator().Get(),
             c1->GetAllocator().Get());
-  EXPECT_TRUE(c2.GetAllocator().Get() == NULL);
+  EXPECT_FALSE(c2.GetAllocator());
 
   c2 = *c1;
   EXPECT_FALSE(c2.WasCopyConstructed());
@@ -351,13 +355,13 @@ TEST_F(AllocatableTest, Assignment) {
             c0->GetAllocator().Get());
   EXPECT_EQ(AllocationManager::GetDefaultAllocator().Get(),
             c1->GetAllocator().Get());
-  EXPECT_TRUE(c2.GetAllocator().Get() == NULL);
+  EXPECT_FALSE(c2.GetAllocator());
 }
 
 TEST_F(AllocatableTest, StlMap) {
   std::map<int, ATest> a_container;
-  EXPECT_TRUE(a_container[0].GetAllocator().Get() == NULL);
-  EXPECT_TRUE(a_container[1].GetAllocator().Get() == NULL);
+  EXPECT_FALSE(a_container[0].GetAllocator());
+  EXPECT_FALSE(a_container[1].GetAllocator());
 
   testing::TestAllocatorPtr allocator(new testing::TestAllocator);
   AllocMap<int, ATest> b_container(allocator);
@@ -369,8 +373,8 @@ TEST_F(AllocatableTest, StlMap) {
   // Check assignment of an element in an STL container.
   a_container[0] = b_container[0];
   b_container[1] = a_container[1];
-  EXPECT_TRUE(a_container[0].GetAllocator().Get() == NULL);
-  EXPECT_TRUE(a_container[1].GetAllocator().Get() == NULL);
+  EXPECT_FALSE(a_container[0].GetAllocator());
+  EXPECT_FALSE(a_container[1].GetAllocator());
   EXPECT_EQ(allocator.Get(), b_container[0].GetAllocator().Get());
   EXPECT_EQ(allocator.Get(), b_container[1].GetAllocator().Get());
 
@@ -461,8 +465,8 @@ TEST_F(AllocatableTest, StlVector) {
   EXPECT_TRUE(a_container[0].WasConstructorCalled());
   EXPECT_TRUE(a_container[1].WasConstructorCalled());
 
-  EXPECT_TRUE(a_container[0].GetAllocator().Get() == NULL);
-  EXPECT_TRUE(a_container[1].GetAllocator().Get() == NULL);
+  EXPECT_FALSE(a_container[0].GetAllocator());
+  EXPECT_FALSE(a_container[1].GetAllocator());
 
   testing::TestAllocatorPtr allocator(new testing::TestAllocator);
   AllocVector<ATest> b_container(allocator);
@@ -475,8 +479,8 @@ TEST_F(AllocatableTest, StlVector) {
   // Check assignment of an element in an STL container.
   a_container[0] = b_container[0];
   b_container[1] = a_container[1];
-  EXPECT_TRUE(a_container[0].GetAllocator().Get() == NULL);
-  EXPECT_TRUE(a_container[1].GetAllocator().Get() == NULL);
+  EXPECT_FALSE(a_container[0].GetAllocator());
+  EXPECT_FALSE(a_container[1].GetAllocator());
   EXPECT_EQ(allocator.Get(), b_container[0].GetAllocator().Get());
   EXPECT_EQ(allocator.Get(), b_container[1].GetAllocator().Get());
 
@@ -797,11 +801,11 @@ TEST_F(AllocatableTest, NonNullAllocator) {
   AllocatorPtr allocator(new testing::TestAllocator);
   std::unique_ptr<ATest> heap_alloced(new(allocator) ATest);
   ATest stack_alloced;
-  EXPECT_FALSE(heap_alloced->GetAllocator().Get() == NULL);
+  EXPECT_TRUE(heap_alloced->GetAllocator());
   EXPECT_NE(default_allocator.Get(), heap_alloced->GetAllocator().Get());
 
-  EXPECT_TRUE(stack_alloced.GetAllocator().Get() == NULL);
-  EXPECT_FALSE(stack_alloced.GetNonNullAllocator().Get() == NULL);
+  EXPECT_FALSE(stack_alloced.GetAllocator());
+  EXPECT_TRUE(stack_alloced.GetNonNullAllocator());
   EXPECT_EQ(default_allocator.Get(),
             stack_alloced.GetNonNullAllocator().Get());
 }
@@ -813,10 +817,104 @@ TEST_F(AllocatableTest, DestroyAllocator) {
   ATest* a = new (allocator) ATest;
   // Reset the Allocator pointer so that the ATest holds the last reference to
   // the Allocator.
-  allocator = NULL;
+  allocator = nullptr;
   // Delete the ATest. This should not crash; the Allocator should not be
   // destroyed before the ATest instance is completely deleted.
   delete a;
+}
+
+// Referent which allows placement new creation within a DataContainer for
+// performance.
+class ContainerReferent
+// NOTE: DataContainerPtr must be inherited first so it is destructed last
+// because ~DataContainerPtr might delete the memory containing this object.
+    : private DataContainerPtr,
+      public Referent {
+ public:
+  const DataContainerPtr& GetDataContainer() const { return *this; }
+
+ protected:
+  ContainerReferent() {}
+  explicit ContainerReferent(const DataContainerPtr& data)
+      : ion::base::DataContainerPtr(data),
+        Referent(data->GetAllocator()) {
+  }
+  ~ContainerReferent() override {}
+  void OnZeroRefCount() const override {
+    // If this object is within a DataContainer, manually invoke destructor.
+    if (Get())
+      this->~ContainerReferent();
+    else
+      delete this;
+  }
+};
+
+class TestNode;
+using TestNodePtr = base::SharedPtr<TestNode>;
+class TestNode : public ContainerReferent {
+ public:
+  TestNode() : ContainerReferent(), ints_(GetAllocator()) {}
+  TestNode(const DataContainerPtr& data, TestNode* parent)
+      : ContainerReferent(data), ints_(GetAllocator()) {
+    if (parent)
+      parent->child_.Reset(this);
+  }
+  const AllocVector<int>& GetInts() const { return  ints_; }
+  const TestNodePtr& GetChild() const { return child_; }
+
+ protected:
+  ~TestNode() override {}
+
+ private:
+  AllocVector<int> ints_;
+  TestNodePtr child_;
+};
+
+TEST_F(AllocatableTest, ContainerReferent) {
+  FullAllocationTrackerPtr tracker(new FullAllocationTracker);
+  AllocatorPtr allocator = AllocationManager::GetDefaultAllocator();
+  allocator->SetTracker(tracker);
+
+  // Create DataContainer large enough to contain kNumTestNodes.
+  const int kNumTestNodes = 33;
+  DataContainerPtr data = DataContainer::CreateOverAllocated<uint8>(
+      sizeof(TestNode) * kNumTestNodes, nullptr, allocator);
+  uint8* mem = data->GetMutableData<uint8>();
+  // Create TestNodes using placement new to create them in the DataContainer.
+  TestNode* parent = nullptr;
+  for (int i = 0; i < kNumTestNodes; ++i) {
+    parent = new(mem) TestNode(data, parent);
+    mem += sizeof(TestNode);
+  }
+  // Each TestNode should reference the DataContainer.
+  EXPECT_EQ(kNumTestNodes + 1, data->GetRefCount());
+
+  // The Allocator used for TestNode's members is the same used to create
+  // the DataContainer.
+  TestNode* tnode = data->GetMutableData<TestNode>();
+  EXPECT_EQ(0, tnode->GetRefCount());
+  EXPECT_TRUE(allocator == tnode->GetAllocator());
+  EXPECT_TRUE(allocator == tnode->GetInts().get_allocator().GetAllocator());
+  // Test ref counts.
+  TestNodePtr ptr(tnode);
+  EXPECT_EQ(1, tnode->GetRefCount());
+  data.Reset();
+  EXPECT_EQ(kNumTestNodes, ptr->GetDataContainer()->GetRefCount());
+  TestNodePtr child = tnode->GetChild()->GetChild()->GetChild();
+  ptr = TestNodePtr();
+  EXPECT_EQ(kNumTestNodes - 3, child->GetDataContainer()->GetRefCount());
+  // Release last ref to a TestNode to tear down the remaining node hierarchy.
+  // The last ~TestNode will release the last ref to the DataContainer and then
+  // delete it.
+  child.Reset();
+  EXPECT_EQ(0U, tracker->GetActiveAllocationBytesCount());
+
+  // Allocate TestNode in Allocator, not DataContainer.
+  ptr.Reset(new(allocator) TestNode);
+  EXPECT_LE(sizeof(TestNode), tracker->GetActiveAllocationBytesCount());
+  EXPECT_EQ(1, ptr->GetRefCount());
+  ptr.Reset();
+  EXPECT_EQ(0U, tracker->GetActiveAllocationBytesCount());
 }
 
 }  // namespace base

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -43,6 +43,10 @@ class ION_API Shape : public base::Referent {
   };
 
   Shape();
+
+  // Creates a shallow copy of the shape that shares the same vertex attribute
+  // buffer data and index buffer data.
+  Shape(const Shape& from);
 
   // Returns/sets the label of this.
   const std::string& GetLabel() const { return label_; }
@@ -164,7 +168,7 @@ class ION_API Shape : public base::Referent {
 };
 
 // Convenience typedef for shared pointer to a Shape.
-typedef base::ReferentPtr<Shape>::Type ShapePtr;
+using ShapePtr = base::SharedPtr<Shape>;
 
 }  // namespace gfx
 }  // namespace ion

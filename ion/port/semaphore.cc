@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ Semaphore::Semaphore() {
   semaphore_ = dispatch_semaphore_create(0);
 #elif defined(ION_PLATFORM_WINDOWS)
   // Creates a semaphore with a max value of 0x7fffffff.
-  semaphore_ = CreateSemaphore(NULL, 0, 0x7fffffff, NULL);
+  semaphore_ = CreateSemaphore(nullptr, 0, 0x7fffffff, nullptr);
   value_.store(0);
 #elif defined(ION_PLATFORM_ASMJS)
   value_ = 0;
@@ -58,7 +58,7 @@ Semaphore::Semaphore(uint32 initial_value) {
   // Creates a semaphore with a max value of 0x7fffffff.
   // The initial count is stored in value_, so the underlying semaphore starts
   // with an inital count of zero.
-  semaphore_ = CreateSemaphore(NULL, 0, 0x7fffffff, NULL);
+  semaphore_ = CreateSemaphore(nullptr, 0, 0x7fffffff, nullptr);
   value_.store(initial_value);
 #elif defined(ION_PLATFORM_ASMJS)
   // Asmjs lacks threads, so the best we can do is keep a simple counter and
@@ -72,7 +72,10 @@ Semaphore::Semaphore(uint32 initial_value) {
 
 Semaphore::~Semaphore() {
 #if defined(ION_PLATFORM_IOS) || defined(ION_PLATFORM_MAC)
-  // Nothing to be done; ARC automatically releases semaphore_.
+  // In ARC mode, semaphore_ is released automatically.
+#if !defined(__has_feature) || !__has_feature(objc_arc)
+  dispatch_release(semaphore_);
+#endif
 #elif defined(ION_PLATFORM_WINDOWS)
   CloseHandle(semaphore_);
 #elif defined(ION_PLATFORM_ASMJS)
@@ -94,7 +97,7 @@ bool Semaphore::Post() {
     return true;
   } else {
     // Slow path.  There are some waiters... notify one of them.
-    return ReleaseSemaphore(semaphore_, 1, NULL) != 0;
+    return ReleaseSemaphore(semaphore_, 1, nullptr) != 0;
   }
 #elif defined(ION_PLATFORM_ASMJS)
   ++value_;
@@ -159,7 +162,8 @@ bool Semaphore::TimedWaitMs(int64 timeout_in_ms) {
     return true;
   }
   // Slow path.  Wait until signalled, or timeout expires.
-  if (WaitForSingleObject(semaphore_, timeout_in_ms) == WAIT_OBJECT_0) {
+  if (WaitForSingleObject(semaphore_, static_cast<DWORD>(timeout_in_ms)) ==
+          WAIT_OBJECT_0) {
     // Semaphore was signalled within time limit.
     return true;
   } else {
@@ -176,7 +180,7 @@ bool Semaphore::TimedWaitMs(int64 timeout_in_ms) {
 
   // Timeout is in seconds and nanoseconds, relative to epoch.
   timeval now;
-  ::gettimeofday(&now, NULL);
+  ::gettimeofday(&now, nullptr);
   // The number of ns is the number requested plus the current time in ns.
   const uint64 timeout_in_ns = now.tv_usec * 1000 + timeout_in_ms * kMsecToNsec;
 
@@ -190,7 +194,7 @@ bool Semaphore::TimedWaitMs(int64 timeout_in_ms) {
   // NaCl doesn't support sem_timedwait() for now, so spin-wait.
   while (!TryWait()) {
     YieldThread();
-    ::gettimeofday(&now, NULL);
+    ::gettimeofday(&now, nullptr);
     if (now.tv_sec > timeout.tv_sec ||
         (now.tv_sec == timeout.tv_sec &&
          now.tv_usec * 1000 > timeout.tv_nsec)) {

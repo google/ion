@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -54,13 +54,15 @@ typedef ion::base::SharedPtr<DerivedTestCounter> DerivedTestCounterPtr;
 size_t TestCounter::s_num_deletions_ = 0;
 size_t DerivedTestCounter::s_num_deletions_ = 0;
 
+#if !ION_NO_RTTI
 using ion::base::DynamicPtrCast;
+#endif
 
 TEST(SharedPtr, Constructors) {
   {
-    // Default SharedPtr construction should have a NULL pointer.
+    // Default SharedPtr construction should have a null pointer.
     TestCounterPtr p;
-    EXPECT_TRUE(p.Get() == NULL);
+    EXPECT_TRUE(p.Get() == nullptr);
   }
 
   {
@@ -107,7 +109,7 @@ TEST(SharedPtr, Delete) {
   TestCounter::ClearNumDeletions();
   DerivedTestCounter::ClearNumDeletions();
 
-  // Default (NULL) pointer should not delete anything.
+  // Default (null) pointer should not delete anything.
   {
     TestCounterPtr p;
   }
@@ -162,8 +164,8 @@ TEST(SharedPtr, Assignment) {
 
   TestCounterPtr tp;
   DerivedTestCounterPtr dp;
-  EXPECT_TRUE(tp.Get() == NULL);
-  EXPECT_TRUE(dp.Get() == NULL);
+  EXPECT_FALSE(tp);
+  EXPECT_FALSE(dp);
 
   // Assignment to raw pointer.
   tp = t;
@@ -180,7 +182,7 @@ TEST(SharedPtr, Assignment) {
   tp2 = tp;
   EXPECT_EQ(t, tp2.Get());
   EXPECT_EQ(3, t->GetRefCount());
-  tp2 = NULL;
+  tp2 = nullptr;
   EXPECT_EQ(2, t->GetRefCount());
 
   // Assignment to compatible raw pointer.
@@ -189,9 +191,9 @@ TEST(SharedPtr, Assignment) {
   EXPECT_EQ(1, t->GetRefCount());
   EXPECT_EQ(2, d->GetRefCount());
 
-  // Assignment to NULL.
-  tp = NULL;
-  EXPECT_TRUE(tp.Get() == NULL);
+  // Assignment to nullptr.
+  tp = nullptr;
+  EXPECT_FALSE(tp);
   EXPECT_EQ(1, t->GetRefCount());
   EXPECT_EQ(1, d->GetRefCount());
 
@@ -215,28 +217,34 @@ TEST(SharedPtr, Operators) {
   // == and != operators.
   TestCounter* t2 = new TestCounter;
   TestCounterPtr tp2;
-  // Pointer vs. NULL.
+
+  // Pointer vs. nullptr.
   EXPECT_FALSE(tp1 == tp2);
   EXPECT_TRUE(tp1 != tp2);
+  EXPECT_TRUE(tp1);
+  EXPECT_FALSE(tp2);
+
   // Pointer vs. pointer.
   tp2 = t2;
   EXPECT_FALSE(tp1 == tp2);
   EXPECT_TRUE(tp1 != tp2);
+
   // Identical pointers.
   tp1 = tp2;
   EXPECT_TRUE(tp1 == tp2);
   EXPECT_FALSE(tp1 != tp2);
-  // NULL pointers.
-  tp1 = tp2 = NULL;
+
+  // Null pointers.
+  tp1 = tp2 = nullptr;
   EXPECT_TRUE(tp1 == tp2);
   EXPECT_FALSE(tp1 != tp2);
 
-  // operator->() should DCHECK on NULL in debug mode.
+  // operator->() should DCHECK on nullptr in debug mode.
   {
     ion::base::LogChecker logchecker;
     ion::base::SetBreakHandler(kNullFunction);
     TestCounterPtr tp3;
-    EXPECT_TRUE(tp3.operator->() == NULL);
+    EXPECT_TRUE(tp3.operator->() == nullptr);
     ion::base::RestoreDefaultBreakHandler();
 #if ION_DEBUG
     EXPECT_TRUE(
@@ -273,19 +281,21 @@ TEST(SharedPtr, Swap) {
   EXPECT_EQ(1, t2->GetRefCount());
   EXPECT_EQ(0U, TestCounter::GetNumDeletions());
 
-  // Swap pointer with NULL.
+  // Swap pointer with nullptr.
   TestCounterPtr tp3;
   tp1.swap(tp3);
-  EXPECT_TRUE(tp1.Get() == NULL);
+  EXPECT_FALSE(tp1);
   EXPECT_EQ(t1, tp3.Get());
   EXPECT_EQ(0U, TestCounter::GetNumDeletions());
 
-  // Swap NULL with pointer.
+  // Swap nullptr with pointer.
   tp1.swap(tp2);
   EXPECT_EQ(t2, tp1.Get());
-  EXPECT_TRUE(tp2.Get() == NULL);
+  EXPECT_FALSE(tp2);
   EXPECT_EQ(0U, TestCounter::GetNumDeletions());
 }
+
+#if !ION_NO_RTTI
 
 TEST(SharedPtr, DynamicPtrCast) {
   // Test DynamicPtrCast works for downcasting in a valid case.
@@ -302,10 +312,12 @@ TEST(SharedPtr, DynamicPtrCast) {
     TestCounter *b = new TestCounter;
     TestCounterPtr bp(b);
     DerivedTestCounterPtr dp = DynamicPtrCast<DerivedTestCounter>(bp);
-    EXPECT_EQ(NULL, dp.Get());
+    EXPECT_EQ(nullptr, dp.Get());
     EXPECT_EQ(1, b->GetRefCount());
   }
 }
+
+#endif
 
 TEST(SharedPtr, IncompleteType) {
   ion::base::SharedPtr<Incomplete> ptr = MakeIncomplete();
@@ -315,7 +327,7 @@ TEST(SharedPtr, IncompleteType) {
 
   // These operations should work with an incomplete type.
   Incomplete* raw = ptr.Get();
-  EXPECT_NE(raw, reinterpret_cast<Incomplete*>(NULL));
+  EXPECT_NE(raw, reinterpret_cast<Incomplete*>(0U));
 
   ion::base::SharedPtr<Incomplete> ptr2 = ptr;
   EXPECT_EQ(ptr2.Get(), ptr.Get());

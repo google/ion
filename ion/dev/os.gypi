@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@
           'out_dir': '<(gyp_out_os_dir)/$|CONFIGURATION_NAME',
         }],
 
-        ['OS == "windows"', {
+        ['OS == "win"', {
           # The windows toolchain really *really* wants backslashes.
           'out_dir': '<(gyp_out_os_dir)\$|CONFIGURATION_NAME',
           'path_sep': '\\',
@@ -50,6 +50,20 @@
     },
     'gyp_out': '<!(<(python) -c "import os;print os.path.abspath(\'<(DEPTH)/gyp-out/\')")',
     'out_dir': '<(out_dir)',
+
+    # Specify MSVC runtime version. See more details see:
+    # https://msdn.microsoft.com/en-us/library/abx4dbyh.aspx
+    # 0 => multithreaded static library (/MT)
+    # 1 => multithreaded static debug library (/MTd)
+    # 2 => multithreaded DLL (/MD)
+    # 3 => multithreaded debug DLL (/MDd)
+    # Default is multithreaded debug DLL (/MDd).
+    'msvc_runtime_library_debug%': 3,
+    # Default is multithreaded DLL (/MD).
+    'msvc_runtime_library_release%': 2,
+    # To override these values, you need to pass e.g.
+    # -D=msvc_runtime_library_release=2 -D=msvc_runtime_library_debug=1 on the
+    # gyp command line.
   },
 
   'target_defaults': {
@@ -95,7 +109,7 @@
             'Optimization': '0',  # Disable optimization.
             'DebugInformationFormat': '3',  # /Zi
             'BasicRuntimeChecks': '1',  # '/RTC1' enable fast checks
-            'RuntimeLibrary': '3',      # Multithreaded debug DLL (/MDd).
+            'RuntimeLibrary': '<(msvc_runtime_library_debug)',
             'AdditionalOptions': ['/FS'],  # Force synchronous pdb writing.
           },
 
@@ -142,7 +156,7 @@
           'VCCLCompilerTool': {
             'Optimization': '2',         # Maximize speed (/O2).
             'StringPooling': 'true',
-            'RuntimeLibrary': '2',       # Multithreaded DLL (/MD).
+            'RuntimeLibrary': '<(msvc_runtime_library_release)',
             'BufferSecurityCheck': 'true',
             'DebugInformationFormat': '3',  # /Zi
             'AdditionalOptions': ['/FS'],  # Force synchronous pdb writing.
@@ -616,7 +630,7 @@
     }],  # linux
 
 
-    ['OS=="windows"', {
+    ['OS=="win"', {
       'includes': [
         'windows.gypi',
       ],
@@ -744,9 +758,9 @@
           'IntermediateDirectory': '<(out_dir)\\obj\\>(_target_name)',
         },
       },
-    }],  # windows
+    }],  # win
 
-    ['OS == "windows"', {
+    ['OS == "win"', {
       'target_defaults': {
         'defines': [
           'ION_APIENTRY=APIENTRY',

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ limitations under the License.
 #include "ion/gfx/sampler.h"
 #include "ion/gfx/tests/mockgraphicsmanager.h"
 #include "ion/gfx/tests/traceverifier.h"
+#include "ion/portgfx/visual.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
 namespace ion {
@@ -44,7 +45,8 @@ using gfx::testing::MockVisual;
 class RenderUtilsTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    visual_.reset(new MockVisual(64, 64));
+    visual_ = MockVisual::Create(64, 64);
+    portgfx::Visual::MakeCurrent(visual_);
     mgm_.Reset(new MockGraphicsManager());
     renderer_.Reset(new gfx::Renderer(mgm_));
     tv_.reset(new gfx::testing::TraceVerifier(mgm_.Get()));
@@ -55,9 +57,9 @@ class RenderUtilsTest : public ::testing::Test {
 
   void TearDown() override {
     tv_.reset();
-    renderer_.Reset(NULL);
-    mgm_.Reset(NULL);
-    visual_.reset();
+    renderer_.Reset(nullptr);
+    mgm_.Reset(nullptr);
+    visual_.Reset(nullptr);
   }
 
   // Builds a sample valid Texture with a 32x32 image. The contents of the
@@ -86,7 +88,7 @@ class RenderUtilsTest : public ::testing::Test {
     return cm;
   }
 
-  std::unique_ptr<MockVisual> visual_;
+  portgfx::VisualPtr visual_;
   gfx::testing::MockGraphicsManagerPtr mgm_;
   gfx::RendererPtr renderer_;
   std::unique_ptr<gfx::testing::TraceVerifier> tv_;
@@ -117,29 +119,29 @@ class RenderUtilsTest : public ::testing::Test {
 TEST_F(RenderUtilsTest, RenderTextureImageNullTexture) {
   gfx::ImagePtr image =
       RenderTextureImage(gfx::TexturePtr(), 32, 32, renderer_, al_);
-  EXPECT_TRUE(image.Get() == NULL);
+  EXPECT_FALSE(image);
   EXPECT_EQ(0, MockGraphicsManager::GetCallCount());
 }
 
 TEST_F(RenderUtilsTest, RenderTextureImageNullRenderer) {
   gfx::ImagePtr image =
       RenderTextureImage(BuildTexture(), 32, 32, gfx::RendererPtr(), al_);
-  EXPECT_TRUE(image.Get() == NULL);
+  EXPECT_FALSE(image);
   EXPECT_EQ(0, MockGraphicsManager::GetCallCount());
 }
 
 TEST_F(RenderUtilsTest, RenderTextureImageBadImageSize) {
   gfx::TexturePtr tex = BuildTexture();
   gfx::ImagePtr image = RenderTextureImage(tex, 0, 0, renderer_, al_);
-  EXPECT_TRUE(image.Get() == NULL);
+  EXPECT_FALSE(image);
   EXPECT_EQ(0, MockGraphicsManager::GetCallCount());
 
   image = RenderTextureImage(tex, 32, 0, renderer_, al_);
-  EXPECT_TRUE(image.Get() == NULL);
+  EXPECT_FALSE(image);
   EXPECT_EQ(0, MockGraphicsManager::GetCallCount());
 
   image = RenderTextureImage(tex, 0, 32, renderer_, al_);
-  EXPECT_TRUE(image.Get() == NULL);
+  EXPECT_FALSE(image);
   EXPECT_EQ(0, MockGraphicsManager::GetCallCount());
 }
 
@@ -149,7 +151,7 @@ TEST_F(RenderUtilsTest, RenderTextureImageBadImageSize) {
 TEST_F(RenderUtilsTest, RenderTextureImageValid) {
   gfx::TexturePtr tex = BuildTexture();
   gfx::ImagePtr image = RenderTextureImage(tex, 32, 32, renderer_, al_);
-  EXPECT_FALSE(image.Get() == NULL);
+  EXPECT_TRUE(image);
   EXPECT_LT(0, MockGraphicsManager::GetCallCount());
 
   // Verify some selected OpenGL calls.
@@ -194,7 +196,7 @@ TEST_F(RenderUtilsTest, RenderCubeMapTextureFaceImageNullCubeMap) {
   gfx::ImagePtr image = RenderCubeMapTextureFaceImage(
       gfx::CubeMapTexturePtr(), gfx::CubeMapTexture::kPositiveX, 32, 32,
       renderer_, al_);
-  EXPECT_TRUE(image.Get() == NULL);
+  EXPECT_FALSE(image);
   EXPECT_EQ(0, MockGraphicsManager::GetCallCount());
 }
 
@@ -202,7 +204,7 @@ TEST_F(RenderUtilsTest, RenderCubeMapTextureFaceImageNullRenderer) {
   gfx::ImagePtr image = RenderCubeMapTextureFaceImage(
       BuildCubeMap(), gfx::CubeMapTexture::kPositiveX, 32, 32,
       gfx::RendererPtr(), al_);
-  EXPECT_TRUE(image.Get() == NULL);
+  EXPECT_FALSE(image);
   EXPECT_EQ(0, MockGraphicsManager::GetCallCount());
 }
 
@@ -210,17 +212,17 @@ TEST_F(RenderUtilsTest, RenderCubeMapTextureFaceImageBadImageSize) {
   gfx::CubeMapTexturePtr cm = BuildCubeMap();
   gfx::ImagePtr image = RenderCubeMapTextureFaceImage(
       cm, gfx::CubeMapTexture::kPositiveX, 0, 0, renderer_, al_);
-  EXPECT_TRUE(image.Get() == NULL);
+  EXPECT_FALSE(image);
   EXPECT_EQ(0, MockGraphicsManager::GetCallCount());
 
   image = RenderCubeMapTextureFaceImage(
       cm, gfx::CubeMapTexture::kPositiveX, 32, 0, renderer_, al_);
-  EXPECT_TRUE(image.Get() == NULL);
+  EXPECT_FALSE(image);
   EXPECT_EQ(0, MockGraphicsManager::GetCallCount());
 
   image = RenderCubeMapTextureFaceImage(
       cm, gfx::CubeMapTexture::kPositiveX, 0, 32, renderer_, al_);
-  EXPECT_TRUE(image.Get() == NULL);
+  EXPECT_FALSE(image);
   EXPECT_EQ(0, MockGraphicsManager::GetCallCount());
 }
 
@@ -233,7 +235,7 @@ TEST_F(RenderUtilsTest, RenderCubeMapTextureFaceImageValid) {
       cm, gfx::CubeMapTexture::kPositiveY, 32, 32, renderer_,
       base::AllocationManager::GetDefaultAllocatorForLifetime(
           base::kShortTerm));
-  EXPECT_FALSE(image.Get() == NULL);
+  EXPECT_TRUE(image);
   EXPECT_LT(0, MockGraphicsManager::GetCallCount());
 
   // Verify some selected OpenGL calls.

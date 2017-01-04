@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@ class MyHolder : public ResourceHolder {
   Field<int> field6;
 };
 
-typedef base::ReferentPtr<MyHolder>::Type MyHolderPtr;
+using MyHolderPtr = base::SharedPtr<MyHolder>;
 
 class MockResourceTest : public ::testing::Test {
  protected:

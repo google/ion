@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ limitations under the License.
 #include <map>
 #include <memory>
 #include <set>
+#include <unordered_set>
 #include <vector>
 
 #include "ion/base/allocator.h"
@@ -36,6 +37,7 @@ limitations under the License.
 #include "ion/base/threadlocalobject.h"
 #include "ion/gfx/cubemaptexture.h"
 #include "ion/gfx/framebufferobject.h"
+#include "ion/gfx/glfunctiontypes.h"
 #include "ion/gfx/image.h"
 #include "ion/gfx/openglobjects.h"
 #include "ion/math/range.h"
@@ -50,30 +52,79 @@ namespace testing {
 
 // The set of supported GL extensions.
 static const char kExtensionsString[] =
-    "GL_OES_blend_func_separate GL_OES_blend_subtract "
-    "GL_OES_compressed_ETC1_RGB8_texture GL_OES_framebuffer_object "
-    "GL_OES_texture_cube_map GL_OES_texture_mirrored_repeat "
-    "GL_OES_depth24 GL_OES_depth32 GL_OES_fbo_render_mipmap "
-    "GL_OES_fragment_precision_high GL_OES_mapbuffer "
-    "GL_OES_map_buffer_range GL_OES_rgb8_rgba8 "
-    "GL_OES_stencil8 GL_OES_texture_float GL_OES_texture_half_float "
-    "GL_EXT_texture_filter_anisotropic GL_EXT_texture_type_2_10_10_10_REV "
-    "GL_OES_depth_texture GL_OES_packed_depth_stencil "
-    "GL_OES_standard_derivatives GL_EXT_texture_compression_dxt1 "
-    "GL_IMG_texture_compression_pvrtc GL_EXT_texture_lod_bias "
-    "GL_OES_vertex_array_object GL_EXT_shader_texture_lod "
-    "GL_APPLE_texture_max_level GL_EXT_frag_depth "
-    "GL_NV_texture_compression_s3tc GL_EXT_debug_label GL_EXT_debug_marker "
-    "GL_ARB_debug_output GL_EXT_texture_rg GL_ANGLE_texture_compression_dxt5 "
-    "GL_NV_sRGB_formats GL_EXT_texture_compression_s3tc "
-    "GL_OES_texture_stencil8 GL_OES_texture_3D "
-    "GL_ARB_texture_cube_map_array GL_EXT_texture_storage "
-    "GL_EXT_gpu_shader4 GL_ARB_texture_multisample "
-    "GL_EXT_framebuffer_multisample GL_EXT_framebuffer_blit "
-    "GL_ARB_texture_storage_multisample GL_EXT_draw_instanced GL_ARB_sync "
-    "GL_EXT_disjoint_timer_query GL_NV_transform_feedback "
-    "GL_ARB_transform_feedback2 GL_ARB_transform_feedback3 "
-    "GL_EXT_transform_feedback GL_OES_EGL_image GL_OES_EGL_image_external";
+    "GL_OES_blend_func_separate "
+    "GL_OES_blend_subtract "
+    "GL_APPLE_clip_distance "
+    "GL_OES_compressed_ETC1_RGB8_texture "
+    "GL_EXT_debug_label "
+    "GL_EXT_debug_marker "
+    "GL_ARB_debug_output "
+    "GL_OES_depth24 "
+    "GL_OES_depth32 "
+    "GL_OES_depth_texture "
+    "GL_EXT_disjoint_timer_query "
+    "GL_EXT_draw_buffers "
+    "GL_EXT_draw_instanced "
+    "GL_OES_EGL_image "
+    "GL_OES_EGL_image_external "
+    "GL_OES_element_index_uint "
+    "GL_OES_fbo_render_mipmap "
+    "GL_EXT_frag_depth "
+    "GL_OES_fragment_precision_high "
+    "GL_EXT_framebuffer_blit "
+    "GL_APPLE_framebuffer_multisample "
+    "GL_EXT_framebuffer_multisample "
+    "GL_OES_framebuffer_object "
+    "GL_ARB_geometry_shader4 "
+    "GL_EXT_gpu_shader4 "
+    "GL_EXT_instanced_arrays "
+    "GL_OES_map_buffer_range "
+    "GL_OES_mapbuffer "
+    "GL_ARB_multisample "
+    "GL_EXT_multisampled_render_to_texture "
+    "GL_OVR_multiview "
+    "GL_OVR_multiview2 "
+    "GL_OVR_multiview_multisampled_render_to_texture "
+    "GL_OES_packed_depth_stencil "
+    "GL_EXT_protected_textures "
+    "GL_OES_rgb8_rgba8 "
+    "GL_OES_sample_shading "
+    "GL_EXT_shader_texture_lod "
+    "GL_NV_sRGB_formats "
+    "GL_OES_standard_derivatives "
+    "GL_OES_stencil8 "
+    "GL_ARB_sync "
+    "GL_OES_texture_3D "
+    "GL_EXT_texture_array "
+    "GL_NV_texture_barrier "
+    "GL_EXT_texture_compression_dxt1 "
+    "GL_ANGLE_texture_compression_dxt5 "
+    "GL_IMG_texture_compression_pvrtc "
+    "GL_EXT_texture_compression_s3tc "
+    "GL_NV_texture_compression_s3tc "
+    "GL_OES_texture_cube_map "
+    "GL_ARB_texture_cube_map_array "
+    "GL_EXT_texture_filter_anisotropic "
+    "GL_OES_texture_float "
+    "GL_OES_texture_half_float "
+    "GL_EXT_texture_lod_bias "
+    "GL_APPLE_texture_max_level "
+    "GL_OES_texture_mirrored_repeat "
+    "GL_ARB_texture_multisample "
+    "GL_EXT_texture_rg "
+    "GL_OES_texture_stencil8 "
+    "GL_EXT_texture_storage "
+    "GL_ARB_texture_storage_multisample "
+    "GL_ARB_texture_swizzle "
+    "GL_EXT_texture_type_2_10_10_10_REV "
+    "GL_QCOM_tiled_rendering "
+    "GL_EXT_transform_feedback "
+    "GL_NV_transform_feedback "
+    "GL_ARB_transform_feedback2 "
+    "GL_ARB_transform_feedback3 "
+    "GL_OES_vertex_array_object "
+    ;  // NOLINT
+// Putting the semicolon on a separate line simplifies managing this list.
 
 // Base struct for OpenGL object structs. See below comment.
 struct OpenGlObject {
@@ -110,7 +161,7 @@ struct ArrayObjectData : OpenGlObject {
 typedef ArrayInfo<ArrayObjectData> ArrayObject;
 // Buffer data is only known when BindBuffer is called.
 struct BufferObjectData : OpenGlObject {
-  BufferObjectData() : data(NULL), access(0) {}
+  BufferObjectData() : data(nullptr), access(0) {}
   ~BufferObjectData() { ClearData(); }
   void ClearData() {
     if (data)
@@ -128,33 +179,42 @@ typedef FramebufferInfo<OpenGlObject> FramebufferObject;
 struct ProgramObjectData : OpenGlObject {
   ProgramObjectData() : max_uniform_location(0) {}
   GLint max_uniform_location;
+  // Resolved transform feedback varyings are generated at link time by
+  // looking up the strings in requested_tf_varyings.
+  struct ResolvedVarying {
+    std::string name;
+    GLint size;
+    GLenum type;
+  };
+  std::vector<ResolvedVarying> resolved_tf_varyings;
 };
 typedef ProgramInfo<ProgramObjectData> ProgramObject;
-typedef RenderbufferInfo<OpenGlObject> RenderbufferObject;
+struct RenderbufferObject : RenderbufferInfo<OpenGlObject> {
+  RenderbufferObject() : implicit_multisampling(false) {}
+  // Whether the renderbuffer storage was allocated with
+  // RenderbufferStorageMultisampleEXT (from the multisampled_render_to_texture
+  // extension).
+  bool implicit_multisampling;
+};
 typedef SamplerInfo<OpenGlObject> SamplerObject;
-typedef ShaderInfo<OpenGlObject> ShaderObject;
+struct ShaderObject : ShaderInfo<OpenGlObject> {
+  // Programs to which the shader is attached.
+  std::set<GLuint> programs;
+};
 typedef SyncInfo<OpenGlObject> SyncObject;
 struct TransformFeedbackObjectData : OpenGlObject {
   TransformFeedbackObjectData()
       : id(0),
-        program(0U),
-        primitive_mode(static_cast<GLenum>(-1)),
-        buffer_mode(static_cast<GLenum>(-1)) {}
+        primitive_mode(static_cast<GLenum>(-1)) {}
   // The name of the transform feedback object.
   GLuint id;
-  // The name of the target program object.
-  GLuint program;
   // A vector that contains information of whether a binding point has a buffer
   // bound or not. -1 means that it is not bound. Other positive values are
-  // the indexes to the varyings in ProgramObject.
+  // the indices to the varyings in ProgramObject.
   std::vector<int> binding_point_status;
   // The output type of primitives that will be recorded into the buffer objects
   // that are bound for transform feedback.
   GLenum primitive_mode;
-  // Identifies the mode used to capture the varying variables when transform
-  // feedback is active. buffer_mode must be GL_INTERLEAVED_ATTRIBS or
-  // GL_SEPARATE_ATTRIBS.
-  GLenum buffer_mode;
 };
 typedef TransformFeedbackInfo<TransformFeedbackObjectData>
     TransformFeedbackObject;
@@ -536,7 +596,7 @@ static void ParseShaderInputName(const std::string& input, std::string* name,
 // common types of shader input declarations.
 // TODO(user): Improve shader parsing, or use external code to do the
 // parsing.
-static void AddShaderInputs(ProgramObject* po,
+static void AddShaderInputs(ProgramObject* po, GLenum shader_type,
                             const std::string& shader_source) {
   const std::vector<std::string> statements =
       base::SplitString(shader_source, ";\n\r");
@@ -577,7 +637,7 @@ static void AddShaderInputs(ProgramObject* po,
     // The more general expressions #if and #elif that would allow arbitrary
     // Boolean expressions are not supported. #undef is not supported either.
     if (words.size() >= 1 && words[0].compare("#if") == 0) {
-      LOG(WARNING)
+      LOG_ONCE(WARNING)
           << "MockVisual shader preprocessor does not support #if. "
           << "The set of recognized shader inputs is most likely incorrect.";
       // We need to add something to the stack in order to not crash when
@@ -586,14 +646,14 @@ static void AddShaderInputs(ProgramObject* po,
       ifdefs.push_back(std::make_pair("", false));
     }
     if (words.size() >= 1 && words[0].compare("#elif") == 0) {
-      LOG(WARNING)
+      LOG_ONCE(WARNING)
           << "MockVisual shader preprocessor does not support #elif. "
           << "The set of recognized shader inputs is most likely incorrect.";
       // The size of the ifdef stack stays the same with #elif, so we don't
       // need to push anything.
     }
     if (words.size() >= 1 && words[0].compare("#undef") == 0) {
-      LOG(WARNING)
+      LOG_ONCE(WARNING)
           << "MockVisual shader preprocessor does not support #undef. "
           << "The set of recognized shader inputs is most likely incorrect.";
       // The size of the ifdef stack stays the same with #undef, so we don't
@@ -636,7 +696,8 @@ static void AddShaderInputs(ProgramObject* po,
       name = words[type_index + 1];
 
       ParseShaderInputName(name, &name, &size);
-      if (words[0].compare("attribute") == 0) {
+      if (words[0].compare("attribute") == 0 ||
+          (shader_type == GL_VERTEX_SHADER && words[0].compare("in") == 0)) {
         // Search for an existing attribute.
         bool exists = false;
         for (size_t i = 0; i < po->attributes.size(); ++i) {
@@ -657,7 +718,9 @@ static void AddShaderInputs(ProgramObject* po,
           for (GLuint j = 0; j < slots; ++j)
             po->attributes.push_back(a);
         }
-      } else if (words[0].compare("varying") == 0) {
+      } else if (words[0].compare("varying") == 0 ||
+                 (shader_type == GL_FRAGMENT_SHADER &&
+                  words[0].compare("in") == 0)) {
         // Search for an existing varying.
         bool exists = false;
         for (size_t i = 0; i < po->varyings.size(); ++i) {
@@ -841,12 +904,21 @@ static void AddShaderInputs(ProgramObject* po,
     a.index = static_cast<GLint>(po->attributes.size());
     po->attributes.push_back(a);
   }
+
+  // TransformFeedbackVaryings allows capture of built-in variables that don't
+  // have declarations, so manually add them here.
+  ProgramObject::Varying v;
+  v.name = "gl_Position";
+  v.size = 4;
+  v.type = GL_FLOAT;
+  v.index = static_cast<GLint>(po->varyings.size());
+  po->varyings.push_back(v);
 }
 
 // Returns a ProgramObject::Uniform for a given location.
 static ProgramObject::Uniform* GetUniformFromLocation(ProgramObject* po,
                                                       GLint location) {
-  ProgramObject::Uniform* u = NULL;
+  ProgramObject::Uniform* u = nullptr;
   for (size_t i = 0; i < po->uniforms.size(); ++i) {
     if (location >= po->uniforms[i].index &&
         location < po->uniforms[i].index + po->uniforms[i].size) {
@@ -864,7 +936,7 @@ static GLsizeiptr ComputeRenderbufferObjectSize(const RenderbufferObject& rbo) {
                                     rbo.blue_size + rbo.alpha_size +
                                     rbo.depth_size + rbo.stencil_size;
   DCHECK_EQ(0, bits_per_pixel % 8);
-  if (rbo.multisample_samples != 0) {
+  if (rbo.multisample_samples != 0 && !rbo.implicit_multisampling) {
     return rbo.multisample_samples *
         rbo.width * rbo.height * (bits_per_pixel / 8);
   } else {
@@ -936,11 +1008,17 @@ class MockVisual::ShadowState {
  private:                                     \
   type k##name;
 
-#define ION_PLATFORM_CAP(type, name)         \
-  ION_READONLY_PLATFORM_CAP(type, name)      \
- public:                                     \
-  type Get##name() const { return k##name; } \
-  void Set##name(type value) { k##name = value; }
+// Since the macros don't let us override the generated code for
+// a particular capability, update the number of capabilities that are part of
+// the state in every Set method.
+#define ION_PLATFORM_CAP(type, name)                                   \
+  ION_READONLY_PLATFORM_CAP(type, name)                                \
+ public:                                                               \
+  type Get##name() const { return k##name; }                           \
+  void Set##name(type value) {                                         \
+    k##name = value;                                                   \
+    enabled_state_.resize(kNumStaticCapabilities + kMaxClipDistances); \
+  }
 
   // These are no accessors for these since the set of compressed textures and
   // binary formats is "implementation dependent" according to the GL spec.
@@ -964,6 +1042,7 @@ class MockVisual::ShadowState {
           index_buffer(0U),
           read_buffer(0U),
           write_buffer(0U),
+          transform_feedback_buffer(0U),
           program(0U),
           renderbuffer(0U),
           transform_feedback(0U) {}
@@ -975,6 +1054,7 @@ class MockVisual::ShadowState {
     GLuint index_buffer;
     GLuint read_buffer;
     GLuint write_buffer;
+    GLuint transform_feedback_buffer;
     GLuint program;
     GLuint renderbuffer;
     GLuint transform_feedback;
@@ -1005,11 +1085,37 @@ class MockVisual::ShadowState {
     GLuint cubemap_array;
   };
 
-  //---------------------------------------------------------------------------
-  // Each of these functions implements the corresponding OpenGL function using
-  // local shadowed state instead of the real thing.
+  // Checks whether the passed enum is one of the valid attachment points for
+  // framebuffer objects.
+  bool IsAttachmentEnum(GLenum attachment) const {
+    return (attachment >= GL_COLOR_ATTACHMENT0 &&
+            attachment < GL_COLOR_ATTACHMENT0 + kMaxColorAttachments) ||
+           attachment == GL_DEPTH_ATTACHMENT ||
+           attachment == GL_STENCIL_ATTACHMENT ||
+           attachment == GL_DEPTH_STENCIL_ATTACHMENT;
+  }
 
-  // Useful for checking framebuffer attachment information.
+  // Checks whether the passed enum is one of the valid buffers for the
+  // default framebuffer object.
+  bool IsDefaultFramebufferBufferEnum(GLenum buffer) const {
+    return buffer == GL_COLOR || buffer == GL_DEPTH || buffer == GL_STENCIL ||
+           buffer == GL_FRONT_LEFT || buffer == GL_FRONT_RIGHT ||
+           buffer == GL_BACK_LEFT || buffer == GL_BACK_RIGHT;
+  }
+
+  // Checks whether the passed enum is one of the valid framebuffer targets.
+  static bool IsFramebufferTarget(GLenum target) {
+    return target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER ||
+        target == GL_READ_FRAMEBUFFER;
+  }
+
+  // Checks whether the default framebuffer is bound to the specified target.
+  bool IsDefaultFramebuffer(GLenum target) {
+    DCHECK(IsFramebufferTarget(target));
+    return (target == GL_READ_FRAMEBUFFER)
+        ? (active_objects_.read_framebuffer == 0U)
+        : (active_objects_.draw_framebuffer == 0U);
+  }
   int AttachmentsAreIncompatible(const FramebufferObject::Attachment& a,
                                  const FramebufferObject::Attachment& b) {
     return a.type != GL_NONE && b.type != GL_NONE &&
@@ -1017,17 +1123,16 @@ class MockVisual::ShadowState {
             GetAttachmentHeight(a) != GetAttachmentHeight(b));
   }
 
+  // Checks whether the attachment satisfies the OpenGL attachment completeness
+  // constraints (has the right size and a renderable format).
   bool AttachmentIsIncomplete(const FramebufferObject& fbo,
                               const FramebufferObject::Attachment& a) {
     bool ret = false;
-    // These are broken out into separate tests for readability. See
-    // CheckFramebufferStatus for details.
     if (a.type == GL_RENDERBUFFER &&
-        (!object_state_->renderbuffers.count(a.value) ||
-         object_state_->renderbuffers[a.value].deleted ||
+        (!IsRenderbuffer(a.value) ||
          object_state_->renderbuffers[a.value].width == 0 ||
          object_state_->renderbuffers[a.value].height == 0 ||
-         (&a == &fbo.color0 &&
+         ((&a >= &fbo.color.front() && &a <= &fbo.color.back()) &&
           !gfx::FramebufferObject::IsColorRenderable(
               object_state_->renderbuffers[a.value].internal_format)) ||
          (&a == &fbo.depth &&
@@ -1038,13 +1143,13 @@ class MockVisual::ShadowState {
               object_state_->renderbuffers[a.value].internal_format))))
       ret = true;
     if (a.type == GL_TEXTURE &&
-        (!object_state_->textures.count(a.value) ||
-         object_state_->textures[a.value].deleted ||
+        (!IsTexture(a.value) ||
          object_state_->textures[a.value].levels.empty() ||
          object_state_->textures[a.value].levels[0].width == 0 ||
          object_state_->textures[a.value].levels[0].height == 0 ||
-         (&a == &fbo.color0 && !gfx::FramebufferObject::IsColorRenderable(
-             object_state_->textures[a.value].internal_format)) ||
+         ((&a >= &fbo.color.front() && &a <= &fbo.color.back()) &&
+          !gfx::FramebufferObject::IsColorRenderable(
+              object_state_->textures[a.value].internal_format)) ||
          (&a == &fbo.depth && !gfx::FramebufferObject::IsDepthRenderable(
              object_state_->textures[a.value].internal_format)) ||
          (&a == &fbo.stencil && !gfx::FramebufferObject::IsStencilRenderable(
@@ -1052,31 +1157,252 @@ class MockVisual::ShadowState {
       ret = true;
     return ret;
   }
+
+  // Gets the natural height of the attachment.
   int GetAttachmentHeight(const FramebufferObject::Attachment& a) {
     int height = -1;
-    if (a.type == GL_RENDERBUFFER &&
-        object_state_->renderbuffers.count(a.value) &&
-        !object_state_->renderbuffers[a.value].deleted)
+    if (a.type == GL_RENDERBUFFER && IsRenderbuffer(a.value))
       height = object_state_->renderbuffers[a.value].height;
-    if (a.type == GL_TEXTURE && object_state_->textures.count(a.value) &&
-        !object_state_->textures[a.value].deleted &&
+    if (a.type == GL_TEXTURE && IsTexture(a.value) &&
         a.level < static_cast<GLuint>(
             object_state_->textures[a.value].levels.size()))
       height = object_state_->textures[a.value].levels[a.level].height;
     return height;
   }
+
+  // Gets the natural width of the attachment.
   int GetAttachmentWidth(const FramebufferObject::Attachment& a) {
     int width = -1;
-    if (a.type == GL_RENDERBUFFER &&
-        object_state_->renderbuffers.count(a.value) &&
-        !object_state_->renderbuffers[a.value].deleted)
+    if (a.type == GL_RENDERBUFFER && IsRenderbuffer(a.value))
       width = object_state_->renderbuffers[a.value].width;
-    if (a.type == GL_TEXTURE && object_state_->textures.count(a.value) &&
-        !object_state_->textures[a.value].deleted &&
+    if (a.type == GL_TEXTURE && IsTexture(a.value) &&
         a.level < static_cast<GLuint>(
             object_state_->textures[a.value].levels.size()))
       width = object_state_->textures[a.value].levels[a.level].width;
     return width;
+  }
+
+  int GetAttachmentSamples(const FramebufferObject::Attachment& a) {
+    int samples = -1;
+    if (a.type == GL_RENDERBUFFER && IsRenderbuffer(a.value))
+      samples = object_state_->renderbuffers[a.value].multisample_samples;
+    if (a.type == GL_TEXTURE && IsTexture(a.value)) {
+      if (a.texture_samples != 0)
+        samples = a.texture_samples;
+      else
+        samples = object_state_->textures[a.value].samples;
+    }
+    return samples;
+  }
+
+  int GetAttachedShaderCount(GLuint program) {
+    const ProgramObject& po = object_state_->programs[program];
+    const int count = (po.vertex_shader > 0 ? 1 : 0) +
+                      (po.geometry_shader > 0 ? 1 : 0) +
+                      (po.fragment_shader > 0 ? 1 : 0);
+    return count;
+  }
+
+  bool IsAttachmentImplicitlyMultisampled(
+      const FramebufferObject::Attachment& a) {
+    bool result = false;
+    if (a.type == GL_RENDERBUFFER && IsRenderbuffer(a.value))
+      result = object_state_->renderbuffers[a.value].implicit_multisampling;
+    if (a.type == GL_TEXTURE)
+      result = a.texture_samples;
+    return result;
+  }
+
+  // Gets an attachment given a framebuffer target and an attachment enum.
+  FramebufferObject::Attachment*
+  GetAttachment(GLenum target, GLenum attachment) {
+    FramebufferObject& fbo = target == GL_READ_FRAMEBUFFER
+        ? container_state_->framebuffers[active_objects_.read_framebuffer]
+        : container_state_->framebuffers[active_objects_.draw_framebuffer];
+    FramebufferObject::Attachment* a = nullptr;
+    if (attachment >= GL_COLOR_ATTACHMENT0 &&
+        attachment < GL_COLOR_ATTACHMENT0 + kMaxColorAttachments) {
+      int index = attachment - GL_COLOR_ATTACHMENT0;
+      a = &fbo.color[index];
+    } else if (attachment == GL_DEPTH_ATTACHMENT) {
+      a = &fbo.depth;
+    } else if (attachment == GL_STENCIL_ATTACHMENT) {
+      a = &fbo.stencil;
+    }
+    DCHECK(a);
+    return a;
+  }
+
+  // Gets an attachment that has been cleared to default values.
+  FramebufferObject::Attachment*
+  GetClearedAttachment(GLenum target, GLenum attachment) {
+    FramebufferObject::Attachment* a = GetAttachment(target, attachment);
+    *a = FramebufferObject::Attachment();
+    return a;
+  }
+
+  // Sets the parameters of a renderbuffer. Used to implement the various
+  // RenderbufferStorage* functions.
+  void SetRenderbufferStorage(GLenum target, GLsizei samples,
+                              GLenum internalformat, GLsizei width,
+                              GLsizei height, bool implicit_multisampling) {
+    // GL_INVALID_ENUM is generated if target is not GL_RENDERBUFFER.
+    // GL_INVALID_ENUM is generated if internalformat is not an accepted format.
+    // GL_INVALID_VALUE is generated if samples is greater than GL_MAX_SAMPLES.
+    // GL_INVALID_VALUE is generated if width or height is less than zero or
+    // greater than GL_MAX_RENDERBUFFER_SIZE.
+    // GL_OUT_OF_MEMORY is generated if the implementation is unable to create
+    // a data store with the requested width and height.
+    // GL_INVALID_OPERATION is generated if the reserved renderbuffer object
+    // name 0 is bound.
+    if (CheckGlEnum(
+            target == GL_RENDERBUFFER &&
+            (gfx::FramebufferObject::IsColorRenderable(internalformat) ||
+             gfx::FramebufferObject::IsDepthRenderable(internalformat) ||
+             gfx::FramebufferObject::IsStencilRenderable(internalformat))) &&
+        CheckGlValue(samples >= 0 && samples <= kMaxSamples &&
+                     width >= 0 && width < kMaxRenderbufferSize &&
+                     height >= 0 && height < kMaxRenderbufferSize) &&
+        CheckGlOperation(IsRenderbuffer(active_objects_.renderbuffer))) {
+      // The out of memory error is ignored here since no allocation is done.
+      RenderbufferObject& r =
+          object_state_->renderbuffers[active_objects_.renderbuffer];
+      r.width = width;
+      r.height = height;
+      r.internal_format = internalformat;
+      r.multisample_samples = samples;
+      if (samples > 0 && implicit_multisampling)
+        r.implicit_multisampling = true;
+      SetColorsFromInternalFormat(internalformat, &r);
+      CheckGlMemory(ComputeRenderbufferObjectSize(r));
+    }
+  }
+
+  // Sets the parameters of a texture attachment. Use to implement the
+  // FramebufferTexture2D* functions.
+  void SetFramebufferTexture(GLenum target, GLenum attachment, GLenum textarget,
+                             GLuint texture, GLint level, GLint layer,
+                             GLsizei num_views, GLsizei samples) {
+    // GL_INVALID_ENUM is generated if target is not GL_FRAMEBUFFER.
+    // GL_INVALID_ENUM is generated if attachment is not an accepted attachment
+    // point.
+    // GL_INVALID_OPERATION is generated if the default framebuffer object name
+    // 0 is bound.
+    if (!CheckGlEnum(IsFramebufferTarget(target) &&
+                     IsAttachmentEnum(attachment))) return;
+    if (!CheckGlOperation(!IsDefaultFramebuffer(target))) return;
+    if (texture == 0U) {
+      // When texture is 0, ignore all arguments and unbind.
+      if (attachment == GL_DEPTH_STENCIL_ATTACHMENT) {
+        GetClearedAttachment(target, GL_DEPTH_ATTACHMENT);
+        GetClearedAttachment(target, GL_STENCIL_ATTACHMENT);
+      } else {
+        GetClearedAttachment(target, attachment);
+      }
+      return;
+    }
+    // GL_INVALID_ENUM is generated if textarget is not an accepted texture
+    // target and texture is not 0.
+    if (layer < 0 && !CheckTexture2dTargetType(textarget)) return;
+    // GL_INVALID_VALUE is generated if texture is not zero and layer is larger
+    // than the value of GL_MAX_3D_TEXTURE_SIZE minus one (for three-dimensional
+    // texture objects), or larger than the value of GL_MAX_ARRAY_TEXTURE_LAYERS
+    // minus one (for array texture objects).
+    if (layer >= 0 &&
+        (!CheckGlOperation(IsLayeredTextureTarget(textarget)) ||
+         !CheckTextureLayer(textarget, layer)))
+      return;
+    // INVALID_OPERATION is generated by FramebufferTextureMultiviewOVR if
+    // target is GL_READ_FRAMEBUFFER.
+    // INVALID_VALUE is generated by FramebufferTextureMultiviewOVR if numViews
+    // is less than 1, numViews is more than MAX_VIEWS_OVR or if (baseViewIndex
+    // + numViews) exceeds GL_MAX_ARRAY_TEXTURE_LAYERS.
+    // Note that the num_views >= 1 test is done FramebufferTextureMultiviewOVR,
+    // not here. Here num_views == 0 means that we were called by a
+    // non-multiview attachment function.
+    if (num_views > 0 &&
+        !(CheckGlOperation(target != GL_READ_FRAMEBUFFER) &&
+          CheckGlValue(num_views <= kMaxViews &&
+                       layer + num_views < kMaxArrayTextureLayers)))
+      return;
+    // GL_INVALID_VALUE may be generated if level is greater than log_2(max),
+    // where max is the returned value of GL_MAX_TEXTURE_SIZE when target is
+    // GL_TEXTURE_2D or GL_MAX_CUBE_MAP_TEXTURE_SIZE when target is not
+    // GL_TEXTURE_2D.
+    // If samples is greater than the  value of MAX_SAMPLES_EXT, then the error
+    // INVALID_VALUE is generated.
+    if (!CheckGlValue(CheckTextureLevel(textarget, level) &&
+                      samples >= 0 && samples <= kMaxSamples)) return;
+    // GL_INVALID_OPERATION is generated if texture is neither 0 nor the name of
+    // an existing texture object.
+    // GL_INVALID_OPERATION is generated if texture is the name of an existing
+    // two-dimensional texture object but textarget is not GL_TEXTURE_2D, if
+    // texture is the name of an existing 2D multisample texture object but
+    // textarget is GL_TEXTURE_2D_MULTISAMPLE, or if texture is the name of an
+    // existing cube map texture object but textarget is GL_TEXTURE_2D.
+    if (!CheckGlOperation(
+            IsTexture(texture) &&
+            ((IsCubeFaceTarget(textarget) &&
+              object_state_->textures[texture].target == GL_TEXTURE_CUBE_MAP) ||
+             (textarget == object_state_->textures[texture].target))))
+      return;
+
+    auto DoSet = [=](GLenum slot) -> void {
+      FramebufferObject::Attachment* a = GetClearedAttachment(target, slot);
+      a->type = GL_TEXTURE;
+      a->value = texture;
+      a->level = level;
+      a->texture_samples = samples;
+      if (IsCubeFaceTarget(textarget)) {
+        a->cube_face = textarget;
+      } else if (textarget == GL_TEXTURE_CUBE_MAP ||
+                 textarget == GL_TEXTURE_CUBE_MAP_ARRAY) {
+        a->layer = std::max(0, layer) / 6;
+        a->cube_face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + layer % 6;
+      } else {
+        a->layer = std::max(layer, 0);
+      }
+      a->num_views = num_views;
+    };
+    if (attachment == GL_DEPTH_STENCIL_ATTACHMENT) {
+      DoSet(GL_DEPTH_ATTACHMENT);
+      DoSet(GL_STENCIL_ATTACHMENT);
+    } else {
+      DoSet(attachment);
+    }
+  }
+
+  // Checks the parameters passed to glInvalidateFramebuffer and
+  // glInvalidateSubFramebuffer.
+  void CheckInvalidateFramebufferArgs(GLenum target, GLsizei numAttachments,
+                                      const GLenum *attachments) {
+    // GL_INVALID_ENUM is generated by glInvalidateFramebuffer if target is not
+    // one of the accepted framebuffer targets.
+    // GL_INVALID_VALUE is generated if numAttachments is negative.
+    if (CheckGlEnum(IsFramebufferTarget(target)) &&
+        CheckGlValue(numAttachments >= 0)) {
+      // GL_INVALID_ENUM is generated if any element of attachments is not one
+      // of the accepted framebuffer attachment points, as described above.
+      for (GLsizei i = 0; i < numAttachments; ++i) {
+        if (IsDefaultFramebuffer(target)) {
+          if (!CheckGlEnum(IsDefaultFramebufferBufferEnum(attachments[i])))
+            return;
+        } else {
+          // GL_INVALID_OPERATION is generated if element of attachments is
+          // GL_COLOR_ATTACHMENTm where m is greater than or equal to the value
+          // of GL_MAX_COLOR_ATTACHMENTS.
+          if (attachments[i] >= GL_COLOR_ATTACHMENT0 &&
+              attachments[i] <= GL_COLOR_ATTACHMENT15 &&
+              !CheckGlOperation(attachments[i] <
+                                GL_COLOR_ATTACHMENT0 + kMaxColorAttachments))
+            return;
+          if (!CheckGlEnum(attachments[i] != GL_DEPTH_STENCIL_ATTACHMENT))
+            return;
+          if (!CheckGlEnum(IsAttachmentEnum(attachments[i])))
+            return;
+        }
+      }
+    }
   }
 
   // Log a debugging message.  If GL_DEBUG_CALLBACK_FUNCTION is set, the
@@ -1185,7 +1511,8 @@ class MockVisual::ShadowState {
   }
   bool CheckColorChannelEnum(GLenum channel) {
     return CheckGlEnum(channel == GL_RED || channel == GL_GREEN ||
-                       channel == GL_BLUE || channel == GL_ALPHA);
+                       channel == GL_BLUE || channel == GL_ALPHA ||
+                       channel == GL_ONE || channel == GL_ZERO);
   }
   bool CheckCompressedTextureFormat(GLenum format) {
     return CheckGlEnum(format == GL_COMPRESSED_RGB_S3TC_DXT1_EXT ||
@@ -1194,7 +1521,29 @@ class MockVisual::ShadowState {
                        format == GL_COMPRESSED_RGBA_PVRTC_2BPPV1_IMG ||
                        format == GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG ||
                        format == GL_COMPRESSED_RGBA_S3TC_DXT5_EXT ||
-                       format == GL_ETC1_RGB8_OES);
+                       format == GL_ETC1_RGB8_OES ||
+                       format == GL_COMPRESSED_RGB8_ETC2 ||
+                       format == GL_COMPRESSED_RGBA8_ETC2_EAC ||
+                       format == GL_COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2);
+  }
+  bool CheckDrawBuffer(GLenum target, GLenum buffer) {
+    // When the implementation supports 4 color attachments, is
+    // GL_COLOR_ATTACHMENT15 "not an accepted value" or "a color buffer that
+    // does not exist in the current GL context"? We choose the former
+    // interpretation, since the latter seems to refer to stereo buffers.
+    GLuint framebuffer = active_objects_.draw_framebuffer;
+    if (target == GL_READ_FRAMEBUFFER)
+      framebuffer = active_objects_.read_framebuffer;
+    if (framebuffer == 0U) {
+      return CheckGlEnum(buffer == GL_NONE || buffer == GL_FRONT_LEFT ||
+                         buffer == GL_FRONT_RIGHT || buffer == GL_BACK_LEFT ||
+                         buffer == GL_BACK_RIGHT || buffer == GL_FRONT ||
+                         buffer == GL_BACK || buffer == GL_LEFT ||
+                         buffer == GL_RIGHT || buffer == GL_FRONT_AND_BACK);
+    } else {
+      return CheckGlEnum(buffer == GL_NONE || (buffer >= GL_COLOR_ATTACHMENT0 &&
+          buffer < GL_COLOR_ATTACHMENT0 + kMaxColorAttachments));
+    }
   }
   bool CheckDrawMode(GLenum mode) {
     return CheckGlEnum(mode == GL_POINTS || mode == GL_LINE_STRIP ||
@@ -1217,6 +1566,26 @@ class MockVisual::ShadowState {
         CheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE,
         GL_INVALID_FRAMEBUFFER_OPERATION);
   }
+  bool CheckProgram(GLuint program) {
+    // The specification of program functions typically has this snippet:
+    // GL_INVALID_VALUE is generated if program is not a value generated by
+    // OpenGL.
+    // GL_INVALID_OPERATION is generated if program is not a program object.
+    // This seems to mean that we should return GL_INVALID_VALUE if the ID
+    // was never allocated, but GL_INVALID_OPERATION if it was deleted.
+    return CheckGlValue(object_state_->programs.count(program)) &&
+        CheckGlOperation(IsProgram(program));
+  }
+  bool CheckShaderType(GLenum type) {
+    return CheckGlEnum(type == GL_FRAGMENT_SHADER ||
+                       type == GL_GEOMETRY_SHADER ||
+                       type == GL_VERTEX_SHADER);
+  }
+  bool CheckShader(GLuint shader) {
+    // See above - the same applies to shaders.
+    return CheckGlValue(object_state_->shaders.count(shader)) &&
+        CheckGlOperation(IsShader(shader));
+  }
   bool CheckStencilOp(GLenum op) {
     return CheckGlEnum(op == GL_KEEP || op == GL_ZERO || op == GL_REPLACE ||
                        op == GL_INCR || op == GL_INCR_WRAP || op == GL_DECR ||
@@ -1228,7 +1597,7 @@ class MockVisual::ShadowState {
 
     const bool is_cubemap =
         target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY ||
-        IsCubeMapTarget(target);
+        IsCubeFaceTarget(target);
 
     // Width.
     ok = ok && ((target == GL_TEXTURE_1D_ARRAY && width <= kMaxTextureSize) ||
@@ -1308,9 +1677,25 @@ class MockVisual::ShadowState {
              level <= math::Log2(kMaxTextureSize)) ||
             ((target == GL_TEXTURE_2D_MULTISAMPLE) && level == 0) ||
             ((target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY) && level == 0) ||
-            ((IsCubeMapTarget(target) || target == GL_TEXTURE_CUBE_MAP ||
+            ((IsCubeFaceTarget(target) || target == GL_TEXTURE_CUBE_MAP ||
               target == GL_TEXTURE_CUBE_MAP_ARRAY) &&
-             level <= math::Log2(kMaxCubeMapTextureSize)));
+             level <= math::Log2(kMaxCubeMapTextureSize)) ||
+            ((target == GL_TEXTURE_3D) &&
+             level <= math::Log2(kMax3dTextureSize)));
+  }
+  bool CheckTextureLayer(GLenum target, GLint layer) {
+    // For cube map textures, the limit applies to the number of layer-faces,
+    // so multiplying by 6 is not necessary.
+    return CheckGlValue(layer >= 0 &&
+                        (((target == GL_TEXTURE_1D_ARRAY ||
+                           target == GL_TEXTURE_2D_ARRAY ||
+                           target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY ||
+                           target == GL_TEXTURE_CUBE_MAP_ARRAY) &&
+                          layer < kMaxArrayTextureLayers) ||
+                         ((target == GL_TEXTURE_3D) &&
+                          layer < kMax3dTextureSize) ||
+                         ((target == GL_TEXTURE_CUBE_MAP) &&
+                          layer < 6)));
   }
   bool CheckTexture2dTarget(GLenum target) {
     return CheckGlEnum(target == GL_TEXTURE_1D_ARRAY ||
@@ -1321,7 +1706,7 @@ class MockVisual::ShadowState {
     return CheckGlEnum(target == GL_TEXTURE_1D_ARRAY ||
                        target == GL_TEXTURE_2D ||
                        target == GL_TEXTURE_2D_MULTISAMPLE ||
-                       IsCubeMapTarget(target));
+                       IsCubeFaceTarget(target));
   }
   bool CheckTexture2dMultisampleTargetType(GLenum target) {
     return CheckGlEnum(target == GL_TEXTURE_2D_MULTISAMPLE);
@@ -1334,13 +1719,17 @@ class MockVisual::ShadowState {
   bool CheckTexture3dMultisampleTargetType(GLenum target) {
     return CheckGlEnum(target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY);
   }
-  bool CheckTextureTarget(GLenum target) {
-    return CheckGlEnum(
-        target == GL_TEXTURE_1D_ARRAY || target == GL_TEXTURE_2D ||
+  bool IsLayeredTextureTarget(GLenum target) {
+    return target == GL_TEXTURE_1D_ARRAY || target == GL_TEXTURE_2D_ARRAY ||
+        target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY || target == GL_TEXTURE_3D ||
+        target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY;
+  }
+  bool IsTextureTarget(GLenum target) {
+    return target == GL_TEXTURE_1D_ARRAY || target == GL_TEXTURE_2D ||
         target == GL_TEXTURE_EXTERNAL_OES || target == GL_TEXTURE_2D_ARRAY ||
         target == GL_TEXTURE_2D_MULTISAMPLE || target == GL_TEXTURE_3D ||
         target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY ||
-        target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY);
+        target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY;
   }
   bool CheckTextureType(GLenum type) {
     return CheckGlEnum(
@@ -1397,6 +1786,9 @@ class MockVisual::ShadowState {
     switch (internal_format) {
       case GL_ALPHA:
         valid = format == GL_ALPHA && type == GL_UNSIGNED_BYTE;
+        break;
+      case GL_DEPTH_STENCIL:
+        valid = format == GL_DEPTH_STENCIL && type == GL_UNSIGNED_INT_24_8;
         break;
       case GL_DEPTH24_STENCIL8:
         valid = format == GL_DEPTH_STENCIL && type == GL_UNSIGNED_INT_24_8;
@@ -1606,7 +1998,7 @@ class MockVisual::ShadowState {
                              .texture_2d_multisample_array;
     else if (target == GL_TEXTURE_3D)
       active = &image_units_[active_objects_.image_unit].texture_3d;
-    else if (target == GL_TEXTURE_CUBE_MAP || IsCubeMapTarget(target))
+    else if (target == GL_TEXTURE_CUBE_MAP || IsCubeFaceTarget(target))
       active =
           &image_units_[active_objects_.image_unit].cubemap;
     else if (target == GL_TEXTURE_CUBE_MAP_ARRAY)
@@ -1644,7 +2036,7 @@ class MockVisual::ShadowState {
     return levels + 1;
   }
   // Returns whether target is a cubemap texture type.
-  bool IsCubeMapTarget(GLenum target) {
+  bool IsCubeFaceTarget(GLenum target) {
     return target == GL_TEXTURE_CUBE_MAP_POSITIVE_X ||
            target == GL_TEXTURE_CUBE_MAP_NEGATIVE_X ||
            target == GL_TEXTURE_CUBE_MAP_POSITIVE_Y ||
@@ -1690,6 +2082,41 @@ class MockVisual::ShadowState {
     return target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
   }
 
+  // These functions check whether an integer is a valid GL object name
+  // generated by the relevant glGen* function. Note that is different from the
+  // relevant glIs* function returning GL_TRUE, which only starts happening
+  // after the objects are first bound. The exceptions are glIsProgram() and
+  // glIsShader(), since shaders and programs do not conform to the OpenGL
+  // object model.
+  bool IsBufferName(GLuint buffer) {
+    return object_state_->buffers.count(buffer) &&
+        !object_state_->buffers[buffer].deleted;
+  }
+  bool IsFramebufferName(GLuint framebuffer) {
+    return container_state_->framebuffers.count(framebuffer) &&
+        !container_state_->framebuffers[framebuffer].deleted;
+  }
+  bool IsRenderbufferName(GLuint renderbuffer) {
+    return object_state_->renderbuffers.count(renderbuffer) &&
+        !object_state_->renderbuffers[renderbuffer].deleted;
+  }
+  bool IsTextureName(GLuint texture) {
+    return object_state_->textures.count(texture) &&
+        !object_state_->textures[texture].deleted;
+  }
+  bool IsTransformFeedbackName(GLuint id) {
+    return container_state_->transform_feedbacks.count(id) &&
+        !container_state_->transform_feedbacks[id].deleted;
+  }
+  bool IsVertexArrayName(GLuint array) {
+    return container_state_->arrays.count(array) &&
+        !container_state_->arrays[array].deleted;
+  }
+
+  //---------------------------------------------------------------------------
+  // Each of these functions implements the corresponding OpenGL function using
+  // local shadowed state instead of the real thing.
+
   // Core group.
   void ActiveTexture(GLenum texture) {
     // GL_INVALID_ENUM is generated if texture is not one of GL_TEXTUREi, where
@@ -1702,22 +2129,25 @@ class MockVisual::ShadowState {
   void AttachShader(GLuint program, GLuint shader) {
     // GL_INVALID_VALUE is generated if either program or shader is not a value
     // generated by OpenGL.
-    if (CheckGlValue(object_state_->shaders.count(shader) &&
-        object_state_->programs.count(program)) &&
+    // GL_INVALID_OPERATION is generated if program is not a program object.
+    // GL_INVALID_OPERATION is generated if shader is not a shader object.
+    if (CheckProgram(program) && CheckShader(shader) &&
         CheckFunction("AttachShader")) {
-      const ShaderObject& so = object_state_->shaders[shader];
+      ShaderObject& so = object_state_->shaders[shader];
       ProgramObject& po = object_state_->programs[program];
-      // GL_INVALID_OPERATION is generated if program is not a program object.
-      // GL_INVALID_OPERATION is generated if shader is not a shader object.
       // GL_INVALID_OPERATION is generated if shader is already attached to
       // program.
-      if (CheckGlOperation(!so.deleted && !po.deleted &&
-                           po.vertex_shader != shader &&
+      if (CheckGlOperation(po.vertex_shader != shader &&
+                           po.geometry_shader != shader &&
                            po.fragment_shader != shader)) {
-        if (so.type == GL_VERTEX_SHADER)
+        so.programs.insert(program);
+        if (so.type == GL_VERTEX_SHADER) {
           po.vertex_shader = shader;
-        else
+        } else if (so.type == GL_GEOMETRY_SHADER) {
+          po.geometry_shader = shader;
+        } else {
           po.fragment_shader = shader;
+        }
       }
     }
   }
@@ -1726,8 +2156,8 @@ class MockVisual::ShadowState {
     // OpenGL.
     // GL_INVALID_VALUE is generated if index is greater than or equal to
     // GL_MAX_VERTEX_ATTRIBS.
-    if (CheckGlValue(object_state_->programs.count(program) &&
-        index < kMaxVertexAttribs) && CheckFunction("BindAttribLocation")) {
+    if (CheckProgram(program) && CheckGlValue(index < kMaxVertexAttribs) &&
+        CheckFunction("BindAttribLocation")) {
       ProgramObject& po = object_state_->programs[program];
       std::string sname(name);
       // GL_INVALID_OPERATION is generated if program is not a program object.
@@ -1762,7 +2192,8 @@ class MockVisual::ShadowState {
           break;
         case GL_ELEMENT_ARRAY_BUFFER:
           active_objects_.index_buffer = buffer;
-          object_state_->arrays[active_objects_.array].element_array = buffer;
+          container_state_->arrays[active_objects_.array].element_array =
+              buffer;
           break;
         case GL_COPY_READ_BUFFER:
           active_objects_.read_buffer = buffer;
@@ -1774,59 +2205,78 @@ class MockVisual::ShadowState {
       object_state_->buffers[buffer].bindings.push_back(GetCallCount());
     }
   }
+  void BindBufferRange(GLenum target, GLuint index, GLuint buffer,
+                       GLintptr offset, GLsizeiptr size) {
+    // GL_INVALID_ENUM is generated if target is not one of the allowable
+    // values.
+    // GL_INVALID_VALUE is generated if buffer is not a name previously
+    // returned from a call to glGenBuffers.
+    if (CheckGlValue(object_state_->buffers.count(buffer)) &&
+        CheckFunction("BindBufferRange")) {
+      switch (target) {
+        // This is the only allowed target since we do not yet support
+        // ATOMIC_COUNTER_BUFFER, SHADER_STORAGE_BUFFER, or UNIFORM_BUFFER.
+        case GL_TRANSFORM_FEEDBACK_BUFFER:
+          active_objects_.transform_feedback_buffer = buffer;
+          break;
+        default:
+          CheckGlEnum(false);
+          return;
+      }
+      object_state_->buffers[buffer].bindings.push_back(GetCallCount());
+    }
+  }
   void BindFramebuffer(GLenum target, GLuint framebuffer) {
     // GL_INVALID_ENUM is generated if target is not GL_FRAMEBUFFER,
     // GL_READ_FRAMEBUFFER or GL_DRAW_FRAMEBUFFER.
-    if (!CheckGlEnum((target == GL_FRAMEBUFFER) ||
-                     (target == GL_READ_FRAMEBUFFER) ||
-                     (target == GL_DRAW_FRAMEBUFFER))) {
-      return;
-    }
-
     // GL_INVALID_OPERATION is generated if framebuffer is not zero or the name
     // of a framebuffer previously returned from a call to glGenFramebuffers.
-    if (!CheckGlOperation(
-        object_state_->framebuffers.count(framebuffer) &&
-        !object_state_->framebuffers[framebuffer].deleted) &&
+    if (CheckGlEnum(IsFramebufferTarget(target)) &&
+        CheckGlOperation(IsFramebufferName(framebuffer)) &&
         CheckFunction("BindFramebuffer")) {
-      return;
-    }
-
-    if (target == GL_FRAMEBUFFER) {
-      // Calling glBindFramebuffer with target set to GL_FRAMEBUFFER binds
-      // framebuffer to both the read and draw framebuffer targets.
-      active_objects_.draw_framebuffer = framebuffer;
-      active_objects_.read_framebuffer = framebuffer;
-    } else if (target == GL_READ_FRAMEBUFFER) {
-      active_objects_.read_framebuffer = framebuffer;
-    } else if (target == GL_DRAW_FRAMEBUFFER) {
-      active_objects_.draw_framebuffer = framebuffer;
+      if (target == GL_FRAMEBUFFER) {
+        // Calling glBindFramebuffer with target set to GL_FRAMEBUFFER binds
+        // framebuffer to both the read and draw framebuffer targets.
+        active_objects_.draw_framebuffer = framebuffer;
+        active_objects_.read_framebuffer = framebuffer;
+      } else if (target == GL_READ_FRAMEBUFFER) {
+        active_objects_.read_framebuffer = framebuffer;
+      } else if (target == GL_DRAW_FRAMEBUFFER) {
+        active_objects_.draw_framebuffer = framebuffer;
+      }
+      container_state_->framebuffers[framebuffer].bindings.push_back(
+          GetCallCount());
     }
   }
+
   void BindRenderbuffer(GLenum target, GLuint renderbuffer) {
     // GL_INVALID_ENUM is generated if target is not GL_RENDERBUFFER.
     // GL_INVALID_OPERATION is generated if renderbuffer is not zero or the name
     // of a renderbuffer previously returned from a call to glGenRenderbuffers.
-    if (CheckGlEnum(target == GL_RENDERBUFFER) &&
-        CheckGlOperation(object_state_->renderbuffers.count(renderbuffer) &&
-            !object_state_->renderbuffers[renderbuffer].deleted) &&
-        CheckFunction("BindRenderbuffer"))
-      active_objects_.renderbuffer = renderbuffer;
+    if (!CheckGlEnum(target == GL_RENDERBUFFER)) return;
+    if (!CheckGlOperation(IsRenderbufferName(renderbuffer))) return;
+    if (!CheckFunction("BindRenderbuffer")) return;
+    active_objects_.renderbuffer = renderbuffer;
+    if (renderbuffer != 0U)
+      object_state_->renderbuffers[renderbuffer].bindings.push_back(
+          GetCallCount());
   }
+
   void BindTexture(GLenum target, GLuint texture) {
     // GL_INVALID_ENUM is generated if target is not one of the allowable
     // values.
+    if (!CheckGlEnum(IsTextureTarget(target))) return;
     // GL_INVALID_VALUE is generated if texture is not a name returned from a
     // previous call to glGenTextures.
+    if (texture != 0 && !CheckGlValue(IsTextureName(texture))) return;
     // GL_INVALID_OPERATION is generated if texture was previously created
     // with a target that doesn't match that of target.
-    if (CheckTextureTarget(target) &&
-        CheckGlValue(object_state_->textures.count(texture) &&
-        !object_state_->textures[texture].deleted) &&
-        CheckGlOperation(object_state_->textures[texture].target == target ||
-                         object_state_->textures[texture].target ==
-                             static_cast<GLenum>(-1)) &&
-        CheckFunction("BindTexture")) {
+    GLenum creation_target = object_state_->textures[texture].target;
+    if (texture != 0 &&
+        !CheckGlOperation(creation_target == target ||
+                          creation_target == static_cast<GLenum>(-1)))
+      return;
+    if (CheckFunction("BindTexture")) {
       GLuint& active = GetActiveTexture(target);
       active = texture;
       object_state_->textures[texture].bindings.push_back(GetCallCount());
@@ -1898,7 +2348,7 @@ class MockVisual::ShadowState {
           object_state_->buffers[index].ClearData();
       object_state_->buffers[index].data =
           reinterpret_cast<void*>(new uint8[size]);
-      // Copy the data if it is non-NULL.
+      // Copy the data if it is non-null.
       if (data) {
         std::memcpy(object_state_->buffers[index].data, data, size);
       }
@@ -1963,7 +2413,7 @@ class MockVisual::ShadowState {
       }
     }
   }
-  GLenum CheckFramebufferStatus(GLenum target, GLuint framebufferObject) {
+  GLenum CheckFramebufferStatus(GLenum target, GLuint framebuffer_name) {
     // GL_INVALID_ENUM is generated if target is not GL_FRAMEBUFFER.
     // Possible return values:
     // GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
@@ -1987,37 +2437,97 @@ class MockVisual::ShadowState {
     // GL_FRAMEBUFFER_UNSUPPORTED
     // The combination of internal formats of the attached images violates an
     // implementation-dependent set of restrictions.
-    if (CheckGlEnum(target == GL_FRAMEBUFFER ||
-                    target == GL_DRAW_FRAMEBUFFER ||
-                    target == GL_READ_FRAMEBUFFER) &&
+    if (CheckGlEnum(IsFramebufferTarget(target)) &&
+        CheckGlOperation(IsFramebuffer(framebuffer_name)) &&
         CheckFunction("CheckFramebufferStatus")) {
       // Update the status of the framebuffer.
       // The base framebuffer is always complete.
-      if (framebufferObject == 0)
+      if (framebuffer_name == 0)
         return GL_FRAMEBUFFER_COMPLETE;
+
+      // Prepare helper vector that simplifies code.
       const FramebufferObject& fbo =
-          object_state_->framebuffers[framebufferObject];
-      if (fbo.color0.type == GL_NONE && fbo.depth.type == GL_NONE &&
-          fbo.stencil.type == GL_NONE) {
+          container_state_->framebuffers[framebuffer_name];
+      std::vector<const FramebufferObject::Attachment*> attachments;
+      attachments.reserve(kMaxColorAttachments + 2);
+      for (const auto& attachment : fbo.color)
+        attachments.push_back(&attachment);
+      attachments.push_back(&fbo.depth);
+      attachments.push_back(&fbo.stencil);
+
+      // Check whether we have any attachments.
+      bool has_attachment = false;
+      for (auto attachment_ptr : attachments) {
+        if (attachment_ptr->type != GL_NONE) {
+          has_attachment = true;
+          break;
+        }
+      }
+      if (!has_attachment) {
         return GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT;
       }
-      if (AttachmentsAreIncompatible(fbo.color0, fbo.depth) ||
-          AttachmentsAreIncompatible(fbo.color0, fbo.stencil) ||
-          AttachmentsAreIncompatible(fbo.depth, fbo.stencil)) {
-        return GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS;
+      // Check attachment compatibility. We check every combination, since
+      // an empty attachment will be compatible with everything.
+      for (size_t i = 0; i < attachments.size(); ++i) {
+        for (size_t j = i + 1; j < attachments.size(); ++j) {
+          if (AttachmentsAreIncompatible(*attachments[i], *attachments[j])) {
+            return GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS;
+          }
+        }
       }
-      if (AttachmentIsIncomplete(fbo, fbo.color0) ||
-          AttachmentIsIncomplete(fbo, fbo.depth) ||
-          AttachmentIsIncomplete(fbo, fbo.stencil)) {
-        return GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT;
+      // Check attachment completeness.
+      for (auto attachment_ptr : attachments) {
+        if (AttachmentIsIncomplete(fbo, *attachment_ptr)) {
+          return GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT;
+        }
       }
+      // Check multisampling and views.
+      int prev_samples = -1;
+      GLsizei prev_views = -1;
+      bool prev_implicit = false;
+      for (auto attachment_ptr : attachments) {
+        int samples = GetAttachmentSamples(*attachment_ptr);
+        GLsizei views = attachment_ptr->num_views;
+        bool implicit = IsAttachmentImplicitlyMultisampled(*attachment_ptr);
+        if (samples > -1 && prev_samples > -1 &&
+            (prev_samples != samples || prev_implicit != implicit)) {
+          return GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE;
+        }
+        if (views > 0 && prev_views > 0 && prev_views != views)
+          return GL_FRAMEBUFFER_INCOMPLETE_VIEW_TARGETS_OVR;
+        if (samples > -1) {
+          prev_samples = samples;
+          prev_implicit = implicit;
+        }
+        if (views > 0)
+          prev_views = views;
+      }
+      // Check whether draw buffers are valid.
+      for (GLenum draw_buffer : fbo.draw_buffers) {
+        if (draw_buffer != GL_NONE) {
+          FramebufferObject::Attachment* a =
+              GetAttachment(target, draw_buffer);
+          if (a->type == GL_NONE)
+            return GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER;
+        }
+      }
+      // Check whether the read buffer is valid.
+      if (fbo.read_buffer != GL_NONE) {
+        FramebufferObject::Attachment* a =
+            GetAttachment(target, fbo.read_buffer);
+        if (a->type == GL_NONE)
+          return GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER;
+      }
+
       return GL_FRAMEBUFFER_COMPLETE;
     } else {
       return 0U;
     }
   }
   GLenum CheckFramebufferStatus(GLenum target) {
-    return CheckFramebufferStatus(target, active_objects_.draw_framebuffer);
+    GLuint framebuffer = target == GL_READ_FRAMEBUFFER
+        ? active_objects_.read_framebuffer : active_objects_.draw_framebuffer;
+    return CheckFramebufferStatus(target, framebuffer);
   }
   void Clear(GLbitfield mask) {
     // GL_INVALID_VALUE is generated if any bit other than the three defined
@@ -2047,7 +2557,7 @@ class MockVisual::ShadowState {
     // GL_INVALID_VALUE is generated if shader is not a value generated by
     // OpenGL.
     // GL_INVALID_OPERATION is generated if shader is not a shader object.
-    if (CheckGlValue(object_state_->shaders.count(shader))) {
+    if (CheckShader(shader)) {
       ShaderObject& so = object_state_->shaders[shader];
       if (CheckGlOperation(!so.deleted)) {
         if (CheckFunction("CompileShader")) {
@@ -2199,7 +2709,7 @@ class MockVisual::ShadowState {
             // GL_INVALID_VALUE is generated if target is one of the six cube
             // map 2D image targets and the width and height parameters are not
             // equal.
-            ((IsCubeMapTarget(target) && width == height) ||
+            ((IsCubeFaceTarget(target) && width == height) ||
              IsTexture2dTarget(target)) &&
             // GL_INVALID_VALUE is generated if level is less than 0.
             // GL_INVALID_VALUE may be generated if level is greater than
@@ -2284,8 +2794,7 @@ class MockVisual::ShadowState {
   GLuint CreateShader(GLenum type) {
     GLuint id = 0U;
     // GL_INVALID_ENUM is generated if shaderType is not an accepted value.
-    if (CheckGlEnum(type == GL_VERTEX_SHADER || type == GL_FRAGMENT_SHADER) &&
-        CheckFunction("CreateShader")) {
+    if (CheckShaderType(type) && CheckFunction("CreateShader")) {
       ShaderObject so;
       so.type = type;
       // OpenGL ids are 1-based.
@@ -2305,8 +2814,7 @@ class MockVisual::ShadowState {
       for (GLsizei i = 0; i < n; ++i) {
         // glDeleteBuffers silently ignores 0's and names that do not correspond
         // to existing buffer objects.
-        if (buffers[i] != 0U && object_state_->buffers.count(buffers[i]) &&
-            !object_state_->buffers[buffers[i]].deleted) {
+        if (buffers[i] != 0U && IsBufferName(buffers[i])) {
           // Free any data storage.
           object_state_->buffers[buffers[i]].ClearData();
           // Reset the buffer object.
@@ -2333,13 +2841,11 @@ class MockVisual::ShadowState {
       for (GLsizei i = 0; i < n; ++i) {
         // glDeleteFramebuffers silently ignores 0's and names that do not
         // correspond to existing framebuffer objects.
-        if (framebuffers[i] != 0U &&
-            object_state_->framebuffers.count(framebuffers[i]) &&
-            !object_state_->framebuffers[framebuffers[i]].deleted) {
+        if (framebuffers[i] != 0U && IsFramebufferName(framebuffers[i])) {
           // Reset the framebuffer object.
-          object_state_->framebuffers[framebuffers[i]] = FramebufferObject();
+          container_state_->framebuffers[framebuffers[i]] = FramebufferObject();
           // Mark the framebuffer as deleted, so that it cannot be reused.
-          object_state_->framebuffers[framebuffers[i]].deleted = true;
+          container_state_->framebuffers[framebuffers[i]].deleted = true;
 
           // Reset the binding if the index is the currently bound object.
           if (framebuffers[i] == active_objects_.draw_framebuffer)
@@ -2351,18 +2857,21 @@ class MockVisual::ShadowState {
   void DeleteProgram(GLuint program) {
     // GL_INVALID_VALUE is generated if program is not a value generated by
     // OpenGL.
-    if (CheckGlValue(object_state_->programs.count(program)) &&
-        CheckGlValue(!object_state_->programs[program].deleted) &&
+    if (CheckProgram(program) &&
         CheckFunction("DeleteProgram")) {
-      // Reset the program object.
-      object_state_->programs[program] = ProgramObject();
-      object_state_->programs[program].delete_status = GL_TRUE;
-      // Mark the program as deleted, so that it cannot be reused.
-      object_state_->programs[program].deleted = true;
-
-      // Reset the binding if the index is the currently bound object.
-      if (program == active_objects_.program)
-          active_objects_.program = 0U;
+      ProgramObject& po = object_state_->programs[program];
+      // Mark the program for deletion. Note that setting these does not
+      // make IsProgram return false; for that, the program must also not be
+      // set as the active program.
+      po.delete_status = GL_TRUE;
+      po.deleted = true;
+      // Detach all shaders.
+      if (IsShader(po.vertex_shader))
+        object_state_->shaders[po.vertex_shader].programs.erase(program);
+      if (IsShader(po.geometry_shader))
+        object_state_->shaders[po.geometry_shader].programs.erase(program);
+      if (IsShader(po.fragment_shader))
+        object_state_->shaders[po.fragment_shader].programs.erase(program);
     }
   }
   void DeleteRenderbuffers(GLsizei n, const GLuint* renderbuffers) {
@@ -2371,9 +2880,7 @@ class MockVisual::ShadowState {
       for (GLsizei i = 0; i < n; ++i) {
         // glDeleteRenderbuffers silently ignores 0's and names that do not
         // correspond to existing renderbuffer objects.
-        if (renderbuffers[i] != 0U &&
-            object_state_->renderbuffers.count(renderbuffers[i]) &&
-            !object_state_->renderbuffers[renderbuffers[i]].deleted) {
+        if (renderbuffers[i] != 0U && IsRenderbufferName(renderbuffers[i])) {
           // Reset the renderbuffer object.
           object_state_->renderbuffers[renderbuffers[i]] = RenderbufferObject();
           // Mark the renderbuffer as deleted, so that it cannot be reused.
@@ -2389,13 +2896,12 @@ class MockVisual::ShadowState {
   void DeleteShader(GLuint shader) {
     // GL_INVALID_VALUE is generated if shader is not a value generated by
     // OpenGL.
-    if (CheckGlValue(object_state_->shaders.count(shader)) &&
-        CheckGlValue(!object_state_->shaders[shader].deleted) &&
+    if (CheckGlValue(IsShader(shader)) &&
         CheckFunction("DeleteShader")) {
-      // Reset the shader object.
-      object_state_->shaders[shader] = ShaderObject();
+      // Mark the shader for deletion. Note that setting these does not make
+      // IsShader return false; for that, the shader must also not be attached
+      // to any program.
       object_state_->shaders[shader].delete_status = GL_TRUE;
-      // Mark the shader as deleted, so that it cannot be reused.
       object_state_->shaders[shader].deleted = true;
     }
   }
@@ -2406,8 +2912,7 @@ class MockVisual::ShadowState {
       for (GLsizei i = 0; i < n; ++i) {
         // glDeleteTextures silently ignores 0's and names that do not
         // correspond to existing textures.
-        if (textures[i] != 0U && object_state_->textures.count(textures[i]) &&
-            !object_state_->textures[textures[i]].deleted) {
+        if (textures[i] != 0U && IsTexture(textures[i])) {
           // Reset the texture object.
           object_state_->textures[textures[i]] = TextureObject();
           // Mark the texture as deleted, so that it cannot be reused.
@@ -2449,19 +2954,21 @@ class MockVisual::ShadowState {
   void DetachShader(GLuint program, GLuint shader) {
     // GL_INVALID_VALUE is generated if either program or shader is not a value
     // generated by OpenGL.
-    if (CheckGlValue(object_state_->shaders.count(shader) &&
-        object_state_->programs.count(program)) &&
+    // GL_INVALID_OPERATION is generated if program is not a program object.
+    // GL_INVALID_OPERATION is generated if shader is not a shader object.
+    if (CheckProgram(program) && CheckShader(shader) &&
         CheckFunction("DetachShader")) {
-      const ShaderObject& so = object_state_->shaders[shader];
+      ShaderObject& so = object_state_->shaders[shader];
       ProgramObject& po = object_state_->programs[program];
-      // GL_INVALID_OPERATION is generated if program is not a program object.
-      // GL_INVALID_OPERATION is generated if shader is not a shader object.
       // GL_INVALID_OPERATION is generated if shader is not attached to program.
-      if (CheckGlOperation(
-              !so.deleted && !po.deleted &&
-              (po.vertex_shader == shader || po.fragment_shader == shader))) {
+      if (CheckGlOperation(po.vertex_shader == shader ||
+                           po.geometry_shader == shader ||
+                           po.fragment_shader == shader)) {
+        so.programs.erase(program);
         if (po.vertex_shader == shader)
           po.vertex_shader = 0;
+        else if (po.geometry_shader == shader)
+          po.geometry_shader = 0;
         else
           po.fragment_shader = 0;
       }
@@ -2470,22 +2977,24 @@ class MockVisual::ShadowState {
   void Disable(GLenum cap) {
     // GL_INVALID_ENUM is generated if cap is not a valid value.
     GLint index = GetAndVerifyCapabilityIndex(cap);
-    if (CheckGlEnum(index >= 0 && index < kNumCapabilities) &&
+    if (CheckGlEnum(index >= 0 &&
+                    index < static_cast<GLint>(enabled_state_.size())) &&
         CheckFunction("Disable"))
-      enabled_state_.reset(index);
+      enabled_state_[index] = false;
   }
   void DisableVertexAttribArray(GLuint index) {
     // GL_INVALID_VALUE is generated if index is greater than or equal to
     // GL_MAX_VERTEX_ATTRIBS.
     if (CheckGlValue(index < kMaxVertexAttribs) &&
         CheckFunction("DisableVertexAttribArray")) {
-      ArrayObject& ao = object_state_->arrays[active_objects_.array];
+      ArrayObject& ao = container_state_->arrays[active_objects_.array];
       ao.attributes[index].enabled = GL_FALSE;
     }
   }
   void DrawArrays(GLenum mode, GLint first, GLsizei count) {
+    GLuint tfo_id = active_objects_.transform_feedback;
     TransformFeedbackObject& tfo =
-        object_state_->transform_feedbacks[active_objects_.transform_feedback];
+        container_state_->transform_feedbacks[tfo_id];
     // GL_INVALID_ENUM is generated if mode is not an accepted value.
     // GL_INVALID_VALUE is generated if count is negative.
     // GL_INVALID_OPERATION is generated if a non-zero buffer object name is
@@ -2496,9 +3005,8 @@ class MockVisual::ShadowState {
     if (CheckDrawMode(mode) && CheckGlValue(count >= 0) &&
         (active_objects_.buffer == 0 ||
          CheckGlOperation(object_state_->buffers[active_objects_.buffer].data !=
-                          NULL)) &&
-        CheckGlOperation(tfo.status != GL_TRANSFORM_FEEDBACK_ACTIVE ||
-                         tfo.primitive_mode == mode) &&
+                          nullptr)) &&
+        CheckGlOperation(!tfo.active || tfo.primitive_mode == mode) &&
         CheckFunction("DrawArrays")) {
       // There is nothing to do since we do not implement draw functions.
     }
@@ -2518,16 +3026,16 @@ class MockVisual::ShadowState {
         CheckGlEnum(type == GL_UNSIGNED_BYTE || type == GL_UNSIGNED_INT ||
                     type == GL_UNSIGNED_SHORT) &&
         (active_objects_.buffer == 0 ||
-         (CheckGlOperation(
-             object_state_->buffers[active_objects_.buffer].data != NULL))) &&
+         CheckGlOperation(
+             object_state_->buffers[active_objects_.buffer].data != nullptr)) &&
         (active_objects_.index_buffer == 0 ||
-         (CheckGlOperation(
+         CheckGlOperation(
              object_state_->buffers[active_objects_.index_buffer].data !=
-             NULL))) &&
+                 nullptr)) &&
         CheckGlOperation(
-            object_state_
-                ->transform_feedbacks[active_objects_.transform_feedback]
-                .status != GL_TRANSFORM_FEEDBACK_ACTIVE) &&
+            !container_state_
+                 ->transform_feedbacks[active_objects_.transform_feedback]
+                 .active) &&
         CheckFunction("DrawElements")) {
       // There is nothing to do since we do not implement draw functions.
     }
@@ -2535,16 +3043,17 @@ class MockVisual::ShadowState {
   void Enable(GLenum cap) {
     // GL_INVALID_ENUM is generated if cap is not a valid value.
     GLint index = GetAndVerifyCapabilityIndex(cap);
-    if (CheckGlEnum(index >= 0 && index < kNumCapabilities) &&
+    if (CheckGlEnum(index >= 0 &&
+                    index < static_cast<GLint>(enabled_state_.size())) &&
         CheckFunction("Enable"))
-      enabled_state_.set(GetAndVerifyCapabilityIndex(cap));
+      enabled_state_[index] = true;
   }
   void EnableVertexAttribArray(GLuint index) {
     // GL_INVALID_VALUE is generated if index is greater than or equal to
     // GL_MAX_VERTEX_ATTRIBS.
     if (CheckGlValue(index < kMaxVertexAttribs) &&
         CheckFunction("EnableVertexAttribArray")) {
-      ArrayObject& ao = object_state_->arrays[active_objects_.array];
+      ArrayObject& ao = container_state_->arrays[active_objects_.array];
       ao.attributes[index].enabled = GL_TRUE;
     }
   }
@@ -2566,92 +3075,35 @@ class MockVisual::ShadowState {
     // GL_INVALID_OPERATION is generated if renderbuffer is neither 0 nor the
     // name of an existing renderbuffer object.
     if (CheckGlEnum(
-            target == GL_FRAMEBUFFER &&
-            (renderbuffertarget == GL_RENDERBUFFER || renderbuffer == 0U) &&
-            (attachment == GL_COLOR_ATTACHMENT0 ||
-             attachment == GL_DEPTH_ATTACHMENT ||
-             attachment == GL_STENCIL_ATTACHMENT)) &&
+            IsFramebufferTarget(target) &&
+            renderbuffertarget == GL_RENDERBUFFER &&
+            IsAttachmentEnum(attachment)) &&
         CheckGlOperation(active_objects_.draw_framebuffer != 0U &&
-                         object_state_->renderbuffers.count(renderbuffer)) &&
+                         (renderbuffer == 0U ||
+                          IsRenderbuffer(renderbuffer))) &&
         CheckFunction("FramebufferRenderbuffer")) {
-      FramebufferObject::Attachment* a;
-      if (attachment == GL_COLOR_ATTACHMENT0)
-        a = &object_state_->
-            framebuffers[active_objects_.draw_framebuffer].color0;
-      else if (attachment == GL_DEPTH_ATTACHMENT)
-        a = &object_state_->
-            framebuffers[active_objects_.draw_framebuffer].depth;
-      else  // attachment == GL_STENCIL_ATTACHMENT
-        a = &object_state_->
-            framebuffers[active_objects_.draw_framebuffer].stencil;
-      if (renderbuffer == 0U)
-        a->type = GL_NONE;
-      else
-        a->type = GL_RENDERBUFFER;
-      a->value = renderbuffer;
+      auto DoSet = [=](GLenum slot) -> void {
+        FramebufferObject::Attachment* a =
+            GetClearedAttachment(target, slot);
+        if (renderbuffer == 0U)
+          a->type = GL_NONE;
+        else
+          a->type = GL_RENDERBUFFER;
+        a->value = renderbuffer;
+      };
+      if (attachment == GL_DEPTH_STENCIL_ATTACHMENT) {
+        DoSet(GL_DEPTH_ATTACHMENT);
+        DoSet(GL_STENCIL_ATTACHMENT);
+      } else {
+        DoSet(attachment);
+      }
     }
   }
   void FramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget,
                             GLuint texture, GLint level) {
-    if (CheckGlEnum(
-            // GL_INVALID_ENUM is generated if target is not GL_FRAMEBUFFER.
-            target == GL_FRAMEBUFFER &&
-            // GL_INVALID_ENUM is generated if textarget is not an accepted
-            // texture target and texture is not 0.
-            (CheckTexture2dTargetType(textarget) || texture == 0U) &&
-            // GL_INVALID_ENUM is generated if attachment is not an accepted
-            // attachment point.
-            (attachment == GL_COLOR_ATTACHMENT0 ||
-             attachment == GL_DEPTH_ATTACHMENT ||
-             attachment == GL_STENCIL_ATTACHMENT)) &&
-        // GL_INVALID_VALUE may be generated if level is greater than
-        // log_2(max), where max is the returned value of
-        // GL_MAX_TEXTURE_SIZE when target is GL_TEXTURE_2D or
-        // GL_MAX_CUBE_MAP_TEXTURE_SIZE when target is not GL_TEXTURE_2D.
-        CheckTextureLevel(textarget, level) &&
-        CheckGlOperation(
-            // GL_INVALID_OPERATION is generated if the default framebuffer
-            // object name0 is bound.
-            active_objects_.draw_framebuffer != 0U &&
-            // GL_INVALID_OPERATION is generated if texture is neither 0 nor the
-            // name of an existing texture object.
-            object_state_->textures.count(texture) &&
-            // GL_INVALID_OPERATION is generated if texture is the name of an
-            // existing two-dimensional texture object but textarget is not
-            // GL_TEXTURE_2D, if texture is the name of an existing 2D
-            // multisample texture object but textarget is
-            // GL_TEXTURE_2D_MULTISAMPLE, or if texture is the name of an
-            // existing cube map texture object but textarget is GL_TEXTURE_2D.
-            (texture == 0 ||
-                (textarget == GL_TEXTURE_2D &&
-                    object_state_->textures[texture].target == GL_TEXTURE_2D) ||
-                (textarget == GL_TEXTURE_2D_MULTISAMPLE &&
-                    object_state_->textures[texture].target ==
-                        GL_TEXTURE_2D_MULTISAMPLE) ||
-                (IsCubeMapTarget(textarget) &&
-                    object_state_->textures[texture].target ==
-                        GL_TEXTURE_CUBE_MAP))) &&
-        CheckFunction("FramebufferTexture2D")) {
-      FramebufferObject::Attachment* a;
-      if (attachment == GL_COLOR_ATTACHMENT0)
-        a = &object_state_->
-            framebuffers[active_objects_.draw_framebuffer].color0;
-      else if (attachment == GL_DEPTH_ATTACHMENT)
-        a = &object_state_->
-            framebuffers[active_objects_.draw_framebuffer].depth;
-      else  // attachment == GL_STENCIL_ATTACHMENT
-        a = &object_state_->
-            framebuffers[active_objects_.draw_framebuffer].stencil;
-      if (texture == 0U) {
-        a->type = GL_NONE;
-        a->level = 0;
-      } else {
-        a->type = GL_TEXTURE;
-        a->level = level;
-        a->cube_face = textarget;
-      }
-      a->value = texture;
-    }
+    if (!CheckFunction("FramebufferTexture2D")) return;
+    SetFramebufferTexture(target, attachment, textarget, texture, level, -1, 0,
+                          0);
   }
   void FrontFace(GLenum mode) {
     // GL_INVALID_ENUM is generated if mode is not an accepted value.
@@ -2677,7 +3129,7 @@ class MockVisual::ShadowState {
   void GenerateMipmap(GLenum target) {
     // GL_INVALID_ENUM is generated if target is not one of the accepted
     // targets.
-    if (CheckTextureTarget(target)) {
+    if (CheckGlEnum(IsTextureTarget(target))) {
       // GL_INVALID_OPERATION is generated if the texture bound to target is a
       // cube map, but its six faces do not share indentical widths, heights,
       // formats, and types.
@@ -2706,18 +3158,20 @@ class MockVisual::ShadowState {
     if (CheckGlValue(n >= 0) && CheckFunction("GenFramebuffers")) {
       for (GLsizei i = 0; i < n; ++i) {
         FramebufferObject fbo;
+        fbo.color.resize(kMaxColorAttachments);
+        fbo.draw_buffers.resize(kMaxDrawBuffers, GL_NONE);
+        fbo.draw_buffers[0] = GL_COLOR_ATTACHMENT0;
+        fbo.read_buffer = GL_COLOR_ATTACHMENT0;
         // OpenGL ids are 1-based, but there is a default framebuffer at index
         // 0.
         const GLuint id = static_cast<GLuint>(
-            object_state_->framebuffers.size());
-        object_state_->framebuffers[id] = fbo;
+            container_state_->framebuffers.size());
+        container_state_->framebuffers[id] = fbo;
         framebuffers[i] = id;
       }
     }
   }
   void GenRenderbuffers(GLsizei n, GLuint* renderbuffers) {
-    // We generate a synthetic GL_INVALID_OPERATION if
-    // gen_renderbuffers_always_fails_ is set
     // GL_INVALID_VALUE is generated if n is negative.
     if (CheckGlValue(n >= 0) && CheckFunction("GenRenderbuffers")) {
       for (GLsizei i = 0; i < n; ++i) {
@@ -2817,35 +3271,30 @@ class MockVisual::ShadowState {
     // OpenGL.
     // GL_INVALID_OPERATION is generated if program is not a program object.
     // GL_INVALID_VALUE is generated if maxCount is less than 0.
-    if (CheckGlValue(object_state_->programs.count(program) &&
-                     maxCount >= 0) &&
+    if (CheckProgram(program) && CheckGlValue(maxCount >= 0) &&
         CheckFunction("GetAttachedShaders")) {
       const ProgramObject& po = object_state_->programs[program];
-      if (CheckGlOperation(!po.deleted)) {
-        if (count)
-          *count =
-              (po.vertex_shader > 0 ? 1 : 0) + (po.fragment_shader > 0 ? 1 : 0);
-        if (maxCount > 0 && po.vertex_shader > 0) {
-          *shaders = po.vertex_shader;
-          shaders++;
-          maxCount--;
-        }
-        if (maxCount > 0 && po.fragment_shader > 0)
-          *shaders = po.fragment_shader;
-      }
+      GLuint* shader_out = shaders;
+      if (po.vertex_shader > 0 && maxCount-- > 0)
+        *shader_out++ = po.vertex_shader;
+      if (po.geometry_shader > 0 && maxCount-- > 0)
+        *shader_out++ = po.geometry_shader;
+      if (po.fragment_shader > 0 && maxCount-- > 0)
+        *shader_out++ = po.fragment_shader;
+      if (count)
+        *count = static_cast<GLsizei>(shader_out - shaders);
     }
   }
   GLint GetAttribLocation(GLuint program, const GLchar* name) {
     // GL_INVALID_VALUE is generated if program is not a value generated by
     // OpenGL.
+    // GL_INVALID_OPERATION is generated if program is not a program object.
     // If the name stars with "gl_" -1 is returned.
-    if (CheckGlValue(object_state_->programs.count(program)) &&
-        !base::StartsWith(name, "gl2_")) {
+    if (CheckProgram(program) && !base::StartsWith(name, "gl_")) {
       const ProgramObject& po = object_state_->programs[program];
-      // GL_INVALID_OPERATION is generated if program is not a program object.
       // GL_INVALID_OPERATION is generated if program has not been successfully
       // linked.
-      if (CheckGlOperation(!po.deleted && po.link_status == GL_TRUE) &&
+      if (CheckGlOperation(po.link_status == GL_TRUE) &&
           CheckFunction("GetAttribLocation")) {
         // Find the attribute with a matching name, if any, and return its
         // index.
@@ -2889,74 +3338,85 @@ class MockVisual::ShadowState {
   }
   void GetFramebufferAttachmentParameteriv(GLenum target, GLenum attachment,
                                            GLenum pname, GLint* params) {
-    if (CheckGlEnum(
-            // GL_INVALID_ENUM is generated if target is not GL_FRAMEBUFFER.
-            target == GL_FRAMEBUFFER &&
-            // GL_INVALID_ENUM is generated if attachment is not
-            // GL_COLOR_ATTACHMENT0, GL_DEPTH_ATTACHMENT, or
-            // GL_STENCIL_ATTACHMENT.
-            (attachment == GL_COLOR_ATTACHMENT0 ||
-             attachment == GL_DEPTH_ATTACHMENT ||
-             attachment == GL_STENCIL_ATTACHMENT)) &&
-        // GL_INVALID_OPERATION is generated if the default framebuffer object
-        // name 0 is bound.
-        CheckGlOperation(active_objects_.draw_framebuffer != 0U) &&
-        CheckFunction("GetFramebufferAttachmentParameteriv")) {
-      FramebufferObject::Attachment* a;
-      if (attachment == GL_COLOR_ATTACHMENT0)
-        a = &object_state_->
-            framebuffers[active_objects_.draw_framebuffer].color0;
-      else if (attachment == GL_DEPTH_ATTACHMENT)
-        a = &object_state_->
-            framebuffers[active_objects_.draw_framebuffer].depth;
-      else  // attachment == GL_STENCIL_ATTACHMENT
-        a = &object_state_->
-            framebuffers[active_objects_.draw_framebuffer].stencil;
-      // GL_INVALID_ENUM is generated if there is no attached object at the
-      // named attachment point and pname is not
-      // GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE.
-      // GL_INVALID_ENUM is generated if the attached object at the named
-      // attachment point is GL_RENDERBUFFER and pname is not
-      // GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE or
-      // GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME.
-      // GL_INVALID_ENUM is generated if the attached object at the named
-      // attachment point is GL_TEXTURE and pname is not
-      // GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE,
-      // GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME,
-      // GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL, or
-      // GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE.
-      switch (pname) {
-        case GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE:
-          *params = a->type;
+    // GL_INVALID_ENUM is generated if target is not GL_FRAMEBUFFER.
+    // GL_INVALID_ENUM is generated if attachment is not GL_COLOR_ATTACHMENTi,
+    // GL_DEPTH_ATTACHMENT, GL_STENCIL_ATTACHMENT, or
+    // GL_DEPTH_STENCIL_ATTACHMENT.
+    if (!CheckGlEnum(IsFramebufferTarget(target) &&
+                     IsAttachmentEnum(attachment))) return;
+    // GL_INVALID_OPERATION is generated if the default framebuffer object
+    // name 0 is bound.
+    if (!CheckGlOperation(!IsDefaultFramebuffer(target))) return;
+    // GL_INVALID_OPERATION is generated if attachment is
+    // GL_DEPTH_STENCIL_ATTACHMENT and different objects are bound to the depth
+    // and stencil attachment points of target.
+    if (attachment == GL_DEPTH_STENCIL_ATTACHMENT) {
+      if (!CheckGlOperation(
+            *GetAttachment(target, GL_DEPTH_ATTACHMENT) ==
+            *GetAttachment(target, GL_STENCIL_ATTACHMENT))) return;
+      attachment = GL_DEPTH_ATTACHMENT;
+    }
+    if (!CheckFunction("GetFramebufferAttachmentParameteriv")) return;
 
-          // Nexus 6 returns GL_RENDERBUFFER instead of GL_NONE. Fake that here
-          // so we can test the fix for it.
-          if (vendor_string_ == "Qualcomm" &&
-              renderer_string_ == "Adreno (TM) 420" &&
-              *params == GL_NONE) {
-            *params = GL_RENDERBUFFER;
-          }
-          break;
-        case GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME:
-          if (CheckGlEnum(a->type == GL_RENDERBUFFER || a->type == GL_TEXTURE))
-            *params = a->value;
-          break;
-        case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL:
-          if (CheckGlEnum(a->type == GL_TEXTURE))
-              *params = a->level;
-          break;
-        case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE:
-          if (CheckGlEnum(a->type == GL_TEXTURE)) {
-            if (object_state_->textures[a->value].target == GL_TEXTURE_2D)
-              *params = 0;
-            else
-              *params = a->cube_face;
-          }
-          break;
-        default:
-          CheckGlEnum(false);
-          break;
-      }
+    FramebufferObject::Attachment* a = GetAttachment(target, attachment);
+    // GL_INVALID_ENUM is generated if there is no attached object at the
+    // named attachment point and pname is not
+    // GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE.
+    // GL_INVALID_ENUM is generated if the attached object at the named
+    // attachment point is GL_RENDERBUFFER and pname is not
+    // GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE or
+    // GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME.
+    // GL_INVALID_ENUM is generated if the attached object at the named
+    // attachment point is GL_TEXTURE and pname is not
+    // GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE,
+    // GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME,
+    // GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL, or
+    // GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE.
+    GLint dummy = -1;
+    if (!params) params = &dummy;
+    switch (pname) {
+      case GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE:
+        *params = a->type;
+
+        // Nexus 6 returns GL_RENDERBUFFER instead of GL_NONE. Fake that here
+        // so we can test the fix for it.
+        if (vendor_string_ == "Qualcomm" &&
+            renderer_string_ == "Adreno (TM) 420" &&
+            *params == GL_NONE) {
+          *params = GL_RENDERBUFFER;
+        }
+        break;
+      case GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME:
+        if (CheckGlEnum(a->type == GL_RENDERBUFFER || a->type == GL_TEXTURE))
+          *params = a->value;
+        break;
+      case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL:
+        if (CheckGlEnum(a->type == GL_TEXTURE))
+          *params = a->level;
+        break;
+      case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE:
+        if (CheckGlEnum(a->type == GL_TEXTURE))
+          *params = a->cube_face;
+        break;
+      case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER:
+        if (CheckGlEnum(a->type == GL_TEXTURE))
+          *params = a->num_views ? 0 : a->layer;
+        break;
+      case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_SAMPLES_EXT:
+        if (CheckGlEnum(a->type == GL_TEXTURE))
+          *params = a->texture_samples;
+        break;
+      case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_BASE_VIEW_INDEX_OVR:
+        if (CheckGlEnum(a->type == GL_TEXTURE))
+          *params = a->num_views ? a->layer : 0;
+        break;
+      case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_NUM_VIEWS_OVR:
+        if (CheckGlEnum(a->type == GL_TEXTURE))
+          *params = a->num_views;
+        break;
+      default:
+        CheckGlEnum(false);
+        break;
     }
   }
   void GetIntegerv(GLenum pname, GLint* params) {
@@ -2966,6 +3426,12 @@ class MockVisual::ShadowState {
   void GetInteger64v(GLenum pname, GLint64* params) {
     if (CheckFunction("GetInteger64v"))
       Getv<GLint64>(pname, params);
+  }
+  void GetIntegeri_v(GLenum pname, GLuint index, GLint* params) {
+    // For now, this is a raw entry point that we only support nominally.
+  }
+  void GetInteger64i_v(GLenum pname, GLuint index, GLint64* params) {
+    // For now, this is a raw entry point that we only support nominally.
   }
   void GetProgramInfoLog(GLuint program, GLsizei buf_size, GLsizei* length,
                          GLchar* info_log) {
@@ -2994,8 +3460,7 @@ class MockVisual::ShadowState {
   void GetProgramiv(GLuint program, GLenum pname, GLint* params) {
     // GL_INVALID_VALUE is generated if program is not a value generated by
     // OpenGL.
-    if (CheckGlValue(object_state_->programs.count(program)) &&
-        CheckFunction("GetProgramiv")) {
+    if (CheckProgram(program) && CheckFunction("GetProgramiv")) {
       const ProgramObject& po = object_state_->programs[program];
       switch (pname) {
         case GL_DELETE_STATUS:
@@ -3012,8 +3477,7 @@ class MockVisual::ShadowState {
               po.info_log.length() ? po.info_log.length() + 1 : 0);
           break;
         case GL_ATTACHED_SHADERS: {
-          *params =
-              (po.vertex_shader > 0 ? 1 : 0) + (po.fragment_shader > 0 ? 1 : 0);
+          *params = GetAttachedShaderCount(program);
           break;
         }
         case GL_ACTIVE_ATTRIBUTES: {
@@ -3093,6 +3557,9 @@ class MockVisual::ShadowState {
         case GL_RENDERBUFFER_DEPTH_SIZE:
           *params = r.depth_size;
           break;
+        case GL_RENDERBUFFER_SAMPLES:
+          *params = r.multisample_samples;
+          break;
         case GL_RENDERBUFFER_STENCIL_SIZE:
           *params = r.stencil_size;
           break;
@@ -3108,8 +3575,7 @@ class MockVisual::ShadowState {
     // OpenGL.
     // GL_INVALID_OPERATION is generated if shader is not a shader object.
     // GL_INVALID_VALUE is generated if buf_size is less than 0.
-    if (CheckGlValue(object_state_->shaders.count(shader) && buf_size >= 0) &&
-        CheckGlOperation(!object_state_->shaders[shader].deleted) &&
+    if (CheckShader(shader) &&
         CheckFunction("GetShaderInfoLog")) {
       // There is nothing to do since we do not compile shaders.
       ShaderObject& so = object_state_->shaders[shader];
@@ -3131,8 +3597,7 @@ class MockVisual::ShadowState {
     // GL_INVALID_OPERATION is generated if a shader compiler is not supported.
     // GL_INVALID_ENUM is generated if shaderType or precisionType is not an
     // accepted value.
-    if (CheckGlEnum(shaderType == GL_VERTEX_SHADER ||
-                    shaderType == GL_FRAGMENT_SHADER) &&
+    if (CheckShaderType(shaderType) &&
         CheckFunction("GetShaderPrecisionFormat")) {
       switch (precisionType) {
         case GL_LOW_FLOAT:
@@ -3178,8 +3643,7 @@ class MockVisual::ShadowState {
     // OpenGL.
     // GL_INVALID_OPERATION is generated if shader is not a shader object.
     // GL_INVALID_VALUE is generated if buf_size is less than 0.
-    if (CheckGlValue(object_state_->shaders.count(shader) && buf_size >= 0) &&
-        CheckGlOperation(!object_state_->shaders[shader].deleted) &&
+    if (CheckShader(shader) && CheckGlValue(buf_size >= 0) &&
         CheckFunction("GetShaderSource")) {
       const ShaderObject& so = object_state_->shaders[shader];
       const size_t to_copy = std::min(
@@ -3198,8 +3662,9 @@ class MockVisual::ShadowState {
   void GetShaderiv(GLuint shader, GLenum pname, GLint* params) {
     // GL_INVALID_VALUE is generated if shader is not a value generated by
     // OpenGL.
-    if (CheckGlValue(object_state_->shaders.count(shader)) &&
-        CheckFunction("GetShaderiv")) {
+    // We want to check for deleted shaders here as well, to support querying
+    // GL_DELETE_STATUS.
+    if (CheckShader(shader) && CheckFunction("GetShaderiv")) {
       const ShaderObject& so = object_state_->shaders[shader];
       switch (pname) {
         case GL_SHADER_TYPE:
@@ -3257,7 +3722,7 @@ class MockVisual::ShadowState {
   void GetTexParameterv(GLenum target, GLenum pname, T* params) {
     // GL_INVALID_ENUM is generated if target or pname is not one of the
     // accepted defined values.
-    if (CheckTextureTarget(target)) {
+    if (CheckGlEnum(IsTextureTarget(target))) {
       const GLuint texture = GetActiveTexture(target);
       const TextureObject& to = object_state_->textures[texture];
       switch (pname) {
@@ -3293,6 +3758,9 @@ class MockVisual::ShadowState {
           break;
         case GL_TEXTURE_MIN_LOD:
           *params = static_cast<T>(to.min_lod);
+          break;
+        case GL_TEXTURE_PROTECTED_EXT:
+          *params = static_cast<T>(to.is_protected);
           break;
         case GL_TEXTURE_SWIZZLE_R:
           *params = static_cast<T>(to.swizzle_r);
@@ -3493,44 +3961,43 @@ class MockVisual::ShadowState {
       switch (pname) {
         case GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING:
           *params = static_cast<GLfloat>(
-              object_state_->arrays[active_objects_.array].
+              container_state_->arrays[active_objects_.array].
                   attributes[index].buffer);
           break;
         case GL_VERTEX_ATTRIB_ARRAY_ENABLED:
           *params = static_cast<GLfloat>(
-              object_state_->arrays[active_objects_.array].
+              container_state_->arrays[active_objects_.array].
                   attributes[index].enabled);
           break;
         case GL_VERTEX_ATTRIB_ARRAY_SIZE:
           *params = static_cast<GLfloat>(
-              object_state_->arrays[active_objects_.array].
+              container_state_->arrays[active_objects_.array].
                   attributes[index].size);
           break;
         case GL_VERTEX_ATTRIB_ARRAY_STRIDE:
           *params = static_cast<GLfloat>(
-              object_state_->arrays[active_objects_.array].
+              container_state_->arrays[active_objects_.array].
                   attributes[index].stride);
           break;
         case GL_VERTEX_ATTRIB_ARRAY_TYPE:
           *params = static_cast<GLfloat>(
-              object_state_->arrays[active_objects_.array].
+              container_state_->arrays[active_objects_.array].
                   attributes[index].type);
           break;
         case GL_VERTEX_ATTRIB_ARRAY_NORMALIZED:
           *params = static_cast<GLfloat>(
-              object_state_->arrays[active_objects_.array].
+              container_state_->arrays[active_objects_.array].
                   attributes[index].normalized);
           break;
         case GL_CURRENT_VERTEX_ATTRIB:
           for (int i = 0; i < 4; ++i)
-            params[i] = object_state_->arrays[active_objects_.array].
+            params[i] = container_state_->arrays[active_objects_.array].
                 attributes[index].value[i];
           break;
         case GL_VERTEX_ATTRIB_ARRAY_DIVISOR:
-          *params =
-              static_cast<GLfloat>(object_state_->arrays[active_objects_.array]
-                                       .attributes[index]
-                                       .divisor);
+          *params = static_cast<GLfloat>(
+              container_state_->arrays[active_objects_.array].
+                  attributes[index].divisor);
           break;
         default:
           CheckGlEnum(false);
@@ -3546,39 +4013,38 @@ class MockVisual::ShadowState {
         CheckFunction("GetVertexAttribiv")) {
       switch (pname) {
         case GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING:
-          *params = object_state_->arrays[active_objects_.array].
+          *params = container_state_->arrays[active_objects_.array].
               attributes[index].buffer;
           break;
         case GL_VERTEX_ATTRIB_ARRAY_ENABLED:
-          *params = object_state_->arrays[active_objects_.array].
+          *params = container_state_->arrays[active_objects_.array].
               attributes[index].enabled;
           break;
         case GL_VERTEX_ATTRIB_ARRAY_SIZE:
-          *params = object_state_->arrays[active_objects_.array].
+          *params = container_state_->arrays[active_objects_.array].
               attributes[index].size;
           break;
         case GL_VERTEX_ATTRIB_ARRAY_STRIDE:
-          *params = object_state_->arrays[active_objects_.array].
+          *params = container_state_->arrays[active_objects_.array].
               attributes[index].stride;
           break;
         case GL_VERTEX_ATTRIB_ARRAY_TYPE:
-          *params = object_state_->arrays[active_objects_.array].
+          *params = container_state_->arrays[active_objects_.array].
               attributes[index].type;
           break;
         case GL_VERTEX_ATTRIB_ARRAY_NORMALIZED:
-          *params = object_state_->arrays[active_objects_.array].
+          *params = container_state_->arrays[active_objects_.array].
               attributes[index].normalized;
           break;
         case GL_CURRENT_VERTEX_ATTRIB:
           for (int i = 0; i < 4; ++i)
             params[i] = static_cast<GLint>(
-                object_state_->arrays[active_objects_.array].
+                container_state_->arrays[active_objects_.array].
                     attributes[index].value[i]);
           break;
         case GL_VERTEX_ATTRIB_ARRAY_DIVISOR:
-          *params = object_state_->arrays[active_objects_.array]
-                        .attributes[index]
-                        .divisor;
+          *params = container_state_->arrays[active_objects_.array].
+              attributes[index].divisor;
           break;
         default:
           CheckGlEnum(false);
@@ -3593,7 +4059,7 @@ class MockVisual::ShadowState {
     if (CheckGlEnum(pname == GL_VERTEX_ATTRIB_ARRAY_POINTER) &&
         CheckGlValue(index < kMaxVertexAttribs) &&
         CheckFunction("GetVertexAttribPointerv"))
-      *pointer = object_state_->arrays[active_objects_.array].
+      *pointer = container_state_->arrays[active_objects_.array].
           attributes[index].pointer;
   }
   void Hint(GLenum target, GLenum mode) {
@@ -3609,44 +4075,56 @@ class MockVisual::ShadowState {
     }
   }
   GLboolean IsBuffer(GLuint buffer) {
-    return (object_state_->buffers.count(buffer) &&
-            !object_state_->buffers[buffer].deleted) ? GL_TRUE
-                                                      : GL_FALSE;
+    bool result = IsBufferName(buffer) &&
+        !object_state_->buffers[buffer].bindings.empty();
+    return result ? GL_TRUE : GL_FALSE;
   }
   GLboolean IsEnabled(GLenum cap) {
     GLint index = GetAndVerifyCapabilityIndex(cap);
     // GL_INVALID_ENUM is generated if cap is not an accepted value.
-    if (CheckGlEnum(index >= 0 && index < kNumCapabilities))
-      return enabled_state_.test(index);
+    if (CheckGlEnum(index >= 0 &&
+                    index < static_cast<GLint>(enabled_state_.size())))
+      return enabled_state_[index];
     else
       return GL_FALSE;
   }
   GLboolean IsFramebuffer(GLuint framebuffer) {
-    return (object_state_->framebuffers.count(framebuffer) &&
-            !object_state_->framebuffers[framebuffer].deleted)
-               ? GL_TRUE
-               : GL_FALSE;
+    bool result = framebuffer == 0U || (IsFramebufferName(framebuffer) &&
+        !container_state_->framebuffers[framebuffer].bindings.empty());
+    return result ? GL_TRUE : GL_FALSE;
   }
   GLboolean IsProgram(GLuint program) {
-    return (object_state_->programs.count(program) &&
-            !object_state_->programs[program].deleted) ? GL_TRUE
-                                                        : GL_FALSE;
+    bool result = object_state_->programs.count(program) &&
+        (!object_state_->programs[program].deleted ||
+         program == active_objects_.program);
+    return result ? GL_TRUE : GL_FALSE;
   }
   GLboolean IsRenderbuffer(GLuint renderbuffer) {
-    return (object_state_->renderbuffers.count(renderbuffer) &&
-            !object_state_->renderbuffers[renderbuffer].deleted)
-               ? GL_TRUE
-               : GL_FALSE;
+    if (renderbuffer == 0) return GL_FALSE;
+    bool result = IsRenderbufferName(renderbuffer) &&
+        !object_state_->renderbuffers[renderbuffer].bindings.empty();
+    return result ? GL_TRUE : GL_FALSE;
   }
   GLboolean IsShader(GLuint shader) {
-    return (object_state_->shaders.count(shader) &&
-            !object_state_->shaders[shader].deleted) ? GL_TRUE
-                                                      : GL_FALSE;
+    bool result = object_state_->shaders.count(shader) &&
+        (!object_state_->shaders[shader].deleted ||
+         !object_state_->shaders[shader].programs.empty());
+    return result ? GL_TRUE : GL_FALSE;
   }
   GLboolean IsTexture(GLuint texture) {
-    return (object_state_->textures.count(texture) &&
-            !object_state_->textures[texture].deleted) ? GL_TRUE
-                                                        : GL_FALSE;
+    bool result = IsTextureName(texture) &&
+        !object_state_->textures[texture].bindings.empty();
+    return result ? GL_TRUE : GL_FALSE;
+  }
+  GLboolean IsTransformFeedback(GLuint id) {
+    bool result = IsTransformFeedbackName(id) &&
+        !container_state_->transform_feedbacks[id].bindings.empty();
+    return result ? GL_TRUE : GL_FALSE;
+  }
+  GLboolean IsVertexArray(GLuint array) {
+    bool result = IsVertexArrayName(array) &&
+        !container_state_->arrays[array].bindings.empty();
+    return result ? GL_TRUE : GL_FALSE;
   }
   void LineWidth(GLfloat width) {
     // GL_INVALID_VALUE is generated if width is less than or equal to 0.
@@ -3654,7 +4132,9 @@ class MockVisual::ShadowState {
       line_width_ = width;
   }
 
-  bool BindTransformFeedbackVaryings(const ProgramObject& po) {
+  // Internal method called at link time to resolve the varyings that have
+  // been requested for capture, translating them from strings to structs.
+  bool ResolveTransformFeedbackVaryings(ProgramObject* po) {
     // The program will fail to link if the following conditions are met:
     // (1) The count specified by TransformFeedbackVaryings is non-zero, but the
     // program object has no vertex or geometry shader.
@@ -3669,34 +4149,39 @@ class MockVisual::ShadowState {
     // (5) The total number of components to capture is greater than the
     // constant GL_MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS and the buffer
     // mode is GL_INTERLEAVED_ATTRIBS.
-    TransformFeedbackObject& tfo =
-        object_state_->transform_feedbacks[active_objects_.transform_feedback];
-    if ((!tfo.binding_point_status.empty() &&
-         object_state_->shaders[po.vertex_shader].compile_status != GL_TRUE) ||
-        (tfo.buffer_mode == GL_SEPARATE_ATTRIBS &&
-         static_cast<GLint>(tfo.binding_point_status.size()) >
-             kMaxTransformFeedbackSeparateComponents &&
-         kMaxTransformFeedbackSeparateComponents != -1) ||
-        (tfo.buffer_mode == GL_INTERLEAVED_ATTRIBS &&
-         static_cast<GLint>(tfo.binding_point_status.size()) >
-             kMaxTransformFeedbackInterleavedComponents &&
-         kMaxTransformFeedbackInterleavedComponents != -1)) {
+    ObjectState& os = *object_state_;
+    // Enforce (1).
+    if (po->requested_tf_varyings.empty())
+      return true;
+    if ((!po->vertex_shader && !po->geometry_shader) ||
+        (po->vertex_shader && !os.shaders[po->vertex_shader].compile_status) ||
+        (po->fragment_shader &&
+         !os.shaders[po->fragment_shader].compile_status) ||
+        (po->geometry_shader &&
+         !os.shaders[po->geometry_shader].compile_status))
       return false;
-    }
-    std::map<const std::string, const ProgramObject::Varying*>
+    // Don't bother enforcing (4) and (5) since it would be tedious to figure
+    // out the number of vector components in each requested varying.
+    // Create a string-to-varying map to help with enforcing (2) and (3).
+    std::map<const std::string, ProgramObject::Varying*>
         varyings_name_map;
-    for (int i = 0; i < static_cast<int>(po.varyings.size()); ++i) {
-      varyings_name_map[po.varyings[i].name] = &po.varyings[i];
-    }
-    for (int i = 0; i < static_cast<int>(tfo.binding_point_status.size());
-         ++i) {
-      if (varyings_name_map.find(*(tfo.varyings + i)) ==
-          varyings_name_map.end()) {
+    for (int i = 0; i < static_cast<int>(po->varyings.size()); ++i)
+      varyings_name_map[po->varyings[i].name] = &po->varyings[i];
+    for (const auto& varying_name : po->requested_tf_varyings) {
+      // Enforce (2) by checking if the program object has this varying.
+      if (varyings_name_map.find(varying_name) == varyings_name_map.end())
         return false;
-      }
-      tfo.binding_point_status[i] =
-          varyings_name_map[*(tfo.varyings + i)]->index;
-      varyings_name_map.erase(*(tfo.varyings + i));
+      // Enforce (3) by marking encountered varyings with nullptr.
+      if (!varyings_name_map[varying_name])
+        return false;
+      ProgramObject::Varying* varying = varyings_name_map[varying_name];
+      varyings_name_map[varying_name] = nullptr;
+      ProgramObjectData::ResolvedVarying resolved_varying = {
+        varying->name,
+        varying->size,
+        varying->type,
+      };
+      po->resolved_tf_varyings.push_back(resolved_varying);
     }
     return true;
   }
@@ -3706,40 +4191,44 @@ class MockVisual::ShadowState {
     // link_program_always_fails_ is set
     // GL_INVALID_VALUE is generated if program is not a value generated by
     // OpenGL.
-    if (CheckGlValue(object_state_->programs.count(program))) {
+    // GL_INVALID_OPERATION is generated if program is not a program object.
+    if (CheckProgram(program)) {
       ProgramObject& po = object_state_->programs[program];
-      // GL_INVALID_OPERATION is generated if program is not a program object.
-      if (CheckGlOperation(!po.deleted)) {
-        // The below tests do not handle all of the requirements for a
-        // successful link but cover the most obvious cases.
-        if (po.vertex_shader && po.fragment_shader &&
-            object_state_->shaders[po.vertex_shader].compile_status ==
-                GL_TRUE &&
-            object_state_->shaders[po.fragment_shader].compile_status ==
-                GL_TRUE) {
-          if (CheckFunction("LinkProgram")) {
-            // Add attributes and uniforms to the program.
-            ProgramObject old_po(po);
-            po.attributes.clear();
-            po.uniforms.clear();
-            po.varyings.clear();
-            po.max_uniform_location = 0U;
-            AddShaderInputs(&po,
-                object_state_->shaders[po.vertex_shader].source);
-            if (!BindTransformFeedbackVaryings(po)) {
-              po = old_po;
-              po.link_status = GL_FALSE;
-              po.info_log = "Cannot bind transform feedback varyings.";
-            } else {
-              AddShaderInputs(
-                  &po, object_state_->shaders[po.fragment_shader].source);
-              po.link_status = GL_TRUE;
-              po.info_log.clear();
-            }
-          } else {
+      // The below tests do not handle all of the requirements for a
+      // successful link but cover the most obvious cases.
+      if (po.vertex_shader && po.fragment_shader &&
+          object_state_->shaders[po.vertex_shader].compile_status ==
+              GL_TRUE &&
+          object_state_->shaders[po.fragment_shader].compile_status ==
+              GL_TRUE &&
+          (po.geometry_shader == 0U ||
+           object_state_->shaders[po.fragment_shader].compile_status ==
+               GL_TRUE)) {
+        if (CheckFunction("LinkProgram")) {
+          // Add attributes and uniforms to the program.
+          ProgramObject old_po(po);
+          po.attributes.clear();
+          po.uniforms.clear();
+          po.varyings.clear();
+          po.max_uniform_location = 0U;
+          AddShaderInputs(&po, GL_VERTEX_SHADER,
+              object_state_->shaders[po.vertex_shader].source);
+          if (po.geometry_shader != 0U)
+            AddShaderInputs(&po, GL_GEOMETRY_SHADER,
+                object_state_->shaders[po.geometry_shader].source);
+          if (!ResolveTransformFeedbackVaryings(&po)) {
+            po = old_po;
             po.link_status = GL_FALSE;
-            po.info_log = "Program linking is set to always fail.";
+            po.info_log = "Cannot bind transform feedback varyings.";
+          } else {
+            AddShaderInputs(&po, GL_FRAGMENT_SHADER,
+                object_state_->shaders[po.fragment_shader].source);
+            po.link_status = GL_TRUE;
+            po.info_log.clear();
           }
+        } else {
+          po.link_status = GL_FALSE;
+          po.info_log = "Program linking is set to always fail.";
         }
       }
     }
@@ -3936,32 +4425,8 @@ class MockVisual::ShadowState {
   }
   void RenderbufferStorage(GLenum target, GLenum internalformat, GLsizei width,
                            GLsizei height) {
-    // GL_INVALID_ENUM is generated if target is not GL_RENDERBUFFER.
-    // GL_INVALID_ENUM is generated if internalformat is not an accepted format.
-    // GL_INVALID_VALUE is generated if width or height is less than zero or
-    // greater than GL_MAX_RENDERBUFFER_SIZE.
-    // GL_OUT_OF_MEMORY is generated if the implementation is unable to create
-    // a data store with the requested width and height.
-    // GL_INVALID_OPERATION is generated if the reserved renderbuffer object
-    // name 0 is bound.
-    if (CheckGlEnum(
-            target == GL_RENDERBUFFER &&
-            (gfx::FramebufferObject::IsColorRenderable(internalformat) ||
-             gfx::FramebufferObject::IsDepthRenderable(internalformat) ||
-             gfx::FramebufferObject::IsStencilRenderable(internalformat))) &&
-        CheckGlValue(width >= 0 && width < kMaxRenderbufferSize &&
-                     height >= 0 && height < kMaxRenderbufferSize) &&
-        CheckGlOperation(active_objects_.renderbuffer != 0U) &&
-        CheckFunction("RenderbufferStorage")) {
-      // The out of memory error is ignored here since no allocation is done.
-      RenderbufferObject& r =
-          object_state_->renderbuffers[active_objects_.renderbuffer];
-      r.width = width;
-      r.height = height;
-      r.internal_format = internalformat;
-      SetColorsFromInternalFormat(internalformat, &r);
-      CheckGlMemory(ComputeRenderbufferObjectSize(r));
-    }
+    if (!CheckFunction("RenderbufferStorage")) return;
+    SetRenderbufferStorage(target, 0, internalformat, width, height, false);
   }
   void SampleCoverage(GLfloat value, GLboolean invert) {
     sample_coverage_value_ = Clampf(value);
@@ -3998,8 +4463,7 @@ class MockVisual::ShadowState {
     // OpenGL.
     // GL_INVALID_OPERATION is generated if shader is not a shader object.
     // GL_INVALID_VALUE is generated if count is less than 0.
-    if (CheckGlValue(object_state_->shaders.count(shader) && count >= 0) &&
-        CheckGlOperation(!object_state_->shaders[shader].deleted) &&
+    if (CheckShader(shader) && CheckGlValue(count >= 0) &&
         CheckFunction("ShaderSource")) {
       for (GLsizei i = 0; i < count; ++i)
         object_state_->shaders[shader].source.append(string[i]);
@@ -4091,7 +4555,7 @@ class MockVisual::ShadowState {
             // GL_INVALID_VALUE is generated if target is one of the six cube
             // map 2D image targets and the width and height parameters are not
             // equal.
-            ((IsCubeMapTarget(target) && width == height) ||
+            ((IsCubeFaceTarget(target) && width == height) ||
              IsTexture2dTarget(target)) &&
             // GL_INVALID_VALUE is generated if level is less than 0.
             // GL_INVALID_VALUE may be generated if level is greater than
@@ -4189,7 +4653,7 @@ class MockVisual::ShadowState {
     // accepted defined values.
     // GL_INVALID_ENUM is generated if params should have a defined symbolic
     // constant value (based on the value of pname) and does not.
-    if (CheckTextureTarget(target)) {
+    if (CheckGlEnum(IsTextureTarget(target))) {
       const GLuint texture = GetActiveTexture(target);
       TextureObject& to = object_state_->textures[texture];
       switch (pname) {
@@ -4232,6 +4696,12 @@ class MockVisual::ShadowState {
           break;
         case GL_TEXTURE_MIN_LOD:
           to.min_lod = static_cast<GLfloat>(param);
+          break;
+        case GL_TEXTURE_PROTECTED_EXT:
+          if (CheckGlValue(static_cast<GLint>(param) == GL_TRUE ||
+                           static_cast<GLint>(param) == GL_FALSE)) {
+            to.is_protected = static_cast<GLint>(param) ? GL_TRUE : GL_FALSE;
+          }
           break;
         case GL_TEXTURE_SWIZZLE_R:
           if (CheckColorChannelEnum(static_cast<GLenum>(param)))
@@ -4475,35 +4945,26 @@ class MockVisual::ShadowState {
                                                    count, transpose, value);
   }
   void UseProgram(GLuint program) {
+    if (!CheckFunction("UseProgram")) return;
     // GL_INVALID_VALUE is generated if program is neither 0 nor a value
     // generated by OpenGL.
-    if (CheckGlValue(program == 0U ||
-                     object_state_->programs.count(program))) {
-      // GL_INVALID_OPERATION is generated if program is not a program object.
-      // GL_INVALID_OPERATION is generated if program could not be made part
-      // of current state.
-      if (program) {
-        if (CheckGlOperation(!object_state_->programs[program].deleted &&
-                             object_state_->programs[program].link_status) &&
-            CheckFunction("UseProgram")) {
-          object_state_->programs[program].bindings.push_back(GetCallCount());
-          active_objects_.program = program;
-        }
-      } else {
-        active_objects_.program = program;
-      }
+    // GL_INVALID_OPERATION is generated if program is not a program object.
+    // GL_INVALID_OPERATION is generated if program could not be made part
+    // of current state.
+    if (program != 0U) {
+      if (!CheckProgram(program)) return;
+      if (!CheckGlOperation(object_state_->programs[program].link_status))
+        return;
+      object_state_->programs[program].bindings.push_back(GetCallCount());
     }
+    active_objects_.program = program;
   }
   void ValidateProgram(GLuint program) {
     // GL_INVALID_OPERATION is generated if program is not a program object.
     // GL_INVALID_VALUE is generated if program is not a value generated by
     // OpenGL.
-    if (CheckGlValue(object_state_->programs.count(program))) {
-      ProgramObject& po = object_state_->programs[program];
-      // GL_INVALID_OPERATION is generated if program is not a program object.
-      if (CheckGlOperation(!po.deleted) && CheckFunction("ValidateProgram")) {
-        po.validate_status = GL_TRUE;
-      }
+    if (CheckProgram(program) && CheckFunction("ValidateProgram")) {
+      object_state_->programs[program].validate_status = GL_TRUE;
     }
   }
   void SetSimpleAttributeFields(ArrayObject::Attribute* attr) {
@@ -4512,7 +4973,7 @@ class MockVisual::ShadowState {
     attr->type = GL_FLOAT;
     attr->enabled = GL_TRUE;
     attr->normalized = GL_FALSE;
-    attr->pointer = NULL;
+    attr->pointer = nullptr;
   }
 
   void VertexAttrib1f(GLint index, GLfloat v0) {
@@ -4521,10 +4982,8 @@ class MockVisual::ShadowState {
     if (CheckGlValue(index < static_cast<GLint>(kMaxVertexAttribs)) &&
         CheckFunction("VertexAttrib1f")) {
       // Simple attributes affect global state.
-      for (std::map<GLuint, ArrayObject>::iterator it =
-               object_state_->arrays.begin();
-           it != object_state_->arrays.end(); ++it) {
-        ArrayObject::Attribute& attr = it->second.attributes[index];
+      for (auto& entry : container_state_->arrays) {
+        ArrayObject::Attribute& attr = entry.second.attributes[index];
         // Only update the attribute if it is not a buffer attribute.
         if (!attr.buffer) {
           attr.value.Set(v0, 0.f, 0.f, 1.f);
@@ -4543,10 +5002,8 @@ class MockVisual::ShadowState {
     if (CheckGlValue(index < static_cast<GLint>(kMaxVertexAttribs)) &&
         CheckFunction("VertexAttrib2f")) {
       // Simple attributes affect global state.
-      for (std::map<GLuint, ArrayObject>::iterator it =
-               object_state_->arrays.begin();
-           it != object_state_->arrays.end(); ++it) {
-        ArrayObject::Attribute& attr = it->second.attributes[index];
+      for (auto& entry : container_state_->arrays) {
+        ArrayObject::Attribute& attr = entry.second.attributes[index];
         // Only update the attribute if it is not a buffer attribute.
         if (!attr.buffer) {
           attr.value.Set(v0, v1, 0.f, 1.f);
@@ -4565,10 +5022,8 @@ class MockVisual::ShadowState {
     if (CheckGlValue(index < static_cast<GLint>(kMaxVertexAttribs)) &&
         CheckFunction("VertexAttrib3f")) {
       // Simple attributes affect global state.
-      for (std::map<GLuint, ArrayObject>::iterator it =
-               object_state_->arrays.begin();
-           it != object_state_->arrays.end(); ++it) {
-        ArrayObject::Attribute& attr = it->second.attributes[index];
+      for (auto& entry : container_state_->arrays) {
+        ArrayObject::Attribute& attr = entry.second.attributes[index];
         // Only update the attribute if it is not a buffer attribute.
         if (!attr.buffer) {
           attr.value.Set(v0, v1, v2, 1.f);
@@ -4588,10 +5043,8 @@ class MockVisual::ShadowState {
     if (CheckGlValue(index < static_cast<GLint>(kMaxVertexAttribs)) &&
         CheckFunction("VertexAttrib4f")) {
       // Simple attributes affect global state.
-      for (std::map<GLuint, ArrayObject>::iterator it =
-               object_state_->arrays.begin();
-           it != object_state_->arrays.end(); ++it) {
-        ArrayObject::Attribute& attr = it->second.attributes[index];
+      for (auto& entry : container_state_->arrays) {
+        ArrayObject::Attribute& attr = entry.second.attributes[index];
         // Only update the attribute if it is not a buffer attribute.
         if (!attr.buffer) {
           attr.value.Set(v0, v1, v2, v3);
@@ -4616,10 +5069,11 @@ class MockVisual::ShadowState {
         // GL_INVALID_ENUM is generated if type is not an accepted value.
         CheckGlEnum(type == GL_BYTE || type == GL_UNSIGNED_BYTE ||
                     type == GL_SHORT || type == GL_UNSIGNED_SHORT ||
+                    type == GL_INT || type == GL_UNSIGNED_INT ||
                     type == GL_FIXED || type == GL_FLOAT) &&
         CheckFunction("VertexAttribPointer")) {
       ArrayObject::Attribute& attr =
-          object_state_->arrays[active_objects_.array].attributes[index];
+          container_state_->arrays[active_objects_.array].attributes[index];
       attr.buffer = active_objects_.buffer;
       attr.size = size;
       attr.type = type;
@@ -4635,7 +5089,7 @@ class MockVisual::ShadowState {
     if (CheckGlValue(index < kMaxVertexAttribs) &&
         CheckFunction("VertexAttribDivisor")) {
       ArrayObject::Attribute& attr =
-          object_state_->arrays[active_objects_.array].attributes[index];
+          container_state_->arrays[active_objects_.array].attributes[index];
       attr.divisor = divisor;
     }
   }
@@ -4678,30 +5132,30 @@ class MockVisual::ShadowState {
               label);
           break;
         case GL_FRAMEBUFFER:
-          GetLabelFromObject(&object_state_->framebuffers, object, bufSize,
+          GetLabelFromObject(&container_state_->framebuffers, object, bufSize,
               length, label);
           break;
         case GL_RENDERBUFFER:
           GetLabelFromObject(&object_state_->renderbuffers, object, bufSize,
               length, label);
           break;
-        case GL_BUFFER_OBJECT:
+        case GL_BUFFER_OBJECT_EXT:
           GetLabelFromObject(&object_state_->buffers, object, bufSize, length,
               label);
           break;
-        case GL_SHADER_OBJECT:
+        case GL_SHADER_OBJECT_EXT:
           GetLabelFromObject(&object_state_->shaders, object, bufSize, length,
               label);
           break;
-        case GL_PROGRAM_OBJECT:
+        case GL_PROGRAM_OBJECT_EXT:
           GetLabelFromObject(&object_state_->programs, object, bufSize, length,
               label);
           break;
-        case GL_VERTEX_ARRAY_OBJECT:
-          GetLabelFromObject(&object_state_->arrays, object, bufSize, length,
+        case GL_VERTEX_ARRAY_OBJECT_EXT:
+          GetLabelFromObject(&container_state_->arrays, object, bufSize, length,
               label);
           break;
-        case GL_QUERY_OBJECT:
+        case GL_QUERY_OBJECT_EXT:
           // TODO(user): Support query objects.
           break;
         case GL_SAMPLER:
@@ -4709,9 +5163,10 @@ class MockVisual::ShadowState {
               label);
           break;
         case GL_TRANSFORM_FEEDBACK:
-          // TODO(user): Support transform feedback.
+          GetLabelFromObject(&container_state_->transform_feedbacks, object,
+                             bufSize, length, label);
           break;
-        case GL_PROGRAM_PIPELINE_OBJECT:
+        case GL_PROGRAM_PIPELINE_OBJECT_EXT:
           // TODO(user): Support separate programs.
           break;
         default:
@@ -4744,33 +5199,36 @@ class MockVisual::ShadowState {
           SetObjectLabel(&object_state_->textures, object, length, label);
           break;
         case GL_FRAMEBUFFER:
-          SetObjectLabel(&object_state_->framebuffers, object, length, label);
+          SetObjectLabel(&container_state_->framebuffers, object, length,
+                         label);
           break;
         case GL_RENDERBUFFER:
           SetObjectLabel(&object_state_->renderbuffers, object, length, label);
           break;
-        case GL_BUFFER_OBJECT:
+        case GL_BUFFER_OBJECT_EXT:
           SetObjectLabel(&object_state_->buffers, object, length, label);
           break;
-        case GL_SHADER_OBJECT:
+        case GL_SHADER_OBJECT_EXT:
           SetObjectLabel(&object_state_->shaders, object, length, label);
           break;
-        case GL_PROGRAM_OBJECT:
+        case GL_PROGRAM_OBJECT_EXT:
           SetObjectLabel(&object_state_->programs, object, length, label);
           break;
-        case GL_VERTEX_ARRAY_OBJECT:
-          SetObjectLabel(&object_state_->arrays, object, length, label);
+        case GL_VERTEX_ARRAY_OBJECT_EXT:
+          SetObjectLabel(&container_state_->arrays, object, length, label);
           break;
-        case GL_QUERY_OBJECT:
+        case GL_QUERY_OBJECT_EXT:
           // TODO(user): Support query objects.
           break;
         case GL_SAMPLER:
           SetObjectLabel(&object_state_->samplers, object, length, label);
           break;
         case GL_TRANSFORM_FEEDBACK:
-          // TODO(user): Support transform feedback.
+          SetObjectLabel(&container_state_->transform_feedbacks, object, length,
+                         label);
           break;
-        case GL_PROGRAM_PIPELINE_OBJECT:
+          break;
+        case GL_PROGRAM_PIPELINE_OBJECT_EXT:
           // TODO(user): Support separate programs.
           break;
         default:
@@ -4925,35 +5383,68 @@ class MockVisual::ShadowState {
     }
   }
 
-  // ChooseBuffer group.
+  // DrawBuffer, DrawBuffers and ReadBuffer groups.
+  // Implemented together for clarity.
   void DrawBuffer(GLenum buffer) {
-    if (CheckGlEnum(buffer == GL_NONE ||
-                    buffer == GL_FRONT_LEFT ||
-                    buffer == GL_FRONT_RIGHT ||
-                    buffer == GL_BACK_LEFT ||
-                    buffer == GL_BACK_RIGHT ||
-                    buffer == GL_FRONT ||
-                    buffer == GL_BACK ||
-                    buffer == GL_LEFT ||
-                    buffer == GL_RIGHT ||
-                    buffer == GL_FRONT_AND_BACK ||
-                    buffer == GL_COLOR_ATTACHMENT0)) {
-      draw_buffer_ = buffer;
+    // TODO(user): it seems to me that, for example, GL_FRONT_AND_BACK
+    // should actually translate into {GL_BACK_LEFT, GL_FRONT_LEFT,
+    // GL_BACK_RIGHT, GL_FRONT_RIGHT} when accessed via GL_DRAW_BUFFERi.
+    // Need to test on an actual GL implementation.
+    if (CheckDrawBuffer(GL_DRAW_FRAMEBUFFER, buffer)) {
+      FramebufferObject& draw_fbo =
+          container_state_->framebuffers[active_objects_.draw_framebuffer];
+      draw_fbo.draw_buffers[0] = buffer;
+      for (uint i = 1; i < kMaxDrawBuffers; ++i) {
+        draw_fbo.draw_buffers[i] = GL_NONE;
+      }
     }
   }
   void ReadBuffer(GLenum buffer) {
-    if (CheckGlEnum(buffer == GL_NONE ||
-                    buffer == GL_FRONT_LEFT ||
-                    buffer == GL_FRONT_RIGHT ||
-                    buffer == GL_BACK_LEFT ||
-                    buffer == GL_BACK_RIGHT ||
-                    buffer == GL_FRONT ||
-                    buffer == GL_BACK ||
-                    buffer == GL_LEFT ||
-                    buffer == GL_RIGHT ||
-                    buffer == GL_FRONT_AND_BACK ||
-                    buffer == GL_COLOR_ATTACHMENT0)) {
-      read_buffer_ = buffer;
+    if (CheckDrawBuffer(GL_READ_FRAMEBUFFER, buffer)) {
+      // GL_FRONT_AND_BACK is not a valid value for reading.
+      if (!CheckGlEnum(buffer != GL_FRONT_AND_BACK)) return;
+      FramebufferObject& read_fbo =
+          container_state_->framebuffers[active_objects_.read_framebuffer];
+      read_fbo.read_buffer = buffer;
+    }
+  }
+  void DrawBuffers(GLsizei n, const GLenum* bufs) {
+    // GL_INVALID_ENUM is generated if n is less than 0.
+    // GL_INVALID_VALUE is generated if n is greater than GL_MAX_DRAW_BUFFERS.
+    if (CheckGlEnum(n >= 0) &&
+        CheckGlValue(n <= static_cast<GLsizei>(kMaxDrawBuffers))) {
+      std::unordered_set<GLenum> values;
+      for (GLsizei i = 0; i < n; ++i) {
+        // GL_INVALID_ENUM is generated if one of the values in bufs is not an
+        // accepted value.
+        // GL_INVALID_ENUM is generated if the API call refers to the default
+        // framebuffer and one or more of the values in bufs is one of the
+        // GL_COLOR_ATTACHMENTn tokens.
+        // GL_INVALID_ENUM is generated if the API call refers to a framebuffer
+        // object and one or more of the values in bufs is anything other than
+        // GL_NONE or one of the GL_COLOR_ATTACHMENTn tokens.
+        if (!CheckDrawBuffer(GL_DRAW_FRAMEBUFFER, bufs[i])) return;
+        // "The symbolic constants GL_FRONT, GL_BACK, GL_LEFT, GL_RIGHT, and
+        // GL_FRONT_AND_BACK are not allowed in the bufs array since they may
+        // refer to multiple buffers." (But GL_BACK is apparently allowed after
+        // all, since this is implied by one of the mentioned error conditions.)
+        if (!CheckGlEnum(bufs[i] != GL_FRONT && bufs[i] != GL_LEFT &&
+                         bufs[i] != GL_RIGHT && bufs[i] != GL_FRONT_AND_BACK))
+          return;
+        // GL_INVALID_OPERATION is generated if any value in bufs is GL_BACK,
+        // and n is not one.
+        if (!CheckGlOperation(bufs[i] != GL_BACK || n == 1)) return;
+        // GL_INVALID_OPERATION is generated if a symbolic constant other than
+        // GL_NONE appears more than once in bufs.
+        if (!CheckGlOperation(bufs[i] == GL_NONE ||
+                              values.insert(bufs[i]).second)) return;
+      }
+      FramebufferObject& draw_fbo =
+          container_state_->framebuffers[active_objects_.draw_framebuffer];
+      for (uint i = 0; i < kMaxDrawBuffers; ++i) {
+        draw_fbo.draw_buffers[i] =
+            static_cast<GLsizei>(i) < n ? bufs[i] : GL_NONE;
+      }
     }
   }
 
@@ -5016,52 +5507,56 @@ class MockVisual::ShadowState {
     }
   }
 
-  // FramebufferMultisample group.
+  // RenderbufferMultisample group.
   void RenderbufferStorageMultisample(GLenum target, GLsizei samples,
                                       GLenum internalformat, GLsizei width,
                                       GLsizei height) {
-    // GL_INVALID_ENUM is generated if target is not GL_RENDERBUFFER.
-    // GL_INVALID_ENUM is generated if internalformat is not an accepted format.
-    // GL_INVALID_VALUE is generated if samples is greater than GL_MAX_SAMPLES.
-    // GL_INVALID_VALUE is generated if width or height is less than zero or
-    // greater than GL_MAX_RENDERBUFFER_SIZE.
-    // GL_OUT_OF_MEMORY is generated if the implementation is unable to create
-    // a data store with the requested width and height.
-    // GL_INVALID_OPERATION is generated if the reserved renderbuffer object
-    // name 0 is bound.
-    if (CheckGlEnum(
-            target == GL_RENDERBUFFER &&
-            (gfx::FramebufferObject::IsColorRenderable(internalformat) ||
-             gfx::FramebufferObject::IsDepthRenderable(internalformat) ||
-             gfx::FramebufferObject::IsStencilRenderable(internalformat))) &&
-        CheckGlValue(samples <= kMaxSamples) &&
-        CheckGlValue(width >= 0 && width < kMaxRenderbufferSize &&
-                     height >= 0 && height < kMaxRenderbufferSize) &&
-        CheckGlOperation(active_objects_.renderbuffer != 0U) &&
-        CheckFunction("RenderbufferStorageMultisample")) {
-      // The out of memory error is ignored here since no allocation is done.
-      RenderbufferObject& r =
-          object_state_->renderbuffers[active_objects_.renderbuffer];
-      r.width = width;
-      r.height = height;
-      r.internal_format = internalformat;
-      r.multisample_samples = samples;
-      SetColorsFromInternalFormat(internalformat, &r);
-      CheckGlMemory(ComputeRenderbufferObjectSize(r));
-    }
+    if (!CheckFunction("RenderbufferStorageMultisample")) return;
+    SetRenderbufferStorage(target, samples, internalformat, width, height,
+                           false);
+  }
+
+  // FramebufferTextureLayer group.
+  void FramebufferTextureLayer(GLenum target, GLenum attachment, GLuint texture,
+                               GLint level, GLint layer) {
+    // GL_INVALID_VALUE is generated if texture is not zero and layer is
+    // negative.
+    if (texture != 0U && !CheckGlValue(layer >= 0)) return;
+    if (!CheckFunction("FramebufferTextureLayer")) return;
+    // There is an empty "default" texture at index 0.
+    const GLenum textarget = object_state_->textures[texture].target;
+    SetFramebufferTexture(target, attachment, textarget, texture, level, layer,
+                          0, 0);
+  }
+
+  // ImplicitMultisample group.
+  void FramebufferTexture2DMultisampleEXT(GLenum target, GLenum attachment,
+                                          GLenum textarget, GLuint texture,
+                                          GLint level, GLsizei samples) {
+    if (!CheckGlEnum(textarget != GL_TEXTURE_2D_MULTISAMPLE)) return;
+    if (!CheckFunction("FramebufferTexture2DMultisampleEXT")) return;
+    SetFramebufferTexture(target, attachment, textarget, texture, level, -1, 0,
+                          samples);
+  }
+  void RenderbufferStorageMultisampleEXT(GLenum target, GLsizei samples,
+                                         GLenum internalformat, GLsizei width,
+                                         GLsizei height) {
+    if (!CheckFunction("RenderbufferStorageMultisampleEXT")) return;
+    SetRenderbufferStorage(target, samples, internalformat, width, height,
+                           true);
   }
 
   // MultisampleFramebufferResolve group.
   void ResolveMultisampleFramebuffer() {
     FramebufferObject& read_frameBuffer =
-        object_state_->framebuffers[active_objects_.read_framebuffer];
+        container_state_->framebuffers[active_objects_.read_framebuffer];
     FramebufferObject& draw_frameBuffer =
-        object_state_->framebuffers[active_objects_.draw_framebuffer];
+        container_state_->framebuffers[active_objects_.draw_framebuffer];
 
     RenderbufferObject& colorBufferReadBuffer =
-        object_state_->renderbuffers[read_frameBuffer.color0.value];
+        object_state_->renderbuffers[read_frameBuffer.color[0].value];
     RenderbufferObject& colorBufferDrawbuffer =
-        object_state_->renderbuffers[draw_frameBuffer.color0.value];
+        object_state_->renderbuffers[draw_frameBuffer.color[0].value];
 
     // From: https://www.khronos.org/registry/gles/extensions/APPLE/
     // APPLE_framebuffer_multisample.txt
@@ -5079,8 +5574,8 @@ class MockVisual::ShadowState {
     // DRAW_FRAMEBUFFER_APPLE and READ_FRAMEBUFFER_APPLE are not framebuffer
     // complete (see section 4.4.5)."
     if (CheckFunction("ResolveMultisampleFramebuffer") &&
-        CheckGlOperation(read_frameBuffer.color0.value != 0) &&
-        CheckGlOperation(draw_frameBuffer.color0.value != 0) &&
+        CheckGlOperation(read_frameBuffer.color[0].value != 0) &&
+        CheckGlOperation(draw_frameBuffer.color[0].value != 0) &&
         CheckGlOperation(colorBufferReadBuffer.multisample_samples > 0) &&
         CheckGlOperation(colorBufferDrawbuffer.multisample_samples == 0) &&
         CheckGlOperation(
@@ -5103,7 +5598,7 @@ class MockVisual::ShadowState {
   void* MapBuffer(GLenum target, GLenum access) {
     // GL_INVALID_ENUM is generated if target is not one of the accepted
     // targets.
-    void* data = NULL;
+    void* data = nullptr;
     if (CheckBufferTarget(target) &&
         // GL_INVALID_ENUM is generated if access is not GL_READ_ONLY,
         // GL_WRITE_ONLY, or GL_READ_WRITE.
@@ -5120,7 +5615,7 @@ class MockVisual::ShadowState {
       BufferObject& bo = object_state_->buffers[index];
       // GL_INVALID_OPERATION is generated if glMapBuffer is executed for a
       // buffer object whose data store is already mapped.
-      if (CheckGlOperation(bo.mapped_data == NULL)) {
+      if (CheckGlOperation(bo.mapped_data == nullptr)) {
         data = bo.mapped_data = bo.data;
         bo.mapped_range.Set(0, static_cast<unsigned int>(bo.size));
         bo.access =
@@ -5131,6 +5626,32 @@ class MockVisual::ShadowState {
       }
     }
     return data;
+  }
+
+  // Multiview group.
+  void FramebufferTextureMultiviewOVR(GLenum target, GLenum attachment,
+                                      GLuint texture, GLint level,
+                                      GLint base_view_index,
+                                      GLsizei num_views) {
+    if (!CheckGlValue(texture == 0U || num_views >= 1)) return;
+    const GLenum textarget = object_state_->textures[texture].target;
+    SetFramebufferTexture(target, attachment, textarget, texture, level,
+                          base_view_index, num_views, 0);
+  }
+
+  // MultiviewImplicitMultisample group.
+  void FramebufferTextureMultisampleMultiviewOVR(GLenum target,
+                                                 GLenum attachment,
+                                                 GLuint texture, GLint level,
+                                                 GLsizei samples,
+                                                 GLint base_view_index,
+                                                 GLsizei num_views) {
+    if (!CheckGlValue(texture == 0U || num_views >= 1)) return;
+    const GLenum textarget = object_state_->textures[texture].target;
+    if (!CheckGlOperation(texture == 0U || textarget == GL_TEXTURE_2D_ARRAY))
+      return;
+    SetFramebufferTexture(target, attachment, textarget, texture, level,
+                          base_view_index, num_views, samples);
   }
 
   // GpuShader4 group.
@@ -5171,8 +5692,9 @@ class MockVisual::ShadowState {
   }
   void DrawArraysInstanced(GLenum mode, GLint first, GLsizei count,
                            GLsizei primCount) {
+    GLuint tfo_id = active_objects_.transform_feedback;
     TransformFeedbackObject& tfo =
-        object_state_->transform_feedbacks[active_objects_.transform_feedback];
+        container_state_->transform_feedbacks[tfo_id];
     // GL_INVALID_ENUM is generated if mode is not an accepted value.
     // GL_INVALID_VALUE is generated if count or primCount is negative.
     // GL_INVALID_OPERATION is generated if a non-zero buffer object name is
@@ -5183,9 +5705,8 @@ class MockVisual::ShadowState {
     if (CheckDrawMode(mode) && CheckGlValue(count >= 0 && primCount >= 0) &&
         (active_objects_.buffer == 0 ||
          CheckGlOperation(object_state_->buffers[active_objects_.buffer].data !=
-                          NULL)) &&
-        CheckGlOperation(tfo.status != GL_TRANSFORM_FEEDBACK_ACTIVE ||
-                         tfo.primitive_mode == mode) &&
+                          nullptr)) &&
+        CheckGlOperation(!tfo.active || tfo.primitive_mode == mode) &&
         CheckFunction("DrawArraysInstanced")) {
       // There is nothing to do since we do not implement draw functions.
     }
@@ -5205,18 +5726,35 @@ class MockVisual::ShadowState {
         CheckGlEnum(type == GL_UNSIGNED_BYTE || type == GL_UNSIGNED_INT ||
                     type == GL_UNSIGNED_SHORT) &&
         (active_objects_.buffer == 0 ||
-         (CheckGlOperation(
-             object_state_->buffers[active_objects_.buffer].data != NULL))) &&
+         CheckGlOperation(
+             object_state_->buffers[active_objects_.buffer].data != nullptr)) &&
         (active_objects_.index_buffer == 0 ||
-         (CheckGlOperation(
+         CheckGlOperation(
              object_state_->buffers[active_objects_.index_buffer].data !=
-             NULL))) &&
+                 nullptr)) &&
         CheckGlOperation(
-            object_state_
-                ->transform_feedbacks[active_objects_.transform_feedback]
-                .status != GL_TRANSFORM_FEEDBACK_ACTIVE) &&
+            !container_state_
+                 ->transform_feedbacks[active_objects_.transform_feedback]
+                 .active) &&
         CheckFunction("DrawElementsInstanced")) {
       // There is nothing to do since we do not implement draw functions.
+    }
+  }
+
+  // InvalidateFramebuffer group.
+  void InvalidateFramebuffer(GLenum target, GLsizei numAttachments,
+                             const GLenum *attachments) {
+    // Only check arguments here, since this is just a performance hint.
+    if (CheckFunction("InvalidateFramebuffer")) {
+      CheckInvalidateFramebufferArgs(target, numAttachments, attachments);
+    }
+  }
+  void InvalidateSubFramebuffer(GLenum target, GLsizei numAttachments,
+                                const GLenum *attachments, GLint x, GLint y,
+                                GLsizei width, GLsizei height) {
+    // Only check arguments here, since this is just a performance hint.
+    if (CheckFunction("InvalidateSubFramebuffer")) {
+      CheckInvalidateFramebufferArgs(target, numAttachments, attachments);
     }
   }
 
@@ -5243,15 +5781,15 @@ class MockVisual::ShadowState {
         CheckFunction("UnmapBuffer")) {
       GLuint index = GetBufferIndex(target);
       BufferObject& bo = object_state_->buffers[index];
-      if (CheckGlOperation(bo.mapped_data != NULL)) {
-        bo.mapped_data = NULL;
+      if (CheckGlOperation(bo.mapped_data != nullptr)) {
+        bo.mapped_data = nullptr;
         bo.access = 0;
       }
     }
   }
 
   // MapBufferRange group.
-  GLsync FlushMappedBufferRange(GLenum target, GLintptr offset,
+  void FlushMappedBufferRange(GLenum target, GLintptr offset,
                                 GLsizeiptr length) {
     // GL_INVALID_VALUE is generated if offset or length is negative, or if
     // offset + length exceeds the size of the mapping.
@@ -5263,15 +5801,13 @@ class MockVisual::ShadowState {
         CheckFunction("FlushMappedBufferRange")) {
       GLuint index = GetBufferIndex(target);
       BufferObject& bo = object_state_->buffers[index];
-      if (CheckGlOperation(bo.mapped_data != NULL &&
+      if (CheckGlOperation(bo.mapped_data != nullptr &&
                            (bo.access & GL_MAP_FLUSH_EXPLICIT_BIT)) &&
           CheckGlValue(static_cast<uint32>(offset + length) <
                        bo.mapped_range.GetSize())) {
         // Nothing to do since we return explicit pointers into the data.
       }
     }
-    // Sync objects are platform dependent, so just return a default one.
-    return GLsync();
   }
 
   void* MapBufferRange(GLenum target, GLintptr offset, GLsizeiptr length,
@@ -5304,7 +5840,7 @@ class MockVisual::ShadowState {
                                        GL_MAP_INVALIDATE_BUFFER_BIT |
                                        GL_MAP_UNSYNCHRONIZED_BIT;
     static const GLuint kBadWriteBits = GL_MAP_FLUSH_EXPLICIT_BIT;
-    void* data = NULL;
+    void* data = nullptr;
     if (CheckBufferTarget(target) && CheckBufferZeroNotBound(target) &&
         CheckGlValue(offset >= 0 && length >= 0 &&
                      (access & kAllBadBits) == 0) &&
@@ -5315,7 +5851,7 @@ class MockVisual::ShadowState {
         CheckFunction("MapBufferRange")) {
       GLuint index = GetBufferIndex(target);
       BufferObject& bo = object_state_->buffers[index];
-      if (CheckGlOperation(bo.mapped_data == NULL) &&
+      if (CheckGlOperation(bo.mapped_data == nullptr) &&
           CheckGlValue(offset + length <= bo.size)) {
         uint8* int_data = reinterpret_cast<uint8*>(bo.data);
         data = bo.mapped_data = &int_data[offset];
@@ -5340,8 +5876,7 @@ class MockVisual::ShadowState {
     // previously returned from a call to glGenSamplers, or if such a name has
     // been deleted by a call to glDeleteSamplers.
     if (CheckGlValue(unit < kMaxCombinedTextureImageUnits) &&
-        CheckGlOperation(!sampler || (object_state_->samplers.count(sampler) &&
-            !object_state_->samplers[sampler].deleted)) &&
+        CheckGlOperation(sampler == 0U || IsSampler(sampler)) &&
         CheckFunction("BindSampler"))
       image_units_[unit].sampler = sampler;
   }
@@ -5351,7 +5886,7 @@ class MockVisual::ShadowState {
       for (GLsizei i = 0; i < n; ++i) {
         // glDeleteSamplers silently ignores 0's and names that do not
         // correspond to existing sampler objects.
-        if (samplers[i] != 0U && object_state_->samplers.count(samplers[i])) {
+        if (samplers[i] != 0U && IsSampler(samplers[i])) {
           // Reset the array object.
           object_state_->samplers[samplers[i]] = SamplerObject();
           // Mark the array as deleted, so that it cannot be reused.
@@ -5385,8 +5920,7 @@ class MockVisual::ShadowState {
     // GL_INVALID_VALUE is generated if sampler is not the name of a sampler
     // object returned from a previous call to glGenSamplers.
     // GL_INVALID_ENUM is generated if pname is not an accepted value.
-    if (CheckGlValue(object_state_->samplers.count(sampler) &&
-        !object_state_->samplers[sampler].deleted)) {
+    if (CheckGlValue(IsSampler(sampler))) {
       const SamplerObject& so = object_state_->samplers[sampler];
       switch (pname) {
         case GL_TEXTURE_COMPARE_FUNC:
@@ -5441,8 +5975,7 @@ class MockVisual::ShadowState {
     // object previously returned from a call to glGenSamplers.
     // GL_INVALID_ENUM is generated if params should have a defined constant
     // value (based on the value of pname) and does not.
-    if (CheckGlValue(object_state_->samplers.count(sampler) &&
-        !object_state_->samplers[sampler].deleted)) {
+    if (CheckGlValue(IsSampler(sampler))) {
       SamplerObject& so = object_state_->samplers[sampler];
       switch (pname) {
         case GL_TEXTURE_COMPARE_FUNC:
@@ -5516,6 +6049,12 @@ class MockVisual::ShadowState {
   void SamplerParameteriv(GLuint sampler, GLenum pname, const GLint* params) {
     if (CheckFunction("SamplerParameteriv"))
       SamplerParameterv(sampler, pname, params);
+  }
+
+  // SampleShading group.
+  void MinSampleShading(float fraction) {
+    if (CheckFunction("MinSampleShading"))
+      min_sample_shading_ = Clampf(fraction);
   }
 
   // Sync objects group.
@@ -5871,6 +6410,11 @@ class MockVisual::ShadowState {
     }
   }
 
+  // TextureBarrier group.
+  void TextureBarrier() {
+    // TextureBarrier does not generate errors.
+  }
+
   // TextureMultisample group.
   void TexImage2DMultisample(GLenum target, GLsizei samples,
                              GLenum internal_format, GLsizei width,
@@ -5996,13 +6540,13 @@ class MockVisual::ShadowState {
         if (target == GL_TEXTURE_1D_ARRAY) {
           for (GLsizei i = 0; i < levels; i++) {
             TexImage2D(target, i, internalformat, width, height, 0, pf.format,
-                       pf.type, NULL);
+                       pf.type, nullptr);
             width = std::max(1, (width / 2));
           }
         } else if (target == GL_TEXTURE_2D) {
           for (GLsizei i = 0; i < levels; i++) {
             TexImage2D(target, i, internalformat, width, height, 0, pf.format,
-                       pf.type, NULL);
+                       pf.type, nullptr);
             width = std::max(1, (width / 2));
             height = std::max(1, (height / 2));
           }
@@ -6012,7 +6556,7 @@ class MockVisual::ShadowState {
               const GLenum face = base::EnumHelper::GetConstant(
                   static_cast<CubeMapTexture::CubeFace>(j));
               TexImage2D(face, i, internalformat, width, height, 0, pf.format,
-                         pf.type, NULL);
+                         pf.type, nullptr);
             }
             width = std::max(1, (width / 2));
             height = std::max(1, (height / 2));
@@ -6054,14 +6598,14 @@ class MockVisual::ShadowState {
             target == GL_TEXTURE_CUBE_MAP_ARRAY) {
           for (GLsizei i = 0; i < levels; i++) {
             TexImage3D(target, i, internalformat, width, height, depth, 0,
-                       pf.format, pf.type, NULL);
+                       pf.format, pf.type, nullptr);
             width = std::max(1, (width / 2));
             height = std::max(1, (height / 2));
           }
         } else if (target == GL_TEXTURE_3D) {
           for (GLsizei i = 0; i < levels; i++) {
             TexImage3D(target, i, internalformat, width, height, depth, 0,
-                       pf.format, pf.type, NULL);
+                       pf.format, pf.type, nullptr);
             width = std::max(1, (width / 2));
             height = std::max(1, (height / 2));
             depth = std::max(1, (depth / 2));
@@ -6137,68 +6681,77 @@ class MockVisual::ShadowState {
     }
   }
 
+  // TiledRendering group.
+  void StartTilingQCOM(GLuint x, GLuint y, GLuint width, GLuint height,
+                       GLbitfield preserve_mask) {
+    if (CheckGlOperation(!is_tiling_) &&
+        CheckGlOperation(CheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) ==
+                         GL_FRAMEBUFFER_COMPLETE) &&
+        CheckFunction("StartTilingQCOM")) {
+      is_tiling_ = true;
+    }
+  }
+  void EndTilingQCOM(GLbitfield preserve_mask) {
+    if (CheckGlOperation(is_tiling_) && CheckFunction("StartTilingQCOM")) {
+      is_tiling_ = false;
+    }
+  }
+
   // TransformFeedback group.
   void BeginTransformFeedback(GLenum primitive_mode) {
+    GLuint tfo_id = active_objects_.transform_feedback;
     TransformFeedbackObject& tfo =
-        object_state_->transform_feedbacks[active_objects_.transform_feedback];
+        container_state_->transform_feedbacks[tfo_id];
+    GLuint po_id = active_objects_.program;
+    const ProgramObject& po = object_state_->programs[po_id];
     // GL_INVALID_OPERATION is generated if BeginTransformFeedback is executed
     // while transform feedback is active.
     // GL_INVALID_ENUM is generated by BeginTransformFeedback if primitive_mode
     // is not one of GL_POINTS, GL_LINES, or GL_TRIANGLES.
-    // GL_INVALID_OPERATION is generated by BeginTransformFeedback if any
-    // binding point used in transform feedback mode does not have a buffer
-    // object bound.
-    // GL_INVALID_OPERATION is generated by BeginTransformFeedback if no binding
-    // points would be used, either because no program object is active or
-    // because the active program object has specified no varying variables to
-    // record.
-    if (CheckGlOperation(tfo.status != GL_TRANSFORM_FEEDBACK_ACTIVE) &&
+    // GL_INVALID_OPERATION is generated by BeginTransformFeedback if there
+    // is no active transform feedback object.
+    if (CheckGlOperation(!tfo.active) &&
         CheckGlEnum(primitive_mode == GL_POINTS || primitive_mode == GL_LINES ||
                     primitive_mode == GL_TRIANGLES) &&
         CheckAllBindingPointsBound(tfo.binding_point_status) &&
-        CheckGlOperation(
-            tfo.program != 0 && tfo.binding_point_status.size() != 0 &&
-            tfo.varyings != nullptr && *(tfo.varyings) != nullptr) &&
+        CheckGlOperation(tfo_id > 0U && po_id > 0U &&
+                         !po.requested_tf_varyings.empty()) &&
         CheckFunction("BeginTransformFeedback")) {
-      tfo.status = GL_TRANSFORM_FEEDBACK_ACTIVE;
+      tfo.active = true;
       tfo.primitive_mode = primitive_mode;
     }
   }
   void EndTransformFeedback() {
+    GLuint tfo_id = active_objects_.transform_feedback;
     TransformFeedbackObject& tfo =
-        object_state_->transform_feedbacks[active_objects_.transform_feedback];
+        container_state_->transform_feedbacks[tfo_id];
     // According to OpenGl page:
     // https://www.khronos.org/opengles/sdk/docs/man31/, An implicit
     // ResumeTransformFeedback is performed by EndTransformFeedback if the
     // transform feedback is paused.
-    if (tfo.status == GL_TRANSFORM_FEEDBACK_PAUSED) {
-      tfo.status = GL_TRANSFORM_FEEDBACK_ACTIVE;
+    if (tfo.paused) {
+      tfo.paused = false;
     }
     // GL_INVALID_OPERATION is generated if EndTransformFeedback is executed
     // while transform feedback is not active.
-    if (CheckGlOperation(tfo.status == GL_TRANSFORM_FEEDBACK_ACTIVE) &&
-        CheckFunction("EndTransformFeedback")) {
-      tfo.status = static_cast<GLenum>(-1);
+    if (CheckGlOperation(tfo.active) && CheckFunction("EndTransformFeedback")) {
+      tfo.active = false;
     }
   }
   void GetTransformFeedbackVarying(GLuint program, GLuint index,
                                    GLsizei buf_size, GLsizei* length,
                                    GLsizei* size, GLenum* type, GLchar* name) {
     auto it = object_state_->programs.find(program);
-    TransformFeedbackObject& tfo =
-        object_state_->transform_feedbacks[active_objects_.transform_feedback];
     // GL_INVALID_VALUE is generated if program is not the name of a program
     // object.
     // GL_INVALID_VALUE is generated if index is greater or equal to the value
     // of GL_TRANSFORM_FEEDBACK_VARYINGS.
     // GL_INVALID_OPERATION is generated program has not been linked.
     if (CheckGlValue(it != object_state_->programs.end()) &&
-        CheckGlValue(index <
-                     static_cast<GLuint>(tfo.binding_point_status.size())) &&
         CheckGlOperation(it->second.link_status) &&
+        CheckGlValue(index < it->second.resolved_tf_varyings.size()) &&
         CheckFunction("GetTransformFeedbackVarying")) {
-      ProgramObject::Varying& v =
-          it->second.varyings[tfo.binding_point_status[index]];
+      const auto& v = it->second.resolved_tf_varyings[index];
       if (length) {
         *length = std::min(static_cast<GLsizei>(v.name.size()), buf_size);
       }
@@ -6213,29 +6766,27 @@ class MockVisual::ShadowState {
     auto it = object_state_->programs.find(program);
     // GL_INVALID_VALUE is generated if program is not the name of a program
     // object.
+    // An GL_INVALID_ENUM error is generated if bufferMode is not
+    // GL_SEPARATE_ATTRIBS or GL_INTERLEAVED_ATTRIBS.
     // GL_INVALID_VALUE is generated if buffer_mode is GL_SEPARATE_ATTRIBS and
     // count is greater than the implementation-dependent limit
     // GL_MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS.
     if (CheckGlValue(it != object_state_->programs.end()) &&
+        CheckGlEnum(buffer_mode == GL_SEPARATE_ATTRIBS ||
+                    buffer_mode == GL_INTERLEAVED_ATTRIBS) &&
         CheckGlValue(
             buffer_mode != GL_SEPARATE_ATTRIBS ||
             count <= GraphicsManager::kMaxTransformFeedbackSeparateAttribs) &&
         CheckFunction("TransformFeedbackVaryings")) {
-      TransformFeedbackObject& tfo =
-          object_state_
-              ->transform_feedbacks[active_objects_.transform_feedback];
-      tfo.program = program;
-      tfo.varyings = varyings;
-      tfo.buffer_mode = buffer_mode;
-      tfo.binding_point_status.clear();
-      tfo.binding_point_status.resize(count, -1);
+      ProgramObject& po = it->second;
+      po.requested_tf_varyings = std::vector<std::string>(
+          varyings, varyings + count);
+      po.transform_feedback_mode = buffer_mode;
     }
   }
   void BindTransformFeedback(GLenum target, GLuint id) {
-    TransformFeedbackObject& tfo =
-        object_state_->transform_feedbacks[active_objects_.transform_feedback];
-    auto it = object_state_->transform_feedbacks.find(id);
     // GL_INVALID_ENUM is generated if target is not GL_TRANSFORM_FEEDBACK.
+    if (!CheckGlEnum(target == GL_TRANSFORM_FEEDBACK)) return;
     // GL_INVALID_OPERATION is generated if the transform feedback operation is
     // active on the currently bound transform feedback object, and that
     // operation is not paused.
@@ -6243,20 +6794,27 @@ class MockVisual::ShadowState {
     // transform feedback object returned from a previous call to
     // GenTransformFeedbacks, or if such a name has been deleted by
     // DeleteTransformFeedbacks.
-    if (CheckGlEnum(target == GL_TRANSFORM_FEEDBACK) &&
-        CheckGlOperation(tfo.status != GL_TRANSFORM_FEEDBACK_ACTIVE) &&
-        CheckGlOperation(it != object_state_->transform_feedbacks.end() &&
-                         !it->second.deleted) &&
-        CheckFunction("BindTransformFeedback")) {
-      active_objects_.transform_feedback = it->first;
-    }
+    GLuint tfid = active_objects_.transform_feedback;
+    if (!CheckGlOperation(
+            IsTransformFeedbackName(id) &&
+            (tfid == 0U ||
+             !container_state_->transform_feedbacks[tfid].active)))
+      return;
+    if (!CheckFunction("BindTransformFeedback")) return;
+
+    active_objects_.transform_feedback = id;
+    container_state_->transform_feedbacks[id].bindings.push_back(
+        GetCallCount());
   }
   void DeleteTransformFeedbacks(GLsizei n, const GLuint* ids) {
-    if (CheckFunction("DeleteTransformFeedbacks")) {
+    if (CheckGlValue(n >= 0) && CheckFunction("DeleteTransformFeedbacks")) {
       for (GLsizei i = 0; i < n; ++i) {
-        auto it = object_state_->transform_feedbacks.find(ids[i]);
-        if (it != object_state_->transform_feedbacks.end() && it->first) {
-          it->second.deleted = GL_TRUE;
+        if (IsTransformFeedbackName(ids[i])) {
+          container_state_->transform_feedbacks[ids[i]] =
+              TransformFeedbackObject();
+          container_state_->transform_feedbacks[ids[i]].deleted = true;
+          if (ids[i] == active_objects_.transform_feedback)
+            active_objects_.transform_feedback = 0U;
         }
       }
     }
@@ -6264,42 +6822,35 @@ class MockVisual::ShadowState {
   void GenTransformFeedbacks(GLsizei n, GLuint* ids) {
     if (CheckFunction("GenTransformFeedbacks")) {
       for (GLsizei i = 0; i < n; ++i) {
-        if (ids[i]) {
-          TransformFeedbackObject tfo;
-          tfo.id = ids[i];
-          tfo.target = GL_TRANSFORM_FEEDBACK;
-          object_state_->transform_feedbacks[ids[i]] = tfo;
-        }
+        // OpenGL ids are 1-based.
+        const GLuint id = static_cast<GLuint>(
+            container_state_->transform_feedbacks.size() + 1U);
+        TransformFeedbackObject tfo;
+        ids[i] = tfo.id = id;
+        container_state_->transform_feedbacks[id] = tfo;
       }
     }
   }
-  GLboolean IsTransformFeedback(GLuint id) {
-    auto it = object_state_->transform_feedbacks.find(id);
-    if (it != object_state_->transform_feedbacks.end() &&
-        it->second.target == GL_TRANSFORM_FEEDBACK && !it->second.deleted &&
-        CheckFunction("IsTransformFeedback")) {
-      return GL_TRUE;
-    }
-    return GL_FALSE;
-  }
   void PauseTransformFeedback() {
+    GLuint tfo_id = active_objects_.transform_feedback;
     TransformFeedbackObject& tfo =
-        object_state_->transform_feedbacks[active_objects_.transform_feedback];
+        container_state_->transform_feedbacks[tfo_id];
     // GL_INVALID_OPERATION is generated if the currently bound transform
     // feedback object is not active or is paused.
-    if (CheckGlOperation(tfo.status == GL_TRANSFORM_FEEDBACK_ACTIVE) &&
+    if (CheckGlOperation(tfo.active && !tfo.paused) &&
         CheckFunction("PauseTransformFeedback")) {
-      tfo.status = GL_TRANSFORM_FEEDBACK_PAUSED;
+      tfo.paused = true;
     }
   }
   void ResumeTransformFeedback() {
+    GLuint tfo_id = active_objects_.transform_feedback;
     TransformFeedbackObject& tfo =
-        object_state_->transform_feedbacks[active_objects_.transform_feedback];
+        container_state_->transform_feedbacks[tfo_id];
     // GL_INVALID_OPERATION is generated if the currently bound transform
     // feedback object is not active or is not paused.
-    if (CheckGlOperation(tfo.status == GL_TRANSFORM_FEEDBACK_PAUSED) &&
+    if (CheckGlOperation(tfo.active && tfo.paused) &&
         CheckFunction("ResumeTransformFeedback")) {
-      tfo.status = GL_TRANSFORM_FEEDBACK_ACTIVE;
+      tfo.paused = false;
     }
   }
 
@@ -6307,12 +6858,12 @@ class MockVisual::ShadowState {
   void BindVertexArray(GLuint array) {
     // GL_INVALID_OPERATION is generated if array is not zero or the name of a
     // vertex array object previously returned from a call to glGenVertexArrays.
-    if (CheckGlOperation(array == 0U || object_state_->arrays.count(array)) &&
+    if (CheckGlOperation(IsVertexArrayName(array)) &&
         CheckFunction("BindVertexArray")) {
       active_objects_.array = array;
-      object_state_->arrays[array].bindings.push_back(GetCallCount());
+      container_state_->arrays[array].bindings.push_back(GetCallCount());
       active_objects_.index_buffer =
-          object_state_->arrays[array].element_array;
+          container_state_->arrays[array].element_array;
     }
   }
   void DeleteVertexArrays(GLsizei n, const GLuint* arrays) {
@@ -6321,14 +6872,14 @@ class MockVisual::ShadowState {
       for (GLsizei i = 0; i < n; ++i) {
         // glDeleteArrays silently ignores 0's and names that do not correspond
         // to existing array objects.
-        if (arrays[i] != 0U && object_state_->arrays.count(arrays[i])) {
+        if (arrays[i] != 0U && IsVertexArray(arrays[i])) {
           // Reset the array object.
-          object_state_->arrays[arrays[i]] = ArrayObject();
+          container_state_->arrays[arrays[i]] = ArrayObject();
           // All attributes must be allocated, even for deleted vertex arrays.
-          object_state_->arrays[arrays[i]].attributes.
+          container_state_->arrays[arrays[i]].attributes.
               resize(kMaxVertexAttribs);
           // Mark the array as deleted, so that it cannot be reused.
-          object_state_->arrays[arrays[i]].deleted = true;
+          container_state_->arrays[arrays[i]].deleted = true;
 
           // Reset the binding if the index is the currently bound object.
           if (arrays[i] == active_objects_.array)
@@ -6344,18 +6895,14 @@ class MockVisual::ShadowState {
     if (CheckGlValue(n >= 0) && CheckFunction("GenVertexArrays")) {
       for (GLsizei i = 0; i < n; ++i) {
         // A new array shares global state.
-        ArrayObject ao = object_state_->arrays[0];
+        ArrayObject ao = container_state_->arrays[0];
         ao.attributes.resize(kMaxVertexAttribs);
         // OpenGL ids are 1-based, but there is a default array at index 0.
-        const GLuint id = static_cast<GLuint>(object_state_->arrays.size());
-        object_state_->arrays[id] = ao;
+        const GLuint id = static_cast<GLuint>(container_state_->arrays.size());
+        container_state_->arrays[id] = ao;
         arrays[i] = id;
       }
     }
-  }
-  GLboolean IsVertexArray(GLuint array) {
-    return (object_state_->arrays.count(array) &&
-            !object_state_->arrays[array].deleted) ? GL_TRUE : GL_FALSE;
   }
 
   // Raw group.
@@ -6526,10 +7073,10 @@ class MockVisual::ShadowState {
   //---------------------------------------------------------------------------
 
   // Returns a bit index for a capability enum or -1 if there is none.
-  static int GetCapabilityIndex(GLenum cap);
+  int GetCapabilityIndex(GLenum cap);
 
   // Calls and verifies GetCapabilityIndex() for a known capability.
-  static int GetAndVerifyCapabilityIndex(GLenum cap) {
+  int GetAndVerifyCapabilityIndex(GLenum cap) {
     return GetCapabilityIndex(cap);
   }
 
@@ -6541,9 +7088,7 @@ class MockVisual::ShadowState {
 
   // Object state.
   struct ObjectState {
-    std::map<GLuint, ArrayObject> arrays;
     std::map<GLuint, BufferObject> buffers;
-    std::map<GLuint, FramebufferObject> framebuffers;
     std::map<GLuint, ProgramObject> programs;
     std::map<GLuint, RenderbufferObject> renderbuffers;
     std::map<GLuint, SamplerObject> samplers;
@@ -6551,10 +7096,17 @@ class MockVisual::ShadowState {
     std::map<GLuint, SyncObject> syncs;
     std::map<GLuint, TextureObject> textures;
     std::map<GLuint, TimerObject> timers;
+  };
+  // State of container objects which are never shared between contexts, even
+  // within the same share group.
+  struct ContainerState {
+    std::map<GLuint, ArrayObject> arrays;
+    std::map<GLuint, FramebufferObject> framebuffers;
     std::map<GLuint, TransformFeedbackObject> transform_feedbacks;
   };
 
   std::shared_ptr<ObjectState> object_state_;
+  std::unique_ptr<ContainerState> container_state_;
 
   // Image unit state.
   std::vector<ImageUnit> image_units_;
@@ -6588,8 +7140,8 @@ class MockVisual::ShadowState {
   GLsizeiptr max_buffer_size_;
 
   // Enabled capability state.
-  static const int kNumCapabilities = 14;
-  std::bitset<kNumCapabilities> enabled_state_;
+  static const size_t kNumStaticCapabilities = 16;
+  std::vector<bool> enabled_state_;
 
   // Blending state.
   GLfloat blend_color_[4];
@@ -6639,6 +7191,9 @@ class MockVisual::ShadowState {
   // Sample masks.
   std::vector<GLbitfield> sample_masks_;
 
+  // Sample shading state.
+  GLfloat min_sample_shading_;
+
   // Scissoring state.
   GLint scissor_x_;
   GLint scissor_y_;
@@ -6668,12 +7223,11 @@ class MockVisual::ShadowState {
   GLsizei viewport_width_;
   GLsizei viewport_height_;
 
-  // Choose buffer state.
-  GLenum draw_buffer_;
-  GLenum read_buffer_;
-
   // Timer state
   GLuint active_begin_query_;
+
+  // Tiled rendering state.
+  bool is_tiling_;
 
   // Debug state
   std::unique_ptr<DebugMessageState> debug_message_state_;
@@ -6703,12 +7257,9 @@ MockVisual::ShadowState::ShadowState(int window_width, int window_height)
     : window_width_(window_width),
       window_height_(window_height),
       object_state_(std::make_shared<ObjectState>()),
+      container_state_(new ContainerState),
       max_buffer_size_(0) {
-  // All capabilities except GL_DITHER are disabled by default.
-  enabled_state_.reset();
-  enabled_state_.set(GetCapabilityIndex(GL_DITHER));
-
-  // Initialize the rest of the state.
+  // Initialize default state.
   for (int i = 0; i < 4; ++i)
       blend_color_[i] = 0.0f;
   rgb_blend_equation_ = alpha_blend_equation_ = GL_FUNC_ADD;
@@ -6754,21 +7305,20 @@ MockVisual::ShadowState::ShadowState(int window_width, int window_height)
   viewport_x_ = viewport_y_ = 0;
   viewport_width_ = window_width_;
   viewport_height_ = window_height_;
-  draw_buffer_ = GL_BACK;  // Default is GL_FRONT for single-buffered contexts
-  read_buffer_ = GL_NONE;
   active_begin_query_ = 0;
+  is_tiling_ = false;
   debug_message_state_.reset(new DebugMessageState());
   debug_callback_function_ = nullptr;
   debug_callback_user_param_ = nullptr;
 
-  // Default global vertex array and texture objects.
-  object_state_->arrays[0] = ArrayObject();
+  // Default global objects.
   object_state_->buffers[0] = BufferObject();
-  object_state_->framebuffers[0] = FramebufferObject();
   object_state_->renderbuffers[0] = RenderbufferObject();
   object_state_->textures[0] = TextureObject();
   object_state_->timers[0] = TimerObject();
-  object_state_->transform_feedbacks[0] = TransformFeedbackObject();
+  container_state_->arrays[0] = ArrayObject();
+  container_state_->framebuffers[0] = FramebufferObject();
+  container_state_->transform_feedbacks[0] = TransformFeedbackObject();
 
   // Platform capability values.
   kMinAliasedLineWidth = 1.f;
@@ -6779,6 +7329,7 @@ MockVisual::ShadowState::ShadowState(int window_width, int window_height)
   kImplementationColorReadType = GL_RGB;
   kMax3dTextureSize = 4096;
   kMaxArrayTextureLayers = 4096;
+  kMaxClipDistances = 8;
   kMaxColorAttachments = 4;
   kMaxCombinedTextureImageUnits = 32;
   kMaxCubeMapTextureSize = 8192;
@@ -6801,13 +7352,25 @@ MockVisual::ShadowState::ShadowState(int window_width, int window_height)
   kMaxVertexUniformComponents = 512;
   kMaxVertexUniformVectors = 1024;
   kMaxViewportDims = 8192;
-  kNumCompressedTextureFormats = 7;
+  kMaxViews = 4;
+  kNumCompressedTextureFormats = 10;
   kNumShaderBinaryFormats = 1;
   kTransformFeedbackVaryingMaxLength = -1;
   kMaxDebugLoggedMessages = 16;
   kMaxDebugMessageLength = 1024;
 
-  object_state_->arrays[0].attributes.resize(kMaxVertexAttribs);
+  // All capabilities except GL_DITHER are disabled by default.
+  enabled_state_.resize(kNumStaticCapabilities + kMaxClipDistances, false);
+  enabled_state_[GetCapabilityIndex(GL_DITHER)] = true;
+  enabled_state_[GetCapabilityIndex(GL_MULTISAMPLE)] = true;
+
+  // Default is GL_FRONT for single-buffered contexts.
+  container_state_->framebuffers[0].draw_buffers.resize(kMaxDrawBuffers,
+                                                        GL_NONE);
+  container_state_->framebuffers[0].draw_buffers[0] = GL_BACK;
+  container_state_->framebuffers[0].read_buffer = GL_BACK;
+
+  container_state_->arrays[0].attributes.resize(kMaxVertexAttribs);
   image_units_.resize(kMaxCombinedTextureImageUnits);
   sample_masks_.resize(kMaxSampleMaskWords);
 }
@@ -6824,9 +7387,9 @@ MockVisual::ShadowState::~ShadowState() {}
 template <typename T>
 void MockVisual::ShadowState::Getv(GLenum pname, T* params) {
   // Take care of capabilities first.
-  const int cap_index = GetCapabilityIndex(pname);
-  if (cap_index >= 0) {
-    *params = enabled_state_.test(cap_index);
+  const int index = GetCapabilityIndex(pname);
+  if (index >= 0 && index < static_cast<int>(enabled_state_.size())) {
+    *params = enabled_state_[index];
     return;
   }
 
@@ -6852,8 +7415,8 @@ void MockVisual::ShadowState::Getv(GLenum pname, T* params) {
         ION_SET(8);
       } else {
         FramebufferObject& f =
-            object_state_->framebuffers[active_objects_.draw_framebuffer];
-        ION_SET(object_state_->renderbuffers[f.color0.value].alpha_size);
+            container_state_->framebuffers[active_objects_.draw_framebuffer];
+        ION_SET(object_state_->renderbuffers[f.color[0].value].alpha_size);
       }
     case GL_ARRAY_BUFFER_BINDING:
       ION_SET(active_objects_.buffer);
@@ -6879,8 +7442,8 @@ void MockVisual::ShadowState::Getv(GLenum pname, T* params) {
         ION_SET(8);
       } else {
         FramebufferObject& f =
-            object_state_->framebuffers[active_objects_.draw_framebuffer];
-        ION_SET(object_state_->renderbuffers[f.color0.value].blue_size);
+            container_state_->framebuffers[active_objects_.draw_framebuffer];
+        ION_SET(object_state_->renderbuffers[f.color[0].value].blue_size);
       }
     case GL_COMPRESSED_TEXTURE_FORMATS:
       ION_SET_INDEX(0, GL_COMPRESSED_RGB_S3TC_DXT1_EXT);
@@ -6890,6 +7453,9 @@ void MockVisual::ShadowState::Getv(GLenum pname, T* params) {
       ION_SET_INDEX(4, GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG);
       ION_SET_INDEX(5, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT);
       ION_SET_INDEX(6, GL_ETC1_RGB8_OES);
+      ION_SET_INDEX(7, GL_COMPRESSED_RGB8_ETC2);
+      ION_SET_INDEX(8, GL_COMPRESSED_RGBA8_ETC2_EAC);
+      ION_SET_INDEX(9, GL_COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2);
       break;
     case GL_COLOR_CLEAR_VALUE:
       for (int i = 0; i < 4; ++i) {
@@ -6925,7 +7491,7 @@ void MockVisual::ShadowState::Getv(GLenum pname, T* params) {
         ION_SET(16);
       } else {
         FramebufferObject& f =
-            object_state_->framebuffers[active_objects_.draw_framebuffer];
+            container_state_->framebuffers[active_objects_.draw_framebuffer];
         ION_SET(object_state_->renderbuffers[f.depth.value].depth_size);
       }
     case GL_DEPTH_RANGE:
@@ -6937,7 +7503,11 @@ void MockVisual::ShadowState::Getv(GLenum pname, T* params) {
     case GL_GPU_DISJOINT_EXT:
       ION_SET(0);
     case GL_DRAW_BUFFER:
-      ION_SET(draw_buffer_);
+      {
+        FramebufferObject& f =
+            container_state_->framebuffers[active_objects_.draw_framebuffer];
+        ION_SET(f.draw_buffers[0]);
+      }
     case GL_ELEMENT_ARRAY_BUFFER_BINDING:
       ION_SET(active_objects_.index_buffer);
     case GL_FRAMEBUFFER_BINDING:
@@ -6954,8 +7524,8 @@ void MockVisual::ShadowState::Getv(GLenum pname, T* params) {
         ION_SET(8);
       } else {
         FramebufferObject& f =
-            object_state_->framebuffers[active_objects_.draw_framebuffer];
-        ION_SET(object_state_->renderbuffers[f.color0.value].green_size);
+            container_state_->framebuffers[active_objects_.draw_framebuffer];
+        ION_SET(object_state_->renderbuffers[f.color[0].value].green_size);
       }
     case GL_IMPLEMENTATION_COLOR_READ_FORMAT:
       ION_SET(kImplementationColorReadFormat);
@@ -6967,6 +7537,8 @@ void MockVisual::ShadowState::Getv(GLenum pname, T* params) {
       ION_SET(kMax3dTextureSize);
     case GL_MAX_ARRAY_TEXTURE_LAYERS:
       ION_SET(kMaxArrayTextureLayers);
+    case GL_MAX_CLIP_DISTANCES:
+      ION_SET(kMaxClipDistances);
     case GL_MAX_COLOR_ATTACHMENTS:
       ION_SET(kMaxColorAttachments);
     case GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS:
@@ -7009,6 +7581,10 @@ void MockVisual::ShadowState::Getv(GLenum pname, T* params) {
       ION_SET_INDEX(0, kMaxViewportDims);
       ION_SET_INDEX(1, kMaxViewportDims);
       break;
+    case GL_MAX_VIEWS_OVR:
+      ION_SET(kMaxViews);
+    case GL_MIN_SAMPLE_SHADING_VALUE:
+      ION_SET(min_sample_shading_);
     case GL_MULTISAMPLE:
       ION_SET(IsEnabled(GL_MULTISAMPLE));
     case GL_NUM_EXTENSIONS:
@@ -7026,14 +7602,18 @@ void MockVisual::ShadowState::Getv(GLenum pname, T* params) {
     case GL_POLYGON_OFFSET_UNITS:
       ION_SET(polygon_offset_units_);
     case GL_READ_BUFFER:
-      ION_SET(read_buffer_);
+      {
+        FramebufferObject& f =
+            container_state_->framebuffers[active_objects_.read_framebuffer];
+        ION_SET(f.read_buffer);
+      }
     case GL_RED_BITS:
       if (active_objects_.draw_framebuffer == 0U) {
         ION_SET(8);
       } else {
         FramebufferObject& f =
-            object_state_->framebuffers[active_objects_.draw_framebuffer];
-        ION_SET(object_state_->renderbuffers[f.color0.value].red_size);
+            container_state_->framebuffers[active_objects_.draw_framebuffer];
+        ION_SET(object_state_->renderbuffers[f.color[0].value].red_size);
       }
     case GL_RENDERBUFFER_BINDING:
       ION_SET(active_objects_.renderbuffer);
@@ -7049,6 +7629,8 @@ void MockVisual::ShadowState::Getv(GLenum pname, T* params) {
         ION_SET_INDEX(i, sample_masks_[i]);
       }
       break;
+    case GL_SAMPLE_SHADING:
+      ION_SET(IsEnabled(GL_SAMPLE_SHADING));
     case GL_SAMPLER_BINDING:
       ION_SET(image_units_[active_objects_.image_unit].sampler);
     case GL_SCISSOR_BOX:
@@ -7078,7 +7660,7 @@ void MockVisual::ShadowState::Getv(GLenum pname, T* params) {
         ION_SET(8);
       } else {
         FramebufferObject& f =
-            object_state_->framebuffers[active_objects_.draw_framebuffer];
+            container_state_->framebuffers[active_objects_.draw_framebuffer];
         ION_SET(object_state_->renderbuffers[f.stencil.value].stencil_size);
       }
     case GL_STENCIL_CLEAR_VALUE:
@@ -7121,6 +7703,24 @@ void MockVisual::ShadowState::Getv(GLenum pname, T* params) {
     case GL_TIMESTAMP_EXT:
       // For testing we use fixed timestamps to avoid clock issues.
       ION_SET(static_cast<T>(1));
+    case GL_TRANSFORM_FEEDBACK_PAUSED: {
+      GLuint tfid = active_objects_.transform_feedback;
+      if (tfid == 0) {
+        ION_SET(GL_FALSE);
+        break;
+      }
+      TransformFeedbackObject& tf = container_state_->transform_feedbacks[tfid];
+      ION_SET(tf.paused);
+    }
+    case GL_TRANSFORM_FEEDBACK_ACTIVE: {
+      GLuint tfid = active_objects_.transform_feedback;
+      if (tfid == 0) {
+        ION_SET(GL_FALSE);
+        break;
+      }
+      TransformFeedbackObject& tf = container_state_->transform_feedbacks[tfid];
+      ION_SET(tf.active);
+    }
     case GL_UNPACK_ALIGNMENT:
       ION_SET(unpack_alignment_);
     case GL_VERTEX_ARRAY_BINDING:
@@ -7132,8 +7732,21 @@ void MockVisual::ShadowState::Getv(GLenum pname, T* params) {
       ION_SET_INDEX(3, viewport_height_);
       break;
 
-    // The rest are unhandled for now.
     default:
+      // Handle GL_DRAW_BUFFERi.
+      if (pname >= GL_DRAW_BUFFER0 &&
+          pname < GL_DRAW_BUFFER0 + kMaxDrawBuffers) {
+        int index = pname - GL_DRAW_BUFFER0;
+        FramebufferObject& f =
+            container_state_->framebuffers[active_objects_.draw_framebuffer];
+        ION_SET(f.draw_buffers[index]);
+      }
+      // Handle GL_CLIP_DISTANCEi.
+      if (pname >= GL_CLIP_DISTANCE0 &&
+          pname < GL_CLIP_DISTANCE0 + kMaxClipDistances) {
+        ION_SET(IsEnabled(pname));
+      }
+      // The rest are unhandled for now.
       // GL_INVALID_ENUM is generated if pname is not an accepted value.
       CheckGlEnum(false);
       break;
@@ -7175,10 +7788,39 @@ int MockVisual::ShadowState::GetCapabilityIndex(GLenum cap) {
       return 12;
     case GL_PROGRAM_POINT_SIZE:
       return 13;
+    case GL_RASTERIZER_DISCARD:
+      return 14;
+    case GL_SAMPLE_SHADING:
+      return 15;
     default:
+      if (cap >= GL_CLIP_DISTANCE0 &&
+          cap < GL_CLIP_DISTANCE0 + kMaxClipDistances) {
+        return static_cast<int>(
+            kNumStaticCapabilities + cap - GL_CLIP_DISTANCE0);
+      }
       return -1;
   }
 }
+
+namespace {
+
+//---------------------------------------------------------------------------
+// Each of these static functions is used to invoke the corresponding
+// non-static member function on the thread local instance's shadow state.
+// These are used as the entry points for the MockGraphicsManager.
+#define ION_WRAP_GL_FUNC(group, name, return_type, typed_args, args, trace) \
+  return_type ION_APIENTRY Wrapped##name typed_args {                       \
+    MockVisual::ShadowState* shadow_state =                                 \
+        MockVisual::IncrementAndCall(#name);                                \
+    base::LockGuard lock(shadow_state->GetMutex());                         \
+    return shadow_state->name args;                                         \
+  }
+
+#include "ion/gfx/glfunctions.inc"
+
+#undef ION_WRAP_GL_FUNC
+
+}  // namespace
 
 //-----------------------------------------------------------------------------
 //
@@ -7186,21 +7828,30 @@ int MockVisual::ShadowState::GetCapabilityIndex(GLenum cap) {
 //
 //-----------------------------------------------------------------------------
 
-MockVisual::MockVisual(const MockVisual& share_visual)
-    : shadow_state_(new ShadowState(share_visual.shadow_state_.get())),
+MockVisual::MockVisual(std::unique_ptr<ShadowState> shadow_state, bool is_valid)
+    : shadow_state_(std::move(shadow_state)),
       call_count_(0),
-      is_valid_(share_visual.IsValid()) {
-  SetId(GetVisualId());
-  RegisterVisual(this);
+      is_valid_(is_valid) {}
+
+base::SharedPtr<MockVisual> MockVisual::CreateShared(
+    const MockVisual& share_visual) {
+  base::SharedPtr<MockVisual> mock_visual(
+      new MockVisual(std::unique_ptr<ShadowState>(
+                         new ShadowState(share_visual.shadow_state_.get())),
+                     share_visual.is_valid_));
+  mock_visual->SetIds(CreateId(), share_visual.GetShareGroupId(), 0);
+  return mock_visual;
 }
 
-MockVisual::MockVisual(int window_width, int window_height)
-    : shadow_state_(new ShadowState(window_width, window_height)),
-      call_count_(0),
-      is_valid_(true) {
-  SetId(GetVisualId());
-  RegisterVisual(this);
-  portgfx::Visual::MakeCurrent(this);
+// static
+base::SharedPtr<MockVisual> MockVisual::Create(int window_width,
+                                               int window_height) {
+  base::SharedPtr<MockVisual> mock_visual(
+      new MockVisual(std::unique_ptr<ShadowState>(
+                         new ShadowState(window_width, window_height)),
+                     true));
+  mock_visual->SetIds(CreateId(), CreateShareGroupId(), 0);
+  return mock_visual;
 }
 
 MockVisual::~MockVisual() {
@@ -7209,32 +7860,47 @@ MockVisual::~MockVisual() {
     LOG(WARNING) << "MockVisual destroyed with uncaught OpenGL error: "
                  << GraphicsManager::ErrorString(error_code);
   }
-  if (GetCurrent() == this) {
-    portgfx::Visual::MakeCurrent(NULL);
-  }
 }
 
-uint32 MockVisual::GetVisualId() {
-  static std::atomic<uint32> counter(0);
-  // Use a 1-based counter.
-  return ++counter;
-}
+void* MockVisual::GetProcAddress(const char* proc_name, bool is_core) const {
+  using std::sort;
+  using std::strcmp;
 
-//---------------------------------------------------------------------------
-// Each of these static functions is used to invoke the corresponding
-// non-static member function on the thread local instance's shadow state.
-// These are used as the entry points for the MockGraphicsManager.
+  // Create mapping of names to functions, as a sorted vector.
+  struct NameFunction {
+    const char* name;
+    void* function;
+    bool operator<(const NameFunction& other) const {
+      return strcmp(name, other.name) < 0;
+    }
+    static bool LessThanName(const NameFunction& a, const char* b) {
+      return strcmp(a.name, b) < 0;
+    }
+  };
+  static const std::vector<NameFunction> kMockFunctions = []() {
 #define ION_WRAP_GL_FUNC(group, name, return_type, typed_args, args, trace) \
-  return_type ION_APIENTRY MockVisual::Wrapped##name typed_args {           \
-    ShadowState* shadow_state = IncrementAndCall(#name);                    \
-    base::LockGuard lock(shadow_state->GetMutex());                         \
-    return shadow_state->name args;                                         \
-  }
+  {"gl" #name, reinterpret_cast<void*>(&Wrapped##name)},
+    std::vector<NameFunction> mock_functions = {
+#include "ion/gfx/glfunctions.inc"  // NOLINT
+    };
+#undef ION_WRAP_GL_FUNC
 
-#include "ion/gfx/glfunctions.inc"
+    sort(mock_functions.begin(), mock_functions.end());
+    return mock_functions;
+  }();
+
+  // Search for |proc_name| in the list of functions.
+  auto iter = lower_bound(kMockFunctions.begin(), kMockFunctions.end(),
+                          proc_name, NameFunction::LessThanName);
+  if (iter == kMockFunctions.end() ||
+      NameFunction::LessThanName(*iter, proc_name)) {
+    return nullptr;
+  }
+  return iter->function;
+}
 
 MockVisual::ShadowState* MockVisual::IncrementAndCall(const char* name) {
-  MockVisual* current = reinterpret_cast<MockVisual*>(GetCurrent());
+  base::SharedPtr<MockVisual> current = MockVisual::GetCurrent();
   DCHECK(current);
   ShadowState* instance = current->shadow_state_.get();
   DCHECK(instance);
@@ -7243,9 +7909,14 @@ MockVisual::ShadowState* MockVisual::IncrementAndCall(const char* name) {
   return instance;
 }
 
-MockVisual* MockVisual::GetCurrent() {
-  return const_cast<MockVisual*>(
-      static_cast<const MockVisual*>(Visual::GetCurrent()));
+base::SharedPtr<MockVisual> MockVisual::GetCurrent() {
+#if ION_NO_RTTI
+  return base::SharedPtr<MockVisual>(
+      static_cast<MockVisual*>(Visual::GetCurrent().Get()));
+#else
+  return base::DynamicPtrCast<MockVisual, portgfx::Visual>(
+      Visual::GetCurrent());
+#endif
 }
 
 void MockVisual::SetMaxBufferSize(GLsizeiptr size_in_bytes) {
@@ -7295,10 +7966,6 @@ void MockVisual::SetForceFunctionFailure(const std::string& func_name,
                                          bool always_fails) {
   base::LockGuard lock(shadow_state_->GetMutex());
   shadow_state_->SetForceFunctionFailure(func_name, always_fails);
-}
-
-void MockVisual::UpdateId() {
-  SetId(GetVisualId());
 }
 
 // Global platform capability values.

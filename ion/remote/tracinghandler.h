@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,14 +18,14 @@ limitations under the License.
 #ifndef ION_REMOTE_TRACINGHANDLER_H_
 #define ION_REMOTE_TRACINGHANDLER_H_
 
-#include <functional>
-#include <sstream>
+#include <list>
+#include <ostream>
 #include <string>
 
 #include "base/integral_types.h"
 #include "ion/gfx/renderer.h"
 #include "ion/gfxutils/frame.h"
-#include "ion/port/semaphore.h"
+#include "ion/port/mutex.h"
 #include "ion/remote/httpserver.h"
 
 namespace ion {
@@ -55,46 +55,34 @@ class ION_API TracingHandler : public HttpServer::RequestHandler {
                                   std::string* content_type) override;
 
  private:
-  // This enum indicates what state the handler is in.
-  enum State {
-    kInactive,              // Not actively tracing.
-    kWaitingForBeginFrame,  // Waiting for BeginFrame() to be called.
-    kWaitingForEndFrame,    // Waiting for EndFrame() to be called.
-  };
+  class TraceRequest;
 
-  // Traces the next frame.
-  void TraceNextFrame(bool block_until_frame_rendered);
+  // Traces the next frame.  Returns an HTML representation of all frames traced
+  // since the last request to clear.
+  std::string TraceNextFrame(std::string resources_to_delete,
+                             bool block_until_frame_rendered);
 
   // Frame callbacks.
   void BeginFrame(const gfxutils::Frame& frame);
   void EndFrame(const gfxutils::Frame& frame);
 
-  // Returns the stream that the TracingHandler installs in the GraphicsManager
-  // to capture the OpenGL trace. This is used for testing.
-  std::ostream* GetTracingStream() { return &tracing_stream_; }
-
   // Frame passed to constructor.
   gfxutils::FramePtr frame_;
   // Renderer passed to constructor.
   gfx::RendererPtr renderer_;
-  // Saves the previous ostream from the GraphicsManager so it can be restored.
-  std::ostream* prev_stream_;
-  // Stream used to get tracing data in GraphicsManager.
-  std::ostringstream tracing_stream_;
+
+  // Mutex for |pending_requests_|.
+  port::Mutex pending_requests_mutex_;
+  // List of TraceRequest instances pending for the next frame.
+  std::list<TraceRequest*> pending_requests_;
+
+  // List of outstanding TraceRequests being processed for this frame.
+  std::list<TraceRequest*> frame_active_requests_;
+
+  // Mutex for |html_string_|.
+  port::Mutex html_string_mutex_;
   // String containing the HTML to display.
   std::string html_string_;
-  // For blocking until end of frame.
-  port::Semaphore semaphore_;
-  // Current state of tracing.
-  State state_;
-  // Stores the frame counter when the last trace was added.
-  uint64 frame_counter_;
-  // String containing the names of renderer resources to delete before the
-  // next frame (may be empty).
-  std::string resources_to_delete_;
-
-  // Allow the tests to access GetTracingStream().
-  friend class TracingHandlerTest;
 };
 
 }  // namespace remote

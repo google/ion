@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -122,13 +122,13 @@ void StateTable::MergeNonClearValuesFrom(const StateTable& other,
     ION_UPDATE_VALUE(kFrontFaceModeValue, front_face_mode)
     ION_UPDATE_VALUE(kDepthFunctionValue, depth_function)
     ION_UPDATE_VALUE(kDepthRangeValue, depth_range)
-    ION_UPDATE_VALUE(kDrawBufferValue, draw_buffer);
     // Hints are an array of unknown size and so must be handled specially.
     if (other.IsValueSet(StateTable::kHintsValue)) {
       for (int i = 0; i < kNumHints; ++i)
         data_.hints[i] = other.data_.hints[i];
     }
     ION_UPDATE_VALUE(kLineWidthValue, line_width)
+    ION_UPDATE_VALUE(kMinSampleShadingValue, min_sample_shading)
     ION_UPDATE_VALUE(
         kPolygonOffsetValue, polygon_offset_factor, polygon_offset_units)
     ION_UPDATE_VALUE(
@@ -212,9 +212,6 @@ void StateTable::ResetValue(Value value) {
     case kDepthWriteMaskValue:
       ION_COPY_VAL(depth_write_mask);
       break;
-    case kDrawBufferValue:
-      ION_COPY_VAL(draw_buffer);
-      break;
     case kHintsValue:
       for (int i = 0; i < kNumHints; ++i) {
         ION_COPY_VAL(hints[i]);
@@ -222,6 +219,9 @@ void StateTable::ResetValue(Value value) {
       break;
     case kLineWidthValue:
       ION_COPY_VAL(line_width);
+      break;
+    case kMinSampleShadingValue:
+      ION_COPY_VAL(min_sample_shading);
       break;
     case kPolygonOffsetValue:
       ION_COPY_VAL(polygon_offset_factor);
@@ -358,14 +358,6 @@ void StateTable::SetDepthWriteMask(bool mask) {
 }
 
 //---------------------------------------------------------------------------
-// Draw buffer state.
-
-void StateTable::SetDrawBuffer(DrawBuffer draw_buffer) {
-  data_.draw_buffer = draw_buffer;
-  data_.values_set.set(kDrawBufferValue);
-}
-
-//---------------------------------------------------------------------------
 // Hint state.
 
 void StateTable::SetHint(HintTarget target, HintMode mode) {
@@ -379,6 +371,14 @@ void StateTable::SetHint(HintTarget target, HintMode mode) {
 void StateTable::SetLineWidth(float width) {
   data_.line_width = width;
   data_.values_set.set(kLineWidthValue);
+}
+
+//---------------------------------------------------------------------------
+// Minimum sample shading fraction state.
+
+void StateTable::SetMinSampleShading(float fraction) {
+  data_.min_sample_shading = fraction;
+  data_.values_set.set(kMinSampleShadingValue);
 }
 
 //---------------------------------------------------------------------------
@@ -503,27 +503,47 @@ template <> ION_API const EnumHelper::EnumData<StateTable::Capability>
 EnumHelper::GetEnumData() {
   static const GLenum kCapabilities[] = {
       GL_BLEND,
+      GL_CLIP_DISTANCE0,
+      GL_CLIP_DISTANCE1,
+      GL_CLIP_DISTANCE2,
+      GL_CLIP_DISTANCE3,
+      GL_CLIP_DISTANCE4,
+      GL_CLIP_DISTANCE5,
+      GL_CLIP_DISTANCE6,
+      GL_CLIP_DISTANCE7,
       GL_CULL_FACE,
       GL_DEBUG_OUTPUT_SYNCHRONOUS,
       GL_DEPTH_TEST,
       GL_DITHER,
       GL_MULTISAMPLE,
       GL_POLYGON_OFFSET_FILL,
+      GL_RASTERIZER_DISCARD,
       GL_SAMPLE_ALPHA_TO_COVERAGE,
       GL_SAMPLE_COVERAGE,
+      GL_SAMPLE_SHADING,
       GL_SCISSOR_TEST,
       GL_STENCIL_TEST,
   };
   static const char* kCapabilityStrings[] = {
       "Blend",
+      "ClipDistance0",
+      "ClipDistance1",
+      "ClipDistance2",
+      "ClipDistance3",
+      "ClipDistance4",
+      "ClipDistance5",
+      "ClipDistance6",
+      "ClipDistance7",
       "CullFace",
       "DebugOutputSynchronous",
       "DepthTest",
       "Dither",
       "Multisample",
       "PolygonOffsetFill",
+      "RasterizerDiscard",
       "SampleAlphaToCoverage",
       "SampleCoverage",
+      "SampleShading",
       "ScissorTest",
       "StencilTest",
   };
@@ -608,23 +628,6 @@ EnumHelper::GetEnumData() {
       kDepthFunctionStrings);
 }
 
-// Specialize for StateTable::DrawBuffer.
-template <>
-ION_API const EnumHelper::EnumData<StateTable::DrawBuffer>
-EnumHelper::GetEnumData() {
-  static const GLenum kDrawBuffers[] = {
-    GL_BACK, GL_BACK_LEFT, GL_BACK_RIGHT, GL_FRONT, GL_FRONT_AND_BACK,
-    GL_FRONT_LEFT, GL_FRONT_RIGHT, GL_LEFT, GL_NONE, GL_RIGHT};
-  static const char* kDrawBufferStrings[] = {
-    "Back", "BackLeft", "BackRight", "Front", "FrontAndBack",
-    "FrontLeft", "FrontRight", "Left", "None", "Right"};
-  ION_CHECK_ARRAYS(kDrawBuffers, kDrawBufferStrings);
-  return EnumData<StateTable::DrawBuffer>(
-      base::IndexMap<StateTable::DrawBuffer, GLenum>(kDrawBuffers,
-                                                     ARRAYSIZE(kDrawBuffers)),
-      kDrawBufferStrings);
-}
-
 // Specialize for StateTable::FrontFaceMode.
 template <> ION_API const EnumHelper::EnumData<StateTable::FrontFaceMode>
 EnumHelper::GetEnumData() {
@@ -706,9 +709,10 @@ const StateTable::Data& StateTable::GetDefaultData() {
 }
 
 StateTable::Data::Data(bool unused) {
-  // Reset all the capability flags except kDither.
+  // Reset all the capability flags except kDither and kMultisample.
   capabilities.reset();
   capabilities.set(kDither);
+  capabilities.set(kMultisample);
 
   // Reset all the is-set flags.
   capabilities_set.reset();
@@ -730,13 +734,13 @@ StateTable::Data::Data(bool unused) {
   depth_function = kDepthLess;
   depth_range.Set(0.0f, 1.0f);
   depth_write_mask = true;
-  draw_buffer = kBack;
   hints[kGenerateMipmapHint] = kHintDontCare;
   line_width = 1.0f;
   polygon_offset_factor = 0.0f;
   polygon_offset_units = 0.0f;
   sample_coverage_value = 1.0f;
   sample_coverage_inverted = false;
+  min_sample_shading = 0.0f;
   scissor_box.Set(math::Point2i::Zero(), math::Point2i::Zero());
   front_stencil_function = back_stencil_function = kStencilAlways;
   front_stencil_reference_value = back_stencil_reference_value = 0;

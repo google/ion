@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ class TestReferent : public ion::base::Referent {
 
 int TestReferent::num_destroys_ = 0;
 
-typedef ion::base::ReferentPtr<TestReferent>::Type TestReferentPtr;
+using TestReferentPtr = ion::base::SharedPtr<TestReferent>;
 
 }  // anonymous namespace
 
@@ -281,7 +281,7 @@ TEST(StlAllocator, InlinedAllocVectorOfReferentPtrs) {
 
     vec.push_back(TestReferentPtr(new TestReferent(15)));
     EXPECT_EQ(1U, vec.size());
-    EXPECT_TRUE(vec[0].Get() != NULL);
+    EXPECT_TRUE(vec[0].Get() != nullptr);
     EXPECT_EQ(15, vec[0]->GetValue());
     // Only the vector itself was allocated.
     EXPECT_EQ(num_allocated, a->GetNumAllocated());
@@ -292,8 +292,8 @@ TEST(StlAllocator, InlinedAllocVectorOfReferentPtrs) {
     vec.push_back(TestReferentPtr(new TestReferent(20)));
     EXPECT_EQ(num_allocated, a->GetNumAllocated());
     EXPECT_EQ(0U, a->GetNumDeallocated());
-    EXPECT_TRUE(vec[0].Get() != NULL);
-    EXPECT_TRUE(vec[1].Get() != NULL);
+    EXPECT_TRUE(vec[0]);
+    EXPECT_TRUE(vec[1]);
     EXPECT_EQ(15, vec[0]->GetValue());
     EXPECT_EQ(20, vec[1]->GetValue());
     EXPECT_EQ(1, vec[0]->GetRefCount());
@@ -302,9 +302,9 @@ TEST(StlAllocator, InlinedAllocVectorOfReferentPtrs) {
     vec.push_back(TestReferentPtr(new TestReferent(50)));
     EXPECT_EQ(num_allocated, a->GetNumAllocated());
     EXPECT_EQ(0U, a->GetNumDeallocated());
-    EXPECT_TRUE(vec[0].Get() != NULL);
-    EXPECT_TRUE(vec[1].Get() != NULL);
-    EXPECT_TRUE(vec[2].Get() != NULL);
+    EXPECT_TRUE(vec[0]);
+    EXPECT_TRUE(vec[1]);
+    EXPECT_TRUE(vec[2]);
     EXPECT_EQ(15, vec[0]->GetValue());
     EXPECT_EQ(20, vec[1]->GetValue());
     EXPECT_EQ(50, vec[2]->GetValue());
@@ -315,10 +315,10 @@ TEST(StlAllocator, InlinedAllocVectorOfReferentPtrs) {
     vec.push_back(TestReferentPtr(new TestReferent(100)));
     EXPECT_EQ(num_allocated, a->GetNumAllocated());
     EXPECT_EQ(0U, a->GetNumDeallocated());
-    EXPECT_TRUE(vec[0].Get() != NULL);
-    EXPECT_TRUE(vec[1].Get() != NULL);
-    EXPECT_TRUE(vec[2].Get() != NULL);
-    EXPECT_TRUE(vec[3].Get() != NULL);
+    EXPECT_TRUE(vec[0]);
+    EXPECT_TRUE(vec[1]);
+    EXPECT_TRUE(vec[2]);
+    EXPECT_TRUE(vec[3]);
     EXPECT_EQ(15, vec[0]->GetValue());
     EXPECT_EQ(20, vec[1]->GetValue());
     EXPECT_EQ(50, vec[2]->GetValue());
@@ -336,20 +336,20 @@ TEST(StlAllocator, InlinedAllocVectorOfReferentPtrs) {
     num_allocated = a->GetNumAllocated();
     EXPECT_EQ(num_allocated, a->GetNumAllocated());
     EXPECT_EQ(0U, a->GetNumDeallocated());
-    EXPECT_TRUE(vec[0].Get() != NULL);
-    EXPECT_TRUE(vec[1].Get() != NULL);
-    EXPECT_TRUE(vec[2].Get() != NULL);
-    EXPECT_TRUE(vec[3].Get() != NULL);
+    EXPECT_TRUE(vec[0]);
+    EXPECT_TRUE(vec[1]);
+    EXPECT_TRUE(vec[2]);
+    EXPECT_TRUE(vec[3]);
     EXPECT_EQ(15, vec[0]->GetValue());
     EXPECT_EQ(20, vec[1]->GetValue());
     EXPECT_EQ(50, vec[2]->GetValue());
     EXPECT_EQ(100, vec[3]->GetValue());
     EXPECT_EQ(num_allocated, a->GetNumAllocated());
     EXPECT_EQ(0U, a->GetNumDeallocated());
-    EXPECT_TRUE(copy[0].Get() != NULL);
-    EXPECT_TRUE(copy[1].Get() != NULL);
-    EXPECT_TRUE(copy[2].Get() != NULL);
-    EXPECT_TRUE(copy[3].Get() != NULL);
+    EXPECT_TRUE(copy[0]);
+    EXPECT_TRUE(copy[1]);
+    EXPECT_TRUE(copy[2]);
+    EXPECT_TRUE(copy[3]);
     EXPECT_EQ(15, copy[0]->GetValue());
     EXPECT_EQ(20, copy[1]->GetValue());
     EXPECT_EQ(50, copy[2]->GetValue());
@@ -357,14 +357,14 @@ TEST(StlAllocator, InlinedAllocVectorOfReferentPtrs) {
 
     // Check that popping and resizing works as expected.
     copy.pop_back();
-    EXPECT_TRUE(copy[0].Get() != NULL);
-    EXPECT_TRUE(copy[1].Get() != NULL);
-    EXPECT_TRUE(copy[2].Get() != NULL);
+    EXPECT_TRUE(copy[0]);
+    EXPECT_TRUE(copy[1]);
+    EXPECT_TRUE(copy[2]);
     copy.pop_back();
-    EXPECT_TRUE(copy[0].Get() != NULL);
-    EXPECT_TRUE(copy[1].Get() != NULL);
+    EXPECT_TRUE(copy[0]);
+    EXPECT_TRUE(copy[1]);
     copy.resize(1U);
-    EXPECT_TRUE(copy[0].Get() != NULL);
+    EXPECT_TRUE(copy[0]);
     // There are no deallocations since the original vector still holds refs.
     EXPECT_EQ(0U, a->GetNumDeallocated());
 
@@ -372,10 +372,10 @@ TEST(StlAllocator, InlinedAllocVectorOfReferentPtrs) {
     copy.push_back(TestReferentPtr(new TestReferent(20)));
     copy.push_back(TestReferentPtr(new TestReferent(50)));
     copy.push_back(TestReferentPtr(new TestReferent(100)));
-    EXPECT_TRUE(copy[0].Get() != NULL);
-    EXPECT_TRUE(copy[1].Get() != NULL);
-    EXPECT_TRUE(copy[2].Get() != NULL);
-    EXPECT_TRUE(copy[3].Get() != NULL);
+    EXPECT_TRUE(copy[0]);
+    EXPECT_TRUE(copy[1]);
+    EXPECT_TRUE(copy[2]);
+    EXPECT_TRUE(copy[3]);
     EXPECT_EQ(15, copy[0]->GetValue());
     EXPECT_EQ(20, copy[1]->GetValue());
     EXPECT_EQ(50, copy[2]->GetValue());
@@ -392,10 +392,10 @@ TEST(StlAllocator, InlinedAllocVectorOfReferentPtrs) {
     EXPECT_EQ(0U, a->GetNumDeallocated());
 
     // None of this should have affected the original vector.
-    EXPECT_TRUE(vec[0].Get() != NULL);
-    EXPECT_TRUE(vec[1].Get() != NULL);
-    EXPECT_TRUE(vec[2].Get() != NULL);
-    EXPECT_TRUE(vec[3].Get() != NULL);
+    EXPECT_TRUE(vec[0].Get() != nullptr);
+    EXPECT_TRUE(vec[1].Get() != nullptr);
+    EXPECT_TRUE(vec[2].Get() != nullptr);
+    EXPECT_TRUE(vec[3].Get() != nullptr);
     EXPECT_EQ(15, vec[0]->GetValue());
     EXPECT_EQ(20, vec[1]->GetValue());
     EXPECT_EQ(50, vec[2]->GetValue());
@@ -409,11 +409,11 @@ TEST(StlAllocator, InlinedAllocVectorOfReferentPtrs) {
     vec.push_back(TestReferentPtr(new TestReferent(200)));
     EXPECT_EQ(num_allocated + 1, a->GetNumAllocated());
     EXPECT_EQ(0U, a->GetNumDeallocated());
-    EXPECT_TRUE(vec[0].Get() != NULL);
-    EXPECT_TRUE(vec[1].Get() != NULL);
-    EXPECT_TRUE(vec[2].Get() != NULL);
-    EXPECT_TRUE(vec[3].Get() != NULL);
-    EXPECT_TRUE(vec[4].Get() != NULL);
+    EXPECT_TRUE(vec[0]);
+    EXPECT_TRUE(vec[1]);
+    EXPECT_TRUE(vec[2]);
+    EXPECT_TRUE(vec[3]);
+    EXPECT_TRUE(vec[4]);
     EXPECT_EQ(15, vec[0]->GetValue());
     EXPECT_EQ(20, vec[1]->GetValue());
     EXPECT_EQ(50, vec[2]->GetValue());
@@ -448,7 +448,7 @@ TEST(StlAllocator, InlinedAllocVectorOfReferentPtrs) {
     for (size_t i = vec.size(); i < prev_capacity; ++i)
       vec.push_back(TestReferentPtr(new TestReferent(111)));
     EXPECT_EQ(prev_capacity, vec.size());
-    EXPECT_TRUE(vec[0].Get() != NULL);
+    EXPECT_TRUE(vec[0]);
     EXPECT_EQ(15, vec[0]->GetValue());
     EXPECT_EQ(prev_allocated, a->GetNumAllocated());
     EXPECT_EQ(0U, a->GetNumDeallocated());
@@ -456,9 +456,9 @@ TEST(StlAllocator, InlinedAllocVectorOfReferentPtrs) {
     // Exceed the capacity and make sure at least one more allocation was made.
     vec.push_back(TestReferentPtr(new TestReferent(99)));
     EXPECT_EQ(prev_capacity + 1, vec.size());
-    EXPECT_TRUE(vec[0].Get() != NULL);
+    EXPECT_TRUE(vec[0]);
     EXPECT_EQ(15, vec[0]->GetValue());
-    EXPECT_TRUE(vec[prev_capacity].Get() != NULL);
+    EXPECT_TRUE(vec[prev_capacity]);
     EXPECT_EQ(99, vec[prev_capacity]->GetValue());
     EXPECT_LT(prev_allocated, a->GetNumAllocated());
 

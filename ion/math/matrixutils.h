@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -105,6 +105,42 @@ Vector<Dimension, T> Column(const Matrix<Dimension, T>& m, int col) {
   return result;
 }
 
+// Returns a matrix with the specified row and column removed, yielding a matrix
+// that is one dimension smaller.
+template <int Dimension, typename T>
+Matrix<Dimension - 1, T> WithoutDimension(const Matrix<Dimension, T>& m,
+                                          int dim) {
+  Matrix<Dimension - 1, T> result;
+  for (int row = 0; row < Dimension - 1; ++row) {
+    for (int col = 0; col < Dimension - 1; ++col) {
+      result(row, col) = m(row + (row < dim ? 0 : 1),
+                           col + (col < dim ? 0 : 1));
+    }
+  }
+  return result;
+}
+
+// Returns a matrix expanded by an identity row and column in the specified
+// dimension, yielding a matrix which is one dimension larger.
+template <int Dimension, typename T>
+Matrix<Dimension + 1, T> WithIdentityDimension(const Matrix<Dimension, T>& m,
+                                               int dim) {
+  Matrix<Dimension + 1, T> result;
+  for (int row = 0; row < Dimension + 1; ++row) {
+    for (int col = 0; col < Dimension + 1; ++col) {
+      if (row == dim && col == dim) {
+        result(row, col) = T(1);
+      } else if (row == dim || col == dim) {
+        result(row, col) = T(0);
+      } else {
+        result(row, col) = m(row - (row < dim ? 0 : 1),
+                             col - (col < dim ? 0 : 1));
+      }
+    }
+  }
+  return result;
+}
+
 // Returns the determinant of the matrix. This function is defined for all the
 // typedef'ed Matrix types.
 template <int Dimension, typename T> ION_API
@@ -118,7 +154,7 @@ Matrix<Dimension, T> CofactorMatrix(const Matrix<Dimension, T>& m);
 // Returns the adjugate of the matrix, which is defined as the transpose of the
 // cofactor matrix. This function is defined for all the typedef'ed Matrix
 // types.  The determinant of the matrix is computed as a side effect, so it is
-// returned in the determinant parameter if it is not NULL.
+// returned in the determinant parameter if it is not null.
 template <int Dimension, typename T> ION_API
 Matrix<Dimension, T> AdjugateWithDeterminant(
     const Matrix<Dimension, T>& m, T* determinant);
@@ -128,13 +164,13 @@ Matrix<Dimension, T> AdjugateWithDeterminant(
 // types.
 template <int Dimension, typename T>
 Matrix<Dimension, T> Adjugate(const Matrix<Dimension, T>& m) {
-  return AdjugateWithDeterminant<Dimension, T>(m, static_cast<T*>(NULL));
+  return AdjugateWithDeterminant<Dimension, T>(m, nullptr);
 }
 
 // Returns the inverse of the matrix. This function is defined for all the
 // typedef'ed Matrix types.  The determinant of the matrix is computed as a
 // side effect, so it is returned in the determinant parameter if it is not
-// NULL. If the determinant is 0, the returned matrix has all zeroes.
+// null. If the determinant is 0, the returned matrix has all zeroes.
 template <int Dimension, typename T> ION_API
 Matrix<Dimension, T> InverseWithDeterminant(
     const Matrix<Dimension, T>& m, T* determinant);
@@ -144,7 +180,7 @@ Matrix<Dimension, T> InverseWithDeterminant(
 // matrix has all zeroes.
 template <int Dimension, typename T>
 inline Matrix<Dimension, T> Inverse(const Matrix<Dimension, T>& m) {
-  return InverseWithDeterminant<Dimension, T>(m, static_cast<T*>(NULL));
+  return InverseWithDeterminant<Dimension, T>(m, nullptr);
 }
 
 // Returns true if all elements of two matrices are equal within a tolerance.

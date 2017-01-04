@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -84,14 +84,14 @@ TraceVerifier::Call& TraceVerifier::Call::HasArg(
 }
 
 TraceVerifier::TraceVerifier(GraphicsManager* graphics_manager)
-    : graphics_manager_(graphics_manager) {
-  DCHECK(graphics_manager_);
-  prev_stream_ = graphics_manager_->GetTracingStream();
-  graphics_manager_->SetTracingStream(&trace_stream_);
+    : tracing_stream_(graphics_manager->GetTracingStream()) {
+  tracing_stream_.SetForwardedStream(&trace_stream_);
+  tracing_stream_.StartTracing();
 }
 
 TraceVerifier::~TraceVerifier() {
-  graphics_manager_->SetTracingStream(prev_stream_);
+  tracing_stream_.StopTracing();
+  tracing_stream_.SetForwardedStream(nullptr);
 }
 
 size_t TraceVerifier::GetCallCount() const {
@@ -102,8 +102,16 @@ size_t TraceVerifier::GetCountOf(const std::string& start) const {
   return TraceCallExtractor(trace_stream_.str()).GetCountOf(start);
 }
 
+size_t TraceVerifier::GetCountOf(const ArgSpec& arg_spec) const {
+  return TraceCallExtractor(trace_stream_.str()).GetCountOf(arg_spec);
+}
+
 size_t TraceVerifier::GetNthIndexOf(size_t n, const std::string& start) const {
   return TraceCallExtractor(trace_stream_.str()).GetNthIndexOf(n, start);
+}
+
+size_t TraceVerifier::GetNthIndexOf(size_t n, const ArgSpec& arg_spec) const {
+  return TraceCallExtractor(trace_stream_.str()).GetNthIndexOf(n, arg_spec);
 }
 
 ::testing::AssertionResult TraceVerifier::VerifySortedCalls(

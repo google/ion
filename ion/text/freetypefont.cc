@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -58,11 +58,11 @@ using math::Vector2f;
 typedef std::vector<math::Point2f> ControlPoints;
 
 // Returns true if a target size passed to a layout function is valid. To be
-// valid, neither component can be negative and at least one must be positive.
+// valid, neither component can be negative.
 static bool IsSizeValid(const Vector2f& target_size) {
   const float width = target_size[0];
   const float height = target_size[1];
-  return width >= 0.0f && height >= 0.0f && (width > 0.0f || height > 0.0f);
+  return (width >= 0.0f || height >= 0.0f);
 }
 
 //-----------------------------------------------------------------------------
@@ -78,7 +78,7 @@ class FreeTypeManager {
   ~FreeTypeManager();
 
   // Returns the FreeTypeManager corresponding to |allocator| (or kLongTerm if
-  // allocator is NULL).  If the FreeTypeManager does not exist, one is created.
+  // allocator is null).  If the FreeTypeManager does not exist, one is created.
   static FreeTypeManager* GetManagerForAllocator(
       const base::AllocatorPtr& allocator) {
     // Declare FreeTypeManagerMap as a mapping from allocators to managers, and
@@ -109,7 +109,7 @@ class FreeTypeManager {
 
   // Initializes and returns an FT_Face for a font represented by FreeType
   // data. If simulate_library_failure is true, this simulates a failure to
-  // initialize the FreeType library. Returns NULL on error.
+  // initialize the FreeType library. Returns nullptr on error.
   FT_Face InitFont(const void* data, size_t data_size,
                    bool simulate_library_failure);
 
@@ -148,7 +148,7 @@ class FreeTypeManager {
 };
 
 FreeTypeManager::FreeTypeManager(const base::AllocatorPtr& allocator)
-    : allocator_(allocator), ft_lib_(NULL) {
+    : allocator_(allocator), ft_lib_(nullptr) {
   ft_mem_.user = this;
   ft_mem_.alloc = Allocate;
   ft_mem_.free = Free;
@@ -166,15 +166,15 @@ FreeTypeManager::~FreeTypeManager() {
 
 FT_Face FreeTypeManager::InitFont(const void* data, size_t data_size,
                                   bool simulate_library_failure) {
-  FT_Face face = NULL;
+  FT_Face face = nullptr;
   base::LockGuard guard(&mutex_);
-  if (FT_Library lib = simulate_library_failure ? NULL : ft_lib_) {
+  if (FT_Library lib = simulate_library_failure ? nullptr : ft_lib_) {
     if (!FT_New_Memory_Face(lib, reinterpret_cast<const FT_Byte*>(data),
                             static_cast<FT_Long>(data_size), 0, &face)) {
       DCHECK(face);
     } else {
       LOG(ERROR) << "Could not read the FreeType font data";
-      face = NULL;
+      face = nullptr;
     }
   } else {
     LOG(ERROR) << "Could not initialize the FreeType library";
@@ -323,7 +323,7 @@ class FreeTypeFont::Helper
 #if defined(ION_USE_ICU)
         font_tables_(allocator_),
 #endif  // ION_USE_ICU
-        ft_face_(NULL),
+        ft_face_(nullptr),
         manager_(FreeTypeManager::GetManagerForAllocator(allocator_)) {
   }
   ~Helper() { FreeFont(); }
@@ -334,7 +334,7 @@ class FreeTypeFont::Helper
   bool Init(const void* data, size_t data_size, bool simulate_library_failure);
 
   // Loads a glyph from FreeType and fills in either or both of glyph_data and
-  // glyph_grid, when not NULL.  size_in_pixels is used to scale the glyph.
+  // glyph_grid, when not null.  size_in_pixels is used to scale the glyph.
   // Returns true if a glyph was loaded; will resort to fallback faces if the
   // glyph is not found in the main face.
   bool LoadGlyph(GlyphIndex glyph_index, GlyphMetaData* glyph_meta,
@@ -358,8 +358,6 @@ class FreeTypeFont::Helper
   void FreeFont();
 
   // Adds a fallback face to this font.
-  // TODO(user): Update the rest of the functions in the helper to consider the
-  // fallbacks, not just glyph loading.
   void AddFallbackFace(const std::weak_ptr<Helper>& fallback);
 
 #if defined(ION_USE_ICU)
@@ -610,7 +608,7 @@ FreeTypeFont::Helper::GetGlyphMetaData(GlyphIndex glyph_index) const {
   const auto& it = glyph_metadata_map_.find(glyph_index);
   if (it == glyph_metadata_map_.end()) {
     GlyphMetaData glyph_meta;
-    if (LoadGlyphLocked(glyph_index, &glyph_meta, NULL)) {
+    if (LoadGlyphLocked(glyph_index, &glyph_meta, nullptr)) {
       return glyph_metadata_map_[glyph_index] = glyph_meta;
     }
     return base::InvalidReference<GlyphMetaData>();
@@ -622,7 +620,7 @@ void FreeTypeFont::Helper::FreeFont() {
   base::LockGuard guard(&mutex_);
   if (ft_face_) {
     manager_->FreeFont(ft_face_);
-    ft_face_ = NULL;
+    ft_face_ = nullptr;
   }
 }
 
@@ -643,11 +641,11 @@ const void* FreeTypeFont::Helper::getFontTable(LETag tableTag,
   if (it == font_tables_.end()) {
     FT_ULong table_size = 0;
     FT_Error error =
-        FT_Load_Sfnt_Table(ft_face_, tableTag, 0, NULL, &table_size);
+        FT_Load_Sfnt_Table(ft_face_, tableTag, 0, nullptr, &table_size);
     // It's legit for a font table to be missing.
     if (!error && error != FT_Err_Table_Missing) {
       base::DataContainerPtr table =
-          base::DataContainer::CreateOverAllocated<FT_Byte>(table_size, NULL,
+          base::DataContainer::CreateOverAllocated<FT_Byte>(table_size, nullptr,
                                                             allocator_);
       error = FT_Load_Sfnt_Table(ft_face_, tableTag, 0,
                                  table->GetMutableData<FT_Byte>(), &table_size);
@@ -660,7 +658,7 @@ const void* FreeTypeFont::Helper::getFontTable(LETag tableTag,
   }
   if (it == font_tables_.end()) {
     length = 0;
-    return NULL;
+    return nullptr;
   }
   length = it->second.second;
   return it->second.first->GetMutableData<uint8>();
@@ -788,14 +786,14 @@ FreeTypeFont::FreeTypeFont(const std::string& name, size_t size_in_pixels,
                            size_t sdf_padding)
     : Font(name, size_in_pixels, sdf_padding), helper_(new Helper(this)) {
   // Simulate library initialization failure.
-  helper_->Init(NULL, 0U, true);
+  helper_->Init(nullptr, 0U, true);
 }
 
 FreeTypeFont::~FreeTypeFont() {}
 
 bool FreeTypeFont::LoadGlyphGrid(GlyphIndex glyph_index,
                                  GlyphGrid* glyph_grid) const {
-  return helper_->LoadGlyph(glyph_index, NULL, glyph_grid);
+  return helper_->LoadGlyph(glyph_index, nullptr, glyph_grid);
 }
 
 const math::Vector2f FreeTypeFont::GetKerning(CharIndex char_index0,

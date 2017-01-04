@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -220,6 +220,34 @@ TEST(TransformUtils, RotationMatrixNH) {
   // Generic point.
   EXPECT_PRED2((testing::PointsAlmostEqual<3, double>),
                Point3d(1.0, 3.0, -2.0), m * Point3d(1.0, 2.0, 3.0));
+}
+
+TEST(TransformUtils, RangeMapping) {
+  const Range2f src = Range2f(Point2f(-1.f, -2.f), Point2f(3.f, 0.f));
+  const Range2f dest = Range2f(Point2f(0.f, 0.f), Point2f(8.f, 8.f));
+  const Matrix3f mapping = RangeMappingMatrixH(src, dest);
+
+  // Check endpoints.
+  EXPECT_PRED2((testing::PointsAlmostEqual<2, float>),
+               dest.GetMinPoint(), mapping * src.GetMinPoint());
+  EXPECT_PRED2((testing::PointsAlmostEqual<2, float>),
+               dest.GetMaxPoint(), mapping * src.GetMaxPoint());
+  // Check a point in the middle of the source range.
+  EXPECT_PRED2((testing::PointsAlmostEqual<2, float>),
+               dest.GetCenter(), mapping * src.GetCenter());
+  // Check reasonable behavior for empty and degenerate input ranges.
+  EXPECT_TRUE(src.ContainsPoint(
+      RangeMappingMatrixH(Range2f(), src) * Point2f(123.f, 234.f)));
+  EXPECT_TRUE(dest.ContainsPoint(
+      RangeMappingMatrixH(Range2f(), dest) * Point2f(-123.f, -4.f)));
+  EXPECT_PRED2((testing::PointsAlmostEqual<2, float>), Point2f(0.f, 4.f),
+      RangeMappingMatrixH(Range2f(Point2f(), Point2f(0.f, 16.f)), dest) *
+          Point2f(7.f, 8.f));
+  // Check points at some arbitrary place.
+  const Vector2f test_point(0.125f, 0.675f);
+  EXPECT_PRED2((testing::PointsAlmostEqual<2, float>),
+               dest.GetMinPoint() + test_point * dest.GetSize(),
+               mapping * (src.GetMinPoint() + test_point * src.GetSize()));
 }
 
 TEST(TransformUtils, Composition) {

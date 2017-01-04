@@ -115,11 +115,11 @@ Semantic ToSemantic(const std::string& semantic)
 void ReadIndexArray(TiXmlElement* p , vector<size_t>& array)
 {
   istringstream strStream (p->GetText());
-  char val[100];
+  std::string val;
   size_t value = 0;
   while (!strStream.eof()) {
     strStream >> val;
-    value = atoi(val);
+    value = std::stoi(val);
     array.push_back(value);
   }
 }
@@ -166,13 +166,9 @@ Source& GetSource(map<std::string, Source >& sources, map<std::string, vector<In
       srcIterator = sources.find(i->source);
       if (srcIterator != sources.end())
         return srcIterator->second;
-      
     }
-  } else {
-    throw std::string("Error");
   }
-  
-  return srcIterator->second;
+  throw std::string("Error");
 }
 
 void InsertVertNormalTexcoord(vector<Vector3>& vertVector,vector<Vector3>& normalVector,vector<Vector2>& texcoordVector, bool hasVerts, bool hasNormals, bool hasTexcoords,const std::string& vertSource ,const std::string& normalSource ,const std::string& texcoordSource ,size_t vertIndex , size_t normalIndex , size_t texcoordIndex, map<std::string, Source >& sources,map<std::string, vector<Input> >& vertices)
@@ -180,35 +176,38 @@ void InsertVertNormalTexcoord(vector<Vector3>& vertVector,vector<Vector3>& norma
   if (hasVerts) {
     Source& src = GetSource(sources, vertices , vertSource);
     float x = 0, y = 0, z = 0;
-    if (src.stride >= 1)
-      x = src.array[src.offset + vertIndex*src.stride];
-    if (src.stride >= 2)
-      y = src.array[src.offset + vertIndex*src.stride + 1];
-    if (src.stride >= 3)
-      z = src.array[src.offset + vertIndex*src.stride + 2];
+    size_t index = src.offset + vertIndex * src.stride;
+    if (src.stride >= 1 && index < src.array.size())
+      x = src.array[index];
+    if (src.stride >= 2 && (index + 1) < src.array.size())
+      y = src.array[index + 1];
+    if (src.stride >= 3 && (index + 2) < src.array.size())
+      z = src.array[index + 2];
     vertVector.push_back(Vector3(x,y,z));
   }
-  
+
   if (hasNormals) {
     Source& src = GetSource(sources, vertices , normalSource);
     float x = 0, y = 0, z = 0;
-    if (src.stride >= 1)
-      x = src.array[src.offset + normalIndex*src.stride];
-    if (src.stride >= 2)
-      y = src.array[src.offset + normalIndex*src.stride + 1];
-    if (src.stride >= 3)
-      z = src.array[src.offset + normalIndex*src.stride + 2];
-    normalVector.push_back(Vector3(x,y,z) );
+    size_t index = src.offset + normalIndex * src.stride;
+    if (src.stride >= 1 && index < src.array.size())
+      x = src.array[index];
+    if (src.stride >= 2 && (index + 1) < src.array.size())
+      y = src.array[index + 1];
+    if (src.stride >= 3 && (index + 2) < src.array.size())
+      z = src.array[index + 2];
+    normalVector.push_back(Vector3(x,y,z));
   }
-  
+
   if (hasTexcoords) {
     Source& src = GetSource(sources, vertices , texcoordSource);
     float s = 0, t = 0;
-    if (src.stride >= 1)
-      s = src.array[src.offset + texcoordIndex*src.stride];
-    if (src.stride >= 2)
-      t = src.array[src.offset + texcoordIndex*src.stride + 1];
-    
+    size_t index = src.offset + texcoordIndex * src.stride;
+    if (src.stride >= 1 && index < src.array.size())
+      s = src.array[index];
+    if (src.stride >= 2 && (index + 1) < src.array.size())
+      t = src.array[index + 1];
+
     texcoordVector.push_back(Vector2(s,t));
   }
 }
@@ -293,12 +292,12 @@ void Import_DAE(TiXmlDocument &doc, Mesh * aMesh)
     if (accessorElem->Attribute("offset"))
       sources[id].offset = atoi(accessorElem->Attribute("offset"));
 
-        char val[100];
+        std::string val;
         float value = 0;
         while(!strStream.eof())
         {
           strStream >> val;
-          value = float(atof(val));
+          value = std::stof(val);
           sources[id].array.push_back(value);
         }
       }
@@ -374,6 +373,8 @@ void Import_DAE(TiXmlDocument &doc, Mesh * aMesh)
         for (size_t i = 0; i < pArray.size() ; i += inputs.size()) {
           size_t vertIndex = 0, normalIndex = 0, texcoordIndex = 0;
           for (vector<Input>::const_iterator j = inputs.begin(); j != inputs.end(); ++j) {
+            if (i + j->offset >= pArray.size())
+              continue;
             switch (j->semantic) {
               case VERTEX:
                 vertIndex = pArray[i + j->offset];

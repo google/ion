@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -55,6 +55,7 @@ class ShaderManager::ShaderManagerData : public base::Allocatable {
     gfx::ShaderProgramWeakPtr program;
     ShaderSourceComposerPtr vertex_source_composer;
     ShaderSourceComposerPtr fragment_source_composer;
+    ShaderSourceComposerPtr geometry_source_composer;
   };
   typedef base::AllocMap<std::string, ProgramInfo> ProgramMap;
 
@@ -89,8 +90,10 @@ class ShaderManager::ShaderManagerData : public base::Allocatable {
   }
 
   void GetShaderProgramComposers(
-      const std::string& name, ShaderSourceComposerPtr* vertex_source_composer,
-      ShaderSourceComposerPtr* fragment_source_composer) {
+      const std::string& name,
+      ShaderSourceComposerPtr* vertex_source_composer,
+      ShaderSourceComposerPtr* fragment_source_composer,
+      ShaderSourceComposerPtr* geometry_source_composer) {
     ShaderProgramPtr program;
     LockGuard guard(&mutex_);
     ProgramMap::iterator it = FindProgramInfo(name);
@@ -99,11 +102,15 @@ class ShaderManager::ShaderManagerData : public base::Allocatable {
         *vertex_source_composer = it->second.vertex_source_composer;
       if (fragment_source_composer)
         *fragment_source_composer = it->second.fragment_source_composer;
+      if (geometry_source_composer)
+        *geometry_source_composer = it->second.geometry_source_composer;
     } else {
       if (vertex_source_composer)
-        *vertex_source_composer = NULL;
+        *vertex_source_composer = nullptr;
       if (fragment_source_composer)
-        *fragment_source_composer = NULL;
+        *fragment_source_composer = nullptr;
+      if (geometry_source_composer)
+        *geometry_source_composer = nullptr;
     }
   }
 
@@ -119,6 +126,8 @@ class ShaderManager::ShaderManagerData : public base::Allocatable {
           shader->SetSource(info.vertex_source_composer->GetSource());
         if (Shader* shader = program->GetFragmentShader().Get())
           shader->SetSource(info.fragment_source_composer->GetSource());
+        if (Shader* shader = program->GetGeometryShader().Get())
+          shader->SetSource(info.geometry_source_composer->GetSource());
         ++it;
       }
     }
@@ -136,6 +145,13 @@ class ShaderManager::ShaderManagerData : public base::Allocatable {
         if (info.fragment_source_composer->DependsOn(dependency))
           if (Shader* shader = program->GetFragmentShader().Get())
             shader->SetSource(info.fragment_source_composer->GetSource());
+        if (info.geometry_source_composer.Get() != nullptr) {
+          if (info.geometry_source_composer->DependsOn(dependency)) {
+            if (Shader* shader = program->GetGeometryShader().Get()) {
+              shader->SetSource(info.geometry_source_composer->GetSource());
+            }
+          }
+        }
         ++it;
       }
     }
@@ -184,7 +200,8 @@ ShaderManager::~ShaderManager() {}
 const ShaderProgramPtr ShaderManager::CreateShaderProgram(
     const std::string& name, const ion::gfx::ShaderInputRegistryPtr& registry,
     const ShaderSourceComposerPtr& vertex_source_composer,
-    const ShaderSourceComposerPtr& fragment_source_composer) {
+    const ShaderSourceComposerPtr& fragment_source_composer,
+    const ShaderSourceComposerPtr& geometry_source_composer) {
   // Create ProgramInfo and add it to the map.
   ShaderProgramPtr program(new(GetAllocatorForLifetime(base::kMediumTerm))
                            ion::gfx::ShaderProgram(registry));
@@ -194,12 +211,19 @@ const ShaderProgramPtr ShaderManager::CreateShaderProgram(
       ShaderPtr(new(GetAllocatorForLifetime(base::kMediumTerm))
                 Shader(vertex_source_composer->GetSource())));
   program->GetVertexShader()->SetLabel(name + " vertex shader");
-  program->SetFragmentShader(
-      ShaderPtr(new(GetAllocatorForLifetime(base::kMediumTerm))
-                Shader(fragment_source_composer->GetSource())));
+  program->SetFragmentShader(ShaderPtr(new (GetAllocatorForLifetime(
+      base::kMediumTerm)) Shader(fragment_source_composer->GetSource())));
   program->GetFragmentShader()->SetLabel(name + " fragment shader");
+
+  if (geometry_source_composer.Get() != nullptr) {
+    program->SetGeometryShader(
+        ShaderPtr(new(GetAllocatorForLifetime(base::kMediumTerm))
+                  Shader(geometry_source_composer->GetSource())));
+    program->GetGeometryShader()->SetLabel(name + " geometry shader");
+  }
   info.vertex_source_composer = vertex_source_composer;
   info.fragment_source_composer = fragment_source_composer;
+  info.geometry_source_composer = geometry_source_composer;
   data_->AddProgramInfo(name, info);
 
   return program;
@@ -217,9 +241,11 @@ const std::vector<std::string> ShaderManager::GetShaderProgramNames() {
 void ShaderManager::GetShaderProgramComposers(
     const std::string& name,
     ShaderSourceComposerPtr* vertex_source_composer,
-    ShaderSourceComposerPtr* fragment_source_composer) {
+    ShaderSourceComposerPtr* fragment_source_composer,
+    ShaderSourceComposerPtr* geometry_source_composer) {
   data_->GetShaderProgramComposers(name, vertex_source_composer,
-                                   fragment_source_composer);
+                                   fragment_source_composer,
+                                   geometry_source_composer);
 }
 
 void ShaderManager::RecreateAllShaderPrograms() {

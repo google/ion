@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -80,8 +80,9 @@ enum VerticalAlignment {
 //   component of the size is positive and the other is zero, the text
 //   rectangle will be scaled uniformly to match that component (width or
 //   height). If both are positive, the rectangle will be scaled non-uniformly
-//   to match both. If either is negative or both are zero, the returned Layout
-//   will be empty.
+//   to match both. If both are zero, then the text rectangle will not be scaled
+//   and the output will be in pixels. If either is negative, the returned
+//   Layout will be empty.
 //
 // Scaling:
 //   If the SDF padding in the Font is positive, each Quad of the resulting

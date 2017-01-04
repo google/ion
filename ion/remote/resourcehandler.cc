@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ limitations under the License.
 
 #include "ion/remote/resourcehandler.h"
 
+#include <cctype>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -125,11 +126,10 @@ static const std::string EscapeJson(const std::string& str) {
 
 class RenderTextureCallback : public TextureImageCallback {
  public:
-  typedef base::ReferentPtr<RenderTextureCallback>::Type RefPtr;
+  using RefPtr = base::SharedPtr<RenderTextureCallback>;
 
-  RenderTextureCallback(const RendererPtr& renderer, bool do_wait)
-      : TextureImageCallback(do_wait),
-        renderer_(renderer) {}
+  explicit RenderTextureCallback(const RendererPtr& renderer)
+      : TextureImageCallback(), renderer_(renderer) {}
 
   // Renders texture images and then calls the version in the base class.
   void Callback(const std::vector<TextureImageInfo>& data);
@@ -234,45 +234,90 @@ static const std::string ConvertAttachmentToJson(
   std::ostringstream str;
   const Indent indent2 = indent + 2;
 
-  str << indent << "\"type\": \""
-      << (info.type ? helper.ToString("GLenum", info.type) : "GL_NONE")
-      << "\",\n";
-  str << indent;
-  if (info.type == GL_TEXTURE)
-    str << "\"texture_glid\": " << info.value << ",\n";
-  else
-    str << "\"value\": " << info.value << ",\n";
-  str << indent << "\"mipmap_level\": " << info.level << ",\n";
-  str << indent << "\"cube_face\": \""
-      << (info.cube_face ? helper.ToString("GLenum", info.cube_face)
-                         : "GL_NONE") << "\",\n";
-  str << indent << "\"renderbuffer\": {\n";
-  str << indent2 << "\"object_id\": " << rb_info.id << ",\n";
-  str << indent2 << "\"label\": " << "\"" << rb_info.label << "\",\n";
-  str << indent2 << "\"width\": " << rb_info.width << ",\n";
-  str << indent2 << "\"height\": " << rb_info.height << ",\n";
-  str << indent2 << "\"internal_format\": \""
-      << helper.ToString("GLenum", rb_info.internal_format) << "\",\n";
-  str << indent2 << "\"red_size\": " << rb_info.red_size << ",\n";
-  str << indent2 << "\"green_size\": " << rb_info.green_size << ",\n";
-  str << indent2 << "\"blue_size\": " << rb_info.blue_size << ",\n";
-  str << indent2 << "\"alpha_size\": " << rb_info.alpha_size << ",\n";
-  str << indent2 << "\"depth_size\": " << rb_info.depth_size << ",\n";
-  str << indent2 << "\"stencil_size\": " << rb_info.stencil_size << "\n";
-  str << indent << "}\n";
+  if (info.type == GL_NONE) {
+    str << indent << "\"type\": \"GL_NONE\"\n";
+  } else {
+    str << indent << "\"type\": \""
+        << (info.type ? helper.ToString("GLenum", info.type) : "GL_NONE")
+        << "\",\n";
+    if (info.type == GL_TEXTURE) {
+      str << indent << "\"texture_glid\": " << info.value << ",\n";
+      str << indent << "\"mipmap_level\": " << info.level << ",\n";
+      str << indent << "\"cube_face\": \""
+          << (info.cube_face ? helper.ToString("GLenum", info.cube_face)
+                             : "GL_NONE") << "\",\n";
+      str << indent << "\"layer\": " << info.level << ",\n";
+      str << indent << "\"num_views\": " << info.num_views << ",\n";
+      str << indent << "\"texture_samples\": " << info.texture_samples << "\n";
+    } else {
+      DCHECK_EQ(info.type, GL_RENDERBUFFER);
+      str << indent << "\"renderbuffer\": {\n";
+      str << indent2 << "\"object_id\": " << rb_info.id << ",\n";
+      str << indent2 << "\"label\": " << "\"" << rb_info.label << "\",\n";
+      str << indent2 << "\"width\": " << rb_info.width << ",\n";
+      str << indent2 << "\"height\": " << rb_info.height << ",\n";
+      str << indent2 << "\"internal_format\": \""
+          << helper.ToString("GLenum", rb_info.internal_format) << "\",\n";
+      str << indent2 << "\"red_size\": " << rb_info.red_size << ",\n";
+      str << indent2 << "\"green_size\": " << rb_info.green_size << ",\n";
+      str << indent2 << "\"blue_size\": " << rb_info.blue_size << ",\n";
+      str << indent2 << "\"alpha_size\": " << rb_info.alpha_size << ",\n";
+      str << indent2 << "\"depth_size\": " << rb_info.depth_size << ",\n";
+      str << indent2 << "\"stencil_size\": " << rb_info.stencil_size << "\n";
+      str << indent << "}\n";
+    }
+  }
   return str.str();
 }
 
-const std::string ConvertEnumVectorToJson(const std::vector<GLenum>& vec) {
+const std::string ConvertEnumVectorToJson(const Indent& indent,
+                                          const std::vector<GLenum>& vec) {
   gfx::TracingHelper helper;
   std::ostringstream str;
   const size_t count = vec.size();
   for (size_t i = 0; i < count; ++i) {
     if (i)
-      str << ", ";
-    str << helper.ToString("GLenum", vec[i]);
+      str << ",\n";
+    str << indent << "\"" << helper.ToString("GLenum", vec[i]) << "\"";
   }
+  str << "\n";
+  return str.str();
+}
 
+static const std::string ConvertExtensionStringToJson(const Indent& indent,
+    const std::string& extension_string) {
+  std::ostringstream str;
+  std::istringstream extstream(extension_string);
+  std::vector<std::string> extensions;
+  std::string extension;
+  while (extstream >> extension) {
+    extensions.push_back(extension);
+  }
+  // Sort first by extension name and then by vendor prefix.
+  std::sort(extensions.begin(), extensions.end(),
+      [](const std::string& a, const std::string& b) {
+    size_t ai = a.find('_', 3) + 1, bi = b.find('_', 3) + 1;
+    if (a.size() - ai == b.size() - bi &&
+        std::equal(a.begin() + ai, a.end(), b.begin() + bi)) {
+      // If the name of the extension is the same, compare vendor prefix only.
+      return std::lexicographical_compare(a.begin(), a.begin() + ai,
+                                          b.begin(), b.begin() + bi);
+    } else {
+      // If extension names differ, compare them and ignore the vendor prefix.
+      return std::lexicographical_compare(a.begin() + ai, a.end(),
+                                          b.begin() + bi, b.end(),
+                                          [](char ac, char bc) {
+        return std::tolower(ac) < std::tolower(bc);
+      });
+    }
+  });
+  const size_t count = extensions.size();
+  for (size_t i = 0; i < count; ++i) {
+    if (i)
+      str << ",\n";
+    str << indent << "\"" << extensions[i] << "\"";
+  }
+  str << "\n";
   return str.str();
 }
 
@@ -472,6 +517,12 @@ const std::string ConvertInfoToJson(const Indent& indent,
   str << indent << "\"aliased_point_size_range\": \""
       << info.aliased_point_size_range[0] << " - "
       << info.aliased_point_size_range[1] << "\",\n";
+  str << indent << "\"max_3d_texture_size\": "
+      << info.max_3d_texture_size << ",\n";
+  str << indent << "\"max_array_texture_layers\": "
+      << info.max_array_texture_layers << ",\n";
+  str << indent << "\"max_clip_distances\": "
+      << info.max_clip_distances << ",\n";
   str << indent << "\"max_color_attachments\": "
       << info.max_color_attachments << ",\n";
   str << indent << "\"max_combined_texture_image_units\": "
@@ -484,6 +535,7 @@ const std::string ConvertInfoToJson(const Indent& indent,
       << info.max_fragment_uniform_vectors << ",\n";
   str << indent << "\"max_renderbuffer_size\": " << info.max_renderbuffer_size
       << ",\n";
+  str << indent << "\"max_samples\": " << info.max_samples << ",\n";
   str << indent << "\"max_texture_image_units\": "
       << info.max_texture_image_units << ",\n";
   str << indent << "\"max_texture_size\": " << info.max_texture_size << ",\n";
@@ -505,14 +557,18 @@ const std::string ConvertInfoToJson(const Indent& indent,
       << info.max_vertex_uniform_vectors << ",\n";
   str << indent << "\"max_viewport_dims\": \"" << info.max_viewport_dims[0]
       << " x " << info.max_viewport_dims[1] << "\",\n";
+  str << indent << "\"max_views\": " << info.max_views << ",\n";
   str << indent << "\"transform_feedback_varying_max_length\": "
       << info.transform_feedback_varying_max_length << ",\n";
-  str << indent << "\"compressed_texture_formats\": \""
-      << ConvertEnumVectorToJson(info.compressed_texture_formats) << "\",\n";
-  str << indent << "\"shader_binary_formats\": \""
-      << ConvertEnumVectorToJson(info.shader_binary_formats) << "\",\n";
-  str << indent << "\"extensions\": \"" << info.extensions << "\"\n";
-
+  str << indent << "\"compressed_texture_formats\": [\n"
+      << ConvertEnumVectorToJson(indent2, info.compressed_texture_formats)
+      << indent << "],\n";
+  str << indent << "\"shader_binary_formats\": [\n"
+      << ConvertEnumVectorToJson(indent2, info.shader_binary_formats)
+      << indent << "],\n";
+  str << indent << "\"extensions\": [\n"
+      << ConvertExtensionStringToJson(indent2, info.extensions)
+      << indent << "]\n";
   return str.str();
 }
 
@@ -572,21 +628,33 @@ const std::string ConvertInfoToJson(const Indent& indent,
 template <>
 const std::string ConvertInfoToJson(const Indent& indent,
                                     const FramebufferInfo& info) {
+  gfx::TracingHelper helper;
   std::ostringstream str;
   const Indent indent2 = indent + 2;
   str << indent << "\"object_id\": " << info.id << ",\n";
   str << indent << "\"label\": " << "\"" << info.label << "\",\n";
-  str << indent << "\"attachment_color0\": {\n";
-  str << ConvertAttachmentToJson(
-             indent2, info.color0, info.color0_renderbuffer);
-  str << indent << "},\n";
+  for (size_t i = 0; i < info.color.size(); ++i) {
+    str << indent << "\"attachment_color" << i << "\": {\n";
+    str << ConvertAttachmentToJson(
+        indent2, info.color[i], info.color_renderbuffers[i]);
+    str << indent << "},\n";
+  }
   str << indent << "\"attachment_depth\": {\n";
   str << ConvertAttachmentToJson(indent2, info.depth, info.depth_renderbuffer);
   str << indent << "},\n";
   str << indent << "\"attachment_stencil\": {\n";
   str << ConvertAttachmentToJson(
              indent2, info.stencil, info.stencil_renderbuffer);
-  str << indent << "}\n";
+  str << indent << "},\n";
+  str << indent << "\"draw_buffers\": \"";
+  for (size_t i = 0; i < info.draw_buffers.size(); ++i) {
+    str << helper.ToString("GLbufferenum", info.draw_buffers[i]);
+    if (i != info.draw_buffers.size() - 1)
+      str << ", ";
+  }
+  str << "\",\n";
+  str << indent << "\"read_buffer\": \""
+      << helper.ToString("GLbufferenum", info.read_buffer) << "\"\n";
   return str.str();
 }
 
@@ -599,6 +667,8 @@ const std::string ConvertInfoToJson(const Indent& indent,
   str << indent << "\"object_id\": " << info.id << ",\n";
   str << indent << "\"label\": " << "\"" << info.label << "\",\n";
   str << indent << "\"vertex_shader_glid\": " << info.vertex_shader << ",\n";
+  str << indent << "\"geometry_shader_glid\": " << info.geometry_shader
+      << ",\n";
   str << indent << "\"fragment_shader_glid\": " << info.fragment_shader
       << ",\n";
   str << indent << "\"delete_status\": \""
@@ -684,6 +754,8 @@ const std::string ConvertInfoToJson(const Indent& indent,
       << helper.ToString("GLtextureenum", info.compare_func) << "\",\n";
   str << indent << "\"compare_mode\": \""
       << helper.ToString("GLtextureenum", info.compare_mode) << "\",\n";
+  str << indent << "\"is_protected\": \""
+      << helper.ToString("GLboolean", info.is_protected) << "\",\n";
   str << indent << "\"max_anisotropy\": " << info.max_anisotropy << ",\n";
   str << indent << "\"min_lod\": " << info.min_lod << ",\n";
   str << indent << "\"max_lod\": " << info.max_lod << ",\n";
@@ -732,22 +804,16 @@ void RequestInfo<PlatformInfo, PlatformInfo>(
       &gfxutils::ResourceCallback<PlatformInfo>::Callback, callback.Get(), _1));
 }
 
-// Builds and returns a JSOn struct for the named resource type.
+// Builds and returns a JSON struct for the named resource type.
 template <typename ResourceType, typename InfoType>
 const std::string BuildJsonStruct(const RendererPtr& renderer,
-                                  const std::string& name, const Indent& indent,
-                                  const bool wait_for_completion) {
+                                  const std::string& name,
+                                  const Indent& indent) {
   // Get resource information out of the Renderer's ResourceManager.
   ResourceManager* manager = renderer->GetResourceManager();
   typedef gfxutils::ResourceCallback<InfoType> Callback;
-  typename Callback::RefPtr callback(new Callback(wait_for_completion));
+  typename Callback::RefPtr callback(new Callback());
   RequestInfo<ResourceType, InfoType>(manager, callback);
-
-  // Only explicitly ask the renderer to process the requests if we are not
-  // willing to block. This should only be used for tests, since the handler
-  // will be executed on a thread other than the Renderer's.
-  if (!wait_for_completion)
-    renderer->ProcessResourceInfoRequests();
 
   std::vector<InfoType> infos;
   callback->WaitForCompletion(&infos);
@@ -774,7 +840,6 @@ const std::string BuildJsonStruct(const RendererPtr& renderer,
 // for the types queried in the "types" argument in args.
 static const std::string GetResourceList(const RendererPtr& renderer,
                                          const HttpServer::QueryMap& args) {
-  const bool wait_for_completion = args.find("nonblocking") == args.end();
   HttpServer::QueryMap::const_iterator it = args.find("types");
 
   std::ostringstream str;
@@ -785,29 +850,28 @@ static const std::string GetResourceList(const RendererPtr& renderer,
     const size_t count = types.size();
     for (size_t i = 0; i < count; ++i) {
       if (types[i] == "platform") {
-        str << BuildJsonStruct<PlatformInfo, PlatformInfo>(
-                   renderer, "platform", indent, wait_for_completion);
+        str << BuildJsonStruct<PlatformInfo, PlatformInfo>(renderer, "platform",
+                                                           indent);
       } else if (types[i] == "buffers") {
-        str << BuildJsonStruct<BufferObject, BufferInfo>(
-                   renderer, "buffers", indent, wait_for_completion);
+        str << BuildJsonStruct<BufferObject, BufferInfo>(renderer, "buffers",
+                                                         indent);
       } else if (types[i] == "framebuffers") {
         str << BuildJsonStruct<FramebufferObject, FramebufferInfo>(
-                   renderer, "framebuffers", indent, wait_for_completion);
+            renderer, "framebuffers", indent);
       } else if (types[i] == "programs") {
-        str << BuildJsonStruct<ShaderProgram, ProgramInfo>(
-                   renderer, "programs", indent, wait_for_completion);
+        str << BuildJsonStruct<ShaderProgram, ProgramInfo>(renderer, "programs",
+                                                           indent);
       } else if (types[i] == "samplers") {
-        str << BuildJsonStruct<Sampler, SamplerInfo>(
-                   renderer, "samplers", indent, wait_for_completion);
+        str << BuildJsonStruct<Sampler, SamplerInfo>(renderer, "samplers",
+                                                     indent);
       } else if (types[i] == "shaders") {
-        str << BuildJsonStruct<Shader, ShaderInfo>(renderer, "shaders", indent,
-                                                   wait_for_completion);
+        str << BuildJsonStruct<Shader, ShaderInfo>(renderer, "shaders", indent);
       } else if (types[i] == "textures") {
-        str << BuildJsonStruct<TextureBase, TextureInfo>(
-                   renderer, "textures", indent, wait_for_completion);
+        str << BuildJsonStruct<TextureBase, TextureInfo>(renderer, "textures",
+                                                         indent);
       } else if (types[i] == "vertex_arrays") {
         str << BuildJsonStruct<AttributeArray, ArrayInfo>(
-                   renderer, "vertex_arrays", indent, wait_for_completion);
+            renderer, "vertex_arrays", indent);
       } else {
         // Ignore invalid labels.
         continue;
@@ -854,8 +918,7 @@ static void WriteFaceIntoCubeMap(uint32 x_offset,
 
 // Returns a string that contains PNG data for the ID passed as a query arg.
 static const std::string GetTextureData(const RendererPtr& renderer,
-                                        const HttpServer::QueryMap& args,
-                                        bool wait_for_completion) {
+                                        const HttpServer::QueryMap& args) {
   std::string data;
   HttpServer::QueryMap::const_iterator id_it = args.find("id");
   if (id_it != args.end()) {
@@ -863,11 +926,9 @@ static const std::string GetTextureData(const RendererPtr& renderer,
       // Request the info.
       ResourceManager* manager = renderer->GetResourceManager();
       RenderTextureCallback::RefPtr callback(
-          new RenderTextureCallback(renderer, wait_for_completion));
+          new RenderTextureCallback(renderer));
       manager->RequestTextureImage(
           id, std::bind(&RenderTextureCallback::Callback, callback.Get(), _1));
-      if (!wait_for_completion)
-        renderer->ProcessResourceInfoRequests();
 
       // Wait for the callback to be triggered.
       std::vector<TextureImageInfo> infos;
@@ -897,7 +958,7 @@ static const std::string GetTextureData(const RendererPtr& renderer,
           const uint32 num_bytes = face_width * 3U * face_height * 4U * 3U;
           base::DataContainerPtr cubemap_data =
               base::DataContainer::CreateOverAllocated<uint8>(
-                  num_bytes, NULL, cubemap->GetAllocator());
+                  num_bytes, nullptr, cubemap->GetAllocator());
           cubemap->Set(
               Image::kRgb888, face_width * 3U, face_height * 4U, cubemap_data);
           memset(cubemap_data->GetMutableData<uint8>(), 0, num_bytes);
@@ -964,8 +1025,7 @@ const std::string ResourceHandler::HandleRequest(
     return GetResourceList(renderer_, args);
   } else if (path == "texture_data") {
     *content_type = "image/png";
-    return GetTextureData(
-        renderer_, args, args.find("nonblocking") == args.end());
+    return GetTextureData(renderer_, args);
   } else {
     const std::string& data = base::ZipAssetManager::GetFileData(
         "ion/resources/" + path);

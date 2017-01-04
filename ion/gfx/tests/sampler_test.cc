@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ class SamplerTest : public ::testing::Test {
   }
 
   // This is to ensure that the resource holder goes away before the resource.
-  void TearDown() override { sampler_.Reset(NULL); }
+  void TearDown() override { sampler_.Reset(nullptr); }
 
   SamplerPtr sampler_;
   std::unique_ptr<MockSamplerResource> resource_;

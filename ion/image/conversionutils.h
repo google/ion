@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -46,22 +46,34 @@ enum ExternalImageFormat {
 // for any reason.
 //
 // Currently-supported conversions:
-//   kDxt1 <-> kRgb888
-//   kDxt5 <-> kRgba8888
-//   kEtc1 <-> kRgb888
-//   kPvrtc1Rgba2 <- kRgba8888 (i.e. only one conversion direction available).
-//   kR8 <- kRgba888
-//   kR8 <- kRgb888
-//   kR8 <- kDxt1
-//   kR8 <- kDxt5
-//   kR8 <- kEtc1
+//   kLuminance, kLuminanceAlpha ->
+//     kR8, kRg8, kRgb8, kRgba8, kR32f, kRg32f, kRgb32f, kRgba32f,
+//     kEtc1, kDxt1, kDxt5, kPvrtc1Rgba2
+//   kR8 <-> kR32f
+//   kRg8 <-> kRg32f
+//   kRgb8 <-> kRgb32f
+//   kRgba8 <-> kRgba32f
+//   kEtc1 <-> kRgb8, kRgb32f, kDxt1
+//   kDxt1 <-> kRgb8, kRgb32f, kEtc1
+//   kDxt5 <-> kRgba8, kRgba32f
+//   kPvrtc1Rgba2 <- kRgba8, kRgba32f, kDxt5 (only one direction available).
+//   kR8 <- kRg8, kRgb8, kRgba8, kEtc1, kDxt1, kDxt5
+//   kR32f <- kRg32f, kRgb32f, kRgba32f
+//
+// Unsized formats are treated as their sized counterparts:
+//   kRgb888 == kRgb8
+//   kRgba8888 == kRgba8
+//   kRgbafloat == kRgba32f
 //
 // Note also that kPvrtc1Rgba2 only supports power-of-two-sized square textures
 // at least 8x8 pixels in size.
 //
-// The conversions to kR8 extract the red channel from an Rgb(a) image.  These
-// images can be used as luminance textures and use 1/4 the GPU memory of an
-// uncompressed monochrome Rgb image.
+// The conversions between the 8-bpc and floating-point types map the range
+// [0, 255] <-> [0.0f, 1.0f].
+//
+// The conversions to kR8/kR32f extract the red channel from an Rgb(a) image.
+// These images can be used as luminance textures and use 1/4 the GPU memory of
+// an uncompressed monochrome Rgb image.
 //
 // Conversion between 3-component and 4-component formats is not yet supported.
 // The |is_wipeable| flag is passed to the DataContainer for the new Image.

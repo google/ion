@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ limitations under the License.
 #  include <windows.h>
 #else
 #  include <pthread.h>
+#include <unistd.h>
 #endif
 
 #include "base/integral_types.h"
@@ -60,23 +61,27 @@ class Barrier {
   std::atomic<int32> wait_count_;
   HANDLE turnstile1_;
   HANDLE turnstile2_;
-#elif defined(ION_PLATFORM_LINUX) || defined(ION_PLATFORM_QNX)
-  // Linux and QNX are the only platforms that support barriers in pthreads.
+
+#elif defined(_POSIX_BARRIERS) && (_POSIX_BARRIERS > 0)
   pthread_barrier_t barrier_;
   // pthread_barrier_wait() modifies state after unblocking, so we need a bit
   // more synchronization to make sure we don't destroy the barrier too soon.
-  std::atomic<int32> waiting_count_;
+  std::atomic<int32> ref_count_;
+
 #else
   // See comments in source code.
-  pthread_cond_t condition_;
+  pthread_cond_t condition1_;
+  pthread_cond_t condition2_;
   pthread_cond_t exit_condition_;
   pthread_mutex_t mutex_;
   const int32 thread_count_;
-  int32 wait_count_;
-  int32 exit_count_;
+  int32 wait_count1_;
+  int32 wait_count2_;
+  int32 ref_count_;
 #endif
+
   // This is set to true if a valid barrier was created in the constructor.
-  bool is_valid_;
+  const bool is_valid_;
 
   DISALLOW_COPY_AND_ASSIGN(Barrier);
 };

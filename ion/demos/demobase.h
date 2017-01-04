@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,6 +23,9 @@ limitations under the License.
 #include <memory>
 #include <string>
 
+#include "ion/gfx/graphicsmanager.h"
+#include "ion/gfx/image.h"
+
 //-----------------------------------------------------------------------------
 //
 // The DemoBase class abstracts out a demo program's responses to events in a
@@ -39,6 +42,8 @@ class RemoteServer;
 class DemoBase {
  public:
   virtual ~DemoBase();
+  virtual ion::gfx::ImagePtr GrabScreenshot(
+      const ion::base::AllocatorPtr& al) = 0;
   virtual void Resize(int width, int height) = 0;
   virtual void Update() = 0;
   virtual void Render() = 0;
@@ -74,5 +79,11 @@ class DemoBase {
 // |width|, |height| specify the dimensions of the window that was created by
 // platform-specific setup code before this function is run.
 DemoBase* CreateDemo(int width, int height);
+
+// Rewrite the shader to be compatible with the given GL version.
+// TODO(bug) This capability should perhaps live in Ion itself.
+const std::string RewriteShader(const std::string& source,
+                                ion::gfx::GraphicsManager::GlApi api,
+                                unsigned int version, bool is_fragment_shader);
 
 #endif  // ION_DEMOS_DEMOBASE_H_

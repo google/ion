@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -727,7 +727,7 @@ size_t DynamicFontImage::FindImageDataThatFits(const GlyphSet& glyph_set) {
                        &helper_->GetDeferredUpdates());
       } else {
         StoreSubImages(missing_grid_map, test_bin_packer, sta,
-                       wrapper.image_data.texture, NULL);
+                       wrapper.image_data.texture, nullptr);
       }
       // Compute per-glyph texture coordinate rectangles.
       wrapper.image_data.texture_rectangle_map = ComputeTextureRectangleMap(

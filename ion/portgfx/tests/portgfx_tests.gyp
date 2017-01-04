@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@
       'target_name': 'ionportgfx_test',
       'includes': [ '../../dev/test_target.gypi' ],
       'sources' : [
-        'getglprocaddress_test.cc',
         'isextensionsupported_test.cc',
         'setswapinterval_test.cc',
         'visual_test.cc',
@@ -39,7 +38,6 @@
           'sources!': [
             # TODO(user): Re-enable these tests by creating a stubbed out
             # canvas.
-            'getglprocaddress_test.cc',
             'isextensionsupported_test.cc',
             'setswapinterval_test.cc',
             'visual_test.cc',

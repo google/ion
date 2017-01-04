@@ -36,113 +36,44 @@ limitations under the License.
 #define ABSTRACT = 0
 #endif
 
-// Note: New code should prefer static_assert over COMPILE_ASSERT.
+// COMPILE_ASSERT is provided for backwards compatability.  New code
+// should use static_assert instead.
+#define COMPILE_ASSERT(expr, msg) static_assert((expr), #msg)
 
-// The COMPILE_ASSERT macro can be used to verify that a compile time
-// expression is true. For example, you could use it to verify the
-// size of a static array:
+// DISALLOW_COPY_AND_ASSIGN disallows the copy constructor and copy assignment
+// operator. DISALLOW_IMPLICIT_CONSTRUCTORS is like DISALLOW_COPY_AND_ASSIGN,
+// but also disallows the default constructor, intended to help make a
+// class uninstantiable.
 //
-//   COMPILE_ASSERT(ARRAYSIZE(content_type_names) == CONTENT_NUM_TYPES,
-//                  content_type_names_incorrect_size);
+// Unless building with a pre-C++11 compiler, prefer the language-supported
+// "= delete" syntax in the public: section of the class.
 //
-// or to make sure a struct is smaller than a certain size:
-//
-//   COMPILE_ASSERT(sizeof(foo) < 128, foo_too_large);
-//
-// The second argument to the macro is the name of the variable. If
-// the expression is false, most compilers will issue a warning/error
-// containing the name of the variable.
-
-#define COMPILE_ASSERT(expr, msg) \
-  typedef CompileAssert<(static_cast<bool>(expr))> \
-  msg[static_cast<bool>(expr) ? 1 : -1] ATTRIBUTE_UNUSED
-
-// Implementation details of COMPILE_ASSERT:
-//
-// - COMPILE_ASSERT works by defining an array type that has -1
-//   elements (and thus is invalid) when the expression is false.
-//
-// - The simpler definition
-//
-//     #define COMPILE_ASSERT(expr, msg) typedef char msg[(expr) ? 1 : -1]
-//
-//   does not work, as gcc supports variable-length arrays whose sizes
-//   are determined at run-time (this is gcc's extension and not part
-//   of the C++ standard).  As a result, gcc fails to reject the
-//   following code with the simple definition:
-//
-//     int foo;
-//     COMPILE_ASSERT(foo, msg); // not supposed to compile as foo is
-//                               // not a compile-time constant.
-//
-// - By using the type CompileAssert<(bool(expr))>, we ensure that
-//   expr is a compile-time constant.  (Template arguments must be
-//   determined at compile-time.)
-//
-// - The outer parentheses in CompileAssert<(bool(expr))> are necessary
-//   to work around a bug in gcc 3.4.4 and 4.0.1.  If we had written
-//
-//     CompileAssert<bool(expr)>
-//
-//   instead, these compilers will refuse to compile
-//
-//     COMPILE_ASSERT(5 > 0, some_message);
-//
-//   (They seem to think the ">" in "5 > 0" marks the end of the
-//   template argument list.)
-//
-// - The array size is (bool(expr) ? 1 : -1), instead of simply
-//
-//     ((expr) ? 1 : -1).
-//
-//   This is to avoid running into a bug in MS VC 7.1, which
-//   causes ((0.0) ? 1 : -1) to incorrectly evaluate to 1.
-
-
-// A macro to disallow the copy constructor and operator= functions
-// This must be placed in the private: declarations for a class.
-//
-// For disallowing only assign or copy, delete the relevant operator or
-// constructor, for example:
-// void operator=(const TypeName&) = delete;
-// Note, that most uses of DISALLOW_ASSIGN and DISALLOW_COPY are broken
-// semantically, one should either use disallow both or neither. Try to
-// avoid these in new code.
-//
-// When building with C++11 toolchains, users should instead prefer the
-// language supported "= delete" syntax and place those lines in the
-// public: declaration of the class.
+// These must be placed in the private: declarations for a class,
+// as a technical requirement of the non-C++11 branch.
 #if LANG_CXX11
 #define DISALLOW_COPY_AND_ASSIGN(TypeName) \
   TypeName(const TypeName&) = delete;      \
-  void operator=(const TypeName&) = delete
-#else
+  TypeName& operator=(const TypeName&) = delete
+#define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName) \
+  TypeName() = delete;                           \
+  DISALLOW_COPY_AND_ASSIGN(TypeName)
+#else  // C++98 case follows
+// Note that these C++98 implementations cannot completely disallow copying,
+// as members and friends can still accidentally make elided copies without
+// triggering a linker error.
 #define DISALLOW_COPY_AND_ASSIGN(TypeName) \
   TypeName(const TypeName&);               \
-  void operator=(const TypeName&)
-#endif
-
-// A macro to disallow all the implicit constructors, namely the
-// default constructor, copy constructor and operator= functions.
-//
-// This should be used in the private: declarations for a class
-// that wants to prevent anyone from instantiating it. This is
-// especially useful for classes containing only static methods.
+  TypeName& operator=(const TypeName&)
 #define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName) \
   TypeName();                                    \
   DISALLOW_COPY_AND_ASSIGN(TypeName)
+#endif  // LANG_CXX11
 
 // The arraysize(arr) macro returns the # of elements in an array arr.
 // The expression is a compile-time constant, and therefore can be
 // used in defining new arrays, for example.  If you use arraysize on
 // a pointer by mistake, you will get a compile-time error.
 //
-// One caveat is that, for C++03, arraysize() doesn't accept any array of
-// an anonymous type or a type defined inside a function.  In these rare
-// cases, you have to use the unsafe ARRAYSIZE() macro below.  This is
-// due to a limitation in C++03's template system.  The limitation has
-// been removed in C++11.
-
 // This template function declaration is used in defining arraysize.
 // Note that the function doesn't need an implementation, as we only
 // use its type.
@@ -159,6 +90,8 @@ char (&ArraySizeHelper(const T (&array)[N]))[N];
 
 #define arraysize(array) (sizeof(ArraySizeHelper(array)))
 
+// DEPRECATED: arraysize() is prefered over ARRAYSIZE().
+//
 // ARRAYSIZE performs essentially the same calculation as arraysize,
 // but can be used on anonymous types or types defined inside
 // functions.  It's less safe than arraysize as it accepts some
@@ -208,6 +141,8 @@ char (&ArraySizeHelper(const T (&array)[N]))[N];
 #endif
 
 // A macro to turn a symbol into a string
+// These should be used judiciously in modern code. Prefer raw-string literal
+// should you simply need to specify a large string.
 #define AS_STRING(x)   AS_STRING_INTERNAL(x)
 #define AS_STRING_INTERNAL(x)   #x
 
@@ -270,25 +205,30 @@ enum LinkerInitialized { LINKER_INITIALIZED };
 #define FALLTHROUGH_INTENDED do { } while (0)
 #endif
 
-// The GOOGLE_DEPRECATED(...) macro can be used to mark deprecated class,
+// The ABCL_DEPRECATED(...) macro can be used to mark deprecated class,
 // struct, enum, function, method and variable declarations. The macro argument
 // is used as a custom diagnostic message (e.g. suggestion of a better
 // alternative):
 //
-//   class GOOGLE_DEPRECATED("Use Bar instead") Foo {...};
-//   GOOGLE_DEPRECATED("Use Baz instead") void Bar() {...}
+//   class ABCL_DEPRECATED("Use Bar instead") Foo {...};
+//   ABCL_DEPRECATED("Use Baz instead") void Bar() {...}
 //
 // Every usage of a deprecated entity will trigger a warning when compiled with
 // clang's -Wdeprecated-declarations option. This option is turned off by
 // default, but the warnings will be reported by go/clang-tidy.
+#if defined(__clang__) && __cplusplus >= 201103L && defined(__has_warning)
+#define ABCL_DEPRECATED(message) __attribute__((deprecated(message)))  // NOLINT
+#endif
+
+#ifndef ABCL_DEPRECATED
+#define ABCL_DEPRECATED(message)
+#endif
+
+// GOOGLE_DEPRECATED will be replaced by ABCL_DEPRECATED once all usage are
+// replaced.
 #if defined(__clang__) && defined(LANG_CXX11) && defined(__has_warning)
-#if __has_feature(cxx_attributes)
-#if (__cplusplus >= 201402L)
-#define GOOGLE_DEPRECATED(message) [[deprecated(message)]]  // NOLINT
-#else
-#define GOOGLE_DEPRECATED(message) __attribute__((deprecated(message)))  // NOLINT
-#endif
-#endif
+#define GOOGLE_DEPRECATED(message) \
+  __attribute__((deprecated(message)))  // NOLINT
 #endif
 
 #ifndef GOOGLE_DEPRECATED

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -53,7 +53,7 @@ StackTrace::StackTrace() {
   const int kMaxStackTraceDepth = 62;  // < 63 according to Windows API.
   addresses_.resize(kMaxStackTraceDepth);
   const int depth =
-      CaptureStackBackTrace(0, kMaxStackTraceDepth, &addresses_[0], NULL);
+      CaptureStackBackTrace(0, kMaxStackTraceDepth, &addresses_[0], nullptr);
   assert(depth > 0);
   addresses_.resize(depth);
 
@@ -87,7 +87,7 @@ void StackTrace::ObtainSymbols() const {
   symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
 
   const HANDLE process = GetCurrentProcess();
-  SymInitialize(process, NULL, TRUE);
+  SymInitialize(process, nullptr, TRUE);
   for (size_t i = 0; i < addresses_.size(); ++i) {
     const DWORD64 address = reinterpret_cast<DWORD64>(addresses_[i]);
     const BOOL success = SymFromAddr(process, address, 0, symbol);

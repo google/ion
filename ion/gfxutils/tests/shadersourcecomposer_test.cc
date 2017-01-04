@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ limitations under the License.
 
 #include "ion/base/logchecker.h"
 #include "ion/base/stringutils.h"
+#include "ion/base/tests/multilinestringsequal.h"
 #include "ion/base/zipassetmanager.h"
 #include "ion/base/zipassetmanagermacros.h"
 #include "ion/port/timer.h"
@@ -145,8 +146,47 @@ TEST_F(ShaderSourceComposerTest, StringComposer) {
   EXPECT_FALSE(composer->DependsOn(""));
   EXPECT_FALSE(composer->DependsOn("anything"));
   EXPECT_EQ(1U, composer->GetDependencyNames().size());
-  EXPECT_EQ("dependency", composer->GetDependencyName(0));
+  // IncludeDirectiveHelper sets the first id to 1.
+  EXPECT_EQ("dependency", composer->GetDependencyName(1));
   EXPECT_EQ(std::vector<std::string>(), composer->GetChangedDependencies());
+}
+
+TEST_F(ShaderSourceComposerTest, StringComposerDirectives) {
+  // Test simple non-recursive usage of $input with StringComposer.
+  static const char kBody[] = R"(
+    $input "header"
+    void main{})";
+  static const char kHeader[] = "attribute vec3 Position;";
+  static const char kExpanded[] = R"(
+#line 1 2
+attribute vec3 Position;
+#line 2 1
+    void main{})";
+  ShaderSourceComposerPtr composer1(new StringComposer("main", kBody));
+  ShaderSourceComposerPtr composer2(new StringComposer("header", kHeader));
+  EXPECT_EQ(kExpanded, composer1->GetSource());
+
+  // Including an unknown label results in #error.
+  static const char kBodyWithUnknownInclude[] = R"(
+    $input "unknown"
+    void main{})";
+  static const char kExpandedWithUnknownInclude[] = R"(
+#error Invalid shader source identifier: unknown
+#line 2 1
+    void main{})";
+  ShaderSourceComposerPtr composer3(
+      new StringComposer("main2", kBodyWithUnknownInclude));
+  EXPECT_EQ(kExpandedWithUnknownInclude, composer3->GetSource());
+
+  // Modify the "header" composer and check that the "main" composer knows
+  // that it has been dirtied.  Dirtiness is detected using a timestamp
+  // rather than a file hash, so the test needs to sleep briefly before the
+  // mutating the header source.
+  EXPECT_TRUE(composer1->DependsOn("header"));
+  EXPECT_EQ(0U, composer1->GetChangedDependencies().size());
+  port::Timer::SleepNMilliseconds(1);
+  EXPECT_TRUE(composer1->SetDependencySource("header", "foo"));
+  EXPECT_EQ(1U, composer1->GetChangedDependencies().size());
 }
 
 TEST_F(ShaderSourceComposerTest, FilterComposer) {
@@ -167,13 +207,14 @@ TEST_F(ShaderSourceComposerTest, FilterComposer) {
   EXPECT_TRUE(filter->SetDependencySource("dependency", kSource));
   EXPECT_EQ(kSource, filter->GetDependencySource("dependency"));
   EXPECT_EQ(1U, filter->GetDependencyNames().size());
-  EXPECT_EQ("dependency", filter->GetDependencyName(0));
+  // IncludeDirectiveHelper sets the first id to 1.
+  EXPECT_EQ("dependency", filter->GetDependencyName(1));
   EXPECT_EQ(std::vector<std::string>(), filter->GetChangedDependencies());
 }
 
-TEST_F(ShaderSourceComposerTest, IncludeComposerSimpleInput) {
+TEST_F(ShaderSourceComposerTest, ShaderSourceComposerSimpleInput) {
   // Test a simple $input.
-  ShaderSourceComposerPtr composer(new IncludeComposer(
+  ShaderSourceComposerPtr composer(new ShaderSourceComposer(
       "source1", bind(&ShaderSourceComposerTest::StringSourceLoader, this, _1),
       bind(&ShaderSourceComposerTest::StringSourceSaver, this, _1, _2),
       bind(&ShaderSourceComposerTest::StringSourceTime, this, _1, _2), false));
@@ -211,10 +252,10 @@ TEST_F(ShaderSourceComposerTest, IncludeComposerSimpleInput) {
               composer->GetDependencySource("source2"));
 }
 
-TEST_F(ShaderSourceComposerTest, IncludeComposerRecursiveInput) {
+TEST_F(ShaderSourceComposerTest, ShaderSourceComposerRecursiveInput) {
   // Test a recursive $input.
   base::LogChecker log_checker;
-  ShaderSourceComposerPtr composer(new IncludeComposer(
+  ShaderSourceComposerPtr composer(new ShaderSourceComposer(
       "source3", bind(&ShaderSourceComposerTest::StringSourceLoader, this, _1),
       bind(&ShaderSourceComposerTest::StringSourceSaver, this, _1, _2),
       bind(&ShaderSourceComposerTest::StringSourceTime, this, _1, _2), false));
@@ -256,9 +297,9 @@ TEST_F(ShaderSourceComposerTest, IncludeComposerRecursiveInput) {
               composer->GetDependencySource("source4"));
 }
 
-TEST_F(ShaderSourceComposerTest, IncludeComposerNonexistantInput) {
+TEST_F(ShaderSourceComposerTest, ShaderSourceComposerNonexistantInput) {
   // Test $input of a resource that does not exist.
-  ShaderSourceComposerPtr composer(new IncludeComposer(
+  ShaderSourceComposerPtr composer(new ShaderSourceComposer(
       "source5", bind(&ShaderSourceComposerTest::StringSourceLoader, this, _1),
       bind(&ShaderSourceComposerTest::StringSourceSaver, this, _1, _2),
       bind(&ShaderSourceComposerTest::StringSourceTime, this, _1, _2), false));
@@ -284,10 +325,10 @@ TEST_F(ShaderSourceComposerTest, IncludeComposerNonexistantInput) {
   EXPECT_TRUE(composer->GetDependencySource("source1").empty());
 }
 
-TEST_F(ShaderSourceComposerTest, IncludeComposerBadInput) {
+TEST_F(ShaderSourceComposerTest, ShaderSourceComposerBadInput) {
   // Test a malformed $input.
   base::LogChecker log_checker;
-  ShaderSourceComposerPtr composer(new IncludeComposer(
+  ShaderSourceComposerPtr composer(new ShaderSourceComposer(
       "source6", bind(&ShaderSourceComposerTest::StringSourceLoader, this, _1),
       bind(&ShaderSourceComposerTest::StringSourceSaver, this, _1, _2),
       bind(&ShaderSourceComposerTest::StringSourceTime, this, _1, _2), false));
@@ -316,9 +357,9 @@ TEST_F(ShaderSourceComposerTest, IncludeComposerBadInput) {
   EXPECT_TRUE(composer->GetDependencySource("source1").empty());
 }
 
-TEST_F(ShaderSourceComposerTest, IncludeComposerLineDirectives) {
+TEST_F(ShaderSourceComposerTest, ShaderSourceComposerLineDirectives) {
   // Test #line directives.
-  ShaderSourceComposerPtr composer(new IncludeComposer(
+  ShaderSourceComposerPtr composer(new ShaderSourceComposer(
       "source1", bind(&ShaderSourceComposerTest::StringSourceLoader, this, _1),
       bind(&ShaderSourceComposerTest::StringSourceSaver, this, _1, _2),
       bind(&ShaderSourceComposerTest::StringSourceTime, this, _1, _2), true));
@@ -349,9 +390,9 @@ TEST_F(ShaderSourceComposerTest, IncludeComposerLineDirectives) {
   EXPECT_TRUE(composer->GetDependencySource("source3").empty());
 }
 
-TEST_F(ShaderSourceComposerTest, IncludeComposerWithPaths) {
+TEST_F(ShaderSourceComposerTest, ShaderSourceComposerWithPaths) {
   // Test #line directives.
-  IncludeComposer* ic = new IncludeComposer(
+  ShaderSourceComposer* ic = new ShaderSourceComposer(
       "depth/source8",
       bind(&ShaderSourceComposerTest::StringSourceLoader, this, _1),
       bind(&ShaderSourceComposerTest::StringSourceSaver, this, _1, _2),
@@ -386,9 +427,9 @@ TEST_F(ShaderSourceComposerTest, IncludeComposerWithPaths) {
   EXPECT_TRUE(composer->GetDependencySource("source3").empty());
 }
 
-TEST_F(ShaderSourceComposerTest, IncludeComposerLineDirectivesAndIfdefs) {
+TEST_F(ShaderSourceComposerTest, ShaderSourceComposerLineDirectivesAndIfdefs) {
   // Test #line directives.
-  ShaderSourceComposerPtr composer(new IncludeComposer(
+  ShaderSourceComposerPtr composer(new ShaderSourceComposer(
       "source7", bind(&ShaderSourceComposerTest::StringSourceLoader, this, _1),
       bind(&ShaderSourceComposerTest::StringSourceSaver, this, _1, _2),
       bind(&ShaderSourceComposerTest::StringSourceTime, this, _1, _2), true));
@@ -426,9 +467,9 @@ TEST_F(ShaderSourceComposerTest, IncludeComposerLineDirectivesAndIfdefs) {
   EXPECT_TRUE(composer->GetDependencySource("source3").empty());
 }
 
-TEST_F(ShaderSourceComposerTest, IncludeComposerGetChangedDependencies) {
+TEST_F(ShaderSourceComposerTest, ShaderSourceComposerGetChangedDependencies) {
   // Test #line directives.
-  ShaderSourceComposerPtr composer(new IncludeComposer(
+  ShaderSourceComposerPtr composer(new ShaderSourceComposer(
       "source1", bind(&ShaderSourceComposerTest::StringSourceLoader, this, _1),
       bind(&ShaderSourceComposerTest::StringSourceSaver, this, _1, _2),
       bind(&ShaderSourceComposerTest::StringSourceTime, this, _1, _2), false));
@@ -484,8 +525,8 @@ TEST_F(ShaderSourceComposerTest, ZipAssetComposer) {
   {
     ShaderSourceComposerPtr composer(
         new ZipAssetComposer("shader_source.glsl", false));
-    EXPECT_EQ("Shader source in a zip asset.\nIncluded source.\nLast line.",
-              composer->GetSource());
+    EXPECT_EQ_ML("Shader source in a zip asset.\nIncluded source.\nLast line.",
+                 composer->GetSource());
     EXPECT_FALSE(composer->DependsOn(""));
     EXPECT_FALSE(composer->DependsOn("anything"));
     EXPECT_TRUE(composer->DependsOn("shader_source.glsl"));
@@ -502,21 +543,24 @@ TEST_F(ShaderSourceComposerTest, ZipAssetComposer) {
     // Set a dependency. This will return false if the file is read-only.
     composer->SetDependencySource("included_shader_source.glsl",
                                   "New included source.\n");
-    EXPECT_EQ("Shader source in a zip asset.\nNew included source.\nLast line.",
-              composer->GetSource());
+    EXPECT_EQ_ML(
+        "Shader source in a zip asset.\nNew included source.\n"
+        "Last line.",
+        composer->GetSource());
 
     // Set the dependency back.
     composer->SetDependencySource("included_shader_source.glsl",
                                   "Included source.\n");
-    EXPECT_EQ("Shader source in a zip asset.\nIncluded source.\nLast line.",
-              composer->GetSource());
+    EXPECT_EQ_ML("Shader source in a zip asset.\nIncluded source.\nLast line.",
+                 composer->GetSource());
   }
   {
     ShaderSourceComposerPtr composer(
         new ZipAssetComposer("shader_source.glsl", true));
-    EXPECT_EQ("Shader source in a zip asset.\n#line 1 "
-              "2\nIncluded source.\n#line 2 1\nLast line.",
-              composer->GetSource());
+    EXPECT_EQ_ML(
+        "Shader source in a zip asset.\n#line 1 "
+        "2\nIncluded source.\n#line 2 1\nLast line.",
+        composer->GetSource());
     EXPECT_FALSE(composer->DependsOn(""));
     EXPECT_FALSE(composer->DependsOn("anything"));
     EXPECT_TRUE(composer->DependsOn("shader_source.glsl"));

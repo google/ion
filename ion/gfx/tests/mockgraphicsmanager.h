@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ limitations under the License.
 #ifndef ION_GFX_TESTS_MOCKGRAPHICSMANAGER_H_
 #define ION_GFX_TESTS_MOCKGRAPHICSMANAGER_H_
 
-#include <map>
 #include <memory>
 #include <string>
 
@@ -34,11 +33,6 @@ namespace testing {
 // NOTE: Not all functions are implemented yet.
 class MockGraphicsManager : public GraphicsManager {
  public:
-  // MockGraphicsManager requires a MockVisual to be active for the current
-  // thread before construction.  This is similar to how GraphicsManager
-  // needs an active GL context for it to work correctly.
-  MockGraphicsManager();
-
   // Returns the number of GL functions that have been called since the
   // construction of the MockGraphicsManager or the last call to
   // ResetCallCount(). This is static because all MockGM calls are made
@@ -91,25 +85,10 @@ class MockGraphicsManager : public GraphicsManager {
 
  protected:
   ~MockGraphicsManager() override {}
-
- private:
-  void InitMockFunctions();
-
-  // Redefines this to use internal versions of the OpenGL functions.
-  void* Lookup(const char* name, bool is_core) override;
-
-  // Overrides this to allow deterministic testing on all platforms.
-  void EnableFunctionGroupIfAvailable(
-      FunctionGroupId group, const GlVersions& versions,
-      const std::string& extensions,
-      const std::string& disabled_renderers) override;
-
-  // Mapping from string names to function pointers.
-  std::map<std::string, void*> functions_;
 };
 
 // Convenience typedef for shared pointer to a GraphicsManager.
-typedef base::ReferentPtr<MockGraphicsManager>::Type MockGraphicsManagerPtr;
+using MockGraphicsManagerPtr = base::SharedPtr<MockGraphicsManager>;
 
 }  // namespace testing
 }  // namespace gfx

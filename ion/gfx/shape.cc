@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,6 +27,15 @@ namespace gfx {
 
 Shape::Shape()
     : primitive_type_(kTriangles), vertex_ranges_(*this), instance_count_(0) {}
+
+Shape::Shape(const Shape& from)
+    : primitive_type_(from.primitive_type_),
+      attribute_array_(from.attribute_array_),
+      index_buffer_(from.index_buffer_),
+      vertex_ranges_(*this, from.vertex_ranges_.begin(),
+                     from.vertex_ranges_.end()),
+      instance_count_(from.instance_count_),
+      label_(from.label_) {}
 
 Shape::~Shape() {
 }

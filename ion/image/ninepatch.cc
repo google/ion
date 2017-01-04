@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -139,7 +139,7 @@ static void CopyRegion(const Range2ui& source_rect, const Range2f& dest_rect,
   // The start of the source range, in floating-point.
   const Point2f source_start(static_cast<float>(source_rect.GetMinPoint()[0]),
                              static_cast<float>(source_rect.GetMinPoint()[1]));
-  // The end of of the source range.
+  // The end of the source range.
   const Point2ui& source_end = source_rect.GetMaxPoint();
   // Floating-point size of the source
   const Vector2f source_size(

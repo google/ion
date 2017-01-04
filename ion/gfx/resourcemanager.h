@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -41,14 +41,16 @@ class Sampler;
 class Shader;
 class ShaderProgram;
 class TextureBase;
-typedef base::ReferentPtr<AttributeArray>::Type AttributeArrayPtr;
-typedef base::ReferentPtr<BufferObject>::Type BufferObjectPtr;
-typedef base::ReferentPtr<FramebufferObject>::Type FramebufferObjectPtr;
-typedef base::ReferentPtr<GraphicsManager>::Type GraphicsManagerPtr;
-typedef base::ReferentPtr<Sampler>::Type SamplerPtr;
-typedef base::ReferentPtr<Shader>::Type ShaderPtr;
-typedef base::ReferentPtr<ShaderProgram>::Type ShaderProgramPtr;
-typedef base::ReferentPtr<TextureBase>::Type TextureBasePtr;
+class TransformFeedback;
+using AttributeArrayPtr = base::SharedPtr<AttributeArray>;
+using BufferObjectPtr = base::SharedPtr<BufferObject>;
+using FramebufferObjectPtr = base::SharedPtr<FramebufferObject>;
+using GraphicsManagerPtr = base::SharedPtr<GraphicsManager>;
+using SamplerPtr = base::SharedPtr<Sampler>;
+using ShaderPtr = base::SharedPtr<Shader>;
+using ShaderProgramPtr = base::SharedPtr<ShaderProgram>;
+using TextureBasePtr = base::SharedPtr<TextureBase>;
+using TransformFeedbackPtr = base::SharedPtr<TransformFeedback>;
 
 // A ResourceManager is an interface for getting information about a Renderer's
 // internal resources. Some of the work is performed by this class, and some
@@ -103,7 +105,7 @@ class ION_API ResourceManager : public base::Allocatable {
   };
   struct FramebufferResourceInfo : ResourceInfo {
     // The renderbuffers attached to the framebuffer, if any.
-    RenderbufferInfo color0_renderbuffer;
+    std::vector<RenderbufferInfo> color_renderbuffers;
     RenderbufferInfo depth_renderbuffer;
     RenderbufferInfo stencil_renderbuffer;
   };
@@ -124,6 +126,7 @@ class ION_API ResourceManager : public base::Allocatable {
   typedef gfx::BufferInfo<BufferTargetInfo> BufferInfo;
   typedef gfx::FramebufferInfo<FramebufferResourceInfo> FramebufferInfo;
   typedef gfx::TextureInfo<TextureResourceInfo> TextureInfo;
+  typedef gfx::TransformFeedbackInfo<ResourceInfo> TransformFeedbackInfo;
 
   // Struct for getting information about the local OpenGL platform.
   struct PlatformInfo {
@@ -138,12 +141,16 @@ class ION_API ResourceManager : public base::Allocatable {
     GLfloat aliased_point_size_range[2];
 
     // Maximum capabilities.
+    GLint max_3d_texture_size;
+    GLint max_array_texture_layers;
+    GLint max_clip_distances;
     GLint max_color_attachments;
     GLint max_combined_texture_image_units;
     GLint max_cube_map_texture_size;
     GLint max_draw_buffers;
     GLint max_fragment_uniform_vectors;
     GLint max_renderbuffer_size;
+    GLint max_samples;
     GLint max_texture_image_units;
     GLint max_texture_size;
     GLint max_transform_feedback_buffers;
@@ -155,6 +162,7 @@ class ION_API ResourceManager : public base::Allocatable {
     GLint max_vertex_texture_image_units;
     GLint max_vertex_uniform_vectors;
     GLint max_viewport_dims[2];
+    GLint max_views;
     GLint transform_feedback_varying_max_length;
 
     // Formats.
@@ -203,7 +211,7 @@ class ION_API ResourceManager : public base::Allocatable {
   // Renderer::DrawScene or Renderer::ProcessResourceInfoRequests.
   template <typename HolderType, typename InfoType>
   void RequestResourceInfo(
-      const typename base::ReferentPtr<HolderType>::Type& holder,
+      const base::SharedPtr<HolderType>& holder,
       const typename InfoCallback<InfoType>::Type& callback) {
     if (holder.Get()) {
       base::LockGuard lock_guard(&this->request_mutex_);
@@ -219,8 +227,8 @@ class ION_API ResourceManager : public base::Allocatable {
       const typename InfoCallback<InfoType>::Type& callback) {
     base::LockGuard lock_guard(&this->request_mutex_);
     GetResourceRequestVector<HolderType, InfoType>()->push_back(
-        ResourceRequest<HolderType, InfoType>(
-            typename base::ReferentPtr<HolderType>::Type(), callback));
+        ResourceRequest<HolderType, InfoType>(base::SharedPtr<HolderType>(),
+                                              callback));
   }
 
   // Requests information about the local OpenGL platform. See the comment for
@@ -251,11 +259,10 @@ class ION_API ResourceManager : public base::Allocatable {
   // Wrapper struct for resource info requests.
   template <typename HolderType, typename InfoType>
   struct ResourceRequest {
-    ResourceRequest(
-        const typename base::ReferentPtr<HolderType>::Type& holder_in,
-        const typename InfoCallback<InfoType>::Type& callback_in)
+    ResourceRequest(const base::SharedPtr<HolderType>& holder_in,
+                    const typename InfoCallback<InfoType>::Type& callback_in)
         : holder(holder_in), callback(callback_in) {}
-    typename base::ReferentPtr<HolderType>::Type holder;
+    base::SharedPtr<HolderType> holder;
     typename InfoCallback<InfoType>::Type callback;
   };
 
@@ -301,6 +308,8 @@ class ION_API ResourceManager : public base::Allocatable {
   std::vector<ResourceRequest<Shader, ShaderInfo> > shader_requests_;
   std::vector<DataRequest<TextureImageInfo> > texture_image_requests_;
   std::vector<ResourceRequest<TextureBase, TextureInfo> > texture_requests_;
+  std::vector<ResourceRequest<TransformFeedback, TransformFeedbackInfo> >
+      transform_feedback_requests_;
 };
 
 }  // namespace gfx

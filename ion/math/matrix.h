@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -150,7 +150,7 @@ std::ostream& operator<<(std::ostream& out, const Matrix<Dimension, T>& m) {
   out << "M[";
   for (int row = 0; row < Dimension; ++row) {
     for (int col = 0; col < Dimension; ++col) {
-      out << m(row, col);
+      out << +m(row, col);
       if (col != Dimension - 1)
         out << ", ";
     }
@@ -274,10 +274,7 @@ template <int Dimension, typename T>
 Matrix<Dimension, T> Matrix<Dimension, T>::Identity() {
   Matrix result;
   for (int row = 0; row < Dimension; ++row) {
-    for (int col = 0; col < Dimension; ++col) {
-      result.elem_[row][col] =
-          row == col ? static_cast<T>(1) : static_cast<T>(0);
-    }
+    result.elem_[row][row] = static_cast<T>(1);
   }
   return result;
 }

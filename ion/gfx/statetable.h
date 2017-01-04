@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -50,17 +50,30 @@ class ION_API StateTable : public base::Referent {
   //---------------------------------------------------------------------------
   // Enumerated types for StateTable items.
 
+  // The number of independent user-defined clipping distances.
+  static const size_t kClipDistanceCount = 8;
+
   // OpenGL capability items. Each can be enabled or disabled.
   enum Capability {
     kBlend,                   // Corresponds to GL_BLEND.
+    kClipDistance0,           // Corresponds to GL_CLIP_DISTANCE0.
+    kClipDistance1,           // Corresponds to GL_CLIP_DISTANCE1.
+    kClipDistance2,           // Corresponds to GL_CLIP_DISTANCE2.
+    kClipDistance3,           // Corresponds to GL_CLIP_DISTANCE3.
+    kClipDistance4,           // Corresponds to GL_CLIP_DISTANCE4.
+    kClipDistance5,           // Corresponds to GL_CLIP_DISTANCE5.
+    kClipDistance6,           // Corresponds to GL_CLIP_DISTANCE6.
+    kClipDistance7,           // Corresponds to GL_CLIP_DISTANCE7.
     kCullFace,                // Corresponds to GL_CULL_FACE.
     kDebugOutputSynchronous,  // Corresponds to GL_DEBUG_OUTPUT_SYNCHRONOUS
     kDepthTest,               // Corresponds to GL_DEPTH_TEST.
     kDither,                  // Corresponds to GL_DITHER.
     kMultisample,             // Corresponds to GL_MULTISAMPLE.
     kPolygonOffsetFill,       // Corresponds to GL_POLYGON_OFFSET_FILL.
+    kRasterizerDiscard,       // Corresponds to GL_RASTERIZER_DISCARD.
     kSampleAlphaToCoverage,   // Corresponds to GL_SAMPLE_ALPHA_TO_COVERAGE.
     kSampleCoverage,          // Corresponds to GL_SAMPLE_COVERAGE.
+    kSampleShading,           // Corresponds to GL_SAMPLE_SHADING.
     kScissorTest,             // Corresponds to GL_SCISSOR_TEST.
     kStencilTest,             // Corresponds to GL_STENCIL_TEST.
     kNumCapabilities,         // The number of supported capabilities.
@@ -81,9 +94,9 @@ class ION_API StateTable : public base::Referent {
     kDepthFunctionValue,
     kDepthRangeValue,
     kDepthWriteMaskValue,
-    kDrawBufferValue,
     kHintsValue,
     kLineWidthValue,
+    kMinSampleShadingValue,
     kPolygonOffsetValue,
     kSampleCoverageValue,
     kScissorBoxValue,
@@ -148,20 +161,6 @@ class ION_API StateTable : public base::Referent {
     kDepthNever,             // Corresponds to GL_NEVER.
     kDepthNotEqual,          // Corresponds to GL_NOTEQUAL.
   };
-
-  // OpenGL draw buffers.
-  enum DrawBuffer {
-    kBack,          // Corresponds to GL_BACK.
-    kBackLeft,      // Corresponds to GL_BACK_LEFT.
-    kBackRight,     // Corresponds to GL_BACK_RIGHT.
-    kFront,         // Corresponds to GL_FRONT.
-    kFrontAndBack,  // Corresponds to GL_FRONT_AND_BACK.
-    kFrontLeft,     // Corresponds to GL_FRONT_LEFT.
-    kFrontRight,    // Corresponds to GL_FRONT_RIGHT.
-    kLeft,          // Corresponds to GL_LEFT.
-    kNone,          // Corresponds to GL_NONE.
-    kRight,         // Corresponds to GL_RIGHT.
-};
 
   // OpenGL front face modes.
   enum FrontFaceMode {
@@ -288,7 +287,7 @@ class ION_API StateTable : public base::Referent {
 
   // Resets a capability flag to its default state.
   void ResetCapability(Capability capability) {
-    if (capability == kDither)
+    if (capability == kDither || capability == kMultisample)
       data_.capabilities.set(capability);
     else
       data_.capabilities.reset(capability);
@@ -434,14 +433,6 @@ class ION_API StateTable : public base::Referent {
   bool GetDepthWriteMask() const { return data_.depth_write_mask; }
 
   //---------------------------------------------------------------------------
-  // Draw buffer state.
-
-  // Sets the target draw buffer. The default buffer is kBackBuffer.
-  void SetDrawBuffer(DrawBuffer draw_buffer);
-  // Returns the target draw buffer.
-  DrawBuffer GetDrawBuffer() const { return data_.draw_buffer; }
-
-  //---------------------------------------------------------------------------
   // Hint state.
 
   // Sets/returns a hint value. The default is kHintDontCare for all hints.
@@ -454,6 +445,16 @@ class ION_API StateTable : public base::Referent {
   // Sets/returns the width of rasterized lines, in pixels. The default is 1.
   void SetLineWidth(float width);
   float GetLineWidth() const { return data_.line_width; }
+
+  //---------------------------------------------------------------------------
+  // Mininum sample shading fraction state.
+
+  // Sets/returns the minimum fraction of samples for which the fragment
+  // program will be executed. 0.0 means the fragment program will be executed
+  // only once for each pixel, while 1.0 means the fragment program will be
+  // executed for every sample.
+  void SetMinSampleShading(float fraction);
+  float GetMinSampleShading() const { return data_.min_sample_shading; }
 
   //---------------------------------------------------------------------------
   // Polygon offset state.
@@ -627,9 +628,6 @@ class ION_API StateTable : public base::Referent {
     math::Range1f depth_range;
     bool depth_write_mask;
 
-    // Draw buffer state.
-    DrawBuffer draw_buffer;
-
     // Hint state.
     HintMode hints[kNumHints];
 
@@ -643,6 +641,9 @@ class ION_API StateTable : public base::Referent {
     // Sample coverage state.
     float sample_coverage_value;
     bool sample_coverage_inverted;
+
+    // Sample shading state.
+    float min_sample_shading;
 
     // Scissoring state.
     math::Range2i scissor_box;
@@ -682,7 +683,7 @@ class ION_API StateTable : public base::Referent {
 };
 
 // Convenience typedef for shared pointer to a StateTable.
-typedef base::ReferentPtr<StateTable>::Type StateTablePtr;
+using StateTablePtr = base::SharedPtr<StateTable>;
 
 }  // namespace gfx
 }  // namespace ion

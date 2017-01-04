@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ limitations under the License.
 #ifndef ION_GFX_RESOURCEHOLDER_H_
 #define ION_GFX_RESOURCEHOLDER_H_
 
-#include <cstring>  // For NULL.
 #include <vector>
 
 #include "base/macros.h"
@@ -63,12 +62,12 @@ class ION_API ResourceHolder : public base::Notifier {
   // vector is automatically managed so that it has the smallest possible size.
   void SetResource(size_t index, ResourceKey key, ResourceBase* resource) const;
 
-  // Returns the Resource at the given index and key, or NULL if no resource
+  // Returns the Resource at the given index and key, or nullptr if no resource
   // was previously set at that location.
   ResourceBase* GetResource(size_t index, ResourceKey key) const;
 
   // Returns the number of resources that this holder holds. Note that this is
-  // not necessarily the number of indices that have non-NULL resources. This
+  // not necessarily the number of indices that have non-null resources. This
   // can be used as a fast trivial check to see if the holder has any resources.
   int GetResourceCount() const {
     return resource_count_;
@@ -106,7 +105,7 @@ class ION_API ResourceHolder : public base::Notifier {
     FieldBase(const int change_bit, ResourceHolder* holder)
         : change_bit_(change_bit),
           holder_(holder) {
-      if (holder != NULL)
+      if (holder != nullptr)
         holder->AddField(this);
     }
 
@@ -220,7 +219,7 @@ class ION_API ResourceHolder : public base::Notifier {
         : FieldBase(change_bit_start, holder),
           max_entries_(max_entries),
           entries_(*holder) {
-      DCHECK(holder != NULL);
+      DCHECK(holder != nullptr);
       holder->AddField(this);
     }
 
@@ -272,7 +271,7 @@ class ION_API ResourceHolder : public base::Notifier {
         return &entries_[i].value;
       } else {
         LogIndexError(i);
-        return NULL;
+        return nullptr;
       }
     }
 
@@ -292,7 +291,11 @@ class ION_API ResourceHolder : public base::Notifier {
       return false;
     }
 
+    // Returns the number of entries in this.
     size_t GetCount() const { return entries_.size(); }
+
+    // Removes all entries from this.
+    void Clear() { std::fill(entries_.begin(), entries_.end(), Entry()); }
 
    private:
     struct Entry {

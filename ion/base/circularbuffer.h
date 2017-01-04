@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -70,6 +70,12 @@ class CircularBuffer : public ion::base::Allocatable {
 
   // Get the total capacity of the buffer.
   size_t GetCapacity() const { return capacity_; }
+
+  // Clear the buffer.
+  void Clear() {
+    buffer_.clear();
+    next_pos_ = 0;
+  }
 
  private:
   // Maximum buffer capacity.

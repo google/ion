@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -43,22 +43,12 @@ ION_API CallTraceManager* GetCallTraceManager();
 // This macro can be used at the top of a function scope to declare the
 // function and create a DefaultScopedTracer instance to automatically mark
 // the entry and exit points of the function.
-// The argument must be a literal string.
-#define ION_PROFILE_FUNCTION(func_name)                                   \
-    /* Force compilation to fail if func_name is not a literal string */  \
-    (void) func_name " must be a literal string.";                        \
-    ION_DECLARE_SAFE_STATIC_POINTER_WITH_CONSTRUCTOR(                     \
-        int, ION_PROFILING_PASTE3(scope_event_id_),                       \
-        new int(::ion::profile::GetCallTraceManager()->                   \
-            GetScopeEnterEvent(func_name)));                              \
-    DCHECK_NE(0, *ION_PROFILING_PASTE3(scope_event_id_));                 \
-    ::ion::profile::ScopedTracer ION_PROFILING_PASTE3(scope_tracer_)(     \
-        ::ion::profile::GetCallTraceManager()->GetTraceRecorder(),        \
-        *ION_PROFILING_PASTE3(scope_event_id_));
+#define ION_PROFILE_FUNCTION(func_name)                             \
+  ::ion::profile::ScopedTracer ION_PROFILING_PASTE3(scope_tracer_)( \
+      ::ion::profile::GetCallTraceManager()->GetTraceRecorder(), func_name)
 
 // A version of ION_PROFILE_FUNCTION which allows attaching a single key/value
-// pair to the scope. Unlike func_name, the key and value do not need to be
-// string literals. value must be in JSON format, e.g. "\"my_string\"" for a
+// pair to the scope. value must be in JSON format, e.g. "\"my_string\"" for a
 // string value, "18" for the integer value 18,
 // "{ \"name\": \"my_name\", \"count\": 17 }" for an object with two key value
 // pairs.

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -185,7 +185,7 @@ void Uniform::MergeValuesInternal(const Uniform& replacement) {
 
   // Make the new value an array.
   u.InitArray<T>(GetRegistry(), GetRegistryId(), GetIndexInRegistry(),
-                 final_range.GetMinPoint(), GetType(), NULL,
+                 final_range.GetMinPoint(), GetType(), nullptr,
                  final_range.GetSize() + 1,
                  GetArrayAllocator());
   const T* values = GetCount() ? &GetValueAt<T>(0) : &GetValue<T>();

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -77,7 +77,7 @@ static void FillArrayInfo(const GraphicsManagerPtr& gm,
     gm->GetVertexAttribPointerv(
         static_cast<GLuint>(i), GL_VERTEX_ATTRIB_ARRAY_POINTER,
         &info->attributes[i].pointer);
-    if (gm->IsFunctionGroupAvailable(GraphicsManager::kInstancedDrawing)) {
+    if (gm->IsFeatureAvailable(GraphicsManager::kInstancedArrays)) {
       gm->GetVertexAttribiv(
           static_cast<GLuint>(i), GL_VERTEX_ATTRIB_ARRAY_DIVISOR,
           reinterpret_cast<GLint*>(&info->attributes[i].divisor));
@@ -99,8 +99,8 @@ static void FillBufferInfo(const GraphicsManagerPtr& gm,
   info->size = size;
   gm->GetBufferParameteriv(
       info->target, GL_BUFFER_USAGE, reinterpret_cast<GLint*>(&info->usage));
-  if (gm->IsFunctionGroupAvailable(GraphicsManager::kMapBufferBase)) {
-    void* data = NULL;
+  if (gm->IsFeatureAvailable(GraphicsManager::kMapBufferBase)) {
+    void* data = nullptr;
     gm->GetBufferPointerv(info->target, GL_BUFFER_MAP_POINTER, &data);
     info->mapped_data = data;
   }
@@ -127,10 +127,12 @@ static void FillFramebufferAttachmentInfo(
     info->type = GL_NONE;
   }
 
-  if (info->type != GL_NONE)
+  if (info->type != GL_NONE) {
     gm->GetFramebufferAttachmentParameteriv(
         GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME,
         reinterpret_cast<GLint*>(&info->value));
+    DCHECK(info->type != GL_RENDERBUFFER || info->value == rb_info->id);
+  }
   if (info->type == GL_TEXTURE) {
     gm->GetFramebufferAttachmentParameteriv(
         GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL,
@@ -139,6 +141,27 @@ static void FillFramebufferAttachmentInfo(
         GL_FRAMEBUFFER, attachment,
         GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE,
         reinterpret_cast<GLint*>(&info->cube_face));
+    if (gm->IsFeatureAvailable(GraphicsManager::kMultiview)) {
+      gm->GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment,
+          GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_BASE_VIEW_INDEX_OVR, &info->layer);
+      gm->GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment,
+          GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_NUM_VIEWS_OVR,
+          reinterpret_cast<GLint*>(&info->num_views));
+    }
+    // We test this after multiview, because a valid multiview attachment will
+    // always have nonzero num_views. A layer attachment may legitimately have
+    // the layer set to zero.
+    if (gm->IsFeatureAvailable(GraphicsManager::kFramebufferTextureLayer) &&
+        info->num_views <= 0) {
+      gm->GetFramebufferAttachmentParameteriv(
+          GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER,
+          &info->layer);
+    }
+    if (gm->IsFeatureAvailable(GraphicsManager::kImplicitMultisample)) {
+      gm->GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, attachment,
+          GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_SAMPLES_EXT,
+          reinterpret_cast<GLint*>(&info->texture_samples));
+    }
   }
 
   // If the attachment is a renderbuffer then fill its info.
@@ -175,12 +198,41 @@ static void FillFramebufferAttachmentInfo(
 static void FillFramebufferInfo(const GraphicsManagerPtr& gm,
                                 ResourceManager::FramebufferInfo* info) {
   // Fill each attachment's info.
-  FillFramebufferAttachmentInfo(
-      gm, &info->color0, &info->color0_renderbuffer, GL_COLOR_ATTACHMENT0);
+  // The vectors storing color attachment information in FramebufferInfo must
+  // be resized by the caller, since it also has to provide renderbuffer ID
+  // information.
+  for (uint i = 0; i < info->color.size(); ++i) {
+    FillFramebufferAttachmentInfo(gm, &info->color[i],
+        &info->color_renderbuffers[i], GL_COLOR_ATTACHMENT0 + i);
+  }
   FillFramebufferAttachmentInfo(
       gm, &info->depth, &info->depth_renderbuffer, GL_DEPTH_ATTACHMENT);
   FillFramebufferAttachmentInfo(
       gm, &info->stencil, &info->stencil_renderbuffer, GL_STENCIL_ATTACHMENT);
+
+  // Fill draw buffer information.
+  if (gm->IsFeatureAvailable(GraphicsManager::kDrawBuffers)) {
+    const int max_draw_buffers = gm->GetCapabilityValue<int>(
+        GraphicsManager::kMaxDrawBuffers);
+    info->draw_buffers.resize(max_draw_buffers);
+    for (int i = 0; i < max_draw_buffers; ++i) {
+      gm->GetIntegerv(GL_DRAW_BUFFER0 + i,
+                      reinterpret_cast<GLint*>(&info->draw_buffers[i]));
+    }
+  } else if (gm->IsFeatureAvailable(GraphicsManager::kDrawBuffer)) {
+    gm->GetIntegerv(GL_DRAW_BUFFER,
+                    reinterpret_cast<GLint*>(&info->draw_buffers[0]));
+  } else {
+    info->draw_buffers[0] = info->id ? GL_COLOR_ATTACHMENT0 : GL_BACK;
+  }
+
+  // Fill read buffer information.
+  if (gm->IsFeatureAvailable(GraphicsManager::kReadBuffer)) {
+    gm->GetIntegerv(GL_READ_BUFFER,
+                    reinterpret_cast<GLint*>(&info->read_buffer));
+  } else {
+    info->read_buffer = info->id ? GL_COLOR_ATTACHMENT0 : GL_BACK;
+  }
 }
 
 //---------------------------------------------------------------------------
@@ -190,7 +242,7 @@ static void FillFramebufferInfo(const GraphicsManagerPtr& gm,
 //---------------------------------------------------------------------------
 static void FillSamplerInfo(const GraphicsManagerPtr& gm,
                            ResourceManager::SamplerInfo* info) {
-  if (gm->IsFunctionGroupAvailable(GraphicsManager::kSamplerObjects)) {
+  if (gm->IsFeatureAvailable(GraphicsManager::kSamplerObjects)) {
     gm->GetSamplerParameteriv(info->id, GL_TEXTURE_COMPARE_FUNC,
                               reinterpret_cast<GLint*>(&info->compare_func));
     gm->GetSamplerParameteriv(info->id, GL_TEXTURE_COMPARE_MODE,
@@ -616,9 +668,14 @@ static void FillPlatformInfo(const GraphicsManagerPtr& gm,
     gm->GetFloatv(GL_ALIASED_POINT_SIZE_RANGE, info->aliased_point_size_range);
 
   // Maximum capabilities.
+  info->max_3d_texture_size = -1;
+  gm->GetIntegerv(GL_MAX_3D_TEXTURE_SIZE, &info->max_3d_texture_size);
+  info->max_array_texture_layers = -1;
+  gm->GetIntegerv(GL_MAX_ARRAY_TEXTURE_LAYERS, &info->max_array_texture_layers);
+  info->max_clip_distances = -1;
+  gm->GetIntegerv(GL_MAX_CLIP_DISTANCES, &info->max_clip_distances);
   info->max_color_attachments = -1;
-  gm->GetIntegerv(GL_MAX_COLOR_ATTACHMENTS,
-                  &info->max_color_attachments);
+  gm->GetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &info->max_color_attachments);
   info->max_combined_texture_image_units = -1;
   gm->GetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
                   &info->max_combined_texture_image_units);
@@ -629,13 +686,14 @@ static void FillPlatformInfo(const GraphicsManagerPtr& gm,
   gm->GetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE,
                   &info->max_cube_map_texture_size);
   info->max_draw_buffers = -1;
-  gm->GetIntegerv(GL_MAX_DRAW_BUFFERS,
-                  &info->max_draw_buffers);
+  gm->GetIntegerv(GL_MAX_DRAW_BUFFERS, &info->max_draw_buffers);
   info->max_fragment_uniform_vectors = -1;
   gm->GetIntegerv(GL_MAX_FRAGMENT_UNIFORM_VECTORS,
                   &info->max_fragment_uniform_vectors);
   info->max_renderbuffer_size = -1;
   gm->GetIntegerv(GL_MAX_RENDERBUFFER_SIZE, &info->max_renderbuffer_size);
+  info->max_samples = -1;
+  gm->GetIntegerv(GL_MAX_SAMPLES, &info->max_samples);
   info->max_texture_image_units = -1;
   gm->GetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &info->max_texture_image_units);
   info->max_texture_size = -1;
@@ -653,6 +711,8 @@ static void FillPlatformInfo(const GraphicsManagerPtr& gm,
   info->max_viewport_dims[0] = -1;
   info->max_viewport_dims[1] = -1;
   gm->GetIntegerv(GL_MAX_VIEWPORT_DIMS, info->max_viewport_dims);
+  info->max_views = -1;
+  gm->GetIntegerv(GL_MAX_VIEWS_OVR, &info->max_views);
 
   // Transform Feedback Group constants. Those fields are only updated when the
   // function group is available.
@@ -661,7 +721,7 @@ static void FillPlatformInfo(const GraphicsManagerPtr& gm,
   info->max_transform_feedback_separate_attribs = -1;
   info->max_transform_feedback_separate_components = -1;
   info->transform_feedback_varying_max_length = -1;
-  if (gm->IsFunctionGroupAvailable(GraphicsManager::kTransformFeedback)) {
+  if (gm->IsFeatureAvailable(GraphicsManager::kTransformFeedback)) {
     gm->GetIntegerv(GL_MAX_TRANSFORM_FEEDBACK_BUFFERS,
                     &info->max_transform_feedback_buffers);
     gm->GetIntegerv(GL_MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS,
@@ -739,12 +799,47 @@ static void FillTextureInfo(const GraphicsManagerPtr& gm,
     gm->GetTexParameteriv(info->target, GL_TEXTURE_WRAP_R,
                           reinterpret_cast<GLint*>(&info->wrap_r));
   }
-  if (gm->IsFunctionGroupAvailable(GraphicsManager::kTextureMultisample)) {
+  if (gm->IsFeatureAvailable(GraphicsManager::kProtectedTextures)) {
+    gm->GetTexParameteriv(info->target, GL_TEXTURE_PROTECTED_EXT,
+                          reinterpret_cast<GLint*>(&info->is_protected));
+  }
+  if (gm->IsFeatureAvailable(GraphicsManager::kTextureMultisample)) {
     gm->GetTexParameteriv(info->target, GL_TEXTURE_SAMPLES,
                           reinterpret_cast<GLint*>(&info->samples));
     gm->GetTexParameteriv(info->target, GL_TEXTURE_FIXED_SAMPLE_LOCATIONS,
                           reinterpret_cast<GLint*>(
                               &info->fixed_sample_locations));
+  }
+}
+
+//---------------------------------------------------------------------------
+//
+// TransformFeedbackInfo helper function.
+//
+//---------------------------------------------------------------------------
+static void FillTransformFeedbackInfo(
+    const GraphicsManagerPtr& gm,
+    ResourceManager::TransformFeedbackInfo* info) {
+  if (!gm->IsFeatureAvailable(GraphicsManager::kTransformFeedback)) {
+    return;
+  }
+  gm->GetIntegerv(GL_TRANSFORM_FEEDBACK_BUFFER_BINDING,
+                  reinterpret_cast<GLint*>(&info->buffer));
+  gm->GetBooleanv(GL_TRANSFORM_FEEDBACK_BUFFER_ACTIVE, &info->active);
+  gm->GetBooleanv(GL_TRANSFORM_FEEDBACK_BUFFER_PAUSED, &info->paused);
+  // Memory sanitizers require this to be initialized to zero, because we
+  // haven't bothered to implement SEPARATE_ATTRIBS in our mocks yet.
+  GLint nbinding_points = 0;
+  gm->GetIntegerv(GL_MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS, &nbinding_points);
+  info->streams.resize(nbinding_points);
+  for (GLint i = 0; i < nbinding_points; i++) {
+    auto& attrib = info->streams[i];
+    gm->GetIntegeri_v(GL_TRANSFORM_FEEDBACK_BUFFER_BINDING, i,
+                      reinterpret_cast<GLint*>(&attrib.buffer));
+    gm->GetInteger64i_v(GL_TRANSFORM_FEEDBACK_BUFFER_START, i,
+                        reinterpret_cast<GLint64*>(&attrib.start));
+    gm->GetInteger64i_v(GL_TRANSFORM_FEEDBACK_BUFFER_SIZE, i,
+                        reinterpret_cast<GLint64*>(&attrib.size));
   }
 }
 
@@ -823,6 +918,14 @@ ResourceManager::GetDataRequestVector<ResourceManager::TextureImageInfo>() {
   return &texture_image_requests_;
 }
 
+template <>
+ION_API std::vector<ResourceManager::ResourceRequest<
+    TransformFeedback, ResourceManager::TransformFeedbackInfo>>*
+ResourceManager::GetResourceRequestVector<
+    TransformFeedback, ResourceManager::TransformFeedbackInfo>() {
+  return &transform_feedback_requests_;
+}
+
 void ResourceManager::RequestPlatformInfo(
     const InfoCallback<PlatformInfo>::Type& callback) {
   base::LockGuard lock_guard(&this->request_mutex_);
@@ -832,6 +935,7 @@ void ResourceManager::RequestPlatformInfo(
 
 void ResourceManager::RequestTextureImage(
     GLuint id, const InfoCallback<TextureImageInfo>::Type& callback) {
+  base::LockGuard lock_guard(&this->request_mutex_);
   GetDataRequestVector<TextureImageInfo>()->push_back(
       DataRequest<TextureImageInfo>(id, callback));
 }
@@ -880,6 +984,12 @@ void ResourceManager::FillInfoFromOpenGL(ResourceManager::TextureInfo* info) {
 // Nothing to do as the renderer has already filled the info.
 template <> void ResourceManager::FillInfoFromOpenGL(
     ResourceManager::TextureImageInfo* info) {}
+
+template <>
+void ResourceManager::FillInfoFromOpenGL(
+    ResourceManager::TransformFeedbackInfo* info) {
+  FillTransformFeedbackInfo(graphics_manager_, info);
+}
 
 }  // namespace gfx
 }  // namespace ion

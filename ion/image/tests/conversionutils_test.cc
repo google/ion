@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,13 +20,16 @@ limitations under the License.
 #include <string.h>  // For memcmp().
 
 #include <algorithm>
+#include <cmath>
 #include <iomanip>
 #include <vector>
 
+#include "base/integral_types.h"
 #include "base/macros.h"  // For ARRAYSIZE().
 #include "ion/base/datacontainer.h"
 #include "ion/base/logchecker.h"
 #include "ion/image/tests/image_bytes.h"
+#include "ion/math/utils.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
 namespace ion {
@@ -67,25 +70,94 @@ static bool ConversionIsSupported(Image::Format from, Image::Format to) {
     }
 
     // Insert known supported conversions.
-    support_matrix[Image::kDxt1][Image::kEtc1] = true;
-    support_matrix[Image::kDxt1][Image::kRgb888] = true;
-    support_matrix[Image::kDxt1][Image::kR8] = true;
-    support_matrix[Image::kDxt5][Image::kPvrtc1Rgba2] = true;
-    support_matrix[Image::kDxt5][Image::kRgba8888] = true;
-    support_matrix[Image::kDxt5][Image::kR8] = true;
+    support_matrix[Image::kLuminance][Image::kR8] = true;
+    support_matrix[Image::kLuminance][Image::kRg8] = true;
+    support_matrix[Image::kLuminance][Image::kRgb8] = true;
+    support_matrix[Image::kLuminance][Image::kRgba8] = true;
+    support_matrix[Image::kLuminance][Image::kR32f] = true;
+    support_matrix[Image::kLuminance][Image::kRg32f] = true;
+    support_matrix[Image::kLuminance][Image::kRgb32f] = true;
+    support_matrix[Image::kLuminance][Image::kRgba32f] = true;
+    support_matrix[Image::kLuminance][Image::kEtc1] = true;
+    support_matrix[Image::kLuminance][Image::kDxt1] = true;
+    support_matrix[Image::kLuminance][Image::kDxt5] = true;
+    support_matrix[Image::kLuminance][Image::kPvrtc1Rgba2] = true;
+    support_matrix[Image::kLuminanceAlpha][Image::kR8] = true;
+    support_matrix[Image::kLuminanceAlpha][Image::kRg8] = true;
+    support_matrix[Image::kLuminanceAlpha][Image::kRgb8] = true;
+    support_matrix[Image::kLuminanceAlpha][Image::kRgba8] = true;
+    support_matrix[Image::kLuminanceAlpha][Image::kR32f] = true;
+    support_matrix[Image::kLuminanceAlpha][Image::kRg32f] = true;
+    support_matrix[Image::kLuminanceAlpha][Image::kRgb32f] = true;
+    support_matrix[Image::kLuminanceAlpha][Image::kRgba32f] = true;
+    support_matrix[Image::kLuminanceAlpha][Image::kEtc1] = true;
+    support_matrix[Image::kLuminanceAlpha][Image::kDxt1] = true;
+    support_matrix[Image::kLuminanceAlpha][Image::kDxt5] = true;
+    support_matrix[Image::kLuminanceAlpha][Image::kPvrtc1Rgba2] = true;
+    support_matrix[Image::kR8][Image::kR32f] = true;
+    support_matrix[Image::kRg8][Image::kRg32f] = true;
+    support_matrix[Image::kRgb8][Image::kRgb32f] = true;
+    support_matrix[Image::kRgba8][Image::kRgba32f] = true;
+    support_matrix[Image::kR32f][Image::kR8] = true;
+    support_matrix[Image::kRg32f][Image::kRg8] = true;
+    support_matrix[Image::kRgb32f][Image::kRgb8] = true;
+    support_matrix[Image::kRgba32f][Image::kRgba8] = true;
+    support_matrix[Image::kEtc1][Image::kRgb8] = true;
+    support_matrix[Image::kEtc1][Image::kRgb32f] = true;
     support_matrix[Image::kEtc1][Image::kDxt1] = true;
-    support_matrix[Image::kEtc1][Image::kRgb888] = true;
+    support_matrix[Image::kDxt1][Image::kRgb8] = true;
+    support_matrix[Image::kDxt1][Image::kRgb32f] = true;
+    support_matrix[Image::kDxt1][Image::kEtc1] = true;
+    support_matrix[Image::kDxt5][Image::kRgba8] = true;
+    support_matrix[Image::kDxt5][Image::kRgba32f] = true;
+    support_matrix[Image::kDxt5][Image::kPvrtc1Rgba2] = true;
+    support_matrix[Image::kRgb8][Image::kEtc1] = true;
+    support_matrix[Image::kRgb32f][Image::kEtc1] = true;
+    support_matrix[Image::kRgb8][Image::kDxt1] = true;
+    support_matrix[Image::kRgb32f][Image::kDxt1] = true;
+    support_matrix[Image::kRgba8][Image::kDxt5] = true;
+    support_matrix[Image::kRgba32f][Image::kDxt5] = true;
+    support_matrix[Image::kRgba8][Image::kPvrtc1Rgba2] = true;
+    support_matrix[Image::kRgba32f][Image::kPvrtc1Rgba2] = true;
+    support_matrix[Image::kRg8][Image::kR8] = true;
+    support_matrix[Image::kRgb8][Image::kR8] = true;
+    support_matrix[Image::kRgba8][Image::kR8] = true;
     support_matrix[Image::kEtc1][Image::kR8] = true;
-    support_matrix[Image::kRgb888][Image::kDxt1] = true;
-    support_matrix[Image::kRgb888][Image::kEtc1] = true;
-    support_matrix[Image::kRgb888][Image::kR8] = true;
-    support_matrix[Image::kRgba8888][Image::kDxt5] = true;
-    support_matrix[Image::kRgba8888][Image::kPvrtc1Rgba2] = true;
-    support_matrix[Image::kRgba8888][Image::kR8] = true;
-    support_matrix[Image::kLuminance][Image::kRgb888] = true;
-    support_matrix[Image::kLuminance][Image::kRgba8888] = true;
-    support_matrix[Image::kLuminanceAlpha][Image::kRgb888] = true;
-    support_matrix[Image::kLuminanceAlpha][Image::kRgba8888] = true;
+    support_matrix[Image::kDxt1][Image::kR8] = true;
+    support_matrix[Image::kDxt5][Image::kR8] = true;
+    support_matrix[Image::kRg32f][Image::kR32f] = true;
+    support_matrix[Image::kRgb32f][Image::kR32f] = true;
+    support_matrix[Image::kRgba32f][Image::kR32f] = true;
+    support_matrix[Image::kRgb888][Image::kRgba8888] = true;
+
+    // Insert the aliased types.
+    for (int i = 0; i < kNumImageFormats; ++i) {
+      // kRgb888 <-> kRgb8
+      if (support_matrix[Image::kRgb8][i]) {
+        support_matrix[Image::kRgb888][i] = true;
+      }
+      if (support_matrix[i][Image::kRgb8]) {
+        support_matrix[i][Image::kRgb888] = true;
+      }
+    }
+    for (int i = 0; i < kNumImageFormats; ++i) {
+      // kRgba8888 <-> kRgba8
+      if (support_matrix[Image::kRgba8][i]) {
+        support_matrix[Image::kRgba8888][i] = true;
+      }
+      if (support_matrix[i][Image::kRgba8]) {
+        support_matrix[i][Image::kRgba8888] = true;
+      }
+    }
+    for (int i = 0; i < kNumImageFormats; ++i) {
+      // kRgbaFloat <-> kRgba32f
+      if (support_matrix[Image::kRgba32f][i]) {
+        support_matrix[Image::kRgbaFloat][i] = true;
+      }
+      if (support_matrix[i][Image::kRgba32f]) {
+        support_matrix[i][Image::kRgbaFloat] = true;
+      }
+    }
   }
 
   return support_matrix[from][to];
@@ -112,20 +184,22 @@ static const ImagePtr CreateImage(Image::Format format,
 // Creates an image with a specified format and size. The data in the image
 // consists of the correct number of bytes, starting with pattern[0] cycling
 // through the values in pattern, wrapping as needed.
-static const ImagePtr CreateImageWithPattern(
-    Image::Format format, uint32 width, uint32 height,
-    const vector<uint8>& pattern) {
-  const size_t data_size = Image::ComputeDataSize(format, width, height);
-  std::vector<uint8> data(data_size);
-  size_t pattern_size = pattern.size();
-  for (size_t i = 0; i < data_size; ++i)
-    data[i] = static_cast<uint8>(pattern[i % pattern_size]);
+template <typename T>
+static const ImagePtr CreateImageWithPattern(Image::Format format, uint32 width,
+                                             uint32 height,
+                                             const std::vector<T>& pattern) {
+  const size_t data_count =
+      Image::ComputeDataSize(format, width, height) / sizeof(T);
+  std::vector<T> data(data_count);
+  size_t pattern_count = pattern.size();
+  for (size_t i = 0; i < data_count; ++i) {
+    data[i] = pattern[i % pattern_count];
+  }
 
   ImagePtr image(new Image);
   image->Set(format, width, height,
-             base::DataContainer::CreateAndCopy<uint8>(&data[0], data.size(),
-                                                       false,
-                                                       image->GetAllocator()));
+             base::DataContainer::CreateAndCopy<T>(&data[0], data.size(), false,
+                                                   image->GetAllocator()));
   return image;
 }
 
@@ -155,6 +229,15 @@ static const std::vector<uint8> Create8x8PngRgbData() {
   static const size_t kArraySize = ARRAYSIZE(kPngRgb8x8ImageBytes);
   return std::vector<uint8>(&kPngRgb8x8ImageBytes[0],
                             &kPngRgb8x8ImageBytes[kArraySize]);
+}
+
+// Creates and returns a vector of bytes representing an 8x8 16-bit
+// PNG image with RGB data.
+static const std::vector<uint8> Create8x8Png16RgbData() {
+  using testing::kPng16Rgb8x8ImageBytes;
+  static const size_t kArraySize = ARRAYSIZE(kPng16Rgb8x8ImageBytes);
+  return std::vector<uint8>(&kPng16Rgb8x8ImageBytes[0],
+                            &kPng16Rgb8x8ImageBytes[kArraySize]);
 }
 
 // Creates and returns a vector of bytes representing an 8x8 PNG image with
@@ -339,25 +422,23 @@ static const std::vector<uint8> CreateUnknownIonRawData() {
   return result;
 }
 
-// Compares the data in an Image with the data in a byte array for size match
+// Compares the data in an Image with the data in a array for size match
 // and equality, printing a useful message about how they differ on failure.
-static ::testing::AssertionResult ImageMatchesBytes(
-    const Image& image, const uint8* expected_bytes, size_t num_bytes) {
-  if (image.GetDataSize() != num_bytes) {
-    return ::testing::AssertionFailure()
-        << "Image is size " << image.GetDataSize()
-        << ", expected " << num_bytes;
+template <typename T>
+static ::testing::AssertionResult ImageMatchesElements(
+    const Image& image, const T* expected_elements, size_t num_elements) {
+  if (image.GetDataSize() != num_elements * sizeof(T)) {
+    return ::testing::AssertionFailure() << "Image is size "
+                                         << image.GetDataSize() << ", expected "
+                                         << num_elements * sizeof(T);
   }
 
-  const uint8* image_bytes =
-      static_cast<const uint8*>(image.GetData()->GetData());
-  for (size_t i = 0; i < num_bytes; ++i) {
-    if (image_bytes[i] != expected_bytes[i]) {
+  const T* image_elements = image.GetData()->GetData<const T>();
+  for (size_t i = 0; i < num_elements; ++i) {
+    if (image_elements[i] != expected_elements[i]) {
       return ::testing::AssertionFailure()
-          << "Images differs at byte " << i << ": got "
-          << std::hex
-          << static_cast<uint32>(image_bytes[i]) << ", expected "
-          << static_cast<uint32>(expected_bytes[i]);
+             << "Images differs at element " << i << ": got " << std::hex
+             << +image_elements[i] << ", expected " << +expected_elements[i];
     }
   }
   return ::testing::AssertionSuccess();
@@ -390,7 +471,7 @@ static void TestIonRaw(const uint8* ion_raw_data, size_t ion_raw_data_size,
   // Test canonical format (RGBA8888), width, height (pixels) , size (bytes).
   ImagePtr image = ConvertFromExternalImageData(ion_raw_data,
       ion_raw_data_size, false, false, base::AllocatorPtr());
-  ASSERT_FALSE(image.Get() == NULL);
+  ASSERT_TRUE(image);
   EXPECT_EQ(expected_format, image->GetFormat());
   EXPECT_EQ(expected_width, image->GetWidth());
   EXPECT_EQ(expected_height, image->GetHeight());
@@ -398,13 +479,13 @@ static void TestIonRaw(const uint8* ion_raw_data, size_t ion_raw_data_size,
   EXPECT_FALSE(image->GetData()->IsWipeable());
 
   // Test image bytes (payload).
-  EXPECT_TRUE(ImageMatchesBytes(*image,
-      expected_image_bytes, expected_image_bytes_size));
+  EXPECT_TRUE(ImageMatchesElements(*image, expected_image_bytes,
+                                   expected_image_bytes_size));
 
   // Test vertical flipping.
   ImagePtr flipped = ConvertFromExternalImageData(ion_raw_data,
       ion_raw_data_size, true, false, base::AllocatorPtr());
-  ASSERT_FALSE(flipped.Get() == NULL);
+  ASSERT_TRUE(flipped);
   CompareFlipped(*image, *flipped);
 
   // Test data wiping.
@@ -417,14 +498,15 @@ static void TestNullIonRaw(const uint8* ion_raw_data,
                            size_t ion_raw_data_size) {
   ImagePtr image = ConvertFromExternalImageData(ion_raw_data,
       ion_raw_data_size, false, false, base::AllocatorPtr());
-  ASSERT_TRUE(image.Get() == NULL);
+  EXPECT_FALSE(image);
 }
 
-// Copy N bytes per pixel from a source array of 4 byte pixels.
-static void Copy4BppToN(const uint8 *src, size_t num_pixels, uint8 *dst,
-    size_t num_channels) {
-  for (uint i = 0; i < num_pixels; i++) {
-    for (uint j = 0; j < 4; j++) {
+// Copy N channels per pixel from a source array of 4 channel pixels.
+template <typename T>
+static void Copy4ChannelToN(const T* src, size_t num_pixels, T* dst,
+                            size_t num_channels) {
+  for (size_t i = 0; i < num_pixels; i++) {
+    for (size_t j = 0; j < 4; j++) {
       if (j < num_channels) *(dst++) = *src;
       src++;
     }
@@ -447,27 +529,25 @@ TEST(ConversionUtils, EmptyInput) {
     SCOPED_TRACE(Image::GetFormatString(f));
 
     // Converting from a NULL image to any format should return a NULL pointer.
-    EXPECT_TRUE(ConvertImage(ImagePtr(), f, false, al, al).Get() == NULL);
+    EXPECT_FALSE(ConvertImage(ImagePtr(), f, false, al, al));
   }
 
   // Converting from NULL data to any format should return a NULL pointer.
-  EXPECT_TRUE(ConvertFromExternalImageData(
-      NULL, 64U, false, false, al).Get() == NULL);
+  EXPECT_FALSE(ConvertFromExternalImageData(nullptr, 64U, false, false, al));
 
   // Converting from 0-size data to any format should return a NULL pointer.
   int dummy;
-  EXPECT_TRUE(ConvertFromExternalImageData(
-      &dummy, 0, false, false, al).Get() == NULL);
+  EXPECT_FALSE(ConvertFromExternalImageData(&dummy, 0, false, false, al));
 
   // Converting from a NULL image to external format should return empty vector.
   SCOPED_TRACE(kPng);
   EXPECT_TRUE(ConvertToExternalImageData(ImagePtr(), kPng, false).empty());
 
   // Downsampling from a NULL image should return a NULL pointer.
-  EXPECT_TRUE(DownsampleImage2x(ImagePtr(), false, al).Get() == NULL);
+  EXPECT_FALSE(DownsampleImage2x(ImagePtr(), false, al));
 
   // Resizing from a NULL image should return a NULL pointer.
-  EXPECT_TRUE(ResizeImage(ImagePtr(), 5, 5, false, al).Get() == NULL);
+  EXPECT_FALSE(ResizeImage(ImagePtr(), 5, 5, false, al));
 }
 
 TEST(ConversionUtils, ImageToImage) {
@@ -485,11 +565,15 @@ TEST(ConversionUtils, ImageToImage) {
       ImagePtr from_img = CreateImage(from, 8U, 8U);
       if (ConversionIsSupported(from, to)) {
         ImagePtr to_img = ConvertImage(from_img, to, is_wipeable, al, al);
-        EXPECT_FALSE(to_img.Get() == NULL);
+        ASSERT_TRUE(to_img);
         EXPECT_EQ(to, to_img->GetFormat());
+        EXPECT_EQ(from_img->GetDimensions(), to_img->GetDimensions());
+        EXPECT_EQ(from_img->GetWidth(), to_img->GetWidth());
+        EXPECT_EQ(from_img->GetHeight(), to_img->GetHeight());
+        EXPECT_EQ(from_img->GetDepth(), to_img->GetDepth());
         EXPECT_EQ(is_wipeable, to_img->GetData()->IsWipeable());
       } else {
-        EXPECT_TRUE(ConvertImage(from_img, to, false, al, al).Get() == NULL);
+        EXPECT_FALSE(ConvertImage(from_img, to, false, al, al));
       }
       is_wipeable = !is_wipeable;
     }
@@ -499,32 +583,71 @@ TEST(ConversionUtils, ImageToImage) {
 TEST(ConversionUtils, ExtractRedChannel) {
   base::AllocatorPtr al;  // NULL pointer means use default allocator.
   bool is_wipeable = true;
-  uint8 temp[64];
 
   // Verify that the red channel is extracted.
 
   // Two RGBA pixels.
-  const uint8 data[] = { 1, 2, 3, 4,   5, 6, 7, 8 };
-  const size_t pattern_pixels = sizeof(data) / 4;
-  Image::Format test_formats[] = { Image::kRgb888, Image::kRgba8888 };
+  const std::vector<uint8> rgba_data = {1, 2, 3, 4, 5, 6, 7, 8};
+  const size_t rgba_data_pixel_count = rgba_data.size() / 4;
+  Image::Format uint8_src_formats[] = {Image::kR8,     Image::kRg8,
+                                       Image::kRgb8,   Image::kRgba8,
+                                       Image::kRgb888, Image::kRgba8888};
 
-  for (unsigned int i = 0U; i < ARRAYSIZE(test_formats); ++i) {
-    const size_t num_channels =
-        Image::GetNumComponentsForFormat(test_formats[i]);
-    const size_t pattern_size = pattern_pixels * num_channels;
+  for (unsigned int i = 0U; i < ARRAYSIZE(uint8_src_formats); ++i) {
+    const size_t num_src_channels =
+        Image::GetNumComponentsForFormat(uint8_src_formats[i]);
+    const size_t src_pattern_size = rgba_data_pixel_count * num_src_channels;
     // Extract the N test channels from the 4 channel source data.
-    EXPECT_GE(sizeof(temp), pattern_pixels * num_channels);
-    Copy4BppToN(data, pattern_pixels, temp, num_channels);
-    vector<uint8> pattern(pattern_size);
-    std::copy(temp, temp + pattern_size, pattern.begin());
+    uint8 temp[64];
+    EXPECT_GE(sizeof(temp), src_pattern_size * sizeof(*temp));
+    Copy4ChannelToN(rgba_data.data(), rgba_data_pixel_count, temp,
+                    num_src_channels);
+    std::vector<uint8> src_pattern(src_pattern_size);
+    std::copy(temp, temp + src_pattern_size, src_pattern.begin());
     {
-      ImagePtr image = CreateImageWithPattern(test_formats[i], 2, 2, pattern);
+      ImagePtr image =
+          CreateImageWithPattern(uint8_src_formats[i], 2, 2, src_pattern);
       ImagePtr extracted = ConvertImage(image, Image::kR8, is_wipeable, al, al);
       EXPECT_EQ(extracted->GetFormat(), Image::kR8);
       EXPECT_EQ(extracted->GetWidth(), 2U);
       EXPECT_EQ(extracted->GetHeight(), 2U);
       const uint8 expected[] = { 1, 5, 1, 5 };
-      EXPECT_TRUE(ImageMatchesBytes(*extracted, expected, ARRAYSIZE(expected)));
+      EXPECT_TRUE(
+          ImageMatchesElements(*extracted, expected, ARRAYSIZE(expected)));
+    }
+  }
+
+  // Two RGBAf pixels.
+  std::vector<float> float_rgba_data;
+  std::transform(rgba_data.begin(), rgba_data.end(),
+                 std::back_inserter(float_rgba_data),
+                 [](uint8 value) { return value * (1.0 / 255.0); });
+  Image::Format float_test_formats[] = {Image::kR32f, Image::kRg32f,
+                                        Image::kRgb32f, Image::kRgba32f,
+                                        Image::kRgbaFloat};
+
+  for (unsigned int i = 0U; i < ARRAYSIZE(float_test_formats); ++i) {
+    const size_t num_src_channels =
+        Image::GetNumComponentsForFormat(float_test_formats[i]);
+    const size_t src_pattern_size = rgba_data_pixel_count * num_src_channels;
+    // Extract the N test channels from the 4 channel source data.
+    float temp[64];
+    EXPECT_GE(sizeof(temp), src_pattern_size * sizeof(*temp));
+    Copy4ChannelToN(float_rgba_data.data(), rgba_data_pixel_count, temp,
+                    num_src_channels);
+    std::vector<float> src_pattern(src_pattern_size);
+    std::copy(temp, temp + src_pattern_size, src_pattern.begin());
+    {
+      ImagePtr image =
+          CreateImageWithPattern(float_test_formats[i], 2, 2, src_pattern);
+      ImagePtr extracted =
+          ConvertImage(image, Image::kR32f, is_wipeable, al, al);
+      EXPECT_EQ(extracted->GetFormat(), Image::kR32f);
+      EXPECT_EQ(extracted->GetWidth(), 2U);
+      EXPECT_EQ(extracted->GetHeight(), 2U);
+      const float expected[] = {1 / 255.0f, 5 / 255.0f, 1 / 255.0f, 5 / 255.0f};
+      EXPECT_TRUE(
+          ImageMatchesElements(*extracted, expected, ARRAYSIZE(expected)));
     }
   }
 }
@@ -537,8 +660,11 @@ TEST(ConversionUtils, LuminanceToRgb) {
   // Two luminance-alpha pixels (zeros will be ignored).
   const uint8 data[] = { 1, 2, 0, 0,  3, 4, 0, 0 };
   const size_t pattern_pixels = sizeof(data) / 4;
-  Image::Format src_formats[] = { Image::kLuminance, Image::kLuminanceAlpha };
-  Image::Format dst_formats[] = { Image::kRgb888, Image::kRgba8888 };
+  Image::Format src_formats[] = {Image::kLuminance, Image::kLuminanceAlpha};
+  Image::Format dst_formats[] = {
+      Image::kR8,     Image::kRg8,      Image::kRgb8,     Image::kRgba8,
+      Image::kRgb888, Image::kRgba8888, Image::kR32f,     Image::kRg32f,
+      Image::kRgb32f, Image::kRgba32f,  Image::kRgbaFloat};
 
   for (unsigned int j = 0U; j < ARRAYSIZE(src_formats); ++j) {
     for (unsigned int i = 0U; i < ARRAYSIZE(dst_formats); ++i) {
@@ -546,44 +672,169 @@ TEST(ConversionUtils, LuminanceToRgb) {
       const size_t src_channels =
           Image::GetNumComponentsForFormat(src_formats[j]);
       const size_t src_size = pattern_pixels * src_channels;
-      EXPECT_GE(sizeof(temp), src_size);
-      Copy4BppToN(data, pattern_pixels, temp, src_channels);
-      vector<uint8> src_pattern(src_size);
+      EXPECT_GE(sizeof(temp), src_size * sizeof(*temp));
+      Copy4ChannelToN(data, pattern_pixels, temp, src_channels);
+      std::vector<uint8> src_pattern(src_size);
       std::copy(temp, temp + src_size, src_pattern.begin());
 
       ImagePtr image =
           CreateImageWithPattern(src_formats[j], 2, 1, src_pattern);
       ImagePtr extracted =
           ConvertImage(image, dst_formats[i], is_wipeable, al, al);
-      EXPECT_TRUE(extracted.Get() != NULL);
+      ASSERT_TRUE(extracted);
 
       EXPECT_EQ(extracted->GetFormat(), dst_formats[i]);
       EXPECT_EQ(extracted->GetWidth(), 2U);
       EXPECT_EQ(extracted->GetHeight(), 1U);
 
-      const uint8* expected;
-      const uint8 data_l_to_rgb[] = { 1, 1, 1, 3, 3, 3 };
-      const uint8 data_l_to_rgba[] = { 1, 1, 1, 255, 3, 3, 3, 255 };
-      const uint8 data_la_to_rgb[] = { 1, 1, 1, 3, 3, 3 };
-      const uint8 data_la_to_rgba[] = { 1, 1, 1, 2, 3, 3, 3, 4 };
-      if (src_formats[j] == Image::kLuminance) {
-        if (dst_formats[i] == Image::kRgb888) {
-          expected = data_l_to_rgb;
-        } else {
-          expected = data_l_to_rgba;
-        }
-      } else {
-        if (dst_formats[i] == Image::kRgb888) {
-          expected = data_la_to_rgb;
-        } else {
-          expected = data_la_to_rgba;
-        }
+      // Fill |expected_uint8| with the expected color pattern for this
+      // luminance conversion.
+      std::vector<uint8> expected_uint8;
+      switch (Image::GetNumComponentsForFormat(dst_formats[i])) {
+        case 1:
+          expected_uint8 = {1, 3};
+          break;
+        case 2:
+          expected_uint8 = {1, 1, 3, 3};
+          break;
+        case 3:
+          expected_uint8 = {1, 1, 1, 3, 3, 3};
+          break;
+        case 4:
+          if (src_formats[j] == Image::kLuminance) {
+            expected_uint8 = {1, 1, 1, 255, 3, 3, 3, 255};
+          } else {
+            expected_uint8 = {1, 1, 1, 2, 3, 3, 3, 4};
+          }
+          break;
+        default:
+          break;
       }
 
-      // Extract the N dst channels from the 4 channel RGBA data.
-      const size_t dst_size = pattern_pixels *
-          Image::GetNumComponentsForFormat(dst_formats[i]);
-      EXPECT_TRUE(ImageMatchesBytes(*extracted, expected, dst_size));
+      // If the destination format is floating-point, fill in the floating-point
+      // expected pattern.
+      std::vector<float> expected_float;
+      if (dst_formats[i] == Image::kR32f || dst_formats[i] == Image::kRg32f ||
+          dst_formats[i] == Image::kRgb32f ||
+          dst_formats[i] == Image::kRgba32f ||
+          dst_formats[i] == Image::kRgbaFloat) {
+        std::transform(expected_uint8.begin(), expected_uint8.end(),
+                       std::back_inserter(expected_float),
+                       [](uint8 value) { return value * (1.0 / 255.0); });
+      }
+
+      if (!expected_float.empty()) {
+        EXPECT_TRUE(ImageMatchesElements(*extracted, expected_float.data(),
+                                         expected_float.size()));
+      } else {
+        EXPECT_TRUE(ImageMatchesElements(*extracted, expected_uint8.data(),
+                                         expected_uint8.size()));
+      }
+    }
+  }
+}
+
+TEST(ConversionUtils, Uint8ToFloat) {
+  const base::AllocatorPtr al;  // NULL pointer means use default allocator.
+  const bool kIsWipeable = true;
+  const unsigned int kWidth = 2;
+  const unsigned int kHeight = 2;
+
+  // Two RGBA pixels.
+  const std::vector<uint8> rgba_data = {1, 2, 3, 4, 5, 6, 7, 8};
+  const size_t rgba_data_pixel_count = rgba_data.size() / 4;
+  struct {
+    Image::Format src;
+    Image::Format dst;
+  } conversion_formats[] = {
+      {Image::kR8, Image::kR32f},         {Image::kRg8, Image::kRg32f},
+      {Image::kRgb8, Image::kRgb32f},     {Image::kRgba8, Image::kRgba32f},
+      {Image::kRgb888, Image::kRgb32f},   {Image::kRgba8888, Image::kRgba32f},
+      {Image::kRgba8, Image::kRgbaFloat}, {Image::kRgba8888, Image::kRgbaFloat},
+  };
+  for (const auto& conversion_format : conversion_formats) {
+    const size_t num_src_channels =
+        Image::GetNumComponentsForFormat(conversion_format.src);
+    const size_t src_pattern_size = rgba_data_pixel_count * num_src_channels;
+    // Extract the N test channels from the 4 channel source data.
+    uint8 temp[64];
+    EXPECT_GE(sizeof(temp), src_pattern_size * sizeof(*temp));
+    Copy4ChannelToN(rgba_data.data(), rgba_data_pixel_count, temp,
+                    num_src_channels);
+    std::vector<uint8> src_pattern(src_pattern_size);
+    std::copy(temp, temp + src_pattern_size, src_pattern.begin());
+    {
+      ImagePtr image = CreateImageWithPattern(conversion_format.src, kWidth,
+                                              kHeight, src_pattern);
+      ImagePtr extracted =
+          ConvertImage(image, conversion_format.dst, kIsWipeable, al, al);
+      EXPECT_EQ(extracted->GetFormat(), conversion_format.dst);
+      EXPECT_EQ(extracted->GetWidth(), kWidth);
+      EXPECT_EQ(extracted->GetHeight(), kHeight);
+
+      std::vector<float> expected;
+      while (expected.size() < num_src_channels * kWidth * kHeight) {
+        std::transform(temp, temp + src_pattern_size,
+                       std::back_inserter(expected),
+                       [](uint8 value) { return value * (1.0 / 255.0); });
+      }
+      EXPECT_TRUE(
+          ImageMatchesElements(*extracted, expected.data(), expected.size()));
+    }
+  }
+}
+
+TEST(ConversionUtils, FloatToUint8) {
+  const base::AllocatorPtr al;  // NULL pointer means use default allocator.
+  const bool kIsWipeable = true;
+  const unsigned int kWidth = 2;
+  const unsigned int kHeight = 2;
+
+  // Two RGBA pixels.
+  const std::vector<float> rgba_data = {std::nanf(""), 2 / 255.0f, 3 / 255.0f,
+                                        4 / 255.0f, 5 / 255.0f, 6 / 255.0f,
+                                        7 / 255.0f, 8 / 255.0f};
+  const size_t rgba_data_pixel_count = rgba_data.size() / 4;
+  struct {
+    Image::Format src;
+    Image::Format dst;
+  } conversion_formats[] = {
+      {Image::kR32f, Image::kR8},         {Image::kRg32f, Image::kRg8},
+      {Image::kRgb32f, Image::kRgb8},     {Image::kRgba32f, Image::kRgba8},
+      {Image::kRgb32f, Image::kRgb888},   {Image::kRgba32f, Image::kRgba8888},
+      {Image::kRgbaFloat, Image::kRgba8}, {Image::kRgbaFloat, Image::kRgba8888},
+  };
+  for (const auto& conversion_format : conversion_formats) {
+    const size_t num_src_channels =
+        Image::GetNumComponentsForFormat(conversion_format.src);
+    const size_t src_pattern_size = rgba_data_pixel_count * num_src_channels;
+    // Extract the N test channels from the 4 channel source data.
+    float temp[64];
+    EXPECT_GE(sizeof(temp), src_pattern_size * sizeof(*temp));
+    Copy4ChannelToN(rgba_data.data(), rgba_data_pixel_count, temp,
+                    num_src_channels);
+    std::vector<float> src_pattern(src_pattern_size);
+    std::copy(temp, temp + src_pattern_size, src_pattern.begin());
+    {
+      ImagePtr image = CreateImageWithPattern(conversion_format.src, kWidth,
+                                              kHeight, src_pattern);
+      ImagePtr extracted =
+          ConvertImage(image, conversion_format.dst, kIsWipeable, al, al);
+      EXPECT_EQ(extracted->GetFormat(), conversion_format.dst);
+      EXPECT_EQ(extracted->GetWidth(), kWidth);
+      EXPECT_EQ(extracted->GetHeight(), kHeight);
+
+      std::vector<uint8> expected;
+      while (expected.size() < num_src_channels * kWidth * kHeight) {
+        std::transform(
+            temp, temp + src_pattern_size, std::back_inserter(expected),
+            [](float value) {
+              if (!math::IsFinite(value)) return static_cast<uint8>(0);
+              return static_cast<uint8>(value * 255.0);
+            });
+      }
+      EXPECT_TRUE(
+          ImageMatchesElements(*extracted, expected.data(), expected.size()));
     }
   }
 }
@@ -598,7 +849,7 @@ TEST(ConversionUtils, CompressAndDecompressRGB) {
 
   // Compress using DXTC.
   image = ConvertImage(image, Image::kDxt1, false, al, al);
-  ASSERT_FALSE(image.Get() == NULL);
+  ASSERT_TRUE(image);
   EXPECT_EQ(Image::kDxt1, image->GetFormat());
   EXPECT_EQ(4U, image->GetWidth());
   EXPECT_EQ(4U, image->GetHeight());
@@ -613,7 +864,7 @@ TEST(ConversionUtils, CompressAndDecompressRGB) {
 
   // Decompress back to RGB.
   image = ConvertImage(image, Image::kRgb888, false, al, al);
-  ASSERT_FALSE(image.Get() == NULL);
+  ASSERT_TRUE(image);
   EXPECT_EQ(Image::kRgb888, image->GetFormat());
   EXPECT_EQ(4U, image->GetWidth());
   EXPECT_EQ(4U, image->GetHeight());
@@ -628,7 +879,7 @@ TEST(ConversionUtils, CompressAndDecompressRGB) {
 
   // Compress using ETC.
   image = ConvertImage(image, Image::kEtc1, false, al, al);
-  ASSERT_FALSE(image.Get() == NULL);
+  ASSERT_TRUE(image);
   EXPECT_EQ(Image::kEtc1, image->GetFormat());
   EXPECT_EQ(4U, image->GetWidth());
   EXPECT_EQ(4U, image->GetHeight());
@@ -643,7 +894,7 @@ TEST(ConversionUtils, CompressAndDecompressRGB) {
 
   // Decompress back to RGB.
   image = ConvertImage(image, Image::kRgb888, false, al, al);
-  ASSERT_FALSE(image.Get() == NULL);
+  ASSERT_TRUE(image);
   EXPECT_EQ(Image::kRgb888, image->GetFormat());
   EXPECT_EQ(4U, image->GetWidth());
   EXPECT_EQ(4U, image->GetHeight());
@@ -652,7 +903,7 @@ TEST(ConversionUtils, CompressAndDecompressRGB) {
 
   // Decompress again; should have no effect.
   image = ConvertImage(image, Image::kRgb888, false, al, al);
-  ASSERT_FALSE(image.Get() == NULL);
+  ASSERT_TRUE(image);
   EXPECT_EQ(Image::kRgb888, image->GetFormat());
   EXPECT_EQ(4U, image->GetWidth());
   EXPECT_EQ(4U, image->GetHeight());
@@ -662,11 +913,11 @@ TEST(ConversionUtils, CompressAndDecompressRGB) {
 
   // Compress to DXT1 and then to ETC1. Should work fine.
   image = ConvertImage(image, Image::kDxt1, false, al, al);
-  ASSERT_FALSE(image.Get() == NULL);
+  ASSERT_TRUE(image);
   EXPECT_EQ(Image::kDxt1, image->GetFormat());
   EXPECT_FALSE(image->GetData()->IsWipeable());
   image = ConvertImage(image, Image::kEtc1, false, al, al);
-  ASSERT_FALSE(image.Get() == NULL);
+  ASSERT_TRUE(image);
   EXPECT_EQ(Image::kEtc1, image->GetFormat());
   EXPECT_EQ(4U, image->GetWidth());
   EXPECT_EQ(4U, image->GetHeight());
@@ -675,6 +926,7 @@ TEST(ConversionUtils, CompressAndDecompressRGB) {
 
   // Decompress should still work.
   image = ConvertImage(image, Image::kRgb888, false, al, al);
+  ASSERT_TRUE(image);
   EXPECT_EQ(Image::kRgb888, image->GetFormat());
   EXPECT_FALSE(log_checker.HasAnyMessages());
   EXPECT_FALSE(image->GetData()->IsWipeable());
@@ -689,7 +941,7 @@ TEST(ConversionUtils, CompressAndDecompressRGBA) {
 
   // Compress using DXTC.
   image = ConvertImage(image, Image::kDxt5, false, al, al);
-  ASSERT_FALSE(image.Get() == NULL);
+  ASSERT_TRUE(image);
   EXPECT_EQ(Image::kDxt5, image->GetFormat());
   EXPECT_EQ(4U, image->GetWidth());
   EXPECT_EQ(4U, image->GetHeight());
@@ -698,7 +950,7 @@ TEST(ConversionUtils, CompressAndDecompressRGBA) {
 
   // Decompress back to RGBA.
   image = ConvertImage(image, Image::kRgba8888, false, al, al);
-  ASSERT_FALSE(image.Get() == NULL);
+  ASSERT_TRUE(image);
   EXPECT_EQ(Image::kRgba8888, image->GetFormat());
   EXPECT_EQ(4U, image->GetWidth());
   EXPECT_EQ(4U, image->GetHeight());
@@ -715,7 +967,7 @@ TEST(ConversionUtils, CompressPvrtc1Rgba2) {
 
   // Compress using PVRTC.
   image = ConvertImage(image, Image::kPvrtc1Rgba2, false, al, al);
-  ASSERT_FALSE(image.Get() == NULL);
+  ASSERT_TRUE(image);
   EXPECT_EQ(Image::kPvrtc1Rgba2, image->GetFormat());
   EXPECT_EQ(8U, image->GetWidth());
   EXPECT_EQ(8U, image->GetHeight());
@@ -728,7 +980,7 @@ TEST(ConversionUtils, Jpeg) {
   const std::vector<uint8> jpeg_data = Create8x8JpegData();
   ImagePtr image = ConvertFromExternalImageData(&jpeg_data[0], jpeg_data.size(),
       false, false, base::AllocatorPtr());
-  ASSERT_FALSE(image.Get() == NULL);
+  ASSERT_TRUE(image);
   EXPECT_EQ(Image::kRgb888, image->GetFormat());
   EXPECT_EQ(8U, image->GetWidth());
   EXPECT_EQ(8U, image->GetHeight());
@@ -737,13 +989,13 @@ TEST(ConversionUtils, Jpeg) {
 
   using testing::kExpectedJpegBytes;
   static const size_t kExpectedArraySize = ARRAYSIZE(kExpectedJpegBytes);
-  EXPECT_TRUE(ImageMatchesBytes(*image,
-                                kExpectedJpegBytes, kExpectedArraySize));
+  EXPECT_TRUE(
+      ImageMatchesElements(*image, kExpectedJpegBytes, kExpectedArraySize));
 
   // Test vertical flipping.
   ImagePtr flipped = ConvertFromExternalImageData(&jpeg_data[0],
       jpeg_data.size(), true, false, base::AllocatorPtr());
-  ASSERT_FALSE(flipped.Get() == NULL);
+  ASSERT_TRUE(flipped);
   CompareFlipped(*image, *flipped);
 
   // Test data wiping.
@@ -757,7 +1009,7 @@ TEST(ConversionUtils, PngRgb) {
   const std::vector<uint8> png_data = Create8x8PngRgbData();
   ImagePtr image = ConvertFromExternalImageData(&png_data[0], png_data.size(),
       false, false, base::AllocatorPtr());
-  ASSERT_FALSE(image.Get() == NULL);
+  ASSERT_TRUE(image);
   EXPECT_EQ(Image::kRgb888, image->GetFormat());
   EXPECT_EQ(8U, image->GetWidth());
   EXPECT_EQ(8U, image->GetHeight());
@@ -765,8 +1017,8 @@ TEST(ConversionUtils, PngRgb) {
 
   using testing::kExpectedPngRgbBytes;
   static const size_t kExpectedArraySize = ARRAYSIZE(kExpectedPngRgbBytes);
-  EXPECT_TRUE(ImageMatchesBytes(*image,
-                                kExpectedPngRgbBytes, kExpectedArraySize));
+  EXPECT_TRUE(
+      ImageMatchesElements(*image, kExpectedPngRgbBytes, kExpectedArraySize));
 
   // Converting back to PNG should work.
   EXPECT_FALSE(ConvertToExternalImageData(image, kPng, false).empty());
@@ -774,7 +1026,7 @@ TEST(ConversionUtils, PngRgb) {
   // Test vertical flipping when reading data.
   ImagePtr flipped = ConvertFromExternalImageData(&png_data[0], png_data.size(),
       true, false, base::AllocatorPtr());
-  ASSERT_FALSE(flipped.Get() == NULL);
+  ASSERT_TRUE(flipped);
   CompareFlipped(*image, *flipped);
 
   // Test vertical flipping when writing data.  Unflipped conversion of the
@@ -787,12 +1039,41 @@ TEST(ConversionUtils, PngRgb) {
   CompareFlipped(*image, *flipped2);
 }
 
+TEST(ConvertionUtils, Png16Rgb) {
+  // Create some sample PNG data and convert it to RGB16ui.
+  const std::vector<uint8> png_data = Create8x8Png16RgbData();
+  ImagePtr image = ConvertFromExternalImageData(&png_data[0], png_data.size(),
+      false, false, base::AllocatorPtr());
+  ASSERT_TRUE(image);
+  EXPECT_EQ(Image::kRgb16ui, image->GetFormat());
+  EXPECT_EQ(8U, image->GetWidth());
+  EXPECT_EQ(8U, image->GetHeight());
+  EXPECT_EQ(8U * 8U * 3U * 2U, image->GetDataSize());
+
+  using testing::kExpectedPng16RgbBytes;
+  static const size_t kExpectedArraySize = ARRAYSIZE(kExpectedPng16RgbBytes);
+  EXPECT_TRUE(
+      ImageMatchesElements(*image, kExpectedPng16RgbBytes, kExpectedArraySize));
+
+  // Converting back to PNG should work.
+  EXPECT_FALSE(ConvertToExternalImageData(image, kPng, false).empty());
+
+  // Test vertical flipping when reading data.
+  ImagePtr flipped = ConvertFromExternalImageData(&png_data[0], png_data.size(),
+      true, false, base::AllocatorPtr());
+  ASSERT_TRUE(flipped);
+  CompareFlipped(*image, *flipped);
+
+  // TODO(user): ConvertToExternalImageData doesn't preserve 16 bit correctly
+  // so we don't test vertical flipping when writing data, as we do for 8 bit.
+}
+
 TEST(ConversionUtils, PngRgba) {
   // Create some sample PNG data and convert it to RGBA8888.
   const std::vector<uint8> png_data = Create8x8PngRgbaData();
   ImagePtr image = ConvertFromExternalImageData(&png_data[0], png_data.size(),
       false, false, base::AllocatorPtr());
-  ASSERT_FALSE(image.Get() == NULL);
+  ASSERT_TRUE(image);
   EXPECT_EQ(Image::kRgba8888, image->GetFormat());
   EXPECT_EQ(8U, image->GetWidth());
   EXPECT_EQ(8U, image->GetHeight());
@@ -801,7 +1082,7 @@ TEST(ConversionUtils, PngRgba) {
   using testing::kExpectedPngRgbaBytes;
   static const size_t kExpectedArraySize = ARRAYSIZE(kExpectedPngRgbaBytes);
   EXPECT_TRUE(
-      ImageMatchesBytes(*image, kExpectedPngRgbaBytes, kExpectedArraySize));
+      ImageMatchesElements(*image, kExpectedPngRgbaBytes, kExpectedArraySize));
 
   // Converting back to PNG should work.
   EXPECT_FALSE(ConvertToExternalImageData(image, kPng, false).empty());
@@ -900,28 +1181,28 @@ TEST(ConversionUtils, InferFormat) {
     const std::vector<uint8> jpeg_data = Create8x8JpegData();
     ImagePtr image = ConvertFromExternalImageData(&jpeg_data[0],
         jpeg_data.size(), false, false, base::AllocatorPtr());
-    ASSERT_FALSE(image.Get() == NULL);
+    ASSERT_TRUE(image);
     EXPECT_TRUE(image->GetFormat() == Image::kRgb888);
   }
   {
     const std::vector<uint8> jpeg_data = Create8x8GrayJpegData();
     ImagePtr image = ConvertFromExternalImageData(&jpeg_data[0],
         jpeg_data.size(), false, false, base::AllocatorPtr());
-    ASSERT_FALSE(image.Get() == NULL);
+    ASSERT_TRUE(image);
     EXPECT_TRUE(image->GetFormat() == Image::kLuminance);
   }
   {
     const std::vector<uint8> png_data = Create8x8PngRgbData();
     ImagePtr image = ConvertFromExternalImageData(&png_data[0], png_data.size(),
         false, false, base::AllocatorPtr());
-    ASSERT_FALSE(image.Get() == NULL);
+    ASSERT_TRUE(image);
     EXPECT_EQ(Image::kRgb888, image->GetFormat());
   }
   {
     const std::vector<uint8> png_data = Create8x8PngRgbaData();
     ImagePtr image = ConvertFromExternalImageData(&png_data[0], png_data.size(),
         false, false, base::AllocatorPtr());
-    ASSERT_FALSE(image.Get() == NULL);
+    ASSERT_TRUE(image);
     EXPECT_EQ(Image::kRgba8888, image->GetFormat());
   }
   {
@@ -929,7 +1210,7 @@ TEST(ConversionUtils, InferFormat) {
         CreateRgba8888IonRaw3x3BigEndianData();
     ImagePtr image = ConvertFromExternalImageData(&ion_raw_data[0],
         ion_raw_data.size(), false, false, base::AllocatorPtr());
-    ASSERT_FALSE(image.Get() == NULL);
+    ASSERT_TRUE(image);
     EXPECT_EQ(Image::kRgba8888, image->GetFormat());
   }
   {
@@ -937,7 +1218,7 @@ TEST(ConversionUtils, InferFormat) {
         CreateRgb565IonRaw3x3BigEndianData();
     ImagePtr image = ConvertFromExternalImageData(&ion_raw_data[0],
         ion_raw_data.size(), false, false, base::AllocatorPtr());
-    ASSERT_FALSE(image.Get() == NULL);
+    ASSERT_TRUE(image);
     EXPECT_EQ(Image::kRgb565, image->GetFormat());
   }
   {
@@ -945,7 +1226,7 @@ TEST(ConversionUtils, InferFormat) {
         CreateRgba4444IonRaw3x3BigEndianData();
     ImagePtr image = ConvertFromExternalImageData(&ion_raw_data[0],
         ion_raw_data.size(), false, false, base::AllocatorPtr());
-    ASSERT_FALSE(image.Get() == NULL);
+    ASSERT_TRUE(image);
     EXPECT_EQ(Image::kRgba4444, image->GetFormat());
   }
   {
@@ -955,7 +1236,7 @@ TEST(ConversionUtils, InferFormat) {
         testing::kPngLumAlpha48x48ImageBytes,
         ARRAYSIZE(testing::kPngLumAlpha48x48ImageBytes),
         false, false, base::AllocatorPtr());
-    ASSERT_FALSE(image.Get() == NULL);
+    ASSERT_TRUE(image);
     // Currently Lodepng decodes all paletted images to RGBA.
     EXPECT_EQ(Image::kLuminanceAlpha, image->GetFormat());
     EXPECT_EQ(48U, image->GetWidth());
@@ -1000,18 +1281,17 @@ TEST(ConversionUtils, DownsampleImage2x) {
     EXPECT_EQ(downsampled->GetData()->IsWipeable(), is_wipeable);
 
     // Expect that no downsampled image is created for image height/width of 1.
-    EXPECT_TRUE(DownsampleImage2x(CreateImage(test_formats[i], 1, 128),
-                                  is_wipeable, al).Get() == NULL);
-    EXPECT_TRUE(DownsampleImage2x(CreateImage(test_formats[i], 128, 1),
-                                  is_wipeable, al).Get() == NULL);
+    EXPECT_FALSE(DownsampleImage2x(CreateImage(test_formats[i], 1, 128),
+                                   is_wipeable, al));
+    EXPECT_FALSE(DownsampleImage2x(CreateImage(test_formats[i], 128, 1),
+                                   is_wipeable, al));
     is_wipeable = !is_wipeable;
   }
   EXPECT_FALSE(logchecker.HasAnyMessages());
 
   // Expect downsampling an unsupported format creates no downsampled image.
-  EXPECT_TRUE(
-      DownsampleImage2x(CreateImage(Image::kRgb565, 128, 128),
-                        false, al).Get() == NULL);
+  EXPECT_FALSE(
+      DownsampleImage2x(CreateImage(Image::kRgb565, 128, 128), false, al));
 #if ION_DEBUG
   EXPECT_TRUE(logchecker.HasMessage("WARNING", "not supported"));
 #endif
@@ -1041,8 +1321,8 @@ TEST(ConversionUtils, DownsampleImage2x8bpc) {
     const size_t pattern_size = pattern_pixels * num_channels;
     // Extract the N test channels from the 4 channel source data.
     EXPECT_GE(sizeof(temp), pattern_pixels * num_channels);
-    Copy4BppToN(data, pattern_pixels, temp, num_channels);
-    vector<uint8> pattern(pattern_size);
+    Copy4ChannelToN(data, pattern_pixels, temp, num_channels);
+    std::vector<uint8> pattern(pattern_size);
     std::copy(temp, temp + pattern_size, pattern.begin());
     {
       ImagePtr image = CreateImageWithPattern(test_formats[i], 4, 4, pattern);
@@ -1061,9 +1341,9 @@ TEST(ConversionUtils, DownsampleImage2x8bpc) {
       const size_t expected_pixels = ARRAYSIZE(expected) / 4;
       EXPECT_GE(sizeof(temp), expected_pixels * num_channels);
       // Extract the N expected channels from the 4 channel source data.
-      Copy4BppToN(expected, expected_pixels, temp, num_channels);
-      EXPECT_TRUE(ImageMatchesBytes(*downsampled, temp,
-          expected_pixels * num_channels));
+      Copy4ChannelToN(expected, expected_pixels, temp, num_channels);
+      EXPECT_TRUE(ImageMatchesElements(*downsampled, temp,
+                                       expected_pixels * num_channels));
     }
 
     // Repeat with odd size
@@ -1086,9 +1366,9 @@ TEST(ConversionUtils, DownsampleImage2x8bpc) {
       const size_t expected_pixels = ARRAYSIZE(expected) / 4;
       EXPECT_GE(sizeof(temp), expected_pixels * num_channels);
       // Extract the N expected channels from the 4 channel source data.
-      Copy4BppToN(expected, expected_pixels, temp, num_channels);
-      EXPECT_TRUE(ImageMatchesBytes(*downsampled, temp,
-          expected_pixels * num_channels));
+      Copy4ChannelToN(expected, expected_pixels, temp, num_channels);
+      EXPECT_TRUE(ImageMatchesElements(*downsampled, temp,
+                                       expected_pixels * num_channels));
     }
   }
 }
@@ -1103,7 +1383,7 @@ TEST(ConversionUtils, ResizeImageSame) {
     0x0, 0x1, 0x2, 0x3,  0x4, 0x5, 0x6, 0x7,
     0x8, 0x9, 0xA, 0xB,  0xC, 0xD, 0xE, 0xF
   };
-  EXPECT_TRUE(ImageMatchesBytes(*image, expected, ARRAYSIZE(expected)));
+  EXPECT_TRUE(ImageMatchesElements(*image, expected, ARRAYSIZE(expected)));
 }
 
 TEST(ConversionUtils, ResizeImageHalf) {
@@ -1130,8 +1410,8 @@ TEST(ConversionUtils, ResizeImageHalf) {
     const size_t pattern_size = pattern_pixels * num_channels;
     // Extract the N test channels from the 4 channel source data.
     EXPECT_GE(sizeof(temp), pattern_pixels * num_channels);
-    Copy4BppToN(data, pattern_pixels, temp, num_channels);
-    vector<uint8> pattern(pattern_size);
+    Copy4ChannelToN(data, pattern_pixels, temp, num_channels);
+    std::vector<uint8> pattern(pattern_size);
     std::copy(temp, temp + pattern_size, pattern.begin());
     {
       ImagePtr image = CreateImageWithPattern(test_formats[i], 4, 4, pattern);
@@ -1150,9 +1430,9 @@ TEST(ConversionUtils, ResizeImageHalf) {
       const size_t expected_pixels = ARRAYSIZE(expected) / 4;
       EXPECT_GE(sizeof(temp), expected_pixels * num_channels);
       // Extract the N expected channels from the 4 channel source data.
-      Copy4BppToN(expected, expected_pixels, temp, num_channels);
-      EXPECT_TRUE(ImageMatchesBytes(*downsampled, temp,
-          expected_pixels * num_channels));
+      Copy4ChannelToN(expected, expected_pixels, temp, num_channels);
+      EXPECT_TRUE(ImageMatchesElements(*downsampled, temp,
+                                       expected_pixels * num_channels));
     }
 
     // Repeat with odd size
@@ -1183,9 +1463,9 @@ TEST(ConversionUtils, ResizeImageHalf) {
       const size_t expected_pixels = ARRAYSIZE(expected) / 4;
       EXPECT_GE(sizeof(temp), expected_pixels * num_channels);
       // Extract the N expected channels from the 4 channel source data.
-      Copy4BppToN(expected, expected_pixels, temp, num_channels);
-      EXPECT_TRUE(ImageMatchesBytes(*downsampled, temp,
-          expected_pixels * num_channels));
+      Copy4ChannelToN(expected, expected_pixels, temp, num_channels);
+      EXPECT_TRUE(ImageMatchesElements(*downsampled, temp,
+                                       expected_pixels * num_channels));
     }
   }
 }
@@ -1220,7 +1500,7 @@ TEST(ConversionUtils, ResizeImageTo1x1) {
     EXPECT_EQ(downsampled->GetWidth(), 1U);
     EXPECT_EQ(downsampled->GetHeight(), 1U);
     // Extract the N expected channels from the 4 channel source data.
-    EXPECT_TRUE(ImageMatchesBytes(*downsampled, expected[i], num_channels));
+    EXPECT_TRUE(ImageMatchesElements(*downsampled, expected[i], num_channels));
   }
 }
 
@@ -1247,8 +1527,8 @@ TEST(ConversionUtils, ResizeImageDouble) {
     const size_t pattern_size = pattern_pixels * num_channels;
     // Extract the N test channels from the 4 channel source data.
     EXPECT_GE(sizeof(temp), pattern_pixels * num_channels);
-    Copy4BppToN(data, pattern_pixels, temp, num_channels);
-    vector<uint8> pattern(pattern_size);
+    Copy4ChannelToN(data, pattern_pixels, temp, num_channels);
+    std::vector<uint8> pattern(pattern_size);
     std::copy(temp, temp + pattern_size, pattern.begin());
     {
       ImagePtr image = CreateImageWithPattern(test_formats[i], 2, 2, pattern);
@@ -1277,9 +1557,9 @@ TEST(ConversionUtils, ResizeImageDouble) {
       const size_t expected_pixels = ARRAYSIZE(expected) / 4;
       EXPECT_GE(sizeof(temp), expected_pixels * num_channels);
       // Extract the N expected channels from the 4 channel source data.
-      Copy4BppToN(expected, expected_pixels, temp, num_channels);
-      EXPECT_TRUE(ImageMatchesBytes(*downsampled, temp,
-          expected_pixels * num_channels));
+      Copy4ChannelToN(expected, expected_pixels, temp, num_channels);
+      EXPECT_TRUE(ImageMatchesElements(*downsampled, temp,
+                                       expected_pixels * num_channels));
     }
   }
 }
@@ -1288,13 +1568,13 @@ TEST(ConversionUtils, ResizeImageUnsupported) {
   // Non-8bpc images aren't supported, and resizing should return NULL.
   base::AllocatorPtr al;  // NULL pointer means use default allocator.
   ImagePtr float_image = CreateImage(Image::kRg16fFloat, 5, 5);
-  EXPECT_TRUE(ResizeImage(float_image, 5, 5, false, al).Get() == NULL);
-  EXPECT_TRUE(ResizeImage(float_image, 5, 10, false, al).Get() == NULL);
-  EXPECT_TRUE(ResizeImage(float_image, 10, 5, false, al).Get() == NULL);
-  EXPECT_TRUE(ResizeImage(float_image, 10, 10, false, al).Get() == NULL);
-  EXPECT_TRUE(ResizeImage(float_image, 2, 5, false, al).Get() == NULL);
-  EXPECT_TRUE(ResizeImage(float_image, 5, 2, false, al).Get() == NULL);
-  EXPECT_TRUE(ResizeImage(float_image, 2, 2, false, al).Get() == NULL);
+  EXPECT_FALSE(ResizeImage(float_image, 5, 5, false, al));
+  EXPECT_FALSE(ResizeImage(float_image, 5, 10, false, al));
+  EXPECT_FALSE(ResizeImage(float_image, 10, 5, false, al));
+  EXPECT_FALSE(ResizeImage(float_image, 10, 10, false, al));
+  EXPECT_FALSE(ResizeImage(float_image, 2, 5, false, al));
+  EXPECT_FALSE(ResizeImage(float_image, 5, 2, false, al));
+  EXPECT_FALSE(ResizeImage(float_image, 2, 2, false, al));
 }
 
 TEST(ConversionUtils, FlipImage) {
@@ -1306,7 +1586,7 @@ TEST(ConversionUtils, FlipImage) {
       0x8, 0x9, 0xA, 0xB,  0xC, 0xD, 0xE, 0xF,
       0x0, 0x1, 0x2, 0x3,  0x4, 0x5, 0x6, 0x7
     };
-    EXPECT_TRUE(ImageMatchesBytes(*image, expected, ARRAYSIZE(expected)));
+    EXPECT_TRUE(ImageMatchesElements(*image, expected, ARRAYSIZE(expected)));
   }
 
   // RGBA odd height.
@@ -1318,7 +1598,7 @@ TEST(ConversionUtils, FlipImage) {
       0x8, 0x9, 0xA, 0xB,  0xC, 0xD, 0xE, 0xF,
       0x0, 0x1, 0x2, 0x3,  0x4, 0x5, 0x6, 0x7
     };
-    EXPECT_TRUE(ImageMatchesBytes(*image, expected, ARRAYSIZE(expected)));
+    EXPECT_TRUE(ImageMatchesElements(*image, expected, ARRAYSIZE(expected)));
   }
 
   // RGB even height.
@@ -1329,7 +1609,7 @@ TEST(ConversionUtils, FlipImage) {
       0x6, 0x7, 0x8,   0x9, 0xA, 0xB,
       0x0, 0x1, 0x2,   0x3, 0x4, 0x5
     };
-    EXPECT_TRUE(ImageMatchesBytes(*image, expected, ARRAYSIZE(expected)));
+    EXPECT_TRUE(ImageMatchesElements(*image, expected, ARRAYSIZE(expected)));
   }
 
   // RGB odd height.
@@ -1341,7 +1621,7 @@ TEST(ConversionUtils, FlipImage) {
       0x6, 0x7, 0x8,  0x9, 0xA, 0xB,
       0x0, 0x1, 0x2,  0x3, 0x4, 0x5,
     };
-    EXPECT_TRUE(ImageMatchesBytes(*image, expected, ARRAYSIZE(expected)));
+    EXPECT_TRUE(ImageMatchesElements(*image, expected, ARRAYSIZE(expected)));
   }
 
   // Luminance odd height.
@@ -1355,7 +1635,7 @@ TEST(ConversionUtils, FlipImage) {
       0x2, 0x3,
       0x0, 0x1,
     };
-    EXPECT_TRUE(ImageMatchesBytes(*image, expected, ARRAYSIZE(expected)));
+    EXPECT_TRUE(ImageMatchesElements(*image, expected, ARRAYSIZE(expected)));
   }
 
   // Image wider than the internal row buffer used for swapping.
@@ -1363,7 +1643,7 @@ TEST(ConversionUtils, FlipImage) {
     const size_t kWidth = 2051;
     ImagePtr image = CreateImage(Image::kLuminance, kWidth, 2);
     FlipImage(image);
-    vector<uint8> expected(kWidth * 2);
+    std::vector<uint8> expected(kWidth * 2);
     for (size_t i = 0; i < kWidth; ++i) {
       expected[i] = (i + kWidth) & 0xff;
     }
@@ -1372,7 +1652,7 @@ TEST(ConversionUtils, FlipImage) {
     }
     // This test only makes sense if the two rows of the image are different.
     EXPECT_NE(expected[0], expected[kWidth]);
-    EXPECT_TRUE(ImageMatchesBytes(*image, &expected[0], expected.size()));
+    EXPECT_TRUE(ImageMatchesElements(*image, &expected[0], expected.size()));
   }
 
   // No content.  Also height of one, neither of which need flipping.
@@ -1388,7 +1668,7 @@ TEST(ConversionUtils, FlipImage) {
     const uint8 expected[] = {
       0x0, 0x1, 0x2, 0x3, 0x4
     };
-    EXPECT_TRUE(ImageMatchesBytes(*image1, expected, ARRAYSIZE(expected)));
+    EXPECT_TRUE(ImageMatchesElements(*image1, expected, ARRAYSIZE(expected)));
   }
 
   // Check that for a compressed image we log a warning.
@@ -1398,7 +1678,7 @@ TEST(ConversionUtils, FlipImage) {
     ImagePtr image = CreateImage(Image::kRgb888, 4, 4);
     // Compress using DXTC.
     image = ConvertImage(image, Image::kDxt1, false, al, al);
-    vector<uint8> bytes_before_flip(image->GetDataSize());
+    std::vector<uint8> bytes_before_flip(image->GetDataSize());
     EXPECT_EQ(8U, bytes_before_flip.size());
     std::copy(
       image->GetData()->GetData<uint8>(),
@@ -1409,8 +1689,8 @@ TEST(ConversionUtils, FlipImage) {
     EXPECT_TRUE(logchecker.HasMessage("WARNING", "not supported"));
 #endif
     // Check that content didn't change.
-    EXPECT_TRUE(ImageMatchesBytes(
-        *image, &bytes_before_flip[0], bytes_before_flip.size()));
+    EXPECT_TRUE(ImageMatchesElements(*image, &bytes_before_flip[0],
+                                     bytes_before_flip.size()));
   }
 }
 
@@ -1423,7 +1703,7 @@ TEST(ConversionUtils, FlipImageHorizontally) {
       0x4, 0x5, 0x6, 0x7,  0x0, 0x1, 0x2, 0x3,
       0xC, 0xD, 0xE, 0xF,  0x8, 0x9, 0xA, 0xB,
     };
-    EXPECT_TRUE(ImageMatchesBytes(*image, expected, ARRAYSIZE(expected)));
+    EXPECT_TRUE(ImageMatchesElements(*image, expected, ARRAYSIZE(expected)));
   }
 
   // RGBA odd width.
@@ -1434,7 +1714,7 @@ TEST(ConversionUtils, FlipImageHorizontally) {
       0x8, 0x9, 0xA, 0xB,      0x4, 0x5, 0x6, 0x7,      0x0, 0x1, 0x2, 0x3,
       0x14, 0x15, 0x16, 0x17,  0x10, 0x11, 0x12, 0x13,  0xC, 0xD, 0xE, 0xF
     };
-    EXPECT_TRUE(ImageMatchesBytes(*image, expected, ARRAYSIZE(expected)));
+    EXPECT_TRUE(ImageMatchesElements(*image, expected, ARRAYSIZE(expected)));
   }
 
   // RGB even width.
@@ -1445,7 +1725,7 @@ TEST(ConversionUtils, FlipImageHorizontally) {
       0x3, 0x4, 0x5,  0x0, 0x1, 0x2,
       0x9, 0xA, 0xB,  0x6, 0x7, 0x8,
     };
-    EXPECT_TRUE(ImageMatchesBytes(*image, expected, ARRAYSIZE(expected)));
+    EXPECT_TRUE(ImageMatchesElements(*image, expected, ARRAYSIZE(expected)));
   }
 
   // RGB odd width.
@@ -1456,7 +1736,7 @@ TEST(ConversionUtils, FlipImageHorizontally) {
       0x6, 0x7, 0x8,    0x3, 0x4, 0x5,  0x0, 0x1, 0x2,
       0xF, 0x10, 0x11,  0xC, 0xD, 0xE,  0x9, 0xA, 0xB
     };
-    EXPECT_TRUE(ImageMatchesBytes(*image, expected, ARRAYSIZE(expected)));
+    EXPECT_TRUE(ImageMatchesElements(*image, expected, ARRAYSIZE(expected)));
   }
 
   // Luminance odd width.
@@ -1467,7 +1747,7 @@ TEST(ConversionUtils, FlipImageHorizontally) {
       0x4, 0x3, 0x2, 0x1, 0x0,
       0x9, 0x8, 0x7, 0x6, 0x5,
     };
-    EXPECT_TRUE(ImageMatchesBytes(*image, expected, ARRAYSIZE(expected)));
+    EXPECT_TRUE(ImageMatchesElements(*image, expected, ARRAYSIZE(expected)));
   }
 
   // No content.  Also width of one, neither of which need flipping.
@@ -1487,7 +1767,7 @@ TEST(ConversionUtils, FlipImageHorizontally) {
       0x3,
       0x4
     };
-    EXPECT_TRUE(ImageMatchesBytes(*image1, expected, ARRAYSIZE(expected)));
+    EXPECT_TRUE(ImageMatchesElements(*image1, expected, ARRAYSIZE(expected)));
   }
 
   // Check that for a compressed image we log a warning.
@@ -1497,7 +1777,7 @@ TEST(ConversionUtils, FlipImageHorizontally) {
     ImagePtr image = CreateImage(Image::kRgb888, 4, 4);
     // Compress using DXTC.
     image = ConvertImage(image, Image::kDxt1, false, al, al);
-    vector<uint8> bytes_before_flip(image->GetDataSize());
+    std::vector<uint8> bytes_before_flip(image->GetDataSize());
     EXPECT_EQ(8U, bytes_before_flip.size());
     std::copy(
       image->GetData()->GetData<uint8>(),
@@ -1508,8 +1788,8 @@ TEST(ConversionUtils, FlipImageHorizontally) {
     EXPECT_TRUE(logchecker.HasMessage("WARNING", "not supported"));
 #endif
     // Check that content didn't change.
-    EXPECT_TRUE(ImageMatchesBytes(
-        *image, &bytes_before_flip[0], bytes_before_flip.size()));
+    EXPECT_TRUE(ImageMatchesElements(*image, &bytes_before_flip[0],
+                                     bytes_before_flip.size()));
   }
 }
 
@@ -1521,7 +1801,7 @@ TEST(ConversionUtils, StraightAlphaFromPremultipliedAlpha) {
       0x0, 0x55, 0xAA, 0x3,  0x91, 0xB6, 0xDA, 0x7,
       0xB9, 0xD0, 0xE7, 0xB,  0xCC, 0xDD, 0xEE, 0xF,
     };
-    EXPECT_TRUE(ImageMatchesBytes(*image, expected, ARRAYSIZE(expected)));
+    EXPECT_TRUE(ImageMatchesElements(*image, expected, ARRAYSIZE(expected)));
   }
 
   // Check that we log a warning for invalid formats.
@@ -1538,7 +1818,7 @@ TEST(ConversionUtils, StraightAlphaFromPremultipliedAlpha) {
 
     // Not Rgba.
     image = CreateImage(Image::kRgb888, 4, 4);
-    vector<uint8> rgb888_bytes_before_call(image->GetDataSize());
+    std::vector<uint8> rgb888_bytes_before_call(image->GetDataSize());
     std::copy(
       image->GetData()->GetData<uint8>(),
       image->GetData()->GetData<uint8>() + image->GetDataSize(),
@@ -1548,8 +1828,8 @@ TEST(ConversionUtils, StraightAlphaFromPremultipliedAlpha) {
     EXPECT_TRUE(logchecker.HasMessage("WARNING", "not supported"));
 #endif
     // Check that content didn't change.
-    EXPECT_TRUE(ImageMatchesBytes(*image,
-        &rgb888_bytes_before_call[0], rgb888_bytes_before_call.size()));
+    EXPECT_TRUE(ImageMatchesElements(*image, &rgb888_bytes_before_call[0],
+                                     rgb888_bytes_before_call.size()));
   }
 }
 

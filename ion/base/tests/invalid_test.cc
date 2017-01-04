@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -35,10 +35,10 @@ TEST(Invalid, InvalidIndex) {
 
 TEST(Invalid, InvalidReference) {
   const int& invalid_int = ion::base::InvalidReference<int>();
-  EXPECT_TRUE(&invalid_int != NULL);
+  EXPECT_TRUE(&invalid_int != nullptr);
 
   const DummyStruct& invalid_dummy = ion::base::InvalidReference<DummyStruct>();
-  EXPECT_TRUE(&invalid_dummy != NULL);
+  EXPECT_TRUE(&invalid_dummy != nullptr);
 }
 
 TEST(Invalid, InvalidEnum) {

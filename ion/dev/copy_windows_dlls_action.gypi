@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -42,18 +42,68 @@
       ],
 
       'conditions': [
-        ['GENERATOR == "msvs"', {
-          'variables': {
-            # Note tha config_variable_holder is not a 'true' gyp variable;
-            # it is the thing that the relevant build system will expand the
-            # current configuration into. As such, it differs slightly by
-            # generator.
-            'config_variable_holder': '$(CONFIGURATION)',
-          },
+        ['msvc_version < 140', {
+          'includes': [
+            'config_variable_holder.gypi',
+          ],
+          'action': [
+            '<(python)',
+            '<(ion_dir)/dev/copy_configuration_specific_files.py',
+            '--configuration=<(config_variable_holder)',  # Passed at build time.
+            '--destination=<(windows_dlls_destination_param)',
+
+            'dbg_x86:<(msvc_redist_dir)/Debug_NonRedist/x86/Microsoft.VC<(msvc_version).DebugCRT/msvcr<(msvc_version)d.dll',
+            'dbg_x86:<(msvc_redist_dir)/Debug_NonRedist/x86/Microsoft.VC<(msvc_version).DebugCRT/msvcp<(msvc_version)d.dll',
+
+            'opt_x86:<(msvc_redist_dir)/x86/Microsoft.VC<(msvc_version).CRT/msvcr<(msvc_version).dll',
+            'opt_x86:<(msvc_redist_dir)/x86/Microsoft.VC<(msvc_version).CRT/msvcp<(msvc_version).dll',
+
+            'prod_x86:<(msvc_redist_dir)/x86/Microsoft.VC<(msvc_version).CRT/msvcr<(msvc_version).dll',
+            'prod_x86:<(msvc_redist_dir)/x86/Microsoft.VC<(msvc_version).CRT/msvcp<(msvc_version).dll',
+
+            'dbg_x64:<(msvc_redist_dir)/Debug_NonRedist/x64/Microsoft.VC<(msvc_version).DebugCRT/msvcr<(msvc_version)d.dll',
+            'dbg_x64:<(msvc_redist_dir)/Debug_NonRedist/x64/Microsoft.VC<(msvc_version).DebugCRT/msvcp<(msvc_version)d.dll',
+
+            'opt_x64:<(msvc_redist_dir)/x64/Microsoft.VC<(msvc_version).CRT/msvcr<(msvc_version).dll',
+            'opt_x64:<(msvc_redist_dir)/x64/Microsoft.VC<(msvc_version).CRT/msvcp<(msvc_version).dll',
+
+            'prod_x64:<(msvc_redist_dir)/x64/Microsoft.VC<(msvc_version).CRT/msvcr<(msvc_version).dll',
+            'prod_x64:<(msvc_redist_dir)/x64/Microsoft.VC<(msvc_version).CRT/msvcp<(msvc_version).dll',
+          ],
         }, { # else
-          'variables': {
-            'config_variable_holder': '$|CONFIGURATION_NAME',
-          },
+          'includes': [
+            'config_variable_holder.gypi',
+          ],
+          'action': [
+            '<(python)',
+            '<(ion_dir)/dev/copy_configuration_specific_files.py',
+            '--configuration=<(config_variable_holder)',  # Passed at build time.
+            '--destination=<(windows_dlls_destination_param)',
+
+            'dbg_x86:<(msvc_redist_dir)/Debug_NonRedist/x86/Microsoft.VC<(msvc_version).DebugCRT/concrt<(msvc_version)d.dll',
+            'dbg_x86:<(msvc_redist_dir)/Debug_NonRedist/x86/Microsoft.VC<(msvc_version).DebugCRT/msvcp<(msvc_version)d.dll',
+            'dbg_x86:<(msvc_redist_dir)/Debug_NonRedist/x86/Microsoft.VC<(msvc_version).DebugCRT/vcruntime<(msvc_version)d.dll',
+
+            'opt_x86:<(msvc_redist_dir)/x86/Microsoft.VC<(msvc_version).CRT/concrt<(msvc_version).dll',
+            'opt_x86:<(msvc_redist_dir)/x86/Microsoft.VC<(msvc_version).CRT/msvcp<(msvc_version).dll',
+            'opt_x86:<(msvc_redist_dir)/x86/Microsoft.VC<(msvc_version).CRT/vcruntime<(msvc_version).dll',
+
+            'prod_x86:<(msvc_redist_dir)/x86/Microsoft.VC<(msvc_version).CRT/concrt<(msvc_version).dll',
+            'prod_x86:<(msvc_redist_dir)/x86/Microsoft.VC<(msvc_version).CRT/msvcp<(msvc_version).dll',
+            'prod_x86:<(msvc_redist_dir)/x86/Microsoft.VC<(msvc_version).CRT/vcruntime<(msvc_version).dll',
+
+            'dbg_x64:<(msvc_redist_dir)/Debug_NonRedist/x64/Microsoft.VC<(msvc_version).DebugCRT/concrt<(msvc_version)d.dll',
+            'dbg_x64:<(msvc_redist_dir)/Debug_NonRedist/x64/Microsoft.VC<(msvc_version).DebugCRT/msvcp<(msvc_version)d.dll',
+            'dbg_x64:<(msvc_redist_dir)/Debug_NonRedist/x64/Microsoft.VC<(msvc_version).DebugCRT/vcruntime<(msvc_version)d.dll',
+
+            'opt_x64:<(msvc_redist_dir)/x64/Microsoft.VC<(msvc_version).CRT/concrt<(msvc_version).dll',
+            'opt_x64:<(msvc_redist_dir)/x64/Microsoft.VC<(msvc_version).CRT/msvcp<(msvc_version).dll',
+            'opt_x64:<(msvc_redist_dir)/x64/Microsoft.VC<(msvc_version).CRT/vcruntime<(msvc_version).dll',
+
+            'prod_x64:<(msvc_redist_dir)/x64/Microsoft.VC<(msvc_version).CRT/concrt<(msvc_version).dll',
+            'prod_x64:<(msvc_redist_dir)/x64/Microsoft.VC<(msvc_version).CRT/msvcp<(msvc_version).dll',
+            'prod_x64:<(msvc_redist_dir)/x64/Microsoft.VC<(msvc_version).CRT/vcruntime<(msvc_version).dll',
+          ],
         }],
       ],  # conditions
 
@@ -64,31 +114,6 @@
         # a non-existant file, which means this action will always run. Yes
         # I know this sucks.
         'nonexistant_file.nevercreated_<(_target_name)',
-      ],
-
-      'action': [
-        '<(python)',
-        '<(ion_dir)/dev/copy_configuration_specific_files.py',
-        '--configuration=<(config_variable_holder)',  # Passed at build time.
-        '--destination=<(windows_dlls_destination_param)',
-
-        'dbg_x86:<(msvc_redist_dir)/Debug_NonRedist/x86/Microsoft.VC120.DebugCRT/msvcr120d.dll',
-        'dbg_x86:<(msvc_redist_dir)/Debug_NonRedist/x86/Microsoft.VC120.DebugCRT/msvcp120d.dll',
-
-        'opt_x86:<(msvc_redist_dir)/x86/Microsoft.VC120.CRT/msvcr120.dll',
-        'opt_x86:<(msvc_redist_dir)/x86/Microsoft.VC120.CRT/msvcp120.dll',
-
-        'prod_x86:<(msvc_redist_dir)/x86/Microsoft.VC120.CRT/msvcr120.dll',
-        'prod_x86:<(msvc_redist_dir)/x86/Microsoft.VC120.CRT/msvcp120.dll',
-
-        'dbg_x64:<(msvc_redist_dir)/Debug_NonRedist/x64/Microsoft.VC120.DebugCRT/msvcr120d.dll',
-        'dbg_x64:<(msvc_redist_dir)/Debug_NonRedist/x64/Microsoft.VC120.DebugCRT/msvcp120d.dll',
-
-        'opt_x64:<(msvc_redist_dir)/x64/Microsoft.VC120.CRT/msvcr120.dll',
-        'opt_x64:<(msvc_redist_dir)/x64/Microsoft.VC120.CRT/msvcp120.dll',
-
-        'prod_x64:<(msvc_redist_dir)/x64/Microsoft.VC120.CRT/msvcr120.dll',
-        'prod_x64:<(msvc_redist_dir)/x64/Microsoft.VC120.CRT/msvcp120.dll',
       ],
     },
   ],  # actions

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -78,6 +78,26 @@ TEST(Rotation, Constructor) {
   EXPECT_EQ(qi[1], qr[1]);
   EXPECT_EQ(qi[2], qr[2]);
   EXPECT_EQ(qi[3], qr[3]);
+}
+
+TEST(Rotation, TypeConvertingConstructor) {
+  // Test conversion from double to float.
+  {
+    const Rotationd rotd = Rotationd::FromAxisAndAngle(
+        Vector3d(1.0, 0.0, 0.0), Angled::FromDegrees(30.0));
+    const Rotationf rotf(rotd);
+    EXPECT_PRED2((testing::VectorsAlmostEqual<4, float>),
+                 rotf.GetQuaternion(), Vector4f(rotd.GetQuaternion()));
+  }
+
+  // Test conversion from float to double.
+  {
+    const Rotationf rotf = Rotationf::FromAxisAndAngle(
+        Vector3f(1.0f, 0.0f, 0.0f), Anglef::FromDegrees(30.0f));
+    const Rotationd rotd(rotf);
+    EXPECT_PRED2((testing::VectorsAlmostEqual<4, float>),
+                 Vector4f(rotd.GetQuaternion()), rotf.GetQuaternion());
+  }
 }
 
 TEST(Rotation, SetQuaternion) {
@@ -168,6 +188,25 @@ TEST(Rotation, EulerAngles) {
   Angled pitch;
   Angled roll;
   rotation_final.GetEulerAngles(&yaw, &pitch, &roll);
+  static const double kTolerance = 1e-8;
+  EXPECT_NEAR(0.1, yaw.Radians(), kTolerance);
+  EXPECT_NEAR(0.2, pitch.Radians(), kTolerance);
+  EXPECT_NEAR(0.3, roll.Radians(), kTolerance);
+}
+
+TEST(Rotation, EulerAnglesDirectConstruction) {
+  // Create a rotation composed of 0.1 radians in Y, 0.2 radians in X, and
+  // 0.3 radians in Z.
+  Rotationd rotation = Rotationd::FromEulerAngles(
+      Angled::FromRadians(0.1),
+      Angled::FromRadians(0.2),
+      Angled::FromRadians(0.3));
+
+  // Check component angles.
+  Angled yaw;
+  Angled pitch;
+  Angled roll;
+  rotation.GetEulerAngles(&yaw, &pitch, &roll);
   static const double kTolerance = 1e-8;
   EXPECT_NEAR(0.1, yaw.Radians(), kTolerance);
   EXPECT_NEAR(0.2, pitch.Radians(), kTolerance);

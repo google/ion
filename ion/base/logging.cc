@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ namespace base {
 namespace logging_internal {
 
 // Stores the LogEntryWriter set by the user.
-static port::LogEntryWriter* s_writer_ = NULL;
+static port::LogEntryWriter* s_writer_ = nullptr;
 
 // Stores the break handler that gets invoked by Logger::CheckMessage.
 static std::function<void()> s_break_handler_;
@@ -62,8 +62,8 @@ static void BreakOnFatalSeverity(port::LogSeverity severity) {
   is_fatal |= (severity == port::DFATAL);
 #endif
   if (is_fatal) {
-    // Call the break handler unless it has specifically been set to NULL
-    // using SetBreakHandler(NULL).
+    // Call the break handler unless it has specifically been set to nullptr
+    // using SetBreakHandler(nullptr).
     std::function<void()> break_handler = GetBreakHandler();
     if (break_handler) {
       break_handler();
@@ -125,7 +125,7 @@ NullLogger::NullLogger(port::LogSeverity severity) {
 }
 
 std::ostream& NullLogger::GetStream() {
-  static std::ostream null_stream(NULL);
+  static std::ostream null_stream(nullptr);
   return null_stream;
 }
 
@@ -138,14 +138,14 @@ const std::string Logger::CheckMessage(const char* check_string,
 }
 
 static std::ostream& GetNullStream() {
-  static std::ostream null_stream(NULL);
+  static std::ostream null_stream(nullptr);
   return null_stream;
 }
 
 SingleLogger::SingleLogger(const char* file_name, int line_number,
                            port::LogSeverity severity)
     : logger_(HasLoggedMessageAt(file_name, line_number)
-                  ? NULL
+                  ? nullptr
                   : new Logger(file_name, line_number, severity)) {}
 
 SingleLogger::~SingleLogger() {}
@@ -170,7 +170,7 @@ bool SingleLogger::HasLoggedMessageAt(const char* file_name, int line_number) {
 ThrottledLogger::ThrottledLogger(const char* file_name, int line_number,
                                  port::LogSeverity severity, float seconds)
     : logger_(HasLoggedMessageSince(file_name, line_number, seconds)
-                  ? NULL
+                  ? nullptr
                   : new Logger(file_name, line_number, severity)) {}
 
 ThrottledLogger::~ThrottledLogger() {}

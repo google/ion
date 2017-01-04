@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -112,7 +112,7 @@ void SettingManager::SettingData::SettingListener(SettingBase* setting) {
 
 SettingBase* SettingManager::SettingData::GetSetting(const std::string& name) {
   SettingMap::const_iterator it = settings_.find(name);
-  return it == settings_.end() ? NULL : it->second;
+  return it == settings_.end() ? nullptr : it->second;
 }
 
 void SettingManager::SettingData::RegisterSetting(SettingBase* setting) {

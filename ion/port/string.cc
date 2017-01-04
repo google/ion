@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ std::string WideToUtf8(const std::wstring& wide) {
         ::WideCharToMultiByte(CP_UTF8, 0,
                               &wide[0], static_cast<int>(wide.size()),
                               &utf8[0], static_cast<int>(utf8.size()),
-                              NULL, NULL);
+                              nullptr, nullptr);
     utf8.resize(size);
   }
   return utf8;

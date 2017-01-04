@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,7 +27,9 @@ limitations under the License.
 
 // Production builds will typically not need the Remote library, as it is mostly
 // intended for on-the-fly debugging and development.
-#if !ION_PRODUCTION
+#define ION_ENABLE_REMOTE (!ION_PRODUCTION && !ION_SCUBA)
+
+#if ION_ENABLE_REMOTE
 #include "ion/remote/calltracehandler.h"
 #include "ion/remote/nodegraphhandler.h"
 #include "ion/remote/remoteserver.h"
@@ -104,6 +106,16 @@ void ViewerDemoBase::ProcessScale(float scale) {
   UpdateViewUniforms();
 }
 
+ion::gfx::ImagePtr ViewerDemoBase::GrabScreenshot(
+    const ion::base::AllocatorPtr& al) {
+  int width = viewport_size_[0];
+  int height = viewport_size_[1];
+  return renderer_->ReadImage(
+      ion::math::Range2i(ion::math::Point2i(0, 0),
+                         ion::math::Point2i(width, height)),
+      ion::gfx::Image::kRgba8888, al);
+}
+
 void ViewerDemoBase::Resize(int width, int height) {
   viewport_size_.Set(width, height);
   UpdateViewUniforms();
@@ -117,7 +129,7 @@ void ViewerDemoBase::Render() {
 
 void ViewerDemoBase::InitRemoteHandlers(
     const std::vector<ion::gfx::NodePtr>& nodes_to_track) {
-#if !ION_PRODUCTION
+#if ION_ENABLE_REMOTE
 
 #if defined(ION_PLATFORM_ASMJS) || defined(ION_PLATFORM_NACL)
   remote_.reset(new ion::remote::RemoteServer(0));

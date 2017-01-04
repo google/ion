@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@ limitations under the License.
 
 #include "ion/analytics/benchmark.h"
 #include "ion/analytics/benchmarkutils.h"
+#include "ion/base/bufferbuilder.h"
 #include "ion/base/serialize.h"
-#include "ion/base/stringutils.h"
 #include "ion/port/threadutils.h"
 #include "ion/profile/timelinenode.h"
 #include "ion/profile/timelinethread.h"
@@ -74,7 +74,7 @@ class Part {
 
   virtual uint32 GetRawSizeInBytes() const = 0;
 
-  virtual void AppendToString(std::string* output) const = 0;
+  virtual void AppendToBuffer(base::BufferBuilder* output) const = 0;
 
   // All part data within a chunk is aligned to 4b boundaries. This function
   // helps compute the size of the part so that it is padded to be a multiple
@@ -114,7 +114,7 @@ struct Chunk {
     parts.push_back(part);
   }
 
-  void AppendToString(uint32 id, uint32 type, std::string* output) {
+  void AppendToBuffer(uint32 id, uint32 type, base::BufferBuilder* output) {
     DCHECK(parts.size() == part_headers.size());
 
     ChunkInfo info;
@@ -129,12 +129,12 @@ struct Chunk {
     info.start_time = -1;
     info.end_time = -1;
 
-    base::AppendBytes(output, info);
+    output->Append(info);
     for (size_t i = 0; i < part_headers.size(); i++) {
-      base::AppendBytes(output, part_headers[i]);
+      output->Append(part_headers[i]);
     }
     for (size_t i = 0; i < parts.size(); i++) {
-      parts[i]->AppendToString(output);
+      parts[i]->AppendToBuffer(output);
     }
   }
 
@@ -157,6 +157,13 @@ class StringTable : public Part {
     }
   }
 
+  void AddStrings(std::vector<std::string> strings) {
+    table_.reserve(table_.size() + strings.size());
+    for (std::string& string : strings) {
+      table_.emplace_back(std::move(string));
+    }
+  }
+
   uint32 GetRawSizeInBytes() const override {
     size_t raw_size_in_bytes = 0;
     for (size_t i = 0; i < table_.size(); ++i) {
@@ -172,26 +179,24 @@ class StringTable : public Part {
 
   uint32 GetTableSize() const { return static_cast<uint32>(table_.size()); }
 
-  void AppendToString(std::string* output) const override {
+  void AppendToBuffer(base::BufferBuilder* output) const override {
     for (size_t i = 0; i < table_.size(); ++i) {
-      output->append(table_[i]);
+      output->AppendArray(table_[i].data(), table_[i].size());
       if (include_null_) {
-        // Append final NULL character
+        // Append final NUL character
         char ch = 0;
-        base::AppendBytes(output, ch);
+        output->Append(ch);
       }
     }
 
-    // Pad the section with NULL characters so that the start of the next
+    // Pad the section with NUL characters so that the start of the next
     // section is word aligned (aligned with 4-byte addresses).
     uint32 extra = GetAlignedSizeInBytes() - GetRawSizeInBytes();
     for (uint32 i = 0; i < extra; ++i) {
       char ch = 0;
-      base::AppendBytes(output, ch);
+      output->Append(ch);
     }
   }
-
-  std::vector<std::string>* GetMutableTable() { return &table_; }
 
  private:
   std::vector<std::string> table_;
@@ -201,22 +206,22 @@ class StringTable : public Part {
 struct EventBuffer : public Part {
  public:
   uint32 GetRawSizeInBytes() const override {
-    return static_cast<uint32>(buffer.length());
+    return static_cast<uint32>(buffer.Size());
   }
 
-  void AppendToString(std::string* output) const override {
-    output->append(buffer);
+  void AppendToBuffer(base::BufferBuilder* output) const override {
+    output->Append(buffer);
   }
 
-  std::string buffer;
+  base::BufferBuilder buffer;
 };
 
 }  // namespace
 
-ScopedTracer::ScopedTracer(TraceRecorder* recorder, int id)
+ScopedTracer::ScopedTracer(TraceRecorder* recorder, const char* name)
     : recorder_(recorder) {
-  DCHECK(recorder_ && id);
-  recorder_->EnterScope(id);
+  DCHECK(recorder_ && name);
+  recorder_->EnterScope(recorder_->GetScopeEvent(name));
 }
 
 ScopedTracer::~ScopedTracer() {
@@ -235,23 +240,15 @@ ScopedFrameTracer::~ScopedFrameTracer() {
   recorder_->LeaveFrame();
 }
 
-CallTraceManager::CallTraceManager()
-    : trace_recorder_(GetAllocator()),
-      named_trace_recorders_(GetAllocator()),
-      recorder_list_(GetAllocator()),
-      buffer_size_(0),
-      scope_event_map_(GetAllocator()),
-      reverse_scope_event_map_(GetAllocator()) {
-}
+CallTraceManager::CallTraceManager() : CallTraceManager(0) {}
 
 CallTraceManager::CallTraceManager(size_t buffer_size)
     : trace_recorder_(GetAllocator()),
       named_trace_recorders_(GetAllocator()),
       recorder_list_(GetAllocator()),
       buffer_size_(buffer_size),
-      scope_event_map_(GetAllocator()),
-      reverse_scope_event_map_(GetAllocator()) {
-}
+      string_table_(new base::StringTable()),
+      scope_events_(new base::StringTable()) {}
 
 CallTraceManager::~CallTraceManager() {
   base::LockGuard lock(&mutex_);
@@ -264,7 +261,7 @@ CallTraceManager::~CallTraceManager() {
 
   for (size_t i = 0; i < recorder_list_.size(); ++i) {
     delete recorder_list_[i];
-    recorder_list_[i] = NULL;
+    recorder_list_[i] = nullptr;
   }
 }
 
@@ -303,7 +300,7 @@ TraceRecorder* CallTraceManager::GetNamedTraceRecorder(
 }
 
 TraceRecorder* CallTraceManager::AllocateTraceRecorder() {
-  TraceRecorder* recorder = NULL;
+  TraceRecorder* recorder = nullptr;
   if (buffer_size_ == 0) {
     recorder = new (GetAllocator()) TraceRecorder(this);
   } else {
@@ -314,26 +311,6 @@ TraceRecorder* CallTraceManager::AllocateTraceRecorder() {
     recorder_list_.push_back(recorder);
   }
   return recorder;
-}
-
-int CallTraceManager::GetScopeEnterEvent(const char* string_id) {
-  base::LockGuard lock(&mutex_);
-
-  ScopeEventMap::const_iterator it = scope_event_map_.find(string_id);
-  if (it != scope_event_map_.end()) {
-    return it->second;
-  }
-
-  const int new_event_id =
-      static_cast<int>(kCustomScopeEvent + GetNumScopeEvents());
-  scope_event_map_.insert(
-      std::make_pair(static_cast<const void*>(string_id), new_event_id));
-  reverse_scope_event_map_.insert(std::make_pair(new_event_id, string_id));
-  return new_event_id;
-}
-
-const char* CallTraceManager::GetScopeEnterEventName(uint32 event_id) const {
-  return reverse_scope_event_map_.at(event_id);
 }
 
 int CallTraceManager::GetNumArgsForEvent(uint32 event_id) {
@@ -384,15 +361,15 @@ CallTraceManager::EventArgType CallTraceManager::GetArgType(
 }
 
 std::string CallTraceManager::SnapshotCallTraces() const {
-  std::string output;
+  base::BufferBuilder output;
 
   static const uint32 magic_number = 0xdeadbeef;
   static const uint32 wtf_version = 0xe8214400;
   static const uint32 format_version = 10;
 
-  base::AppendBytes(&output, magic_number);
-  base::AppendBytes(&output, wtf_version);
-  base::AppendBytes(&output, format_version);
+  output.Append(magic_number);
+  output.Append(wtf_version);
+  output.Append(format_version);
 
   // Create the file header
   Json::Value flags(Json::arrayValue);
@@ -435,8 +412,7 @@ std::string CallTraceManager::SnapshotCallTraces() const {
 
   Chunk file_header;
   file_header.AddPart(0x10000, &file_header_table);
-  file_header.AppendToString(2, 0x1, &output);
-
+  file_header.AppendToBuffer(2, 0x1, &output);
 
   StringTable def_table;
   def_table.AddString(
@@ -474,10 +450,9 @@ std::string CallTraceManager::SnapshotCallTraces() const {
 
   // This offset is used to index into strings defining custom scope events.
   const uint32 event_string_offset = def_table.GetTableSize();
-  for (ScopeEventMap::const_iterator it = scope_event_map_.begin();
-       it != scope_event_map_.end(); ++it) {
-    def_table.AddString(reinterpret_cast<const char*>(it->first));
-  }
+  std::vector<std::string> scope_event_names = scope_events_->GetTable();
+  const size_t scope_events_count = scope_event_names.size();
+  def_table.AddStrings(std::move(scope_event_names));
 
   // Note: these are the built-in WTF events that are being defined below.
   // wireId (1)    wtf.event#define (uint16 wireId, uint16 eventClass,
@@ -502,7 +477,7 @@ std::string CallTraceManager::SnapshotCallTraces() const {
 
   EventBuffer def_events;
   {
-    std::string* event_buffer = &def_events.buffer;
+    base::BufferBuilder& event_buffer = def_events.buffer;
     uint32 builtin[] = {
         1, 0, 1, 0, 40, 0, 1,
         1, 0, 2, 0, 32, 2, 0xffffffff,
@@ -522,29 +497,26 @@ std::string CallTraceManager::SnapshotCallTraces() const {
         1, 0, 16, 0, 24, 27, 28,
         1, 0, 17, 0, 24, 29, 30
     };
-    base::AppendBytes(event_buffer, builtin);
+    event_buffer.AppendArray(builtin, sizeof(builtin) / sizeof(*builtin));
 
     // Define each scope event
     {
-      int event_counter = 0;
       uint32 temp;
-      for (ScopeEventMap::const_iterator it = scope_event_map_.begin();
-           it != scope_event_map_.end(); ++it) {
+      for (uint32 i = 0; i < scope_events_count; ++i) {
         temp = kDefineEvent;
-        base::AppendBytes(event_buffer, temp);  // wtf.event#define
+        event_buffer.Append(temp);  // wtf.event#define
         temp = 0;
-        base::AppendBytes(event_buffer, temp);  // timestamp
-        temp = it->second;
-        base::AppendBytes(event_buffer, temp);  // wireId
+        event_buffer.Append(temp);  // timestamp
+        temp = i + kCustomScopeEvent;
+        event_buffer.Append(temp);  // wireId
         temp = 1;
-        base::AppendBytes(event_buffer, temp);  // eventClass (scope)
+        event_buffer.Append(temp);  // eventClass (scope)
         temp = 0;
-        base::AppendBytes(event_buffer, temp);  // flags (unused)
-        temp = event_string_offset + event_counter;
-        base::AppendBytes(event_buffer, temp);  // name
+        event_buffer.Append(temp);  // flags (unused)
+        temp = event_string_offset + i;
+        event_buffer.Append(temp);  // name
         temp = -1;
-        base::AppendBytes(event_buffer, temp);  // args (none)
-        event_counter++;
+        event_buffer.Append(temp);  // args (none)
       }
     }
   }
@@ -552,39 +524,39 @@ std::string CallTraceManager::SnapshotCallTraces() const {
   Chunk events_defined;
   events_defined.AddPart(0x30000, &def_table);
   events_defined.AddPart(0x20002, &def_events);
-  events_defined.AppendToString(3, 0x2, &output);
-
+  events_defined.AppendToBuffer(3, 0x2, &output);
 
   const int num_trace_threads = static_cast<int>(recorder_list_.size());
   StringTable table;
+  table.AddStrings(string_table_->GetTable());
+  const uint32 zone_type_string = table.GetTableSize();
   table.AddString("script");
+  const uint32 zone_location_string = table.GetTableSize();
   table.AddString("Some_Location");
-  for (int chunk_i = 0; chunk_i < num_trace_threads; ++chunk_i) {
-    const int zone_id = chunk_i + 1;
-    std::string location_string = "Thread_" + base::ValueToString(zone_id);
-    table.AddString(location_string);
-  }
 
   EventBuffer events;
   {
-    std::string* event_buffer = &events.buffer;
+    base::BufferBuilder& event_buffer = events.buffer;
     for (int chunk_i = 0; chunk_i < num_trace_threads; ++chunk_i) {
       const int zone_id = chunk_i + 1;
+      const uint32 zone_name_string = table.GetTableSize();
+      table.AddString(std::string("Thread_") + base::ValueToString(zone_id));
+
       uint32 temp;
 
       // Create a new zone
       temp = kCreateZoneEvent;
-      base::AppendBytes(event_buffer, temp);
+      event_buffer.Append(temp);
       temp = 0;
-      base::AppendBytes(event_buffer, temp);  // timestamp
+      event_buffer.Append(temp);  // timestamp
       temp = zone_id;
-      base::AppendBytes(event_buffer, temp);  // Zone id
-      temp = 2 + chunk_i;
-      base::AppendBytes(event_buffer, temp);  // Zone name
-      temp = 0;
-      base::AppendBytes(event_buffer, temp);  // Zone type
-      temp = 1;
-      base::AppendBytes(event_buffer, temp);  // Zone location
+      event_buffer.Append(temp);  // Zone id
+      temp = zone_name_string;
+      event_buffer.Append(temp);  // Zone name
+      temp = zone_type_string;
+      event_buffer.Append(temp);  // Zone type
+      temp = zone_location_string;
+      event_buffer.Append(temp);  // Zone location
     }
 
     for (int chunk_i = 0; chunk_i < num_trace_threads; ++chunk_i) {
@@ -594,26 +566,23 @@ std::string CallTraceManager::SnapshotCallTraces() const {
 
       // Set the zone id
       temp = kSetZoneEvent;
-      base::AppendBytes(event_buffer, temp);
+      event_buffer.Append(temp);
       temp = 0;
-      base::AppendBytes(event_buffer, temp);  // timestamp
+      event_buffer.Append(temp);  // timestamp
       temp = zone_id;
-      base::AppendBytes(event_buffer, temp);  // Zone id
+      event_buffer.Append(temp);  // Zone id
 
       // Define each trace event
-      rec->DumpTrace(event_buffer, table.GetTableSize());
-
-      // Add trace string data to the string table.
-      rec->DumpStrings(table.GetMutableTable());
+      rec->DumpTrace(&event_buffer);
     }
   }
 
   Chunk trace;
   trace.AddPart(0x30000, &table);
   trace.AddPart(0x20002, &events);
-  trace.AppendToString(1, 0x2, &output);
+  trace.AppendToBuffer(1, 0x2, &output);
 
-  return output;
+  return output.Build();
 }
 
 void CallTraceManager::WriteFile(const std::string& filename) const {

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ namespace ion {
 namespace gfx {
 class BufferObject;
 // Convenience typedef for shared pointer to a BufferObject.
-typedef base::ReferentPtr<BufferObject>::Type BufferObjectPtr;
+using BufferObjectPtr = base::SharedPtr<BufferObject>;
 
 // A BufferObject describes a generic array of data used, for example, to
 // describe the vertices in a Shape or data retrieved from a framebuffer. It is
@@ -54,12 +54,12 @@ typedef base::ReferentPtr<BufferObject>::Type BufferObjectPtr;
 //  - kStreamDraw: The data store contents will be modified once and used at
 //                 most a few times.
 //
-// A BufferObject can be bound to two possible targets: a kElementBuffer or a
-// kArrayBuffer. kElementBuffer means the data will be used as an element array
-// defining indices, while kArrayBuffer means the data will be used for array
-// data, such as vertices. BufferObjects are by default kArrayBuffers; see
-// the IndexBuffer class for creating types of kElementBuffer to be used as
-// index arrays.
+// A BufferObject can be bound to a number of targets, but only two targets
+// are used for draw calls: kElementBuffer and kArrayBuffer. kElementBuffer
+// means the data will be used as an element array defining indices, while
+// kArrayBuffer means the data will be used for array data, such as vertices.
+// BufferObjects are by default kArrayBuffers; see the IndexBuffer class for
+// creating types of kElementBuffer to be used as index arrays.
 //
 // After a buffer's data has been set through SetData(), callers can modify
 // sub-ranges of data through SetSubData(), or update the entire buffer's data
@@ -94,7 +94,9 @@ class ION_API BufferObject : public ResourceHolder {
     kArrayBuffer,
     kElementBuffer,
     kCopyReadBuffer,
-    kCopyWriteBuffer
+    kCopyWriteBuffer,
+    kTransformFeedbackBuffer,
+    kNumTargets
   };
 
   enum UsageMode {

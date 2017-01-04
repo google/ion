@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ limitations under the License.
 #include "ion/base/referent.h"
 #include "ion/base/stlalloc/allocmap.h"
 #include "ion/external/gtest/gunit_prod.h"  // For FRIEND_TEST().
+#include "ion/port/memorymappedfile.h"
 #include "ion/text/font.h"
 #include "ion/text/fontimage.h"
 
@@ -55,6 +56,14 @@ class ION_API FontManager : public base::Referent {
   // returns the already existing font.
   const FontPtr AddFontFromZipasset(const std::string& font_name,
                                     const std::string& zipasset_name,
+                                    size_t size_in_pixels,
+                                    size_t sdf_padding);
+
+  // Constructs and adds a font with name |font_name| by loading the file at
+  // |file_path|. If a font with the given specs already exists, just returns
+  // the already existing font.
+  const FontPtr AddFontFromFilePath(const std::string& font_name,
+                                    const std::string& file_path,
                                     size_t size_in_pixels,
                                     size_t sdf_padding);
 
@@ -100,6 +109,8 @@ class ION_API FontManager : public base::Referent {
  private:
   typedef base::AllocMap<std::string, FontPtr> FontMap;
   typedef base::AllocMap<std::string, FontImagePtr> FontImageMap;
+  typedef base::AllocMap<std::string, std::unique_ptr<port::MemoryMappedFile>>
+      MemoryMappedFileMap;
 
   // Constructs a string key from a Font for use in the Font map.
   static const std::string BuildFontKeyFromFont(const Font& font) {
@@ -116,13 +127,20 @@ class ION_API FontManager : public base::Referent {
   FontMap font_map_;
   // Maps a user-supplied string key to a FontImage instance.
   FontImageMap font_image_map_;
+  // Maps a file path to the MemoryMappedFile that backs one or more Font
+  // instances in |font_map_| that were loaded via AddFontFromFilePath() when
+  // using FreeTypeFonts. This is necessary because FreeTypeFont requires that
+  // the data backing it exist as long as the FreeTypeFont object does. This is
+  // cached per-path so that the same font being loaded at multiple sizes only
+  // maps the file into memory once.
+  MemoryMappedFileMap memory_mapped_font_files_map_;
 
   // Allow tests to access private functions.
   FRIEND_TEST(FontManagerTest, BuildFontKey);
 };
 
 // Convenience typedef for shared pointer to a FontManager.
-typedef base::ReferentPtr<FontManager>::Type FontManagerPtr;
+using FontManagerPtr = base::SharedPtr<FontManager>;
 
 }  // namespace text
 }  // namespace ion

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,14 +19,14 @@ limitations under the License.
 #include "ion/demos/mac/demoglview.h"
 #include "ion/math/utils.h"
 
-static DemoBase* demo = NULL;
+static DemoBase* demo = nullptr;
 static NSTimer* timer = nil;
 
 @implementation DemoGLView
 
 - (void)dealloc {
   delete demo;
-    demo = NULL;
+    demo = nullptr;
 }
 
 - (void)prepareOpenGL {
@@ -105,7 +105,7 @@ static NSTimer* timer = nil;
   // If this was the escape key, then quit
   if ([theEvent keyCode] == 53) {
     delete demo;
-    demo = NULL;
+    demo = nullptr;
     [NSApp terminate:self];
   }
 

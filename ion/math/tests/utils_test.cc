@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -311,6 +311,12 @@ TEST(Utils, Lerp) {
   EXPECT_EQ(0.99, Lerp(1.0, 2.0, -0.01));
   EXPECT_EQ(0.0, Lerp(1.0, 2.0, -1.0));
   EXPECT_EQ(-1.0, Lerp(1.0, 2.0, -2.0));
+
+  // Verify Lerp'ing between ints using a float doesn't cause a conversion
+  // warning. Even though there is a genuine narrowing concern on this
+  // operation for ints over 8 million, it's common enough that we explicitly
+  // suppress the warning for Lerp.
+  EXPECT_EQ(50, Lerp(0, 100, 0.5f));
 }
 
 TEST(Utils, IsPowerOfTwo) {

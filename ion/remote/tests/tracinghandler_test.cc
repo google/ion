@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -49,13 +49,10 @@ class TracingHandlerTest : public RemoteServerTest {
 
     // Create a Frame, MockGraphicsManager, and Renderer to handle tracing.
     frame_ = new gfxutils::Frame();
-    fg_mock_visual_.reset(new gfx::testing::MockVisual(500, 400));
+    fg_mock_visual_ = gfx::testing::MockVisual::Create(500, 400);
+    portgfx::Visual::MakeCurrent(fg_mock_visual_);
     mgm_ = new gfx::testing::MockGraphicsManager();
     renderer_ = new gfx::Renderer(mgm_);
-
-    // Set a tracing stream to test save/restore.
-    mgm_->SetTracingStream(&test_ostream_);
-    EXPECT_EQ(&test_ostream_, mgm_->GetTracingStream());
 
     // Create and register a TracingHandler.
     TracingHandler* th = new TracingHandler(frame_, renderer_);
@@ -66,8 +63,6 @@ class TracingHandlerTest : public RemoteServerTest {
     test_handler->SetPostHandler(
         std::bind(&TracingHandlerTest::MockVisualTearDown, this));
     server_->RegisterHandler(HttpServer::RequestHandlerPtr(test_handler));
-    tracing_stream_ = th->GetTracingStream();
-    EXPECT_FALSE(tracing_stream_ == NULL);
 
     // Add a pre-frame callback that will get invoked after the
     // TracingHandler's. This allows the test to make calls to the
@@ -80,46 +75,48 @@ class TracingHandlerTest : public RemoteServerTest {
 
   void TearDown() override {
     RemoteServerTest::TearDown();
-    // The TracingHandler should have been deleted, restoring the previous
-    // tracing stream. And nothing should have been written to the stream.
-    EXPECT_EQ(&test_ostream_, mgm_->GetTracingStream());
-    EXPECT_TRUE(test_ostream_.str().empty());
-
     // Make sure objects are destroyed properly.
-    renderer_ = NULL;
-    mgm_ = NULL;
-    fg_mock_visual_.reset();
+    renderer_ = nullptr;
+    mgm_ = nullptr;
+    fg_mock_visual_.Reset();
+    bg_mock_visual_.Reset();
+    ion::portgfx::Visual::MakeCurrent(ion::portgfx::VisualPtr());
+    make_opengl_calls_ = false;
   }
 
   void MockVisualSetup() {
-    // TracingHandler calls on background threads use OpenGL, so there needs
-    // to be a MockVisual associated with this thread.
-    if (!gfx::testing::MockVisual::GetCurrent()) {
-      bg_mock_visual_.reset(new gfx::testing::MockVisual(500, 400));
+    // Each test creates two visuals: one for the foreground thread, and one for
+    // the background thread.  The same background visual is used for all http
+    // requests in a single test, which makes it easy to verify the correct
+    // visual id in the generated trace.
+    if (!bg_mock_visual_) {
+      bg_mock_visual_ =
+          gfx::testing::MockVisual::CreateShared(*fg_mock_visual_);
     }
+    ion::portgfx::Visual::MakeCurrent(bg_mock_visual_);
   }
   void MockVisualTearDown() {
     // TestScene includes some invalid index buffer types.
-    mgm_->SetErrorCode(GL_NO_ERROR);
-    bg_mock_visual_.reset();
+    if (gfx::testing::MockVisual::GetCurrent()) {
+      mgm_->SetErrorCode(GL_NO_ERROR);
+    }
   }
 
   void MockVisualRestore() {
-    ion::portgfx::Visual::MakeCurrent(fg_mock_visual_.get());
+    ion::portgfx::Visual::MakeCurrent(fg_mock_visual_);
   }
 
   void MakeOpenGLCalls(const gfxutils::Frame&) {
     // Make the calls only if requested and the TracingHandler's stream is
     // active.
-    if (make_opengl_calls_ && mgm_->GetTracingStream() != &test_ostream_) {
+    auto& tracing_stream = mgm_->GetTracingStream();
+    if (make_opengl_calls_ && tracing_stream.IsTracing()) {
       base::LogChecker log_checker;
       mgm_->EnableErrorChecking(true);
       // Simulate labels and indentation.
-      ASSERT_FALSE(mgm_->GetTracingStream() == NULL);
-      (*tracing_stream_) << ">Top level label:\n";
+      tracing_stream << ">Top level label:\n";
       mgm_->Clear(GL_COLOR_BUFFER_BIT);
-      (*tracing_stream_) << "-->Nested label\n";
-      mgm_->SetTracingPrefix("  ");
+      tracing_stream.EnterScope(bg_mock_visual_->GetId(), "Nested label");
       uniform_storage[0] = 3.0f;
       uniform_storage[1] = 4.0f;
       uniform_storage[2] = 5.0f;
@@ -140,18 +137,16 @@ class TracingHandlerTest : public RemoteServerTest {
     return s.str();
   }
 
-  gfxutils::FramePtr frame_;
   gfx::testing::MockGraphicsManagerPtr mgm_;
   gfx::RendererPtr renderer_;
-  std::ostream* tracing_stream_;
-  std::ostringstream test_ostream_;
+  gfxutils::FramePtr frame_;
   // When true, this actually makes some OpenGL calls in MakeOpenGLCalls().
   bool make_opengl_calls_;
 
   // This is passed to Uniform4fv(); its address appears the trace.
   GLfloat uniform_storage[4];
-  std::unique_ptr<gfx::testing::MockVisual> fg_mock_visual_;
-  std::unique_ptr<gfx::testing::MockVisual> bg_mock_visual_;
+  base::SharedPtr<gfx::testing::MockVisual> fg_mock_visual_;
+  base::SharedPtr<gfx::testing::MockVisual> bg_mock_visual_;
 };
 
 TEST_F(TracingHandlerTest, ServeTracing) {
@@ -185,8 +180,7 @@ TEST_F(TracingHandlerTest, ServeTracing) {
   // block until a frame is rendered.  The response should be an empty trace.
   GetUri("/ion/tracing/trace_next_frame?nonblocking");
   EXPECT_EQ(200, response_.status);
-  const std::string expected_start1 =
-      "<span class=\"trace_header\">OpenGL trace at frame ";
+  const std::string expected_start1 = "<span class=\"trace_header\">Frame ";
   const std::string expected_start2 =
       "</span><br><br>\n<div class=\"tree\">\n<ul>\n";
   const std::string expected_end = "</ul>\n</div>\n";
@@ -203,20 +197,20 @@ TEST_F(TracingHandlerTest, ServeTracing) {
   frame_->End();
   GetUri("/ion/tracing/trace_next_frame?nonblocking");
   EXPECT_EQ(200, response_.status);
+  std::string bg_vid = ion::base::ValueToString(bg_mock_visual_->GetId());
   const std::string uniform_address_string = GetUniformStorageAddressAsString();
-  EXPECT_TRUE(
-      base::testing::MultiLineStringsEqual(
-          expected1 + "<hr>\n" +
-          expected_start1 + "5" + expected_start2 +
-          "<li><input type =\"checkbox\" checked=\"checked\" id=\"list-0\"/>"
+  EXPECT_TRUE(base::testing::MultiLineStringsEqual(
+      expected1 + "<hr>\n" + expected_start1 + "5, Visual " + bg_vid +
+          expected_start2 +
+          R"(<li><input type ="checkbox" checked="checked" id="list-0"/>)"
           "<label for=\"list-0\">Top level label</label>\n"
           "<ul>\n</ul>\n</li>\n"
           "<li><span class=\"trace_function\">Clear</span>("
           "<span class=\"trace_arg_name\">mask</span> = "
           "<span class=\"trace_arg_value\">GL_COLOR_BUFFER_BIT</span>)</li>\n"
-          "<li><input type =\"checkbox\" checked=\"checked\" id=\"list-1\"/>"
+          R"(<li><input type ="checkbox" checked="checked" id="list-1"/>)"
           "<label for=\"list-1\">Nested label</label>\n"
-          "<ul>\n</ul>\n</li>\n"
+          "<ul>\n"
           "<li><span class=\"trace_function\">Uniform4fv</span>("
           "<span class=\"trace_arg_name\">location</span> ="
           " <span class=\"trace_arg_value\">2</span>,"
@@ -224,14 +218,14 @@ TEST_F(TracingHandlerTest, ServeTracing) {
           " <span class=\"trace_arg_value\">1</span>,"
           " <span class=\"trace_arg_name\">value</span> ="
           " <span class=\"trace_arg_value\">" +
-          uniform_address_string + " -> [3; 4; 5; 6]</span>)"
+          uniform_address_string +
+          " -> [3; 4; 5; 6]</span>)"
           "</li>\n"
-          "<br><span class=\"trace_error\">***OpenGL Error: Uniform4fv("
-          "location = 2, count = 1, value = " + uniform_address_string +
-          " -> [3; 4; 5; 6]): "
-          "invalid operation</span><br><br>\n"
-          "</ul>\n</li>\n" + expected_end,
-          response_.data));
+          "<br><span class=\"trace_error\">***OpenGL Error: "
+          "GL_INVALID_OPERATION</span><br><br>\n"
+          "</ul>\n</li>\n" +
+          expected_end,
+      response_.data));
   make_opengl_calls_ = false;
 
   // Test clearing.

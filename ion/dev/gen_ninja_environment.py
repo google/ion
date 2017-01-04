@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -53,16 +53,21 @@ def DoMain(argv):
   possible_configurations = options.possible_configurations.split(' ')
   windows_path_dirs_x86 = options.windows_path_dirs_x86.split(' ')
   windows_path_dirs_x64 = options.windows_path_dirs_x64.split(' ')
+  windows_includes = options.windows_include_dirs.split()
 
-  # Note that LIB is not included, as they are in other projects'
-  # environment.x?? generators, because we use 'include_dirs' and 'library_dirs'
-  # as needed. (INCLUDE is included, because of the above note about rc.exe).
+  include_env = os.environ.get('INCLUDE')
+  lib_env = os.environ.get('LIB')
+
+  # LIB is needed for VS2015, which uses a few files from the Windows 10 SDK
+  # even when targeting the Windows 8.1 SDK.
   default_env = {
       'SYSTEMROOT': os.environ.get('SYSTEMROOT').split(os.pathsep),
       'TEMP': os.environ.get('TEMP').split(os.pathsep),
       'TMP': os.environ.get('TMP').split(os.pathsep),
       'PATH': os.environ.get('PATH').split(os.pathsep),
-      'INCLUDE': options.windows_include_dirs.split(),
+      'INCLUDE': (include_env.split(os.pathsep) if include_env else []) +
+                 windows_includes,
+      'LIB': lib_env.split(os.pathsep) if lib_env else [],
 
       # This value is needed by some tools, such as the multiprocessing module.
       'NUMBER_OF_PROCESSORS': os.environ.get('NUMBER_OF_PROCESSORS', '1'),

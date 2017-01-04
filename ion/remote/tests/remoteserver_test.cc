@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ limitations under the License.
 
 #include "ion/remote/remoteserver.h"
 
+#include <memory>
+
 #include "ion/base/logchecker.h"
 #include "ion/base/zipassetmanager.h"
 #include "ion/gfx/renderer.h"
@@ -26,6 +28,7 @@ limitations under the License.
 #include "ion/gfx/tests/mockvisual.h"
 #include "ion/gfxutils/frame.h"
 #include "ion/gfxutils/shadermanager.h"
+#include "ion/portgfx/visual.h"
 #include "ion/remote/tests/getunusedport.h"
 #include "ion/remote/tests/httpservertest.h"
 
@@ -86,14 +89,16 @@ TEST_F(RemoteServerTest, ServeRoot) {
 
 #if !(defined(ION_PLATFORM_ASMJS) || defined(ION_PLATFORM_NACL))
 TEST_F(RemoteServerTest, SucceedServer) {
-  visual_.reset(new gfx::testing::MockVisual(64, 64));
-  graphics_manager_.Reset(new gfx::testing::MockGraphicsManager);
-  render_.Reset(new gfx::Renderer(graphics_manager_));
-  shader_manager_.Reset(new gfxutils::ShaderManager());
-  frame_.Reset(new gfxutils::Frame());
+  portgfx::VisualPtr visual = gfx::testing::MockVisual::Create(64, 64);
+  portgfx::Visual::MakeCurrent(visual);
+  gfx::GraphicsManagerPtr graphics_manager(
+      new gfx::testing::MockGraphicsManager());
+  gfx::RendererPtr renderer(new gfx::Renderer(graphics_manager));
+  gfxutils::ShaderManagerPtr shader_manager(new gfxutils::ShaderManager());
+  gfxutils::FramePtr frame(new gfxutils::Frame());
 
   std::unique_ptr<RemoteServer> server(new RemoteServer(
-      render_, shader_manager_, frame_, testing::GetUnusedPort(500)));
+      renderer, shader_manager, frame, testing::GetUnusedPort(500)));
   EXPECT_TRUE(server->IsRunning());
 
   const HttpServer::HandlerMap handler_map = server->GetHandlers();
@@ -106,20 +111,22 @@ TEST_F(RemoteServerTest, SucceedServer) {
 }
 
 TEST_F(RemoteServerTest, AddNode) {
-  visual_.reset(new gfx::testing::MockVisual(64, 64));
-  graphics_manager_.Reset(new gfx::testing::MockGraphicsManager);
-  render_.Reset(new gfx::Renderer(graphics_manager_));
-  shader_manager_.Reset(new gfxutils::ShaderManager());
-  frame_.Reset(new gfxutils::Frame());
+  portgfx::VisualPtr visual = gfx::testing::MockVisual::Create(64, 64);
+  portgfx::Visual::MakeCurrent(visual);
+  gfx::GraphicsManagerPtr graphics_manager(
+      new gfx::testing::MockGraphicsManager());
+  gfx::RendererPtr renderer(new gfx::Renderer(graphics_manager));
+  gfxutils::ShaderManagerPtr shader_manager(new gfxutils::ShaderManager());
+  gfxutils::FramePtr frame(new gfxutils::Frame());
 
   std::unique_ptr<RemoteServer> server(new RemoteServer(
-      render_, shader_manager_, frame_, testing::GetUnusedPort(500)));
+      renderer, shader_manager, frame, testing::GetUnusedPort(500)));
 
   HttpServer::HandlerMap handlers = server->GetHandlers();
   auto iter = handlers.find("/ion/nodegraph");
   EXPECT_NE(handlers.end(), iter);
   NodeGraphHandlerPtr handler(
-      dynamic_cast<NodeGraphHandler*>(iter->second.Get()));
+      static_cast<NodeGraphHandler*>(iter->second.Get()));
   const gfx::NodePtr node1(new gfx::Node);
   server->AddNode(node1);
   EXPECT_TRUE(handler->IsNodeTracked(node1));
@@ -131,20 +138,22 @@ TEST_F(RemoteServerTest, AddNode) {
 }
 
 TEST_F(RemoteServerTest, RemoveNode) {
-  visual_.reset(new gfx::testing::MockVisual(64, 64));
-  graphics_manager_.Reset(new gfx::testing::MockGraphicsManager);
-  render_.Reset(new gfx::Renderer(graphics_manager_));
-  shader_manager_.Reset(new gfxutils::ShaderManager());
-  frame_.Reset(new gfxutils::Frame());
+  portgfx::VisualPtr visual = gfx::testing::MockVisual::Create(64, 64);
+  portgfx::Visual::MakeCurrent(visual);
+  gfx::GraphicsManagerPtr graphics_manager(
+      new gfx::testing::MockGraphicsManager());
+  gfx::RendererPtr renderer(new gfx::Renderer(graphics_manager));
+  gfxutils::ShaderManagerPtr shader_manager(new gfxutils::ShaderManager());
+  gfxutils::FramePtr frame(new gfxutils::Frame());
 
   std::unique_ptr<RemoteServer> server(new RemoteServer(
-      render_, shader_manager_, frame_, testing::GetUnusedPort(500)));
+      renderer, shader_manager, frame, testing::GetUnusedPort(500)));
 
   HttpServer::HandlerMap handlers = server->GetHandlers();
   auto iter = handlers.find("/ion/nodegraph");
   EXPECT_NE(handlers.end(), iter);
   NodeGraphHandlerPtr handler(
-      dynamic_cast<NodeGraphHandler*>(iter->second.Get()));
+      static_cast<NodeGraphHandler*>(iter->second.Get()));
   const gfx::NodePtr node1(new gfx::Node);
   EXPECT_EQ(1, node1->GetRefCount());
   server->AddNode(node1);

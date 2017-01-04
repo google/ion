@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -57,12 +57,12 @@ Mutex::Mutex() {
 #  else
     blockers_ = 0;
     thread_id_ = -1;
-    event_ = CreateEvent(NULL, FALSE, FALSE, NULL);
+    event_ = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 #  endif
 #elif defined(ION_PLATFORM_ASMJS)
   locked_ = false;
 #else
-  pthread_mutex_init(&pthread_mutex_, NULL);
+  pthread_mutex_init(&pthread_mutex_, nullptr);
 #endif
 }
 

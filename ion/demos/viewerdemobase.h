@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -49,6 +49,9 @@ class ViewerDemoBase : public DemoBase {
   // Implements these to manage view changes.
   void ProcessMotion(float x, float y, bool is_press) override;
   void ProcessScale(float scale) override;
+
+  // Reads the backbuffer in kRgba8888 format.
+  ion::gfx::ImagePtr GrabScreenshot(const ion::base::AllocatorPtr& al) override;
 
   // Implements this to maintain the proper width and height for viewing.
   void Resize(int width, int height) override;

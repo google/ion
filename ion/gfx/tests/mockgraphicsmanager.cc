@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ limitations under the License.
 
 #include <algorithm>
 #include <bitset>
-#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -43,22 +42,6 @@ namespace testing {
 // MockGraphicsManager class functions.
 //
 //-----------------------------------------------------------------------------
-
-MockGraphicsManager::MockGraphicsManager() : GraphicsManager(this) {
-  DCHECK(MockVisual::GetCurrent());
-  InitMockFunctions();
-}
-
-void MockGraphicsManager::InitMockFunctions() {
-#define ION_WRAP_GL_FUNC(group, name, return_type, typed_args, args, trace) \
-  functions_["gl" #name] = reinterpret_cast<void*>(&MockVisual::Wrapped##name);
-
-#include "ion/gfx/glfunctions.inc"
-
-  // Install our versions of wrapped OpenGL functions.
-  ReinitFunctions();
-}
-
 int64 MockGraphicsManager::GetCallCount() {
   return MockVisual::GetCallCount();
 }
@@ -118,37 +101,6 @@ void MockGraphicsManager::SetContextProfileMask(int mask) {
     MockVisual::GetCurrent()->Set ## name(value); \
   }
 #include "ion/gfx/tests/glplatformcaps.inc"
-
-void* MockGraphicsManager::Lookup(const char* name, bool is_core) {
-  return functions_[name];
-}
-
-void MockGraphicsManager::EnableFunctionGroupIfAvailable(
-    GraphicsManager::FunctionGroupId group, const GlVersions& versions,
-    const std::string& extensions, const std::string& disabled_renderers) {
-  GraphicsManager::EnableFunctionGroupIfAvailable(group, versions, extensions,
-                                                  disabled_renderers);
-
-  // If the group was disabled by the parent class, override here so that we can
-  // have deterministic testing of all platforms.
-  if (!IsFunctionGroupAvailable(group)) {
-    EnableFunctionGroup(group, true);
-    const std::vector<std::string> names = base::SplitString(extensions, ",");
-    const size_t count = names.size();
-
-    // If the GL version is high enough then we don't need to check extensions.
-    if (versions[GetGlApiStandard()] &&
-        GetGlVersion() >= versions[GetGlApiStandard()])
-      return;
-
-    // Check extensions.
-    for (size_t i = 0; i < count; ++i) {
-      if (IsExtensionSupported(names[i]))
-        return;
-    }
-    EnableFunctionGroup(group, false);
-  }
-}
 
 }  // namespace testing
 }  // namespace gfx

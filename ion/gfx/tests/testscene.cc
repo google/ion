@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -69,6 +69,12 @@ static const char kVertexShader[] =
     "attribute vec3 aBOE2;\n"
     "uniform int uInt;\n"
     "uniform float uFloat;\n";
+static const char kGeometryShader[] =
+    "uniform int uIntGS;\n"
+    "uniform uint uUintGS;\n"
+    "uniform vec2 uFV2;\n"
+    "uniform vec3 uFV3;\n"
+    "uniform vec4 uFV4;\n";
 static const char kFragmentShader[] =
     "uniform int uInt;\n"
     "uniform uint uUint;\n"
@@ -199,10 +205,14 @@ static const ShaderProgramPtr CreateShaderProgram(
   ShaderPtr vertex_shader(new Shader(kVertexShader));
   vertex_shader->SetLabel("Vertex shader");
   vertex_shader->SetDocString("Vertex shader doc string");
+  ShaderPtr geometry_shader(new Shader(kGeometryShader));
+  geometry_shader->SetLabel("Geometry shader");
+  geometry_shader->SetDocString("Geometry shader doc string");
   ShaderPtr fragment_shader(new Shader(kFragmentShader));
   fragment_shader->SetLabel("Fragment shader");
   fragment_shader->SetDocString("Fragment shader doc string");
   program->SetVertexShader(vertex_shader);
+  program->SetGeometryShader(geometry_shader);
   program->SetFragmentShader(fragment_shader);
   return program;
 }
@@ -278,7 +288,9 @@ static const TexturePtr BuildTexture() {
 static void AddUniformsToNode(const ShaderInputRegistryPtr& reg,
                               const NodePtr& node) {
   node->AddUniform(reg->Create<Uniform>("uInt", 13));
+  node->AddUniform(reg->Create<Uniform>("uIntGS", 27));
   node->AddUniform(reg->Create<Uniform>("uUint", 15U));
+  node->AddUniform(reg->Create<Uniform>("uUintGS", 33U));
   node->AddUniform(reg->Create<Uniform>("uFloat", 1.5f));
   node->AddUniform(reg->Create<Uniform>("uCubeMapTex", BuildCubeMapTexture()));
   node->AddUniform(reg->Create<Uniform>("uTex", BuildTexture()));
@@ -508,7 +520,7 @@ static IndexBufferPtr CreateIndexBuffer(BufferObject::ComponentType type,
 }
 
 // Creates and returns a test scene for printing.
-static const NodePtr BuildTestScene() {
+static const NodePtr BuildTestScene(bool capture_varyings) {
   // Create a registry with one of each type of uniform and attribute in it.
   ShaderInputRegistryPtr reg_ptr(CreateRegistry());
   reg_ptr->IncludeGlobalRegistry();
@@ -516,10 +528,22 @@ static const NodePtr BuildTestScene() {
   // Create a root node and a ShaderProgram to it.
   NodePtr root(new Node);
   root->SetLabel("Root Node");
-  root->SetShaderProgram(CreateShaderProgram(reg_ptr));
+  ShaderProgramPtr prog = CreateShaderProgram(reg_ptr);
+  root->SetShaderProgram(prog);
 
   // Add one uniform of each supported type to the root.
   AddUniformsToNode(reg_ptr, root);
+
+  // When testing transform feedback, we need a simple scene graph and
+  // at least one captured varying.
+  if (capture_varyings) {
+    prog->SetCapturedVaryings({"gl_Position"});
+    ShapePtr shape = CreateShape(Shape::kTriangles);
+    shape->SetLabel("Default Shape");
+    shape->SetAttributeArray(CreateAttributeArray(reg_ptr));
+    root->AddShape(shape);
+    return root;
+  }
 
   // Add a child Node with shapes in it.
   NodePtr node_with_shapes(new Node);
@@ -589,9 +613,8 @@ static const NodePtr BuildTestScene() {
 
 }  // anonymous namespace
 
-
-TestScene::TestScene() : scene_(BuildTestScene()) {
-}
+TestScene::TestScene(bool capture_varyings)
+    : scene_(BuildTestScene(capture_varyings)) {}
 
 const CubeMapTexturePtr TestScene::CreateCubeMapTexture() const {
   return BuildCubeMapTexture();
@@ -621,6 +644,10 @@ size_t TestScene::GetSecondBoeAttributeOffset() {
 
 const std::string TestScene::GetVertexShaderSource() const {
   return std::string(kVertexShader);
+}
+
+const std::string TestScene::GetGeometryShaderSource() const {
+  return std::string(kGeometryShader);
 }
 
 const std::string TestScene::GetFragmentShaderSource() const {

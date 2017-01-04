@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -588,14 +588,14 @@ void GpuPerformanceTester::AccumulateMeasurements(
     // trace_verifier(&(*graphics_manager));
 
     // Acquire tracing stream
-    std::ostream* prev_stream = graphics_manager->GetTracingStream();
-    std::ostringstream trace_stream;
-    graphics_manager->SetTracingStream(&trace_stream);
+    gfx::TracingStream& stream = graphics_manager->GetTracingStream();
+    stream.Clear();
+    stream.StartTracing();
     renderer->gfx::Renderer::DrawScene(scene);
-    graphics_manager->SetTracingStream(prev_stream);
+    stream.StopTracing();
 
     // Parse tracing stream for counts
-    gfx::TraceCallExtractor extractor(trace_stream.str());
+    gfx::TraceCallExtractor extractor(stream.String());
     num_bind_shader_ += extractor.GetCountOf(kUseProgramString);
     num_bind_texture_ += extractor.GetCountOf(kBindTextureString);
     num_set_uniform_ += extractor.GetCountOf(kUniformString);

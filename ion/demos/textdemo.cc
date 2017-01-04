@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -219,7 +219,7 @@ static const ion::text::FontImagePtr CreateFontImage(
   if (type == ion::text::FontImage::kStatic) {
     static const size_t kMaxFontImageSize = 1024U;
     // Create a GlyphSet containing all ASCII characters.
-    ion::text::GlyphSet glyph_set(ion::base::AllocatorPtr(NULL));
+    ion::text::GlyphSet glyph_set(ion::base::AllocatorPtr(nullptr));
     font->AddGlyphsForAsciiCharacterRange(1, 127, &glyph_set);
     glyph_set.insert(font->GetDefaultGlyphForChar(0xf7));  // Division sign.
     ion::text::StaticFontImagePtr font_image(
@@ -559,7 +559,7 @@ IonTextDemo::IonTextDemo(int width, int height)
   UpdateViewUniforms();
 
   // Update the graph to display the correct text.
-  UpdateText(NULL);
+  UpdateText(nullptr);
 }
 
 IonTextDemo::~IonTextDemo() {}

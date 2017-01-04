@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -92,10 +92,13 @@ static Transform CalculateLayoutOptionsTransform(
   const double rect_height =
       font->GetFontMetrics().line_advance_height * (line_count - 1) + font->GetSizeInPixels();
 
-  // Compute the scale based on the text size in pixels and LayoutOptions::target_size. If one of
-  // the target size dimensions is 0, use the other dimension's scale.
+  // Compute the scale based on the text size in pixels and LayoutOptions::target_size. If both the
+  // target size dimensions are 0, then do the layout in pixels with no scaling. If only one of the
+  // target size dimensions is 0, use the other dimension's scale.
   Vector2d scale_for_target_size;
-  if (options.target_size[0] == 0.0f) {
+  if (options.target_size == Vector2f::Zero()) {
+    scale_for_target_size = Vector2d::Fill(1.0);
+  } else if (options.target_size[0] == 0.0f) {
     DCHECK_GT(options.target_size[1], 0.0f);
     const double s = options.target_size[1] / rect_height;
     scale_for_target_size.Set(s, s);
@@ -209,10 +212,6 @@ static void AddGlyphToLayout(CGGlyph glyph,
                              const CGPoint& line_origin,
                              float sdf_padding,
                              Layout* layout) {
-  // Ignore characters (e.g., newlines) represented by zero-size glyphs.
-  if (bounds.size.width * bounds.size.height == 0.0)
-    return;
-
   const Point2d glyph_min(CGRectGetMinX(bounds) + position.x + line_origin.x,
                           CGRectGetMinY(bounds) + position.y + line_origin.y);
   const Point2d glyph_max(CGRectGetMaxX(bounds) + position.x + line_origin.x,
@@ -300,16 +299,16 @@ CoreTextFont::Helper::Helper(const CoreTextFont& owning_font,
   const size_t size_in_pixels = owning_font.GetSizeInPixels();
   if (data && data_size) {
     CGDataProviderRef data_provider =
-        CGDataProviderCreateWithData(NULL, data, data_size, NULL);
+        CGDataProviderCreateWithData(nullptr, data, data_size, nullptr);
     CGFontRef cg_font = CGFontCreateWithDataProvider(data_provider);
     coretext_font_ =
-        CTFontCreateWithGraphicsFont(cg_font, size_in_pixels, NULL, NULL);
+        CTFontCreateWithGraphicsFont(cg_font, size_in_pixels, nullptr, nullptr);
     CFRelease(cg_font);
     CFRelease(data_provider);
   } else {
     CFStringRef name_ref = CFStringCreateWithCString(
-        NULL, owning_font.GetName().c_str(), kCFStringEncodingUTF8);
-    coretext_font_ = CTFontCreateWithName(name_ref, size_in_pixels, NULL);
+        nullptr, owning_font.GetName().c_str(), kCFStringEncodingUTF8);
+    coretext_font_ = CTFontCreateWithName(name_ref, size_in_pixels, nullptr);
     CFRelease(name_ref);
   }
 }
@@ -327,11 +326,11 @@ CTFrameRef CoreTextFont::Helper::CreateFrame(
     const std::string& text, HorizontalAlignment horizontal_alignment, float line_spacing) const {
   // Create a CFAttributedString from |string|, with the current font.
   CFStringRef cf_string = CFStringCreateWithBytes(
-      NULL, reinterpret_cast<const UInt8 *>(text.data()), text.size(),
+      nullptr, reinterpret_cast<const UInt8 *>(text.data()), text.size(),
       kCFStringEncodingUTF8, false);
   if (!cf_string) {
     LOG(ERROR) << "CreateFrame failed on: " << text;
-    return NULL;
+    return nullptr;
   }
   NSMutableParagraphStyle* paragraph_style =
       [[NSMutableParagraphStyle alloc] init];
@@ -366,7 +365,7 @@ CTFrameRef CoreTextFont::Helper::CreateFrame(
          NSParagraphStyleAttributeName: paragraph_style };
 
   CFAttributedStringRef attrString =
-      CFAttributedStringCreate(NULL, cf_string, (CFDictionaryRef)attributes);
+      CFAttributedStringCreate(nullptr, cf_string, (CFDictionaryRef)attributes);
   CFRelease(cf_string);
 
   // Create a CTFrame; this is the step that lays out the glyphs.
@@ -374,7 +373,7 @@ CTFrameRef CoreTextFont::Helper::CreateFrame(
       CTFramesetterCreateWithAttributedString(attrString);
   CFRelease(attrString);
   CTFrameRef frame = CTFramesetterCreateFrame(
-      framesetter, CFRangeMake(0, 0), path_, NULL);
+      framesetter, CFRangeMake(0, 0), path_, nullptr);
   CFRelease(framesetter);
   return frame;
 }
@@ -418,7 +417,7 @@ bool CoreTextFont::Helper::LoadGlyphGrid(GlyphIndex glyph_index,
     memset(bitmapData.get(), 0, pixel_height * pixel_width);
     CGContextRef cg_context = CGBitmapContextCreate(
         bitmapData.get(), pixel_width, pixel_height,
-        8, pixel_width, NULL, kCGImageAlphaOnly);
+        8, pixel_width, nullptr, kCGImageAlphaOnly);
     CGContextSetTextMatrix(cg_context, CGAffineTransformIdentity);
 
     // Render the glyph into the above CGContext.

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -55,8 +55,6 @@ class Angle {
   T Radians() const { return radians_; }
   T Degrees() const {  return RadiansToDegrees(radians_); }
 
-  // TODO(user): add "wrap around 2_pi" functions?
-
   // Unary negation operator.
   const Angle operator-() const { return Angle::FromRadians(-radians_); }
 
@@ -67,19 +65,19 @@ class Angle {
   void operator/=(T s) { radians_ /= s; }
 
   // Binary operators.
-  friend const Angle operator+(const Angle& a0, const Angle& a1) {
+  friend Angle operator+(const Angle& a0, const Angle& a1) {
     return FromRadians(a0.radians_ + a1.radians_);
   }
-  friend const Angle operator-(const Angle& a0, const Angle& a1) {
+  friend Angle operator-(const Angle& a0, const Angle& a1) {
     return FromRadians(a0.radians_ - a1.radians_);
   }
-  friend const Angle operator*(const Angle& a, T s) {
+  friend Angle operator*(const Angle& a, T s) {
     return FromRadians(a.radians_ * s);
   }
-  friend const Angle operator*(T s, const Angle& a) {
+  friend Angle operator*(T s, const Angle& a) {
     return FromRadians(s * a.radians_);
   }
-  friend const Angle operator/(const Angle& a, T s) {
+  friend Angle operator/(const Angle& a, T s) {
     return FromRadians(a.radians_ / s);
   }
 
@@ -128,7 +126,7 @@ class Angle {
 // An Angle is streamed as degrees.
 template <typename T>
 std::ostream& operator<<(std::ostream& out, const Angle<T>& a) {
-  return out << a.Degrees() << " deg";
+  return out << +a.Degrees() << " deg";
 }
 
 template <typename T>

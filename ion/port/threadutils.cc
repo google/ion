@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,6 +26,10 @@ limitations under the License.
 #  include <sched.h>
 #  include <stdio.h>
 #  define API_DECL
+#endif
+
+#if defined(ION_PLATFORM_ANDROID)
+#  include <android/log.h>
 #endif
 
 #if defined(ION_PLATFORM_ASMJS) || defined(ION_PLATFORM_NACL)
@@ -110,7 +114,7 @@ struct ThreadNameInfo {
 // This is called by SpawnThread() to do the platform-specific part.
 static void CreateThread(const ThreadFuncPtr func_ptr, void* arg,
                          ThreadId* id) {
-  if (!::CreateThread(NULL, 0, InvokeThreadFuncPtr<DWORD>, arg, 0, id))
+  if (!::CreateThread(nullptr, 0, InvokeThreadFuncPtr<DWORD>, arg, 0, id))
     std::cerr << "***ION error: Unable to create thread: " << GetLastError()
               << "\n";
 }
@@ -118,7 +122,7 @@ static void CreateThread(const ThreadFuncPtr func_ptr, void* arg,
 // This is called by SpawnThreadStd() to do the platform-specific part.
 static void CreateThreadStd(const ThreadStdFunc* func, void* arg,
                             ThreadId* id) {
-  if (!::CreateThread(NULL, 0, InvokeThreadFuncStd<DWORD>, arg, 0, id))
+  if (!::CreateThread(nullptr, 0, InvokeThreadFuncStd<DWORD>, arg, 0, id))
     std::cerr << "***ION error: Unable to create thread: " << GetLastError()
               << "\n";
 }
@@ -142,8 +146,17 @@ static bool CheckPthreadSuccess(const char* what, int result) {
     // Note that because this code is in port, we don't have access to
     // base::LogChecker, which means that there is no good way to trap error
     // messages in tests.
+
+#if defined(ION_PLATFORM_ANDROID)
+    // If 'result' is ENOMEM, writing to std::cerr would cause an exception,
+    // so this function calls __android_log_print instead to prevent a crash.
+    __android_log_print(ANDROID_LOG_ERROR, "Ion",
+                        "Pthread error %s returned %d: %s\n", what, result,
+                        strerror(result));
+#else
     std::cerr << "Pthread error: " << what << " returned "
               << result << ": " << strerror(result) << "\n";
+#endif
     return false;
 #endif  // COV_NF_END
   }
@@ -155,7 +168,7 @@ static void CreateThread(const ThreadFuncPtr func_ptr, void* arg,
                          ThreadId* id) {
   CheckPthreadSuccess(
       "Creating thread",
-      ::pthread_create(id, NULL, InvokeThreadFuncPtr<void*>, arg));
+      ::pthread_create(id, nullptr, InvokeThreadFuncPtr<void*>, arg));
 }
 
 // This is called by SpawnThreadStd() to do the platform-specific part.
@@ -163,7 +176,7 @@ static void CreateThreadStd(const ThreadStdFunc* func, void* arg,
                             ThreadId* id) {
   CheckPthreadSuccess(
       "Creating thread",
-      ::pthread_create(id, NULL, InvokeThreadFuncStd<void*>, arg));
+      ::pthread_create(id, nullptr, InvokeThreadFuncStd<void*>, arg));
 }
 
 #endif
@@ -286,7 +299,7 @@ bool SetThreadLocalStorage(ThreadLocalStorageKey key, void* ptr) {
 }
 
 void* GetThreadLocalStorage(ThreadLocalStorageKey key) {
-  return key == kInvalidThreadLocalStorageKey ? NULL : ::TlsGetValue(key);
+  return key == kInvalidThreadLocalStorageKey ? nullptr : ::TlsGetValue(key);
 }
 
 bool DeleteThreadLocalStorageKey(ThreadLocalStorageKey key) {
@@ -309,7 +322,7 @@ bool DeleteThreadLocalStorageKey(ThreadLocalStorageKey key) {
 
 bool JoinThread(ThreadId id) {
   if (id != kInvalidThreadId) {
-    return CheckPthreadSuccess("Joining thread", ::pthread_join(id, NULL));
+    return CheckPthreadSuccess("Joining thread", ::pthread_join(id, nullptr));
   }
   return false;
 }
@@ -355,7 +368,7 @@ ThreadId GetCurrentThreadId() {
 ThreadLocalStorageKey CreateThreadLocalStorageKey() {
   ThreadLocalStorageKey key = kInvalidThreadLocalStorageKey;
   CheckPthreadSuccess("Creating thread-local storage key",
-                      ::pthread_key_create(&key, NULL));
+                      ::pthread_key_create(&key, nullptr));
   return key;
 }
 
@@ -368,7 +381,7 @@ bool SetThreadLocalStorage(ThreadLocalStorageKey key, void* ptr) {
 }
 
 void* GetThreadLocalStorage(ThreadLocalStorageKey key) {
-  return key == kInvalidThreadLocalStorageKey ? NULL :
+  return key == kInvalidThreadLocalStorageKey ? nullptr :
       ::pthread_getspecific(key);
 }
 

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -80,7 +80,7 @@ class HttpServerTest : public ::testing::Test {
 
   void TearDown() override {
     // Shutdown the server.
-    server_.reset(NULL);
+    server_.reset(nullptr);
   }
 
   // Logs headers from a response to the tracing stream.
@@ -160,12 +160,6 @@ class RemoteServerTest : public HttpServerTest {
     EXPECT_TRUE(server_->IsRunning());
 #endif
   }
-
-  std::unique_ptr<gfx::testing::MockVisual> visual_;
-  gfx::testing::MockGraphicsManagerPtr graphics_manager_;
-  gfx::RendererPtr render_;
-  gfxutils::ShaderManagerPtr shader_manager_;
-  gfxutils::FramePtr frame_;
 };
 
 }  // namespace remote

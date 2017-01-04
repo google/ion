@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ limitations under the License.
 
 // Include graphics manager to get special gl typedefs needed for compatibility
 // with MockGraphicsManager's expectations.
+#include "ion/base/sharedptr.h"
 #include "ion/gfx/graphicsmanager.h"
 #include "ion/port/atomic.h"
 #include "ion/portgfx/visual.h"
@@ -35,28 +36,44 @@ namespace testing {
 // GraphicsManager.
 class MockVisual : public portgfx::Visual {
  public:
-  // Constructs a MockVisual that shares the same shadow state with the passed
-  // Visual. Note the following important points:
+  // Shadows OpenGL state.
+  class ShadowState;
+
+  // Constructs a MockVisual that shares non-container OpenGL resources with
+  // |share_visual| (i.e. all resources except framebuffers, vertex arrays,
+  // program pipelines, and transform feedbacks).  Note the following important
+  // points:
   //   - Operations on MockVisual are not thread-safe.
   //   - The MockVisual is not set as current; that should be done on the thread
   //     it will be used on.
   //   - Both the original and new MockVisual will respond to IsValid() with the
   //     same result (unless one is later invalidated).
-  MockVisual(const MockVisual& share_visual);
+  static base::SharedPtr<MockVisual> CreateShared(
+      const MockVisual& share_visual);
 
-  // Constructs a mock visual and sets it as current.
-  MockVisual(int window_width, int window_height);
+  // Constructs a mock visual.
+  static base::SharedPtr<MockVisual> Create(int window_width,
+                                            int window_height);
   ~MockVisual() override;
 
-  // Along with SetValid(), allows testing that code works with both valid
-  // and invalid MockVisuals.
+  // Visual implementation.
   bool IsValid() const override { return is_valid_; }
+  void* GetProcAddress(const char* proc_name, bool is_core) const override;
+  bool MakeContextCurrentImpl() override { return true; }
+  void ClearCurrentContextImpl() override {}
+  portgfx::VisualPtr CreateVisualInShareGroupImpl(
+      const portgfx::VisualSpec&) override {
+    // The returned MockVisual will be valid iff |*this| is valid.
+    return CreateShared(*this);
+  }
+  bool IsOwned() const override { return true; }
 
-  // Sets the value that will subsequently be returned by IsValid().
+  // Sets the value that will subsequently be returned by IsValid().  This
+  // allows testing that code work with both valid and invalid MockVisuals.
   void SetValid(bool valid) { is_valid_ = valid; }
 
-  // Gets the current MockVisual.
-  static MockVisual* GetCurrent();
+  // Gets the current Visual, as a MockVisual.
+  static base::SharedPtr<MockVisual> GetCurrent();
 
   // Gets the number of times an OpenGL function has been invoked on the
   // currently active MockVisual, since the last reset.
@@ -65,21 +82,12 @@ class MockVisual : public portgfx::Visual {
   // Resets the call count of the currently active MockVisual to zero.
   static void ResetCallCount() { GetCurrent()->call_count_ = 0; }
 
- protected:
-  // Override Visual::CreateVisualInShareGroup() in order to return a MockVisual
-  // instead of a Visual.  The new MockVisual will be valid if-and-only-if this
-  // is valid.
-  Visual* CreateVisualInShareGroup() const override {
-    return new MockVisual(*this);
-  }
-
-  // No-op, so that a MockVisual can be made current.
-  bool MakeCurrent() const override { return true; }
-
-  void UpdateId() override;
+  static ShadowState* IncrementAndCall(const char* name);
 
  private:
   friend class MockGraphicsManager;
+
+  MockVisual(std::unique_ptr<ShadowState> shadow_state, bool is_valid);
 
   // Sets/returns a maximum size allowed for allocating any OpenGL buffer.
   // This is used primarily for testing out-of-memory errors.
@@ -114,22 +122,7 @@ class MockVisual : public portgfx::Visual {
   void Set##name(type value);
 #include "ion/gfx/tests/glplatformcaps.inc"
 
-  //---------------------------------------------------------------------------
-  // Each of these static functions is used to invoke the corresponding
-  // shadow member function on the thread local instance. These are used as
-  // the entry points for the MockGraphicsManager.
-
-#define ION_WRAP_GL_FUNC(group, name, return_type, typed_args, args, trace) \
-  static return_type ION_APIENTRY Wrapped##name typed_args;
-
-#include "ion/gfx/glfunctions.inc"
-
-  static uint32 GetVisualId();
-
-  // Shadows OpenGL state.
-  class ShadowState;
-  static ShadowState* IncrementAndCall(const char* name);
-  std::shared_ptr<ShadowState> shadow_state_;
+  const std::unique_ptr<ShadowState> shadow_state_;
 
   std::atomic<int32> call_count_;
   bool is_valid_;

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 */
+
+#if defined(ION_PLATFORM_MAC) || defined(ION_PLATFORM_IOS)
 
 #include "ion/text/coretextfont.h"
 
@@ -38,10 +40,19 @@ static double SumArrayValues(base::Array2<double> array) {
   return result;
 }
 
+// Computes the union of the bounds of all the glyphs in |layout|.
+static math::Range2f ComputeTextBounds(const Layout& layout) {
+  math::Range2f text_bounds;
+  for (size_t i = 0; i < layout.GetGlyphCount(); ++i) {
+    text_bounds.ExtendByRange(layout.GetGlyph(i).bounds);
+  }
+  return text_bounds;
+}
+
 TEST(CoreTextFontTest, ValidSystemFont) {
   base::LogChecker logchecker;
 
-  const FontPtr font(new CoreTextFont("Courier", 32U, 4U, NULL, 0));
+  const FontPtr font(new CoreTextFont("Courier", 32U, 4U, nullptr, 0));
   EXPECT_EQ("Courier", font->GetName());
   EXPECT_EQ(32U, font->GetSizeInPixels());
   EXPECT_EQ(4U, font->GetSdfPadding());
@@ -62,6 +73,36 @@ TEST(CoreTextFontTest, ValidSystemFont) {
   // FontMetrics.
   const Font::FontMetrics& fmet = font->GetFontMetrics();
   EXPECT_EQ(32.f, fmet.line_advance_height);
+}
+
+TEST(CoreTextFontTest, TrailingWhitespaceAddsGlyphs) {
+  const FontPtr font(new CoreTextFont("Courier", 32U, 4U, nullptr, 0));
+  const LayoutOptions options;
+  const Layout layout = font->BuildLayout("size8   ", options);
+  EXPECT_EQ(8U, layout.GetGlyphCount());
+}
+
+TEST(CoreTextFontTest, LayoutOptionsPixelPerfect) {
+  const CoreTextFontPtr font = testing::BuildTestCoreTextFont("Test", 32U, 4U);
+  LayoutOptions options;
+
+  // Specify neither width nor height. Width and height of layout will be their
+  // natural size in pixels based on the chosen font.
+  options.target_size = math::Vector2f::Zero();
+
+  // Test one line of text.
+  const math::Range2f single_line_text_bounds = ComputeTextBounds(
+        font->BuildLayout("Testy test", options));
+  // Check sizes against golden values.
+  EXPECT_FLOAT_EQ(133.14062f, single_line_text_bounds.GetSize()[0]);
+  EXPECT_FLOAT_EQ(29.75f, single_line_text_bounds.GetSize()[1]);
+
+  // Test several lines of text.
+  const math::Range2f multi_line_text_bounds = ComputeTextBounds(
+        font->BuildLayout("Test\nthree\nlines", options));
+  // Check sizes against golden values.
+  EXPECT_FLOAT_EQ(67.859375f, multi_line_text_bounds.GetSize()[0]);
+  EXPECT_FLOAT_EQ(99.203125f, multi_line_text_bounds.GetSize()[1]);
 }
 
 TEST(CoreTextFontTest, ValidFontWithData) {
@@ -98,7 +139,7 @@ TEST(CoreTextFontTest, ValidFontWithData) {
   // CoreTextFont::Helper::CreateFrame.
   size_t glyphCount =
       font->BuildLayout("Новая Басманна\321", LayoutOptions()).GetGlyphCount();
-  EXPECT_EQ(glyphCount, 0);
+  EXPECT_EQ(glyphCount, 0U);
   EXPECT_TRUE(
       logchecker.HasMessage("ERROR",
                             "CreateFrame failed on: Новая Басманна\321"));
@@ -111,13 +152,13 @@ TEST(CoreTextFontTest, KnownFontSuffixes) {
   const std::string kBaseName = "HelveticaNeue";
 
   const FontPtr vanilla_font(
-      new CoreTextFont(kBaseName, 32U, 0U, NULL, 0));
+      new CoreTextFont(kBaseName, 32U, 0U, nullptr, 0));
   const FontPtr bold_font(
-      new CoreTextFont(kBaseName + "-Bold", 32U, 0U, NULL, 0));
+      new CoreTextFont(kBaseName + "-Bold", 32U, 0U, nullptr, 0));
   const FontPtr italic_font(
-      new CoreTextFont(kBaseName + "-Italic", 32U, 0U, NULL, 0));
+      new CoreTextFont(kBaseName + "-Italic", 32U, 0U, nullptr, 0));
   const FontPtr bold_italic_font(
-      new CoreTextFont(kBaseName + "-BoldItalic", 32U, 0U, NULL, 0));
+      new CoreTextFont(kBaseName + "-BoldItalic", 32U, 0U, nullptr, 0));
 
   EXPECT_EQ(kBaseName, vanilla_font->GetName());
 
@@ -153,9 +194,9 @@ TEST(CoreTextFontTest, UnknownFontSuffixes) {
   const std::string kBaseName = "abcdef";
 
   const FontPtr vanilla_font(
-      new CoreTextFont(kBaseName, 32U, 0U, NULL, 0));
+      new CoreTextFont(kBaseName, 32U, 0U, nullptr, 0));
   const FontPtr italic_font(
-      new CoreTextFont(kBaseName + "-Italic", 32U, 0U, NULL, 0));
+      new CoreTextFont(kBaseName + "-Italic", 32U, 0U, nullptr, 0));
 
   EXPECT_EQ(kBaseName, vanilla_font->GetName());
 
@@ -171,3 +212,5 @@ TEST(CoreTextFontTest, UnknownFontSuffixes) {
 
 }  // namespace text
 }  // namespace ion
+
+#endif  // defined(ION_PLATFORM_MAC) || defined(ION_PLATFORM_IOS)

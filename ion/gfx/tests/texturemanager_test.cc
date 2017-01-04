@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -159,14 +159,14 @@ TEST(TextureManagerTest, ChangeUnitRange) {
   tm.SetUnitRange(Range1i(2, 3));
   EXPECT_EQ(2, tm.GetUnit(&ptr1, 0));
   EXPECT_EQ(3, tm.GetFrontIndex());
-  EXPECT_TRUE(tm.GetTexture(0) == NULL);
+  EXPECT_EQ(nullptr, tm.GetTexture(0));
   EXPECT_EQ(&ptr1, tm.GetTexture(2));
   EXPECT_EQ(2, tm.GetBackIndex());
 
   // Check ptr2.
   EXPECT_EQ(3, tm.GetUnit(&ptr2, 1));
   EXPECT_EQ(2, tm.GetFrontIndex());
-  EXPECT_TRUE(tm.GetTexture(1) == NULL);
+  EXPECT_TRUE(tm.GetTexture(1) == nullptr);
   EXPECT_EQ(&ptr2, tm.GetTexture(3));
   EXPECT_EQ(3, tm.GetBackIndex());
   EXPECT_EQ(2, tm.GetUnit(&ptr1, 2));
@@ -174,10 +174,10 @@ TEST(TextureManagerTest, ChangeUnitRange) {
 
   // Go down to a single unit.
   tm.SetUnitRange(Range1i(1, 1));
-  EXPECT_TRUE(tm.GetTexture(0) == NULL);
-  EXPECT_TRUE(tm.GetTexture(1) == NULL);
-  EXPECT_TRUE(tm.GetTexture(2) == NULL);
-  EXPECT_TRUE(tm.GetTexture(3) == NULL);
+  EXPECT_EQ(nullptr, tm.GetTexture(0));
+  EXPECT_EQ(nullptr, tm.GetTexture(1));
+  EXPECT_EQ(nullptr, tm.GetTexture(2));
+  EXPECT_EQ(nullptr, tm.GetTexture(3));
 
   EXPECT_EQ(1, tm.GetUnit(&ptr1, 2));
   EXPECT_EQ(1, tm.GetFrontIndex());
@@ -193,10 +193,10 @@ TEST(TextureManagerTest, ChangeUnitRange) {
   // unit available by selecting an out-of-range value.
   tm.SetUnitRange(Range1i(std::numeric_limits<int>::max(),
                           std::numeric_limits<int>::max()));
-  EXPECT_TRUE(tm.GetTexture(0) == NULL);
-  EXPECT_TRUE(tm.GetTexture(1) == NULL);
-  EXPECT_TRUE(tm.GetTexture(2) == NULL);
-  EXPECT_TRUE(tm.GetTexture(3) == NULL);
+  EXPECT_EQ(nullptr, tm.GetTexture(0));
+  EXPECT_EQ(nullptr, tm.GetTexture(1));
+  EXPECT_EQ(nullptr, tm.GetTexture(2));
+  EXPECT_EQ(nullptr, tm.GetTexture(3));
 
   EXPECT_EQ(3, tm.GetUnit(&ptr1, 2));
   EXPECT_EQ(3, tm.GetFrontIndex());
