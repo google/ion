@@ -82,6 +82,18 @@ TEST(CoreTextFontTest, TrailingWhitespaceAddsGlyphs) {
   EXPECT_EQ(8U, layout.GetGlyphCount());
 }
 
+TEST(CoreTextFontTest, WhitespaceHasValidQuad) {
+  const FontPtr font(new CoreTextFont("Courier", 32U, 4U, nullptr, 0));
+  const LayoutOptions options;
+  const Layout layout = font->BuildLayout("foo bar", options);
+  EXPECT_EQ(7U, layout.GetGlyphCount());
+  const Layout::Glyph& space = layout.GetGlyph(3);
+  EXPECT_EQ(0.f, space.bounds.GetSize()[0]);
+  EXPECT_EQ(0.f, space.bounds.GetSize()[1]);
+  EXPECT_FALSE(std::isnan(space.quad.points[0][0]));
+  EXPECT_FALSE(std::isnan(space.quad.points[0][1]));
+}
+
 TEST(CoreTextFontTest, LayoutOptionsPixelPerfect) {
   const CoreTextFontPtr font = testing::BuildTestCoreTextFont("Test", 32U, 4U);
   LayoutOptions options;

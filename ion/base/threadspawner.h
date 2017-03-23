@@ -19,6 +19,7 @@ limitations under the License.
 #define ION_BASE_THREADSPAWNER_H_
 
 #include <string>
+#include <thread>  // NOLINT(build/c++11)
 
 #include "ion/port/threadutils.h"
 
@@ -27,6 +28,7 @@ namespace base {
 
 // A ThreadSpawner instance launches a new thread in its constructor and waits
 // for the thread to finish in its destructor.
+// NOTE: this class is deprecated. Use std::thread directly instead.
 class ThreadSpawner {
  public:
   // Creates a ThreadSpawner instance that runs the given function. The thread
@@ -47,20 +49,13 @@ class ThreadSpawner {
   // Returns the ThreadId for the thread. This will be port::kInvalidThreadId
   // if the thread has not yet spawned, if there was an error spawning the
   // thread, or if Join() has already completed.
-  port::ThreadId GetId() const { return id_; }
+  std::thread::id GetId() const { return thread_.get_id(); }
 
  private:
-  // Spawns a thread, returning the id. Names the thread if supported.
-  port::ThreadId Spawn();
-
   // Thread name.
   const std::string name_;
-  // Stores the spawned function as an std::function so it persists for the
-  // lifetime of the thread.
-  const port::ThreadStdFunc func_;
-  // Stores the ThreadId generated when the thread is spawned. This will be
-  // port::kInvalidThreadId if there is an error spawning the thread.
-  port::ThreadId id_;
+  // The actual thread.
+  std::thread thread_;
 };
 
 }  // namespace base

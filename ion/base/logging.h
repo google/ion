@@ -24,6 +24,7 @@ limitations under the License.
 #include <sstream>
 #include <string>
 #include <type_traits>
+#include <utility>
 
 #include "ion/port/logging.h"
 
@@ -366,36 +367,13 @@ namespace ion {
 namespace base {
 namespace logging_internal {
 
-// Helpers for CHECK_NOTNULL(). Two are necessary to support both raw pointers
-// and smart pointers.
+// Helper for CHECK_NOTNULL(), using C++11 perfect forwarding.
 template <typename T>
-T& CheckNotNullCommon(const char* expr_string, T& t) {  // NOLINT
+T CheckNotNull(const char* expr_string, T&& t) {
   if (t == nullptr) {
     ION_LOG(FATAL) << Logger::CheckMessage("CHECK_NOTNULL", expr_string);
   }
-  return t;
-}
-
-template <typename T>
-T* CheckNotNull(const char* expr_string, T* t) {  // NOLINT
-  return CheckNotNullCommon(expr_string, t);
-}
-
-template <typename T>
-T& CheckNotNull(const char* expr_string, T& t) {  // NOLINT
-  return CheckNotNullCommon(expr_string, t);
-}
-
-// This extra overload is needed to support non-const rvalues of non-pointer
-// type.
-//
-// For example, it enables the following use-case:
-//   CHECK_NOTNULL(make_scoped_ptr<T>(MakeT()));
-//
-// Without this overload, the above code wouldn't compile.
-template <typename T>
-const T& CheckNotNull(const char* expr_string, const T& t) {  // NOLINT
-  return CheckNotNullCommon(expr_string, t);
+  return std::forward<T>(t);
 }
 
 // This formats a value for a failing (D)CHECK_XX statement. It uses operator

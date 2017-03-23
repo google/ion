@@ -19,22 +19,21 @@ limitations under the License.
 #define ION_PROFILE_TIMELINETHREAD_H_
 
 #include <string>
+#include <thread>  // NOLINT(build/c++11)
 
-#include "ion/port/threadutils.h"
 #include "ion/profile/timelinenode.h"
 
 // TimelineThread is a timeline node that stores all events for a thread.
 class TimelineThread : public TimelineNode {
  public:
-  TimelineThread(const std::string& thread_name,
-                 const ion::port::ThreadId& thread_id)
+  TimelineThread(const std::string& thread_name, std::thread::id thread_id)
       : TimelineNode(thread_name), thread_id_(thread_id) {}
 
   Type GetType() const override { return Type::kThread; }
-  const ion::port::ThreadId& GetThreadId() const { return thread_id_; }
+  std::thread::id GetThreadId() const { return thread_id_; }
 
  private:
-  ion::port::ThreadId thread_id_;
+  std::thread::id thread_id_;
 };
 
 #endif  // ION_PROFILE_TIMELINETHREAD_H_

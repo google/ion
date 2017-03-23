@@ -105,6 +105,18 @@ limitations under the License.
 #define ION_ATRACE_ENABLED() \
   ion::port::android::Tracer::isTagEnabled(ION_ATRACE_TAG)
 
+// ION_ATRACE_ASYNC_BEGIN traces the beginning of an asynchronous event.
+// Asynchronous events do not need to be nested. The name describes the event,
+// and the cookie provides a unique identifier for distinguishing simultaneous
+// events. The name and cookie used to begin an event must be used to end it.
+#define ION_ATRACE_ASYNC_BEGIN(name, cookie) \
+  ion::port::android::Tracer::traceAsyncBegin(ION_ATRACE_TAG, name, cookie)
+
+// ION_ATRACE_ASYNC_END traces the end of an asynchronous event. This should
+// have a corresponding ION_ATRACE_ASYNC_BEGIN.
+#define ION_ATRACE_ASYNC_END(name, cookie) \
+  ion::port::android::Tracer::traceAsyncEnd(ION_ATRACE_TAG, name, cookie)
+
 namespace ion {
 namespace port {
 namespace android {
@@ -125,7 +137,7 @@ class Tracer {
                                   int32_t value) {
     if (isTagEnabled(tag)) {
       char buf[1024];
-      snprintf(buf, 1024, "C|%d|%s|%d", getpid(), name, value);  // NOLINT
+      snprintf(buf, sizeof(buf), "C|%d|%s|%d", getpid(), name, value);
       write(sTraceFD, buf, strlen(buf));
     }
   }
@@ -133,7 +145,7 @@ class Tracer {
   static inline void traceBegin(uint64_t tag, const char* name) {
     if (isTagEnabled(tag)) {
       char buf[1024];
-      size_t len = snprintf(buf, 1024, "B|%d|%s", getpid(), name);  // NOLINT
+      size_t len = snprintf(buf, sizeof(buf), "B|%d|%s", getpid(), name);
       write(sTraceFD, buf, len);
     }
   }
@@ -142,6 +154,26 @@ class Tracer {
     if (isTagEnabled(tag)) {
       char buf = 'E';
       write(sTraceFD, &buf, 1);
+    }
+  }
+
+  static inline void traceAsyncBegin(uint64_t tag, const char* name,
+                                     int32_t cookie) {
+    if (isTagEnabled(tag)) {
+      char buf[1024];
+      size_t len = snprintf(buf, sizeof(buf), "S|%d|%s|%d", getpid(), name,
+                            cookie);
+      write(sTraceFD, buf, len);
+    }
+  }
+
+  static inline void traceAsyncEnd(uint64_t tag, const char* name,
+                                   int32_t cookie) {
+    if (isTagEnabled(tag)) {
+      char buf[1024];
+      size_t len = snprintf(buf, sizeof(buf), "F|%d|%s|%d", getpid(), name,
+                            cookie);
+      write(sTraceFD, buf, len);
     }
   }
 

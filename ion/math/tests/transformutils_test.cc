@@ -17,6 +17,8 @@ limitations under the License.
 
 #include "ion/math/transformutils.h"
 
+#include <array>
+
 #include "ion/base/logchecker.h"
 #include "ion/math/matrix.h"
 #include "ion/math/matrixutils.h"
@@ -419,6 +421,34 @@ TEST(TransformUtils, PerspectiveMatrixFromView) {
   // Test double and float versions for coverage.
   TestPerspectiveMatrixFromView<double>();
   TestPerspectiveMatrixFromView<float>();
+}
+
+TEST(TransformUtils, InfiniteFarClip) {
+  const double z_near = 0.3;
+  const double z_far_epsilon = 0.0f;
+
+  const Matrix4d infinite_far_clip = PerspectiveMatrixFromInfiniteFrustum(
+      -z_near, z_near, -z_near, z_near, z_near, z_far_epsilon);
+
+  const double z_far = std::numeric_limits<float>::max();
+  struct TestCase { Point3d world; Point3d clip; };
+  const std::array<TestCase, 5> test_cases{{
+      {{0.0, 0.0, -z_near}, {0.0, 0.0, -1.0}},       // Center near.
+      {{0.0, 0.0, -z_far}, {0.0, 0.0, 1.0}},         // Center far.
+      {{-z_near, 0.0, -z_near}, {-1.0, 0.0, -1.0}},  // Left near.
+      {{-z_far, 0.0, -z_far}, {-1.0, 0.0, 1.0}},     // Left far.
+      {{z_far, z_far, -z_far}, {1.0, 1.0, 1.0}}      // Top-right far.
+  }};
+
+  for (const TestCase& test_case : test_cases) {
+    const Point3d projected_clip =
+        ProjectPoint(infinite_far_clip, test_case.world);
+    EXPECT_EQ(projected_clip, test_case.clip);
+  }
+
+  EXPECT_PRED2((testing::MatricesAlmostEqual<4, double>),
+               Inverse(infinite_far_clip),
+               PerspectiveMatrixInverse(infinite_far_clip));
 }
 
 TEST(TransformUtils, PerspectiveMatrixInverse) {

@@ -209,6 +209,31 @@ ION_API Matrix<4, T> PerspectiveMatrixFromFrustum(T x_left, T x_right,
 }
 
 template <typename T>
+ION_API Matrix<4, T> PerspectiveMatrixFromInfiniteFrustum(T x_left, T x_right,
+                                                  T y_bottom, T y_top, T z_near,
+                                                  T z_far_epsilon) {
+  const T zero = static_cast<T>(0);
+  if (x_left == x_right || y_bottom == y_top || z_near <= zero) {
+    return Matrix<4, T>::Identity();
+  }
+
+  // For derivation, see for example:
+  // Lengyel, E. "Projection Matrix Tricks." Game Developers Conference
+  // Proceedings, 2007. http://www.terathon.com/gdc07_lengyel.pdf.
+  const T X = (2 * z_near) / (x_right - x_left);
+  const T Y = (2 * z_near) / (y_top - y_bottom);
+  const T A = (x_right + x_left) / (x_right - x_left);
+  const T B = (y_top + y_bottom) / (y_top - y_bottom);
+  const T C = -1 + z_far_epsilon;
+  const T D = (-2 + z_far_epsilon) * z_near;
+
+  return math::Matrix<4, T>(X, 0, A, 0,
+                            0, Y, B, 0,
+                            0, 0, C, D,
+                            0, 0, -1, 0);
+}
+
+template <typename T>
 ION_API Matrix<4, T> PerspectiveMatrixFromView(const Angle<T>& fovy, T aspect,
                                                T z_near, T z_far) {
   const T zero = static_cast<T>(0);
@@ -282,6 +307,9 @@ ION_API Matrix<4, T> PerspectiveMatrixInverse(const Matrix<4, T>& m) {
   template Matrix<4, type> ION_API PerspectiveMatrixFromFrustum(              \
       type x_left, type x_right, type y_bottom, type y_top, type z_near,      \
       type z_far);                                                            \
+  template Matrix<4, type> ION_API PerspectiveMatrixFromInfiniteFrustum(      \
+      type x_left, type x_right, type y_bottom, type y_top, type z_near,      \
+      type z_far_epsilon);                                                    \
   template Matrix<4, type> ION_API PerspectiveMatrixFromView(                 \
       const Angle<type>& fovy, type aspect, type z_near, type z_far);         \
   template Matrix<4, type> ION_API PerspectiveMatrixInverse(                  \

@@ -17,8 +17,6 @@ limitations under the License.
 
 #include "ion/base/workerpool.h"
 
-#include "ion/base/lockguards.h"
-
 namespace ion {
 namespace base {
 
@@ -31,12 +29,12 @@ WorkerPool::WorkerPool(WorkerPool::Worker* worker)
       spawn_func_([this](){ this->ThreadEntryPoint(); return true; }) {}
 
 WorkerPool::~WorkerPool() {
-  ion::base::LockGuard lock(&mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   KillAllThreads();
 }
 
 void WorkerPool::ResizeThreadPool(size_t thread_count) {
-  ion::base::LockGuard lock(&mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
 
   // Check if we need to shrink the thread-pool.
   if (thread_count < threads_.size()) {
@@ -48,14 +46,14 @@ void WorkerPool::ResizeThreadPool(size_t thread_count) {
 
   // Grow the pool to the desired size, one thread at a time.
   while (thread_count > threads_.size()) {
-    threads_.insert(port::SpawnThreadStd(&spawn_func_));
+    threads_.emplace_back(spawn_func_);
     if (!suspended_)
       Post(&active_threads_sema_);
   }
 }
 
 void WorkerPool::Suspend() {
-  ion::base::LockGuard lock(&mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   if (!suspended_) {
     suspended_ = true;
     // Grab all slots in active_threads_sema_ to prevent any of them from
@@ -69,7 +67,7 @@ void WorkerPool::Suspend() {
 }
 
 void WorkerPool::Resume() {
-  ion::base::LockGuard lock(&mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   if (suspended_) {
     suspended_ = false;
     // Signal all slots in active_threads_sema_ to allow all threads to run.
@@ -80,14 +78,11 @@ void WorkerPool::Resume() {
 }
 
 bool WorkerPool::IsSuspended() const {
-  ion::base::LockGuard lock(&mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   return suspended_;
 }
 
 void WorkerPool::ThreadEntryPoint() {
-  if (port::IsThreadNamingSupported())
-    port::SetThreadName(GetName());
-
   while (true) {
     while (slow_path_) {
       // Typically we don't end up on the slow path; when we are, we must decide
@@ -99,7 +94,7 @@ void WorkerPool::ThreadEntryPoint() {
       } else {
         // If |killing_| is false, we know that Suspend() is being invoked on
         // another thread.  Wait for it to complete.
-        port::YieldThread();
+        std::this_thread::yield();
       }
     }
 
@@ -113,7 +108,7 @@ void WorkerPool::ThreadEntryPoint() {
 }
 
 void WorkerPool::KillAllThreads() {
-  DCHECK(mutex_.IsLocked());
+  DCHECK(!mutex_.try_lock());
 
   // Set quit flag and signal worker threads to quit (once per thread).
   // Signal both semaphores to ensure that they run.
@@ -126,9 +121,8 @@ void WorkerPool::KillAllThreads() {
   }
 
   // Wait for all threads to finish.
-  for (const auto& thread_id : threads_) {
-    bool join_succeeded = port::JoinThread(thread_id);
-    DCHECK(join_succeeded);
+  for (auto& thread : threads_) {
+    thread.join();
   }
   threads_.clear();
   slow_path_ = false;

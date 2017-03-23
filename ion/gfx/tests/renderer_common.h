@@ -118,8 +118,7 @@ static const char* kPlaneVertexShaderString = (
     "      vec4(aVertex, 1.);\n"
     "}\n");
 
-static const char* kPlaneGeometryShaderString = R"glsl(
-    #version 150 core
+static const char* kPlaneGeometryShaderString = R"glsl(#version 150 core
     layout(triangles) in;
     layout(triangle_strip, max_vertices=3) out;
     void main() {

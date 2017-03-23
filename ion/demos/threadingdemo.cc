@@ -19,6 +19,7 @@ limitations under the License.
 // window.
 
 #include <list>
+#include <thread>  // NOLINT(build/c++11)
 
 #include "ion/base/zipassetmanager.h"
 #include "ion/base/zipassetmanagermacros.h"
@@ -28,7 +29,6 @@ limitations under the License.
 #include "ion/gfxutils/shapeutils.h"
 #include "ion/math/transformutils.h"
 #include "ion/port/barrier.h"
-#include "ion/port/threadutils.h"
 #include "ion/port/timer.h"
 #include "ion/portgfx/visual.h"
 
@@ -69,7 +69,7 @@ static bool ReflectionThread(const ion::portgfx::VisualPtr& visual,
                              ion::port::Barrier* start_barrier,
                              ion::port::Barrier* reflection_barrier) {
   LOG(INFO) << "Spawned reflection map thread, ID: "
-            << ion::port::GetCurrentThreadId() << std::endl;
+            << std::this_thread::get_id() << std::endl;
   if (!ion::portgfx::Visual::MakeCurrent(visual)) {
     LOG(ERROR) << "Could not make visual current" << std::endl;
     std::exit(1);
@@ -225,10 +225,7 @@ class IonThreadingDemo : public ViewerDemoBase {
   ion::port::Barrier reflection_barrier_;
   bool finished_ = false;
 
-  // Lists are used instead of vectors to prevent the reallocation of elements.
-  std::list<std::function<bool()>> thread_functions_;
-  std::list<ion::port::ThreadId> thread_ids_;
-  std::list<ion::portgfx::VisualPtr> visuals_;
+  std::vector<std::thread> threads_;
 };
 
 IonThreadingDemo::IonThreadingDemo(int width, int height)
@@ -358,13 +355,10 @@ IonThreadingDemo::IonThreadingDemo(int width, int height)
   UpdateViewUniforms();
 
   // Create reflection map rendering thread.
-  visuals_.emplace_back(
-      ion::portgfx::Visual::CreateVisualInCurrentShareGroup());
-  thread_functions_.emplace_back(
-      std::bind(&ReflectionThread, visuals_.back(), renderer, reflection_root,
-                reflection_map, &sphere_position_, &finished_, &start_barrier_,
-                &reflection_barrier_));
-  thread_ids_.push_back(ion::port::SpawnThreadStd(&thread_functions_.back()));
+  threads_.emplace_back(
+      ReflectionThread, ion::portgfx::Visual::CreateVisualInCurrentShareGroup(),
+      renderer, reflection_root, reflection_map, &sphere_position_, &finished_,
+      &start_barrier_, &reflection_barrier_);
 
   InitRemoteHandlers({reflection_root, draw_root_});
   start_barrier_.Wait();
@@ -373,9 +367,8 @@ IonThreadingDemo::IonThreadingDemo(int width, int height)
 IonThreadingDemo::~IonThreadingDemo() {
   finished_ = true;
   start_barrier_.Wait();
-  for (ion::port::ThreadId tid : thread_ids_) {
-    bool success = ion::port::JoinThread(tid);
-    DCHECK(success) << "Unable to join reflection thread.";
+  for (auto& thread : threads_) {
+    thread.join();
   }
 }
 

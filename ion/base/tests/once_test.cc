@@ -54,12 +54,11 @@ static void IncrementSlow() {
 
 // Callback function for multi-thread once test. Waits for alignment, attempts
 // to race CallOnce, then waits again.
-static bool ThreadCallback(
-    const std::function<void()>& target, SpinBarrier* barrier, OnceFlag* flag) {
+static void ThreadCallback(const std::function<void()>& target,
+                           SpinBarrier* barrier, OnceFlag* flag) {
   barrier->Wait();
   flag->CallOnce(target);
   barrier->Wait();
-  return true;
 }
 
 static std::atomic<int32> s_counter;
@@ -124,14 +123,14 @@ TEST(Once, ThreadedOnce) {
   EXPECT_EQ(0, s_flag_count);
   SpinBarrier barrier(4);
   OnceFlag flag;
-  port::ThreadStdFunc f1(std::bind(
-      ThreadCallback, &Increment, &barrier, &flag));
+  std::function<void()> f1(
+      std::bind(ThreadCallback, &Increment, &barrier, &flag));
 
   // Spawn three threads and have them all wait for the barrier. Also have this
   // calling thread wait for the barrier.
-  port::ThreadId t1 = port::SpawnThreadStd(&f1);
-  port::ThreadId t2 = port::SpawnThreadStd(&f1);
-  port::ThreadId t3 = port::SpawnThreadStd(&f1);
+  std::thread t1(f1);
+  std::thread t2(f1);
+  std::thread t3(f1);
   EXPECT_EQ(0, s_flag_count);
   barrier.Wait();
   flag.CallOnce(&Increment);
@@ -139,9 +138,9 @@ TEST(Once, ThreadedOnce) {
   barrier.Wait();
   EXPECT_EQ(1, s_flag_count);
 
-  port::JoinThread(t1);
-  port::JoinThread(t2);
-  port::JoinThread(t3);
+  t1.join();
+  t2.join();
+  t3.join();
 }
 
 // Ensure that the spin wait code path is covered regardless of race conditions.
@@ -150,14 +149,14 @@ TEST(Once, ThreadedOnceSlowTarget) {
   EXPECT_EQ(0, s_flag_count);
   SpinBarrier barrier(4);
   OnceFlag flag;
-  port::ThreadStdFunc f1(std::bind(
-      ThreadCallback, &IncrementSlow, &barrier, &flag));
+  std::function<void()> f1(
+      std::bind(ThreadCallback, &IncrementSlow, &barrier, &flag));
 
   // Spawn three threads and have them all wait for the barrier. Also have this
   // calling thread wait for the barrier.
-  port::ThreadId t1 = port::SpawnThreadStd(&f1);
-  port::ThreadId t2 = port::SpawnThreadStd(&f1);
-  port::ThreadId t3 = port::SpawnThreadStd(&f1);
+  std::thread t1(f1);
+  std::thread t2(f1);
+  std::thread t3(f1);
   EXPECT_EQ(0, s_flag_count);
   barrier.Wait();
   flag.CallOnce(&IncrementSlow);
@@ -165,9 +164,9 @@ TEST(Once, ThreadedOnceSlowTarget) {
   barrier.Wait();
   EXPECT_EQ(1, s_flag_count);
 
-  port::JoinThread(t1);
-  port::JoinThread(t2);
-  port::JoinThread(t3);
+  t1.join();
+  t2.join();
+  t3.join();
 }
 #endif  // !ION_PLATFORM_ASMJS
 

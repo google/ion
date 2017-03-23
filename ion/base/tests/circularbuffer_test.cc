@@ -88,6 +88,196 @@ TEST(CircularBuffer, Filled2) {
   EXPECT_EQ(6, buffer.GetItem(4));
 }
 
+TEST(CircularBuffer, DropOldestItem) {
+  CircularBuffer<int> buffer(5, ion::base::AllocatorPtr(), true);
+  buffer.AddItem(1);
+  buffer.AddItem(2);
+  buffer.DropOldestItem();
+
+  EXPECT_EQ(5U, buffer.GetCapacity());
+  EXPECT_EQ(1U, buffer.GetSize());
+  EXPECT_EQ(2, buffer.GetItem(0));
+
+  buffer.DropOldestItem();
+
+  EXPECT_EQ(5U, buffer.GetCapacity());
+  EXPECT_EQ(0U, buffer.GetSize());
+
+  buffer.AddItem(1);
+  EXPECT_EQ(1U, buffer.GetSize());
+  EXPECT_EQ(1, buffer.GetItem(0));
+
+  buffer.AddItem(2);
+  EXPECT_EQ(2U, buffer.GetSize());
+  EXPECT_EQ(1, buffer.GetItem(0));
+  EXPECT_EQ(2, buffer.GetItem(1));
+
+  buffer.AddItem(3);
+  EXPECT_EQ(3U, buffer.GetSize());
+  EXPECT_EQ(1, buffer.GetItem(0));
+  EXPECT_EQ(2, buffer.GetItem(1));
+  EXPECT_EQ(3, buffer.GetItem(2));
+
+  buffer.AddItem(4);
+  EXPECT_EQ(4U, buffer.GetSize());
+  EXPECT_EQ(1, buffer.GetItem(0));
+  EXPECT_EQ(2, buffer.GetItem(1));
+  EXPECT_EQ(3, buffer.GetItem(2));
+  EXPECT_EQ(4, buffer.GetItem(3));
+
+  buffer.AddItem(5);
+  EXPECT_EQ(5U, buffer.GetCapacity());
+  EXPECT_EQ(5U, buffer.GetSize());
+  EXPECT_EQ(1, buffer.GetItem(0));
+  EXPECT_EQ(2, buffer.GetItem(1));
+  EXPECT_EQ(3, buffer.GetItem(2));
+  EXPECT_EQ(4, buffer.GetItem(3));
+  EXPECT_EQ(5, buffer.GetItem(4));
+
+  buffer.DropOldestItem();
+  EXPECT_EQ(4U, buffer.GetSize());
+  EXPECT_EQ(2, buffer.GetItem(0));
+  EXPECT_EQ(3, buffer.GetItem(1));
+  EXPECT_EQ(4, buffer.GetItem(2));
+  EXPECT_EQ(5, buffer.GetItem(3));
+
+  buffer.DropOldestItem();
+  EXPECT_EQ(3U, buffer.GetSize());
+  EXPECT_EQ(3, buffer.GetItem(0));
+  EXPECT_EQ(4, buffer.GetItem(1));
+  EXPECT_EQ(5, buffer.GetItem(2));
+
+  buffer.DropOldestItem();
+  EXPECT_EQ(2U, buffer.GetSize());
+  EXPECT_EQ(4, buffer.GetItem(0));
+  EXPECT_EQ(5, buffer.GetItem(1));
+
+  buffer.DropOldestItem();
+  EXPECT_EQ(1U, buffer.GetSize());
+  EXPECT_EQ(5, buffer.GetItem(0));
+
+  buffer.DropOldestItem();
+  EXPECT_EQ(0U, buffer.GetSize());
+}
+
+TEST(CircularBuffer, DropOldestItems) {
+  CircularBuffer<int> buffer(6, ion::base::AllocatorPtr(), true);
+  buffer.AddItem(1);
+  buffer.AddItem(2);
+  buffer.DropOldestItems(2);
+
+  EXPECT_EQ(6U, buffer.GetCapacity());
+  EXPECT_EQ(0U, buffer.GetSize());
+
+  buffer.AddItem(1);
+  buffer.AddItem(2);
+  buffer.AddItem(3);
+  buffer.AddItem(4);
+  buffer.AddItem(5);
+
+  buffer.DropOldestItems(3);
+  EXPECT_EQ(6U, buffer.GetCapacity());
+  EXPECT_EQ(2U, buffer.GetSize());
+
+  buffer.AddItem(6);
+  buffer.AddItem(7);
+  buffer.AddItem(8);
+  buffer.AddItem(9);
+  buffer.AddItem(10);
+
+  EXPECT_EQ(6U, buffer.GetCapacity());
+  EXPECT_EQ(6U, buffer.GetSize());
+
+  buffer.DropOldestItems(3);
+
+  EXPECT_EQ(6U, buffer.GetCapacity());
+  EXPECT_EQ(3U, buffer.GetSize());
+  EXPECT_EQ(8, buffer.GetItem(0));
+  EXPECT_EQ(9, buffer.GetItem(1));
+  EXPECT_EQ(10, buffer.GetItem(2));
+
+  buffer.DropOldestItems(3);
+  EXPECT_EQ(6U, buffer.GetCapacity());
+  EXPECT_EQ(0U, buffer.GetSize());
+}
+
+TEST(CircularBuffer, GetOldestAndGetNewest) {
+  CircularBuffer<int> buffer(10, ion::base::AllocatorPtr(), true);
+  buffer.AddItem(1);
+  buffer.AddItem(2);
+  buffer.AddItem(3);
+
+  EXPECT_EQ(1, buffer.GetOldest());
+  EXPECT_EQ(3, buffer.GetNewest());
+
+  buffer.DropOldestItem();
+
+  EXPECT_EQ(2, buffer.GetOldest());
+  EXPECT_EQ(3, buffer.GetNewest());
+
+  buffer.AddItem(4);
+  buffer.AddItem(5);
+  buffer.AddItem(6);
+  buffer.AddItem(7);
+
+  EXPECT_EQ(2, buffer.GetOldest());
+  EXPECT_EQ(7, buffer.GetNewest());
+
+  buffer.DropOldestItem();
+  buffer.DropOldestItem();
+  buffer.DropOldestItem();
+  buffer.DropOldestItem();
+  buffer.DropOldestItem();
+
+  EXPECT_EQ(7, buffer.GetOldest());
+  EXPECT_EQ(7, buffer.GetNewest());
+}
+
+TEST(CircularBuffer, IsEmptyIsFull) {
+  CircularBuffer<int> buffer(4, ion::base::AllocatorPtr(), true);
+  EXPECT_TRUE(buffer.IsEmpty());
+  EXPECT_FALSE(buffer.IsFull());
+
+  buffer.AddItem(1);
+
+  EXPECT_FALSE(buffer.IsEmpty());
+  EXPECT_FALSE(buffer.IsFull());
+
+  buffer.AddItem(2);
+
+  EXPECT_FALSE(buffer.IsEmpty());
+  EXPECT_FALSE(buffer.IsFull());
+
+  buffer.AddItem(3);
+  buffer.AddItem(4);
+
+  EXPECT_FALSE(buffer.IsEmpty());
+  EXPECT_TRUE(buffer.IsFull());
+
+  buffer.AddItem(5);
+  buffer.AddItem(6);
+  buffer.AddItem(7);
+  buffer.AddItem(8);
+
+  EXPECT_FALSE(buffer.IsEmpty());
+  EXPECT_TRUE(buffer.IsFull());
+
+  buffer.DropOldestItem();
+
+  EXPECT_FALSE(buffer.IsEmpty());
+  EXPECT_FALSE(buffer.IsFull());
+
+  buffer.AddItem(9);
+
+  EXPECT_FALSE(buffer.IsEmpty());
+  EXPECT_TRUE(buffer.IsFull());
+
+  buffer.Clear();
+
+  EXPECT_TRUE(buffer.IsEmpty());
+  EXPECT_FALSE(buffer.IsFull());
+}
+
 TEST(CircularBuffer, Clear) {
   CircularBuffer<int> buffer(3, ion::base::AllocatorPtr(), true);
   buffer.AddItem(1);
@@ -112,6 +302,226 @@ TEST(CircularBuffer, Clear) {
   EXPECT_EQ(2U, buffer.GetSize());
   EXPECT_EQ(4, buffer.GetItem(0));
   EXPECT_EQ(5, buffer.GetItem(1));
+}
+
+TEST(CircularBuffer, BoolBuffer) {
+  CircularBuffer<bool> buffer(2, ion::base::AllocatorPtr(), false);
+  buffer.AddItem(false);
+  buffer.AddItem(false);
+  EXPECT_EQ(2U, buffer.GetSize());
+  EXPECT_FALSE(buffer.GetItem(0));
+  EXPECT_FALSE(buffer.GetItem(1));
+
+  buffer.AddItem(true);
+  buffer.AddItem(true);
+  EXPECT_EQ(2U, buffer.GetSize());
+  EXPECT_TRUE(buffer.GetItem(0));
+  EXPECT_TRUE(buffer.GetItem(1));
+}
+
+TEST(CircularBuffer, IteratorPostIncrement) {
+  CircularBuffer<int> buffer(5, ion::base::AllocatorPtr(), false);
+  buffer.AddItem(1);
+  buffer.AddItem(2);
+  buffer.AddItem(3);
+
+  auto begin = buffer.cbegin();
+  auto iter = begin;
+  EXPECT_EQ(begin, buffer.cbegin());
+  EXPECT_EQ(begin, iter);
+
+  EXPECT_EQ(*iter, 1);
+  auto iter1 = iter++;
+  EXPECT_EQ(begin, iter1);
+  EXPECT_EQ(*iter, 2);
+  iter++;
+  EXPECT_EQ(*iter, 3);
+  iter++;
+
+  auto end = buffer.cend();
+  EXPECT_EQ(iter, end);
+  EXPECT_EQ(buffer.cend(), end);
+}
+
+TEST(CircularBuffer, IteratorPreIncrement) {
+  CircularBuffer<int> buffer(5, ion::base::AllocatorPtr(), false);
+  buffer.AddItem(1);
+  buffer.AddItem(2);
+  buffer.AddItem(3);
+
+  auto begin = buffer.cbegin();
+  auto iter = begin;
+  EXPECT_EQ(begin, buffer.cbegin());
+  EXPECT_EQ(begin, iter);
+
+  EXPECT_EQ(*iter, 1);
+  EXPECT_NE(++iter, begin);
+  EXPECT_EQ(*iter, 2);
+  ++iter;
+  EXPECT_EQ(*iter, 3);
+  ++iter;
+
+  auto end = buffer.cend();
+  EXPECT_EQ(iter, end);
+  EXPECT_EQ(buffer.cend(), end);
+}
+
+TEST(CircularBuffer, IteratorPostDecrement) {
+  CircularBuffer<int> buffer(3, ion::base::AllocatorPtr(), false);
+  buffer.AddItem(1);
+  buffer.AddItem(2);
+  buffer.AddItem(3);
+
+  auto end = buffer.cend();
+  auto iter = end;
+  EXPECT_EQ(iter, end);
+  EXPECT_EQ(iter--, end);
+  EXPECT_EQ(*(iter--), 3);
+  EXPECT_EQ(*(iter--), 2);
+  EXPECT_EQ(*iter, 1);
+  auto begin = buffer.cbegin();
+  EXPECT_EQ(iter, begin);
+  EXPECT_EQ(begin, buffer.cbegin());
+}
+
+TEST(CircularBuffer, IteratorPreDecrement) {
+  CircularBuffer<int> buffer(3, ion::base::AllocatorPtr(), false);
+  buffer.AddItem(1);
+  buffer.AddItem(2);
+  buffer.AddItem(3);
+
+  auto end = buffer.cend();
+  auto iter = end;
+  EXPECT_EQ(iter, end);
+  EXPECT_NE(--iter, end);
+  EXPECT_EQ(*iter, 3);
+  EXPECT_EQ(*(--iter), 2);
+  EXPECT_EQ(*(--iter), 1);
+  auto begin = buffer.cbegin();
+  EXPECT_EQ(iter, begin);
+  EXPECT_EQ(begin, buffer.cbegin());
+}
+
+TEST(CircularBuffer, IteratorOffsets) {
+  CircularBuffer<int> buffer(3, ion::base::AllocatorPtr(), false);
+  buffer.AddItem(1);
+  buffer.AddItem(2);
+  buffer.AddItem(3);
+
+  auto begin = buffer.cbegin();
+  auto iter = begin + 1;
+  EXPECT_NE(iter, begin);
+  EXPECT_EQ(*iter, 2);
+  iter = iter + 2;
+  EXPECT_EQ(iter, buffer.cend());
+  iter = iter - 3;
+  EXPECT_EQ(*iter, 1);
+
+  iter += 1;
+  EXPECT_EQ(*iter, 2);
+  iter -= 1;
+  EXPECT_EQ(*iter, 1);
+
+  iter = 1 + iter;
+  EXPECT_EQ(*iter, 2);
+  iter = -1 + iter;
+  EXPECT_EQ(*iter, 1);
+
+  auto next_iter = std::next(iter);
+  EXPECT_NE(iter, next_iter);
+  EXPECT_EQ(next_iter - iter, 1);
+}
+
+TEST(CircularBuffer, IteratorDereferencing) {
+  struct Foo {
+    int value;
+
+    bool operator==(const Foo& rhs) const { return value == rhs.value; }
+  };
+
+  CircularBuffer<Foo> buffer(3, ion::base::AllocatorPtr(), false);
+  buffer.AddItem(Foo{1});
+  buffer.AddItem(Foo{2});
+  buffer.AddItem(Foo{3});
+
+  auto begin = buffer.cbegin();
+  auto iter = begin;
+  EXPECT_EQ(begin, iter);
+  EXPECT_EQ(iter->value, 1);
+  EXPECT_EQ((*iter).value, 1);
+  EXPECT_EQ(begin, iter++);
+  EXPECT_EQ(iter->value, 2);
+  EXPECT_EQ((*iter).value, 2);
+  EXPECT_EQ(iter[0], Foo{2});
+  EXPECT_EQ(iter[1], Foo{3});
+}
+
+TEST(CircularBuffer, IteratorWrapAround) {
+  CircularBuffer<int> buffer(3, ion::base::AllocatorPtr(), false);
+  buffer.AddItem(1);
+  buffer.AddItem(2);
+  buffer.AddItem(3);
+  buffer.AddItem(4);
+
+  auto begin = buffer.cbegin();
+  EXPECT_EQ(*begin, 2);
+  auto iter = begin;
+  EXPECT_EQ(begin, iter);
+  ++iter;
+  EXPECT_NE(iter, begin);
+  EXPECT_EQ(*iter, 3);
+  ++iter;
+  EXPECT_EQ(*iter, 4);
+  EXPECT_GT(&*begin, &*iter);
+  ++iter;
+  EXPECT_EQ(iter, buffer.cend());
+}
+
+TEST(CircularBuffer, BeginEnd) {
+  CircularBuffer<int> buffer(3, ion::base::AllocatorPtr(), false);
+  buffer.AddItem(1);
+  buffer.AddItem(2);
+  buffer.AddItem(3);
+
+  auto begin = buffer.begin();
+  auto end = buffer.end();
+
+  EXPECT_NE(begin, end);
+  ++begin;
+  --end;
+  EXPECT_NE(begin, end);
+  --end;
+  EXPECT_EQ(begin, end);
+}
+
+TEST(CircularBuffer, ReverseBeginEnd) {
+  CircularBuffer<int> buffer(3, ion::base::AllocatorPtr(), false);
+  buffer.AddItem(1);
+  buffer.AddItem(2);
+  buffer.AddItem(3);
+
+  auto begin = buffer.rbegin();
+  auto end = buffer.rend();
+
+  EXPECT_NE(begin, end);
+  ++begin;
+  --end;
+  EXPECT_NE(begin, end);
+  --end;
+  EXPECT_EQ(begin, end);
+}
+
+TEST(CircularBuffer, ForRangeBasedLoop) {
+  CircularBuffer<int> buffer(3, ion::base::AllocatorPtr(), false);
+  buffer.AddItem(1);
+  buffer.AddItem(2);
+  buffer.AddItem(3);
+
+  int expected = 1;
+  for (const auto val : buffer) {
+    EXPECT_EQ(expected, val);
+    expected++;
+  }
 }
 
 }  // namespace base

@@ -67,7 +67,7 @@ TraceRecorder::TraceRecorder(CallTraceManager* manager, size_t buffer_size)
       trace_buffer_(buffer_size / sizeof(uint32), GetAllocator(),
                     s_reserve_buffer_),
       scope_level_(0),
-      thread_id_(ion::port::GetCurrentThreadId()),
+      thread_id_(std::this_thread::get_id()),
       thread_name_("UnnamedThread"),
       frame_level_(0),
       current_frame_number_(0) {

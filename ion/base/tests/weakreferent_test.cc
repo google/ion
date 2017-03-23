@@ -86,8 +86,7 @@ class ConcurrentWeakRefHelper {
     // results in one thread falling through the barrier, making it hot, while
     // the other thread was waiting for that event to happen, making it cold.
     int yields = 10;
-    while (yields--)
-      ion::port::YieldThread();
+    while (yields--) std::this_thread::yield();
 
     // Unlike ConcurrentStrongWeakRefHelper::Run(), we don't desire/expect
     // the Acquire() to fail 100% of the time.

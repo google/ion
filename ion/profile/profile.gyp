@@ -29,8 +29,10 @@
       'target_name' : 'ionprofile',
       'type': 'static_library',
       'dependencies': [
-        '../analytics/analytics_nogfx.gyp:ionanalytics_nogfx',
-        '../external/external.gyp:ionjsoncpp',
+        '<(ion_dir)/analytics/analytics_nogfx.gyp:ionanalytics_nogfx',
+        '<(ion_dir)/base/base.gyp:ionbase',
+        '<(ion_dir)/external/external.gyp:ionjsoncpp',
+        '<(ion_dir)/port/port.gyp:ionport',
       ],
       'sources' : [
         'calltracemanager.cc',

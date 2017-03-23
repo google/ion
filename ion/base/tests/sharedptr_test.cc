@@ -54,6 +54,16 @@ typedef ion::base::SharedPtr<DerivedTestCounter> DerivedTestCounterPtr;
 size_t TestCounter::s_num_deletions_ = 0;
 size_t DerivedTestCounter::s_num_deletions_ = 0;
 
+#if defined(ION_TRACK_SHAREABLE_REFERENCES)
+class Trackable : public ion::base::Shareable {
+ public:
+  Trackable(bool tracking_enabled) {
+    SetTrackReferencesEnabled(tracking_enabled);
+  }
+};
+typedef ion::base::SharedPtr<Trackable> TrackablePtr;
+#endif
+
 #if !ION_NO_RTTI
 using ion::base::DynamicPtrCast;
 #endif
@@ -344,6 +354,36 @@ TEST(SharedPtr, IncompleteType) {
 
   // And finally, destruction of all ptrs should work.
 }
+
+#if defined(ION_TRACK_SHAREABLE_REFERENCES)
+TEST(SharedPtr, TrackReferences) {
+  // Test default operation with reference tracking disabled.
+  Trackable* t = new Trackable(false);
+  EXPECT_EQ(0, t->GetRefCount());
+  EXPECT_TRUE(t->GetReferencesDebugString().empty());
+  TrackablePtr p(t);
+  EXPECT_EQ(1, t->GetRefCount());
+  EXPECT_TRUE(t->GetReferencesDebugString().empty());
+  p.Reset();
+
+  // Test operation with reference tracking enabled.
+  t = new Trackable(true);
+  EXPECT_EQ(0, t->GetRefCount());
+  EXPECT_TRUE(t->GetReferencesDebugString().empty());
+  p.Reset(t);
+  EXPECT_EQ(1, t->GetRefCount());
+  EXPECT_FALSE(t->GetReferencesDebugString().empty());
+  // Add a second reference.
+  TrackablePtr p2(p);
+  EXPECT_EQ(2, t->GetRefCount());
+  EXPECT_FALSE(t->GetReferencesDebugString().empty());
+  // Remove a reference.
+  p.Reset();
+  EXPECT_EQ(1, t->GetRefCount());
+  EXPECT_FALSE(t->GetReferencesDebugString().empty());
+  p2.Reset();
+}
+#endif
 
 TEST(SharedPtr, ConstructionPerfTest) {
   ion::port::Timer tmr;

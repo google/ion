@@ -136,8 +136,7 @@ static const char kVertexSource[] = R"glsl("
     }
 )glsl";
 
-static const char kGeometrySource[] = R"glsl(
-    #version 150 core
+static const char kGeometrySource[] = R"glsl(#version 150 core
     layout(triangles) in;
     layout(triangle_strip, max_vertices=3) out;
     uniform int guni_i;
@@ -639,6 +638,13 @@ TEST_F(MockGraphicsManagerTest, ProfileType) {
     gm_->SetContextProfileMask(GL_CONTEXT_COMPATIBILITY_PROFILE_BIT);
     EXPECT_EQ(GraphicsManager::kCompatibilityProfile, gm_->GetGlProfileType());
   }
+}
+
+TEST_F(MockGraphicsManagerTest, ContextFlags) {
+  GLint flags = 0;
+  gm_->SetContextFlags(0x123);
+  gm_->GetIntegerv(GL_CONTEXT_FLAGS, &flags);
+  EXPECT_EQ(0x123, flags);
 }
 
 TEST_F(MockGraphicsManagerTest, CallCount) {
@@ -5736,6 +5742,9 @@ TEST_F(MockGraphicsManagerTest, PlatformCapabilities) {
   gm_->SetMaxAliasedLineWidth(12.f);
   GM_CALL(GetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, f4));
   EXPECT_EQ(12.f, f4[1]);
+  EXPECT_EQ(math::Range1f(0.5f, 12.f),
+            gm_->GetCapabilityValue<math::Range1f>(
+                GraphicsManager::kAliasedLineWidthRange));
 
   gm_->SetMinAliasedPointSize(0.25f);
   EXPECT_EQ(0.25f, gm_->GetMinAliasedPointSize());
@@ -5744,91 +5753,134 @@ TEST_F(MockGraphicsManagerTest, PlatformCapabilities) {
   gm_->SetMaxAliasedPointSize(31.f);
   GM_CALL(GetFloatv(GL_ALIASED_POINT_SIZE_RANGE, f4));
   EXPECT_EQ(31.f, f4[1]);
+  EXPECT_EQ(math::Range1f(0.25f, 31.f),
+            gm_->GetCapabilityValue<math::Range1f>(
+                GraphicsManager::kAliasedPointSizeRange));
 
   gm_->SetImplementationColorReadFormat(GL_FLOAT);
   EXPECT_EQ(static_cast<GLenum>(GL_FLOAT),
             gm_->GetImplementationColorReadFormat());
   EXPECT_EQ(GL_FLOAT, GetInt(GL_IMPLEMENTATION_COLOR_READ_FORMAT));
+  EXPECT_EQ(GL_FLOAT, gm_->GetCapabilityValue<int>(
+                          GraphicsManager::kImplementationColorReadFormat));
+
   gm_->SetImplementationColorReadType(GL_RGBA4);
   EXPECT_EQ(static_cast<GLenum>(GL_RGBA4),
             gm_->GetImplementationColorReadType());
   EXPECT_EQ(GL_RGBA4, GetInt(GL_IMPLEMENTATION_COLOR_READ_TYPE));
+  EXPECT_EQ(GL_RGBA4, gm_->GetCapabilityValue<int>(
+                          GraphicsManager::kImplementationColorReadType));
 
   gm_->SetMax3dTextureSize(256);
   EXPECT_EQ(256, gm_->GetMax3dTextureSize());
   EXPECT_EQ(256, GetInt(GL_MAX_3D_TEXTURE_SIZE));
+  EXPECT_EQ(256, gm_->GetCapabilityValue<int>(
+                     GraphicsManager::kMax3dTextureSize));
 
   gm_->SetMaxArrayTextureLayers(320);
   EXPECT_EQ(320, gm_->GetMaxArrayTextureLayers());
   EXPECT_EQ(320, GetInt(GL_MAX_ARRAY_TEXTURE_LAYERS));
+  EXPECT_EQ(320, gm_->GetCapabilityValue<int>(
+                     GraphicsManager::kMaxArrayTextureLayers));
 
   GM_ERROR_CALL(Enable(GL_CLIP_DISTANCE0 + 15), GL_INVALID_ENUM);
   gm_->SetMaxClipDistances(16);
   EXPECT_EQ(16U, gm_->GetMaxClipDistances());
   EXPECT_EQ(16, GetInt(GL_MAX_CLIP_DISTANCES));
+  EXPECT_EQ(16, gm_->GetCapabilityValue<int>(
+                    GraphicsManager::kMaxClipDistances));
   GM_CALL(Enable(GL_CLIP_DISTANCE0 + 15));
 
   gm_->SetMaxCombinedTextureImageUnits(11U);
   EXPECT_EQ(11U, gm_->GetMaxCombinedTextureImageUnits());
   EXPECT_EQ(11, GetInt(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS));
+  EXPECT_EQ(11, gm_->GetCapabilityValue<int>(
+                    GraphicsManager::kMaxCombinedTextureImageUnits));
 
   gm_->SetMaxCubeMapTextureSize(2048);
   EXPECT_EQ(2048, gm_->GetMaxCubeMapTextureSize());
   EXPECT_EQ(2048, GetInt(GL_MAX_CUBE_MAP_TEXTURE_SIZE));
+  EXPECT_EQ(2048, gm_->GetCapabilityValue<int>(
+                      GraphicsManager::kMaxCubeMapTextureSize));
 
   gm_->SetMaxFragmentUniformComponents(5896U);
   EXPECT_EQ(5896U, gm_->GetMaxFragmentUniformComponents());
   EXPECT_EQ(5896, GetInt(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS));
+  EXPECT_EQ(5896, gm_->GetCapabilityValue<int>(
+                      GraphicsManager::kMaxFragmentUniformComponents));
 
   gm_->SetMaxFragmentUniformVectors(8000U);
   EXPECT_EQ(8000U, gm_->GetMaxFragmentUniformVectors());
   EXPECT_EQ(8000, GetInt(GL_MAX_FRAGMENT_UNIFORM_VECTORS));
+  EXPECT_EQ(8000, gm_->GetCapabilityValue<int>(
+                      GraphicsManager::kMaxFragmentUniformVectors));
 
   gm_->SetMaxSamples(534);
   EXPECT_EQ(534, gm_->GetMaxSamples());
   EXPECT_EQ(534, GetInt(GL_MAX_SAMPLES));
+  EXPECT_EQ(534, gm_->GetCapabilityValue<int>(GraphicsManager::kMaxSamples));
 
   gm_->SetMaxRenderbufferSize(768);
   EXPECT_EQ(768, gm_->GetMaxRenderbufferSize());
   EXPECT_EQ(768, GetInt(GL_MAX_RENDERBUFFER_SIZE));
+  EXPECT_EQ(768, gm_->GetCapabilityValue<int>(
+                     GraphicsManager::kMaxRenderbufferSize));
 
   gm_->SetMaxTextureImageUnits(8U);
   EXPECT_EQ(8U, gm_->GetMaxTextureImageUnits());
   EXPECT_EQ(8, GetInt(GL_MAX_TEXTURE_IMAGE_UNITS));
+  EXPECT_EQ(8, gm_->GetCapabilityValue<int>(
+                   GraphicsManager::kMaxTextureImageUnits));
 
   gm_->SetMaxTextureMaxAnisotropy(4.f);
   EXPECT_EQ(4.f, gm_->GetMaxTextureMaxAnisotropy());
   EXPECT_EQ(4, GetInt(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT));
+  EXPECT_EQ(4.f, gm_->GetCapabilityValue<float>(
+                     GraphicsManager::kMaxTextureMaxAnisotropy));
 
   gm_->SetMaxTextureSize(64);
   EXPECT_EQ(64, gm_->GetMaxTextureSize());
   EXPECT_EQ(64, GetInt(GL_MAX_TEXTURE_SIZE));
+  EXPECT_EQ(64, gm_->GetCapabilityValue<int>(GraphicsManager::kMaxTextureSize));
 
   gm_->SetMaxVaryingVectors(3U);
   EXPECT_EQ(3U, gm_->GetMaxVaryingVectors());
   EXPECT_EQ(3, GetInt(GL_MAX_VARYING_VECTORS));
+  EXPECT_EQ(3, gm_->GetCapabilityValue<int>(
+                   GraphicsManager::kMaxVaryingVectors));
 
   gm_->SetMaxVertexAttribs(16U);
   EXPECT_EQ(16U, gm_->GetMaxVertexAttribs());
   EXPECT_EQ(16, GetInt(GL_MAX_VERTEX_ATTRIBS));
+  EXPECT_EQ(16, gm_->GetCapabilityValue<int>(
+                    GraphicsManager::kMaxVertexAttribs));
 
   gm_->SetMaxVertexTextureImageUnits(50U);
   EXPECT_EQ(50U, gm_->GetMaxVertexTextureImageUnits());
   EXPECT_EQ(50, GetInt(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS));
+  EXPECT_EQ(50, gm_->GetCapabilityValue<int>(
+                    GraphicsManager::kMaxVertexTextureImageUnits));
 
   gm_->SetMaxVertexUniformVectors(356U);
   EXPECT_EQ(356U, gm_->GetMaxVertexUniformVectors());
   EXPECT_EQ(356, GetInt(GL_MAX_VERTEX_UNIFORM_VECTORS));
+  EXPECT_EQ(356, gm_->GetCapabilityValue<int>(
+                    GraphicsManager::kMaxVertexUniformVectors));
 
   gm_->SetMaxVertexUniformComponents(73U);
   EXPECT_EQ(73U, gm_->GetMaxVertexUniformComponents());
   EXPECT_EQ(73, GetInt(GL_MAX_VERTEX_UNIFORM_COMPONENTS));
+  EXPECT_EQ(73, gm_->GetCapabilityValue<int>(
+                    GraphicsManager::kMaxVertexUniformComponents));
 
   gm_->SetMaxViewportDims(2048U);
   EXPECT_EQ(2048U, gm_->GetMaxViewportDims());
   GM_CALL(GetIntegerv(GL_MAX_VIEWPORT_DIMS, i2));
   EXPECT_EQ(2048, i2[0]);
   EXPECT_EQ(2048, i2[1]);
+  EXPECT_EQ(math::Point2i(2048, 2048),
+            gm_->GetCapabilityValue<math::Point2i>(
+                GraphicsManager::kMaxViewportDims));
 }
 
 TEST_F(MockGraphicsManagerTest, ErrorChecking) {
@@ -6311,7 +6363,7 @@ TEST_F(MockGraphicsManagerTest, DebugOutput) {
   // unset, and that the log holds as many messages as it advertises through
   // GL_MAX_DEBUG_LOGGED_MESSAGES.
   // We fill up the message log with message ids counting from
-  // (|max_debug_logged_messages| - 1) to 0, the the last one being an
+  // (|max_debug_logged_messages| - 1) to 0, the last one being an
   // API-generated error.
   GLint max_debug_logged_messages = 0;
   GLint debug_logged_messages = 0;

@@ -31,7 +31,12 @@ limitations under the License.
 
 .tree input {
   position: absolute;
-  opacity: 0;  /* Turns off checkbox */
+}
+
+/* Only for tree expand/collapse checkboxes. */
+.tree_expandbox {
+  position: absolute;
+  visibility: hidden; /* Turns off checkbox */
 }
 
 .tree input + label + ul {
@@ -61,7 +66,7 @@ limitations under the License.
   vertical-align: middle;
 }
 
-.tree label::before {
+.tree input[type=checkbox] + label::before {
   background: url("./images/tree-icons.png") no-repeat;  /* Icons for labels. */
   content: "";
   width: 16px;

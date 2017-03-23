@@ -17,6 +17,7 @@ limitations under the License.
 
 #include "ion/gfx/graphicsmanager.h"
 
+#include <thread>  // NOLINT(build/c++11)
 #include <vector>
 
 #include "ion/base/logchecker.h"
@@ -25,7 +26,6 @@ limitations under the License.
 #include "ion/gfx/updatestatetable.h"
 #include "ion/math/range.h"
 #include "ion/port/barrier.h"
-#include "ion/port/threadutils.h"
 #include "ion/portgfx/visual.h"
 
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
@@ -104,15 +104,13 @@ class ThreadedGraphicsManagerTest : public ::testing::Test {
   }
 
  protected:
-  ThreadedGraphicsManagerTest()
-      : waiter_(2),
-        background_function_(
-            std::bind(&ThreadedGraphicsManagerTest::ThreadCallback, this)) {}
+  ThreadedGraphicsManagerTest() : waiter_(2) {}
 
   void SetUp() override {
     // Spawn a thread which will block on the barrier until the test is ready
     // to continue.
-    background_thread_ = port::SpawnThreadStd(&background_function_);
+    background_thread_ =
+        std::thread(&ThreadedGraphicsManagerTest::ThreadCallback, this);
     visual_ = testing::MockVisual::Create(800, 800);
     portgfx::Visual::MakeCurrent(visual_);
     // MockGraphicsManager is used to ensure stable testing of extensions and
@@ -122,7 +120,7 @@ class ThreadedGraphicsManagerTest : public ::testing::Test {
   }
 
   void TearDown() override {
-    port::JoinThread(background_thread_);
+    background_thread_.join();
     mgr_.Reset(nullptr);
     visual_.Reset(nullptr);
   }
@@ -144,8 +142,7 @@ class ThreadedGraphicsManagerTest : public ::testing::Test {
   portgfx::VisualPtr visual_;
   GraphicsManagerPtr mgr_;
   int background_result_;
-  port::ThreadId background_thread_;
-  port::ThreadStdFunc background_function_;
+  std::thread background_thread_;
 };
 
 // Tracing is disabled in production builds.
@@ -266,7 +263,7 @@ TEST_F(GraphicsManagerTest, Capabilities) {
                       GraphicsManager::kMaxVertexUniformVectors));
   VERIFY_TRUE(verifier.VerifyOneCall("GetIntegerv"));
   verifier.Reset();
-  EXPECT_EQ(math::Range1i(8192, 8192), mgr_->GetCapabilityValue<math::Range1i>(
+  EXPECT_EQ(math::Point2i(8192, 8192), mgr_->GetCapabilityValue<math::Point2i>(
                                            GraphicsManager::kMaxViewportDims));
   VERIFY_TRUE(verifier.VerifyOneCall("GetIntegerv"));
   verifier.Reset();

@@ -776,8 +776,8 @@ class Variant {
           // This should never be reachable: if the "from" instance is an array
           // of values, it must have a valid tag.
           DCHECK(false) << "Invalid tag in array variant";
-          break;
 #endif  // COV_NF_END
+          break;
       }
     } else {
       switch (tag_) {

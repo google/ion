@@ -93,9 +93,9 @@ class ION_API ZipAssetManager {
       std::chrono::system_clock::time_point* timestamp);
 
   // Sets the data of the passed filename if the manager contains it. Returns
-  // whether the source was succesfully updated (e.g., that the manager contains
-  // filename).  Note that changing file data invalidates any existing returned
-  // reference from GetFileData for that file.
+  // whether the source was successfully updated (e.g., that the manager
+  // contains filename).  Note that changing file data invalidates any existing
+  // returned reference from GetFileData for that file.
   static bool SetFileData(const std::string& filename,
                           const std::string& source);
 

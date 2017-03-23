@@ -167,6 +167,9 @@ typedef void (GL_APIENTRY *GLDEBUGPROC)(GLenum source, GLenum type, GLuint id,
 #ifndef GL_BACK_RIGHT
 #  define GL_BACK_RIGHT 0x0403
 #endif
+#ifndef GL_BINNING_CONTROL_HINT_QCOM
+#  define GL_BINNING_CONTROL_HINT_QCOM 0x8FB0
+#endif
 #ifndef GL_BLUE
 #  define GL_BLUE 0x1905
 #endif
@@ -404,6 +407,21 @@ typedef void (GL_APIENTRY *GLDEBUGPROC)(GLenum source, GLenum type, GLuint id,
 #ifndef GL_CONTEXT_CORE_PROFILE_BIT
 #  define GL_CONTEXT_CORE_PROFILE_BIT 0x0001
 #endif
+#ifndef GL_CONTEXT_FLAG_DEBUG_BIT
+#  define GL_CONTEXT_FLAG_DEBUG_BIT 0x00000002
+#endif
+#ifndef GL_CONTEXT_FLAG_FORWARD_COMPATIBLE_BIT
+#  define GL_CONTEXT_FLAG_FORWARD_COMPATIBLE_BIT 0x00000001
+#endif
+#ifndef GL_CONTEXT_FLAG_NO_ERROR_BIT_KHR
+#  define GL_CONTEXT_FLAG_NO_ERROR_BIT_KHR 0x00000008
+#endif
+#ifndef GL_CONTEXT_FLAG_ROBUST_ACCESS_BIT
+#  define GL_CONTEXT_FLAG_ROBUST_ACCESS_BIT 0x00000004
+#endif
+#ifndef GL_CONTEXT_FLAGS
+#  define GL_CONTEXT_FLAGS 0x821E
+#endif
 #ifndef GL_CONTEXT_PROFILE_MASK
 #  define GL_CONTEXT_PROFILE_MASK 0x9126
 #endif
@@ -412,6 +430,9 @@ typedef void (GL_APIENTRY *GLDEBUGPROC)(GLenum source, GLenum type, GLuint id,
 #endif
 #ifndef GL_COPY_WRITE_BUFFER
 #  define GL_COPY_WRITE_BUFFER 0x8F37
+#endif
+#ifndef GL_CPU_OPTIMIZED_QCOM
+#  define GL_CPU_OPTIMIZED_QCOM 0x8FB1
 #endif
 #ifndef GL_CURRENT_QUERY_EXT
 #  define GL_CURRENT_QUERY_EXT 0x8865
@@ -652,6 +673,9 @@ typedef void (GL_APIENTRY *GLDEBUGPROC)(GLenum source, GLenum type, GLuint id,
 #endif
 #ifndef GL_GPU_DISJOINT_EXT
 #  define GL_GPU_DISJOINT_EXT 0x8FBB
+#endif
+#ifndef GL_GPU_OPTIMIZED_QCOM
+#  define GL_GPU_OPTIMIZED_QCOM 0x8FB2
 #endif
 #ifndef GL_GREEN
 #  define GL_GREEN 0x1904
@@ -967,6 +991,9 @@ typedef void (GL_APIENTRY *GLDEBUGPROC)(GLenum source, GLenum type, GLuint id,
 #endif
 #ifndef GL_RED_INTEGER
 #  define GL_RED_INTEGER 0x8D94
+#endif
+#ifndef GL_RENDER_DIRECT_TO_FRAMEBUFFER_QCOM
+#  define GL_RENDER_DIRECT_TO_FRAMEBUFFER_QCOM 0x8FB3
 #endif
 #ifndef GL_RENDERBUFFER
 #  define GL_RENDERBUFFER 0x8D41

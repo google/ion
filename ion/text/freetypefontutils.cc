@@ -259,7 +259,8 @@ const FreeTypeFontTransformData ComputeTransformData(
   // Also compute the y offset for successive lines.
   transform_data.line_y_offset_in_pixels =
       -options.line_spacing * text_size.line_height_in_pixels;
-
+  // Copy the horizontal spacing from |LayoutOptions| without any transform.
+  transform_data.glyph_spacing = options.glyph_spacing;
   return transform_data;
 }
 
@@ -333,7 +334,7 @@ static void SimpleLayOutLine(
           (glyph_metrics.bitmap_offset[1] - glyph_metrics.size[1]);
       if (prev_c) {
         const Vector2f kerning = font.GetKerning(prev_c, c);
-        x_min += kerning[0];
+        x_min += kerning[0] + transform_data.glyph_spacing;
         y_min += kerning[1];
       }
       Point2f glyph_min(x_min + glyph_metrics.bitmap_offset[0], y_min);

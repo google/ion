@@ -40,6 +40,9 @@
     # Disable GL profiling by default.
     'ion_analytics_enabled%': 0,
 
+    # Disable tracking of shareable references by default.
+    'ion_track_shareable_references%': 0,
+
     'conditions': [
       ['OS in ["android", "mac", "win"]', {
         # Platforms where ICU is known to work well.  Trickiest bit to adding

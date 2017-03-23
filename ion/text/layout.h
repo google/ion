@@ -103,7 +103,8 @@ struct LayoutOptions {
         target_size(0.0f, 1.0f),
         horizontal_alignment(kAlignLeft),
         vertical_alignment(kAlignBaseline),
-        line_spacing(1.0f) {}
+        line_spacing(1.0f),
+        glyph_spacing(0.0f) {}
 
   // Location of the text rectangle. (Default: origin)
   math::Point2f target_point;
@@ -116,6 +117,9 @@ struct LayoutOptions {
   // Spacing between baselines of lines of multi-line text, expressed as a
   // fraction of the font's FontMetrics::line_advance_height. (Default: 1.0)
   float line_spacing;
+  // Horizontal spacing between two glyphs. The distance is in physical pixels,
+  // scaled according to font scaling factor.
+  float glyph_spacing;
 };
 
 //-----------------------------------------------------------------------------

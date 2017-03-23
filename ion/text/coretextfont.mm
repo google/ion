@@ -225,10 +225,13 @@ static void AddGlyphToLayout(CGGlyph glyph,
   // Scale nonuniformly about the Quad center to compensate for the padding.
   if (sdf_padding != 0) {
     const double padding = 2.0 * sdf_padding;
-    const Vector2d scale(
-        (CGRectGetWidth(bounds) + padding) / CGRectGetWidth(bounds),
-        (CGRectGetHeight(bounds) + padding) / CGRectGetHeight(bounds));
-    transformed_glyph = math::ScaleRangeNonUniformly(transformed_glyph, scale);
+    const double w = CGRectGetWidth(bounds);
+    const double h = CGRectGetHeight(bounds);
+    if (w > 0. && h > 0.) {
+      const Vector2d scale((w + padding) / w, (h + padding) / h);
+      transformed_glyph =
+          math::ScaleRangeNonUniformly(transformed_glyph, scale);
+    }
   }
 
   const Vector2f offset(float(CGRectGetMinX(bounds) * transform.scale[0]),

@@ -4196,7 +4196,7 @@ class Renderer::FramebufferResource
                       const FramebufferObject& fbo, ResourceKey key, GLuint id)
       : Renderer::Resource<FramebufferObject::kNumChanges>(rm, fbo, key, id),
         color_ids_(*this), depth_id_(0U), stencil_id_(0U),
-        packed_depth_stencil_renderbuffer_(false),
+        packed_depth_stencil_(false),
         implicit_multisample_(false) {
     color_ids_.resize(rm->GetGraphicsManager()->GetCapabilityValue<int>(
         GraphicsManager::kMaxColorAttachments));
@@ -4241,7 +4241,7 @@ class Renderer::FramebufferResource
   GLuint depth_id_;
   GLuint stencil_id_;
   // Whether the depth_id_ is also attached to the stencil attachment.
-  bool packed_depth_stencil_renderbuffer_;
+  bool packed_depth_stencil_;
   // Whether all attachments use implicit multisampling.
   bool implicit_multisample_;
 };
@@ -4257,6 +4257,7 @@ void Renderer::FramebufferResource::UpdateAttachment(
     const FramebufferObject& fbo,
     const FramebufferObject::Attachment& attachment) {
   DCHECK(id);
+  const GLenum target = GL_FRAMEBUFFER;
   // If we previously had a renderbuffer bound to this attachment, delete it
   // and zero out the ID.
   if (attachment.GetBinding() != FramebufferObject::kRenderbuffer && *id) {
@@ -4318,7 +4319,7 @@ void Renderer::FramebufferResource::UpdateAttachment(
       LOG(ERROR) << "***ION: Unable to create renderbuffer object.";
     }
     // Bind the renderbuffer to the attachment.
-    gm->FramebufferRenderbuffer(GL_FRAMEBUFFER, attachment_slot,
+    gm->FramebufferRenderbuffer(target, attachment_slot,
                                 GL_RENDERBUFFER, *id);
   } else if (attachment.GetBinding() != FramebufferObject::kUnbound) {
     // Handle all texture attachments here.
@@ -4389,19 +4390,19 @@ void Renderer::FramebufferResource::UpdateAttachment(
     } else if (attachment.GetBinding() == FramebufferObject::kCubeMapTexture) {
       if (implicit_multisample_) {
         const GLenum face_gl = base::EnumHelper::GetConstant(face);
-        gm->FramebufferTexture2DMultisampleEXT(GL_FRAMEBUFFER, attachment_slot,
+        gm->FramebufferTexture2DMultisampleEXT(target, attachment_slot,
                                                face_gl, tr->GetId(),
                                                static_cast<GLint>(mip_level),
                                                static_cast<GLsizei>(
                                                    attachment.GetSamples()));
       } else {
-        gm->FramebufferTexture2D(GL_FRAMEBUFFER, attachment_slot,
+        gm->FramebufferTexture2D(target, attachment_slot,
                                  base::EnumHelper::GetConstant(face),
                                  tr->GetId(), static_cast<GLint>(mip_level));
       }
     } else if (attachment.GetBinding() == FramebufferObject::kTextureLayer) {
       if (gm->IsFeatureAvailable(GraphicsManager::kFramebufferTextureLayer)) {
-        gm->FramebufferTextureLayer(GL_FRAMEBUFFER, attachment_slot,
+        gm->FramebufferTextureLayer(target, attachment_slot,
                                     tr->GetId(), static_cast<GLint>(mip_level),
                                     static_cast<GLint>(attachment.GetLayer()));
       } else {
@@ -4413,7 +4414,34 @@ void Renderer::FramebufferResource::UpdateAttachment(
       if (implicit_multisample_) {
         if (gm->IsFeatureAvailable(
                 GraphicsManager::kMultiviewImplicitMultisample)) {
-          gm->FramebufferTextureMultisampleMultiviewOVR(GL_FRAMEBUFFER,
+          // In older versions of OVR_multiview_multisampled_render_to_texture,
+          // it was illegal to attach an implicitly multisampled multiview
+          // texture to an FBO that is bound to GL_READ_FRAMEBUFFER (and, by
+          // implication, GL_FRAMEBUFFER).
+          const GLenum target =
+              gm->IsFeatureAvailable(GraphicsManager::kFramebufferTargets)
+              ? GL_DRAW_FRAMEBUFFER
+              : GL_FRAMEBUFFER;
+          // The Qualcomm driver in Android N incorrectly reports an incomplete
+          // framebuffer if a packed depth-stencil texture is not bound to all
+          // three of GL_DEPTH_ATTACHMENT, GL_STENCIL_ATTACHMENT and
+          // GL_DEPTH_STENCIL_ATTACHMENT. (bug)
+          // TODO(user): Remove this after Android O becomes widespread.
+          if (attachment_slot == GL_DEPTH_STENCIL_ATTACHMENT) {
+            gm->FramebufferTextureMultisampleMultiviewOVR(
+                target, GL_DEPTH_ATTACHMENT, tr->GetId(),
+                static_cast<GLint>(mip_level),
+                static_cast<GLint>(attachment.GetSamples()),
+                static_cast<GLint>(attachment.GetBaseViewIndex()),
+                static_cast<GLint>(attachment.GetNumViews()));
+            gm->FramebufferTextureMultisampleMultiviewOVR(
+                target, GL_STENCIL_ATTACHMENT, tr->GetId(),
+                static_cast<GLint>(mip_level),
+                static_cast<GLint>(attachment.GetSamples()),
+                static_cast<GLint>(attachment.GetBaseViewIndex()),
+                static_cast<GLint>(attachment.GetNumViews()));
+          }
+          gm->FramebufferTextureMultisampleMultiviewOVR(target,
               attachment_slot, tr->GetId(), static_cast<GLint>(mip_level),
               static_cast<GLint>(attachment.GetSamples()),
               static_cast<GLint>(attachment.GetBaseViewIndex()),
@@ -4427,7 +4455,22 @@ void Renderer::FramebufferResource::UpdateAttachment(
         }
       } else {
         if (gm->IsFeatureAvailable(GraphicsManager::kMultiview)) {
-          gm->FramebufferTextureMultiviewOVR(GL_FRAMEBUFFER, attachment_slot,
+          // To avoid the driver bug described in bug, bind the
+          // depth-stencil texture to all three attachment points.
+          // TODO(user): Remove this after Android O becomes widespread.
+          if (attachment_slot == GL_DEPTH_STENCIL_ATTACHMENT) {
+            gm->FramebufferTextureMultiviewOVR(
+                target, GL_DEPTH_ATTACHMENT, tr->GetId(),
+                static_cast<GLint>(mip_level),
+                static_cast<GLint>(attachment.GetBaseViewIndex()),
+                static_cast<GLint>(attachment.GetNumViews()));
+            gm->FramebufferTextureMultiviewOVR(
+                target, GL_STENCIL_ATTACHMENT, tr->GetId(),
+                static_cast<GLint>(mip_level),
+                static_cast<GLint>(attachment.GetBaseViewIndex()),
+                static_cast<GLint>(attachment.GetNumViews()));
+          }
+          gm->FramebufferTextureMultiviewOVR(target, attachment_slot,
               tr->GetId(), static_cast<GLint>(mip_level),
               static_cast<GLint>(attachment.GetBaseViewIndex()),
               static_cast<GLint>(attachment.GetNumViews()));
@@ -4439,13 +4482,13 @@ void Renderer::FramebufferResource::UpdateAttachment(
       }
     } else {
       if (implicit_multisample_) {
-        gm->FramebufferTexture2DMultisampleEXT(GL_FRAMEBUFFER, attachment_slot,
+        gm->FramebufferTexture2DMultisampleEXT(target, attachment_slot,
                                                tr->GetGlTarget(), tr->GetId(),
                                                static_cast<GLint>(mip_level),
                                                static_cast<GLsizei>(
                                                    attachment.GetSamples()));
       } else {
-        gm->FramebufferTexture2D(GL_FRAMEBUFFER, attachment_slot,
+        gm->FramebufferTexture2D(target, attachment_slot,
                                  tr->GetGlTarget(), tr->GetId(),
                                  static_cast<GLint>(mip_level));
       }
@@ -4454,7 +4497,7 @@ void Renderer::FramebufferResource::UpdateAttachment(
   // Unbind the attachment if necessary.
   if (attachment.GetBinding() == FramebufferObject::kUnbound ||
       unbind_on_error) {
-    gm->FramebufferRenderbuffer(GL_FRAMEBUFFER, attachment_slot,
+    gm->FramebufferRenderbuffer(target, attachment_slot,
                                 GL_RENDERBUFFER, 0);
   }
 }
@@ -4527,21 +4570,19 @@ void Renderer::FramebufferResource::Update(ResourceBinder* rb) {
           TestModifiedBit(FramebufferObject::kStencilAttachmentChanged)) {
          Image::Format format = fbo.GetDepthAttachment().GetFormat();
          bool packed =
-             fbo.GetDepthAttachment().GetBinding() ==
-                 FramebufferObject::kRenderbuffer &&
              (format == Image::kRenderbufferDepth24Stencil8 ||
               format == Image::kRenderbufferDepth32fStencil8) &&
              fbo.GetDepthAttachment() == fbo.GetStencilAttachment();
-         if (packed && packed != packed_depth_stencil_renderbuffer_) {
+         if (packed && packed != packed_depth_stencil_) {
            // Discard previous stencil buffer, if any.
            UpdateAttachment(gm, rb, &stencil_id_, GL_STENCIL_ATTACHMENT, fbo,
                             FramebufferObject::Attachment());
          }
-         packed_depth_stencil_renderbuffer_ = packed;
+         packed_depth_stencil_ = packed;
       }
       if (TestModifiedBit(FramebufferObject::kDepthAttachmentChanged) ||
           TestModifiedBit(FramebufferObject::kDimensionsChanged)) {
-        if (packed_depth_stencil_renderbuffer_) {
+        if (packed_depth_stencil_) {
           UpdateAttachment(gm, rb, &depth_id_, GL_DEPTH_STENCIL_ATTACHMENT, fbo,
                            fbo.GetDepthAttachment());
         } else {
@@ -4549,7 +4590,7 @@ void Renderer::FramebufferResource::Update(ResourceBinder* rb) {
                            fbo.GetDepthAttachment());
         }
       }
-      if (!packed_depth_stencil_renderbuffer_ &&
+      if (!packed_depth_stencil_ &&
           (TestModifiedBit(FramebufferObject::kStencilAttachmentChanged) ||
            TestModifiedBit(FramebufferObject::kDimensionsChanged)))
         UpdateAttachment(gm, rb, &stencil_id_, GL_STENCIL_ATTACHMENT, fbo,
@@ -4591,7 +4632,8 @@ void Renderer::FramebufferResource::Update(ResourceBinder* rb) {
       if (TestModifiedBit(ResourceHolder::kLabelChanged))
         SetObjectLabel(gm, GL_FRAMEBUFFER, id_, fbo.GetLabel());
 
-      // Check the framebuffer status.
+      // Check the framebuffer status.  Note that GL_FRAMEBUFFER in this
+      // context is equivalent to GL_DRAW_FRAMEBUFFER.
       const GLenum status = gm->CheckFramebufferStatus(GL_FRAMEBUFFER);
       if (status == GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE) {
         LOG(ERROR)
@@ -6948,6 +6990,7 @@ void Renderer::ResourceBinder::PushUniforms(
   for (size_t i = 0; i < num_uniforms; ++i) {
     ShaderInputRegistryResource* sirr =
         resource_manager_->GetResource(&uniforms[i].GetRegistry(), this);
+    CHECK(sirr);
     sirr->Update(this);
     sirr->PushUniform(uniforms[i]);
   }
@@ -6959,6 +7002,7 @@ void Renderer::ResourceBinder::PopUniforms(
   for (size_t i = 0; i < num_uniforms; ++i) {
     ShaderInputRegistryResource* sirr =
         resource_manager_->GetResource(&uniforms[i].GetRegistry(), this);
+    CHECK(sirr);
     sirr->PopUniform(uniforms[i]);
   }
 }

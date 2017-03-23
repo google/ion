@@ -16,7 +16,8 @@ limitations under the License.
 */
 
 #include "ion/port/semaphore.h"
-#include "ion/port/threadutils.h"
+
+#include <thread>  // NOLINT(build/c++11)
 
 #if defined(ION_PLATFORM_IOS) || defined(ION_PLATFORM_MAC)
 #include <mach/mach_init.h>
@@ -193,7 +194,7 @@ bool Semaphore::TimedWaitMs(int64 timeout_in_ms) {
 #else
   // NaCl doesn't support sem_timedwait() for now, so spin-wait.
   while (!TryWait()) {
-    YieldThread();
+    std::this_thread::yield();
     ::gettimeofday(&now, nullptr);
     if (now.tv_sec > timeout.tv_sec ||
         (now.tv_sec == timeout.tv_sec &&

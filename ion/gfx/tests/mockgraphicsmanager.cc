@@ -92,6 +92,11 @@ void MockGraphicsManager::SetContextProfileMask(int mask) {
   InitGlInfo();
 }
 
+void MockGraphicsManager::SetContextFlags(int value) {
+  MockVisual::GetCurrent()->SetContextFlags(value);
+  InitGlInfo();
+}
+
 // Global platform capability values.
 #define ION_PLATFORM_CAP(type, name) \
   type MockGraphicsManager::Get ## name() const { \
@@ -99,6 +104,7 @@ void MockGraphicsManager::SetContextProfileMask(int mask) {
   } \
   void MockGraphicsManager::Set ## name(type value) { \
     MockVisual::GetCurrent()->Set ## name(value); \
+    ClearCapabilityCache(); \
   }
 #include "ion/gfx/tests/glplatformcaps.inc"
 

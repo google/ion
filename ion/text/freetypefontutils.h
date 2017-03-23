@@ -58,6 +58,8 @@ struct FreeTypeFontTransformData {
   std::vector<math::Vector2f> line_translations;
   // How much to translate each successive line in y, in pixels.
   float line_y_offset_in_pixels;
+  // Additional horizontal distance between glyphs in physical pixels.
+  float glyph_spacing;
 };
 
 // Lines of text from a single string (usually split on '\n').

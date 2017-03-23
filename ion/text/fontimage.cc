@@ -28,7 +28,6 @@ limitations under the License.
 #include "ion/base/serialize.h"
 #include "ion/base/staticsafedeclare.h"
 #include "ion/gfx/sampler.h"
-#include "ion/image/conversionutils.h"
 #include "ion/math/utils.h"
 #include "ion/math/vector.h"
 #include "ion/text/binpacker.h"

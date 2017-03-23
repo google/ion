@@ -25,6 +25,7 @@ limitations under the License.
 #include <memory>
 #include <sstream>
 #include <string>
+#include <thread>  // NOLINT(build/c++11)
 #include <vector>
 
 #include "ion/base/invalid.h"
@@ -40,7 +41,6 @@ limitations under the License.
 #include "ion/gfx/texture.h"
 #include "ion/image/conversionutils.h"
 #include "ion/port/semaphore.h"
-#include "ion/port/threadutils.h"
 #include "ion/portgfx/visual.h"
 #include "ion/remote/tests/httpservertest.h"
 
@@ -1717,11 +1717,7 @@ static const std::string GetTestCubeMapImagePng() {
 //-----------------------------------------------------------------------------
 class ResourceHandlerTest : public RemoteServerTest {
  protected:
-  ResourceHandlerTest()
-      : renderer_thread_(ion::port::kInvalidThreadId),
-        renderer_thread_func_(
-            std::bind(&ResourceHandlerTest::DrawSceneFunc, this)),
-        renderer_thread_quit_flag_(false) {}
+  ResourceHandlerTest() : renderer_thread_quit_flag_(false) {}
 
   void SetUp() override {
     RemoteServerTest::SetUp();
@@ -1730,7 +1726,7 @@ class ResourceHandlerTest : public RemoteServerTest {
   }
 
   void TearDown() override {
-    ASSERT_EQ(ion::port::kInvalidThreadId, renderer_thread_);
+    ASSERT_EQ(std::thread::id(), renderer_thread_.get_id());
     RemoteServerTest::TearDown();
   }
 
@@ -1742,22 +1738,21 @@ class ResourceHandlerTest : public RemoteServerTest {
   // |scene| is the Node with the scene contents to draw.  |fbo_texture| is a
   // texture to bind to the FBO when rendering.
   void StartDrawScene(const NodePtr& scene, const TexturePtr& fbo_texture) {
-    ASSERT_EQ(ion::port::kInvalidThreadId, renderer_thread_);
+    ASSERT_EQ(std::thread::id(), renderer_thread_.get_id());
     renderer_scene_ = scene;
     renderer_fbo_texture_ = fbo_texture;
     renderer_thread_quit_flag_.store(false, std::memory_order_relaxed);
     render_thread_start_.reset(new ion::port::Semaphore());
-    renderer_thread_ = ion::port::SpawnThreadStd(&renderer_thread_func_);
+    renderer_thread_ = std::thread(&ResourceHandlerTest::DrawSceneFunc, this);
     render_thread_start_->Wait();
     render_thread_start_.reset();
   }
 
   void StopDrawScene() {
-    ASSERT_NE(ion::port::kInvalidThreadId, renderer_thread_);
+    ASSERT_NE(std::thread::id(), renderer_thread_.get_id());
     renderer_thread_quit_flag_.store(true, std::memory_order_relaxed);
-    ion::port::JoinThread(renderer_thread_);
-
-    renderer_thread_ = ion::port::kInvalidThreadId;
+    renderer_thread_.join();
+    renderer_thread_ = std::thread();
   }
 
   bool DrawSceneFunc() {
@@ -1801,8 +1796,7 @@ class ResourceHandlerTest : public RemoteServerTest {
   }
 
   // State supporting the renderer thread.
-  ion::port::ThreadId renderer_thread_;
-  std::function<bool()> renderer_thread_func_;
+  std::thread renderer_thread_;
   std::unique_ptr<ion::port::Semaphore> render_thread_start_;
   std::atomic<bool> renderer_thread_quit_flag_;
 

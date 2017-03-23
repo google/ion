@@ -119,6 +119,13 @@ class FieldOfView {
   // TODO(user): Cache this.
   Matrix<4, T> GetProjectionMatrix(T near_p, T far_p) const;
 
+  // Computes the projection matrix corresponding to the infinite frustum
+  // defined by the four half angles, the near plane |near_p| and the far
+  // clip plane at infinity. The optional epsilon |far_epsilon| assists
+  // with clipping artifacts when using the matrix with GPU clipping; see
+  // PerspectiveMatrixFromInfiniteFrustum.
+  Matrix<4, T> GetInfiniteFarProjectionMatrix(T near_p, T far_epsilon) const;
+
   // Accessors for all four half-angles.
   Angle<T> GetLeft() const { return left_; }
   Angle<T> GetRight() const { return right_; }
@@ -203,6 +210,17 @@ inline Matrix<4, T> FieldOfView<T>::GetProjectionMatrix(T near_p,
   const T b = -std::tan(bottom_.Radians()) * near_p;
   const T t = std::tan(top_.Radians()) * near_p;
   return ion::math::PerspectiveMatrixFromFrustum(l, r, b, t, near_p, far_p);
+}
+
+template <typename T>
+inline Matrix<4, T> FieldOfView<T>::GetInfiniteFarProjectionMatrix(T near_p,
+                                                        T far_epsilon) const {
+  const T l = -std::tan(left_.Radians()) * near_p;
+  const T r = std::tan(right_.Radians()) * near_p;
+  const T b = -std::tan(bottom_.Radians()) * near_p;
+  const T t = std::tan(top_.Radians()) * near_p;
+  return ion::math::PerspectiveMatrixFromInfiniteFrustum(l, r, b, t, near_p,
+                                                         far_epsilon);
 }
 
 template <typename T>

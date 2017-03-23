@@ -440,6 +440,7 @@ TEST_F(RendererTest, ImageFormat) {
 }
 
 TEST_F(RendererTest, FramebufferObject) {
+  gm_->EnableErrorChecking(true);
   // Disable implicit multisampling for this test. This functionality is tested
   // separately.
   gm_->EnableFeature(GraphicsManager::kImplicitMultisample, false);
@@ -792,6 +793,27 @@ TEST_F(RendererTest, FramebufferObject) {
         trace_verifier_->VerifyCallAt(trace_verifier_->GetNthIndexOf(
             1U, "FramebufferRenderbuffer(")).GetArg(2),
         "GL_DEPTH_STENCIL_ATTACHMENT");
+
+    // Verify that packed depth stencil textures have only one attachment call.
+    ImagePtr depth_image(new Image);
+    depth_image->Set(Image::Format::kRenderbufferDepth24Stencil8,
+                     data_->image->GetWidth(), data_->image->GetHeight(),
+                     ion::base::DataContainerPtr());
+    ion::gfx::TexturePtr depth_texture(new Texture);
+    depth_texture->SetImage(0U, depth_image);
+    depth_texture->SetSampler(data_->sampler);
+    renderer->CreateOrUpdateResource(depth_texture.Get());
+    FramebufferObject::Attachment attachment(depth_texture);
+    data_->fbo->SetDepthAttachment(attachment);
+    data_->fbo->SetStencilAttachment(attachment);
+    Reset();
+    renderer->DrawScene(root);
+    EXPECT_FALSE(log_checker.HasAnyMessages());
+    EXPECT_EQ(1U, trace_verifier_->GetCountOf("FramebufferTexture2D("));
+    EXPECT_EQ(
+        trace_verifier_->VerifyCallAt(trace_verifier_->GetNthIndexOf(
+            0U, "FramebufferTexture2D(")).GetArg(2),
+        "GL_DEPTH_STENCIL_ATTACHMENT");
   }
 
   {
@@ -1112,6 +1134,39 @@ TEST_F(RendererTest, FramebufferObjectMultiviewAttachments) {
       "supported"));
   EXPECT_EQ(0U, trace_verifier_->GetCountOf(
       "FramebufferTextureMultisampleMultiviewOVR("));
+
+  // Test for proper DEPTH_STENCIL behavior.
+  renderer.Reset(new Renderer(gm_));
+  Reset();
+  ImagePtr depth_image(new Image);
+  depth_image->SetArray(Image::kRenderbufferDepth24Stencil8, 512, 512, 2,
+                        base::DataContainerPtr());
+  ion::gfx::TexturePtr depth_texture(new Texture);
+  depth_texture->SetImage(0U, depth_image);
+  depth_texture->SetSampler(data_->sampler);
+  renderer->CreateOrUpdateResource(depth_texture.Get());
+  FramebufferObject::Attachment depth_attachment =
+      FramebufferObject::Attachment::CreateMultiview(depth_texture, 0, 2);
+  data_->fbo->SetDepthAttachment(depth_attachment);
+  data_->fbo->SetStencilAttachment(depth_attachment);
+  data_->fbo->SetColorAttachment(
+      0U, FramebufferObject::Attachment::CreateMultiview(
+          data_->texture, 0, 2));
+  renderer->BindFramebuffer(data_->fbo);
+  renderer->DrawScene(root);
+  EXPECT_FALSE(log_checker.HasAnyMessages());
+  EXPECT_TRUE(trace_verifier_->VerifyCallAt(
+      trace_verifier_->GetNthIndexOf(0U, "FramebufferTextureMultiviewOVR("))
+          .HasArg(2, "GL_COLOR_ATTACHMENT"));
+  EXPECT_TRUE(trace_verifier_->VerifyCallAt(
+      trace_verifier_->GetNthIndexOf(1U, "FramebufferTextureMultiviewOVR("))
+          .HasArg(2, "GL_DEPTH_ATTACHMENT"));
+  EXPECT_TRUE(trace_verifier_->VerifyCallAt(
+      trace_verifier_->GetNthIndexOf(2U, "FramebufferTextureMultiviewOVR("))
+          .HasArg(2, "GL_STENCIL_ATTACHMENT"));
+  EXPECT_TRUE(trace_verifier_->VerifyCallAt(
+      trace_verifier_->GetNthIndexOf(3U, "FramebufferTextureMultiviewOVR("))
+          .HasArg(2, "GL_DEPTH_STENCIL_ATTACHMENT"));
 }
 
 TEST_F(RendererTest, FramebufferObjectAttachmentsImplicitlyChangedByDraw) {

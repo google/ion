@@ -169,19 +169,31 @@ template <typename T> class SharedPtr {
   void swap(SharedPtr<T>& p) {
     std::swap(ptr_, p.ptr_);
     std::swap(shr_, p.shr_);
+
+#if defined(ION_TRACK_SHAREABLE_REFERENCES)
+    // Needed so that stack-traces in the Shareable are correct:
+    if (shr_) {
+      shr_->IncrementRefCount(this);
+      shr_->DecrementRefCount(&p);
+    }
+    if (p.shr_) {
+      p.shr_->IncrementRefCount(&p);
+      p.shr_->DecrementRefCount(this);
+    }
+#endif
   }
 
  private:
   // Increments the reference count in the instance if it is not null.
   void AddReference() {
     if (shr_)
-      shr_->IncrementRefCount();
+      shr_->IncrementRefCount(this);
   }
 
   // Decrements the reference count in the instance, if it is not null.
   void RemoveReference(const Shareable* shr) {
     if (shr)
-      shr->DecrementRefCount();
+      shr->DecrementRefCount(this);
   }
 
   T* ptr_;
