@@ -278,6 +278,15 @@ template <typename T> ION_API
 Matrix<4, T> PerspectiveMatrixFromFrustum(
     T x_left, T x_right, T y_bottom, T y_top, T z_near, T z_far);
 
+// Returns a 4x4 perspective projection matrix with infinite far clip distance,
+// otherwise the same as PerspectiveMatrixFromFrustum. The far clip epsilon may
+// be zero, but when used for hardware clipping should typically be a small
+// positive value that depends on the number of bits in the depth buffer, e.g.
+// 2.4e-7f for 24-bit depth, or 6.1e-5f for 16-bit depth.
+template <typename T> ION_API
+Matrix<4, T> PerspectiveMatrixFromInfiniteFrustum(
+    T x_left, T x_right, T y_bottom, T y_top, T z_near, T z_far_epsilon);
+
 // Returns a 4x4 perspective projection matrix based on the given parameters,
 // which follow the conventions of the gluPerspective() function. If there are
 // any problems with the parameters (such as non-positive values or z_near

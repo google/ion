@@ -84,6 +84,19 @@ class MockVisual : public portgfx::Visual {
 
   static ShadowState* IncrementAndCall(const char* name);
 
+  // Sets the extensions string of the GL context to the passed string.
+  void SetExtensionsString(const std::string& extensions);
+  // Sets the vendor string of the GL context to the passed string for testing.
+  void SetVendorString(const std::string& vendor);
+  // Sets the renderer string of the GL context to the passed string.
+  void SetRendererString(const std::string& renderer);
+  // Sets the version string of the GL context to the passed string for testing.
+  void SetVersionString(const std::string& version);
+  // Sets the context profile mask of the GL context to the passed mask.
+  void SetContextProfileMask(int mask);
+  // Sets the context flags of the GL context to the passed value for testing.
+  void SetContextFlags(int flags);
+
  private:
   friend class MockGraphicsManager;
 
@@ -97,17 +110,6 @@ class MockVisual : public portgfx::Visual {
   // Gets/sets the current OpenGL error code for testing.
   GLenum GetErrorCode() const;
   void SetErrorCode(GLenum error_code);
-
-  // Sets the extensions string of the manager to the passed string for testing.
-  void SetExtensionsString(const std::string& extensions);
-  // Sets the vendor string of the manager to the passed string for testing.
-  void SetVendorString(const std::string& vendor);
-  // Sets the renderer string of the manager to the passed string for testing.
-  void SetRendererString(const std::string& renderer);
-  // Sets the version string of the manager to the passed string for testing.
-  void SetVersionString(const std::string& version);
-  // Sets the context profile mask of the manager to the passed mask.
-  void SetContextProfileMask(int mask);
 
   // If always_fails is set to true, forces future calls of the referenced
   // function to fail with an invalid operation error. Calling with

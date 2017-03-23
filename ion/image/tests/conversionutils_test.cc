@@ -28,6 +28,7 @@ limitations under the License.
 #include "base/macros.h"  // For ARRAYSIZE().
 #include "ion/base/datacontainer.h"
 #include "ion/base/logchecker.h"
+#include "ion/image/exportjpeg.h"
 #include "ion/image/tests/image_bytes.h"
 #include "ion/math/utils.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
@@ -1002,6 +1003,41 @@ TEST(ConversionUtils, Jpeg) {
   ImagePtr wipeable = ConvertFromExternalImageData(&jpeg_data[0],
       jpeg_data.size(), false, true, base::AllocatorPtr());
   EXPECT_TRUE(wipeable->GetData()->IsWipeable());
+}
+
+TEST(ConversionUtils, JpegEncode) {
+  // Quality settings.
+  static const int kHigh = 90;
+  static const int kLow = 50;
+  // Pixel sizes.
+  static const int kSmall = 8;
+  static const int kLarge = 1024;
+  // Create sample data.
+  ImagePtr image = CreateImage(Image::Format::kRgb888, kSmall, kSmall);
+  // Test conversion to JPEG without flipping.
+  const std::vector<uint8> jpeg_data = ConvertToJpeg(image, false, kHigh);
+  EXPECT_EQ(jpeg_data.size(), arraysize(testing::kExpectedJpegRGBBytes));
+  EXPECT_EQ(0, memcmp(&jpeg_data[0], testing::kExpectedJpegRGBBytes,
+                      jpeg_data.size()));
+  // Test conversion to JPEG with flipping.
+  const std::vector<uint8> jpeg_flipped = ConvertToJpeg(image, true, kHigh);
+  EXPECT_EQ(jpeg_flipped.size(),
+            arraysize(testing::kExpectedJpegRGBFlippedBytes));
+  EXPECT_EQ(0, memcmp(&jpeg_flipped[0], testing::kExpectedJpegRGBFlippedBytes,
+                      jpeg_flipped.size()));
+  // Test conversion to JPEG at lower quality setting.
+  const std::vector<uint8> jpeg_low = ConvertToJpeg(image, false, kLow);
+  EXPECT_EQ(jpeg_low.size(), arraysize(testing::kExpectedJpegLowRGBBytes));
+  EXPECT_EQ(0, memcmp(&jpeg_low[0], testing::kExpectedJpegLowRGBBytes,
+                      jpeg_low.size()));
+  // Test conversion of a larger image.
+  image = CreateImage(Image::Format::kRgb888, kLarge, kLarge);
+  const std::vector<uint8> jpeg_large = ConvertToJpeg(image, false, kHigh);
+  EXPECT_LT(0U, jpeg_large.size());
+  // Test conversion of an unsupported image format.
+  image = CreateImage(Image::Format::kRgba8888, kSmall, kSmall);
+  const std::vector<uint8> jpeg_rgba = ConvertToJpeg(image, false, kHigh);
+  EXPECT_EQ(0U, jpeg_rgba.size());
 }
 
 TEST(ConversionUtils, PngRgb) {

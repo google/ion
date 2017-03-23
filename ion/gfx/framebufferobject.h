@@ -246,7 +246,7 @@ class ION_API FramebufferObject : public ResourceHolder {
 
   // Gets and sets the destination of a single shader output. |index| specifies
   // the index of the shader output, while |buffer| specifies the index of the
-  // color attachment to which that output will be written. Note that is is an
+  // color attachment to which that output will be written. Note that it is an
   // error to write more than one shader output to a single attachment. The
   // value -1 indicates that the shader output should be discarded (GL_NONE).
   int32 GetDrawBuffer(size_t index) const;

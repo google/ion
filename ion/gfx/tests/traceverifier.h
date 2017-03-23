@@ -112,7 +112,8 @@ class TraceVerifier {
   // e.g., BindBuffer(GL_ARRAY_BUFFER, <some size>, 0xff0522ca, GL_STREAM_DRAW)
   // occurs, use the following sequence of calls:
   //
-  // const size_t index = verifier.FirstIndexOf("BufferData(GL_ARRAY_BUFFER");
+  // const size_t index = verifier.GetNthIndexOf(0,
+  //   "BufferData(GL_ARRAY_BUFFER");
   // if (verifier.VerifyCallAt(index).HasArg(3, "0xff0522ca")
   //     .HasArg(4, "GL_STREAM_DRAW"))
   // ...  // The call occurred.
@@ -134,7 +135,7 @@ class TraceVerifier {
   };
 
   // Returns a call object (see above) containing the call at the specified
-  // index. Use FirstIndexOf() to get the index of a call.
+  // index. Use GetNthIndexOf() to get the index of a call.
   Call VerifyCallAt(size_t index);
 
  private:

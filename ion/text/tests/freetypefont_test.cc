@@ -127,6 +127,25 @@ TEST(FreeTypeFontTest, LayoutOptionsPixelPerfect) {
   EXPECT_FLOAT_EQ(100.0f, multi_line_text_bounds.GetSize()[1]);
 }
 
+TEST(FreeTypeFontTest, BuildLayoutWithSpacing) {
+  const FreeTypeFontPtr font = BuildFont("Testdf", 32U, 0U);
+  LayoutOptions options;
+  Layout no_spacing = font->BuildLayout("abc", options);
+  EXPECT_EQ(3U, no_spacing.GetGlyphCount());
+  // Test only the x-coordinate of the lower left point of glyph's quad.
+  EXPECT_FLOAT_EQ(0.03125f, no_spacing.GetGlyph(0).quad.points[0][0]);
+  EXPECT_FLOAT_EQ(0.5625f, no_spacing.GetGlyph(1).quad.points[0][0]);
+  EXPECT_FLOAT_EQ(1.03125f, no_spacing.GetGlyph(2).quad.points[0][0]);
+  // The same text with additional horizontal spacing between glyphs
+  // (3 physical pixels).
+  options.glyph_spacing = 3;
+  Layout spacing = font->BuildLayout("abc", options);
+  EXPECT_EQ(3U, spacing.GetGlyphCount());
+  EXPECT_FLOAT_EQ(0.03125f, spacing.GetGlyph(0).quad.points[0][0]);
+  EXPECT_FLOAT_EQ(0.65625f, spacing.GetGlyph(1).quad.points[0][0]);
+  EXPECT_FLOAT_EQ(1.21875f, spacing.GetGlyph(2).quad.points[0][0]);
+}
+
 TEST(FreeTypeFontTest, ValidBitmapFont) {
   base::LogChecker logchecker;
 

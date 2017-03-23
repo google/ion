@@ -65,6 +65,9 @@
       ['ion_analytics_enabled', {
         'defines': ['ION_ANALYTICS_ENABLED=1']
       }],
+      ['ion_track_shareable_references', {
+        'defines': ['ION_TRACK_SHAREABLE_REFERENCES=1']
+      }],
     ],
   },
 

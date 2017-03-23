@@ -83,6 +83,8 @@
         # Freeglut copiously prints out every event when _DEBUG is defined, so
         # undefine it.
         '_DEBUG',
+        # Freeglut seems to be incompatible with UNICODE.
+        'UNICODE=1'
       ],
       'conditions': [
         ['OS in ["linux", "mac"]', {

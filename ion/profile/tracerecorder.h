@@ -20,6 +20,7 @@ limitations under the License.
 
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <unordered_set>
 
 #include "base/integral_types.h"
@@ -34,6 +35,7 @@ limitations under the License.
 #include "ion/profile/timelineevent.h"
 #include "ion/profile/timelinenode.h"
 #include "third_party/jsoncpp/include/json/json.h"
+#include "third_party/jsoncpp/include/json/writer.h"
 
 namespace ion {
 namespace profile {
@@ -86,6 +88,47 @@ class TraceRecorder : public ion::base::Allocatable {
   // because these values are not supported by JSON.
   void AnnotateCurrentScope(const std::string& name, const std::string& value);
 
+  // The following overloaded/templated methods attach data to the current scope
+  // as valid JSON format, based on the data type. These are used by the
+  // ION_ANNOTATE() macro in profiling.h so the caller does not need to worry
+  // about the data type when using the macro.
+  void AnnotateCurrentScopeWithJsonSafeValue(
+      const std::string& name, const std::string& raw_str) {
+    AnnotateCurrentScope(name, Json::valueToQuotedString(raw_str.c_str()));
+  }
+
+  void AnnotateCurrentScopeWithJsonSafeValue(
+      const std::string& name, const char* raw_str) {
+    AnnotateCurrentScope(name, Json::valueToQuotedString(raw_str));
+  }
+
+  void AnnotateCurrentScopeWithJsonSafeValue(
+      const std::string& name, bool b) {
+    AnnotateCurrentScope(name, Json::valueToString(b));
+  }
+
+  template <typename T, typename std::enable_if<
+      std::is_floating_point<T>::value>::type* = nullptr>
+  void AnnotateCurrentScopeWithJsonSafeValue(const std::string& name, T value) {
+    AnnotateCurrentScope(name, Json::valueToString(static_cast<double>(value)));
+  }
+
+  template <typename T, typename std::enable_if<
+      !std::is_floating_point<T>::value && std::is_unsigned<T>::value>::type* =
+      nullptr>
+  void AnnotateCurrentScopeWithJsonSafeValue(const std::string& name, T value) {
+    AnnotateCurrentScope(
+        name, Json::valueToString(static_cast<Json::LargestUInt>(value)));
+  }
+
+  template <typename T, typename std::enable_if<
+      !std::is_floating_point<T>::value && !std::is_unsigned<T>::value>::type* =
+      nullptr>
+  void AnnotateCurrentScopeWithJsonSafeValue(const std::string& name, T value) {
+    AnnotateCurrentScope(
+        name, Json::valueToString(static_cast<Json::LargestInt>(value)));
+  }
+
   // Leaves the current (most recent) scope. Scope events must be strictly
   // nested.
   void LeaveScope();
@@ -134,7 +177,7 @@ class TraceRecorder : public ion::base::Allocatable {
   size_t GetNumTraces() const;
 
   // Returns the ID of the thread that this recorder is tracing.
-  const ion::port::ThreadId& GetThreadId() const { return thread_id_; }
+  std::thread::id GetThreadId() const { return thread_id_; }
 
   // Sets a name for the thread that this recorder is tracing.
   void SetThreadName(const std::string& name) { thread_name_ = name; }
@@ -192,7 +235,7 @@ class TraceRecorder : public ion::base::Allocatable {
   int scope_level_;
 
   // The ID of the thread that this recorder is tracing.
-  ion::port::ThreadId thread_id_;
+  std::thread::id thread_id_;
 
   // The name for the thread that this recorder is tracing.
   std::string thread_name_;

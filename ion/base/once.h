@@ -19,13 +19,13 @@ limitations under the License.
 #define ION_BASE_ONCE_H_
 
 #include <functional>
+#include <thread>  // NOLINT(build/c++11)
 
 #include "base/integral_types.h"
 #include "base/macros.h"
 #include "ion/base/staticsafedeclare.h"
 #include "ion/port/atomic.h"
 #include "ion/port/macros.h"
-#include "ion/port/threadutils.h"
 
 namespace ion {
 namespace base {
@@ -115,7 +115,7 @@ inline void OnceFlag::CallOnce(const std::function<void()>& target) {
     // it takes a very long time...
     // These atomic reads must be at least an acquire.
     while (value_ != done_value) {
-      port::YieldThread();
+      std::this_thread::yield();
     }
   }
 }

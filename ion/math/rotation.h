@@ -112,7 +112,7 @@ class Rotation {
   // rotate-Z by roll (same as GetEulerAngles).
   static Rotation FromEulerAngles(
       const AngleType& yaw, const AngleType& pitch, const AngleType& roll) {
-    Vector3d x(1, 0, 0), y(0, 1, 0), z(0, 0, 1);
+    VectorType x(1, 0, 0), y(0, 1, 0), z(0, 0, 1);
     return FromAxisAndAngle(z, roll) * (FromAxisAndAngle(x, pitch) *
                                         FromAxisAndAngle(y, yaw));
   }

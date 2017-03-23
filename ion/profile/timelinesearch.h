@@ -19,8 +19,8 @@ limitations under the License.
 #define ION_PROFILE_TIMELINESEARCH_H_
 
 #include <string>
+#include <thread>  // NOLINT(build/c++11)
 
-#include "ion/port/threadutils.h"
 #include "ion/profile/timeline.h"
 #include "ion/profile/timelineevent.h"
 #include "ion/profile/timelinenode.h"
@@ -48,8 +48,7 @@ class TimelineSearch {
   TimelineSearch(const Timeline& timeline, TimelineNode::Type node_type,
                  const std::string& node_name, uint32 begin, uint32 end);
   // Searches threads by id. Returned nodes are guaranteed to be threads.
-  TimelineSearch(const Timeline& timeline,
-                 const ion::port::ThreadId& thread_id);
+  TimelineSearch(const Timeline& timeline, std::thread::id thread_id);
   // Searches by arbitrary predicate.
   TimelineSearch(const Timeline& timeline, const Predicate& predicate);
 
@@ -135,9 +134,8 @@ inline TimelineSearch::TimelineSearch(const Timeline& timeline,
       }) {}
 
 inline TimelineSearch::TimelineSearch(const Timeline& timeline,
-                                      const ion::port::ThreadId& thread_id)
-    : timeline_(timeline),
-      predicate_([thread_id](const TimelineNode* node) {
+                                      std::thread::id thread_id)
+    : timeline_(timeline), predicate_([thread_id](const TimelineNode* node) {
         if (node->GetType() != TimelineNode::Type::kThread) return false;
         const TimelineThread* thread = static_cast<const TimelineThread*>(node);
         return thread->GetThreadId() == thread_id;

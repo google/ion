@@ -180,6 +180,12 @@
             '4244',
             # Conversion from size_t to int.
             '4267',
+          ],
+          # This file must be built without UNICODE, since defining that
+          # breaks the POSIX function gai_strerror - it returns const wchar_t*
+          # instead of const char*
+          'defines!': [
+            'UNICODE=1'
           ]
         }]
       ],
@@ -297,6 +303,114 @@
         }],
       ],
     },  # target: ionlodepnglib
+
+    {
+      'target_name': 'ionjpeg',
+      'type': 'static_library',
+      'sources': [
+        '../../third_party/libjpeg_turbo/src/config.h',
+        '../../third_party/libjpeg_turbo/src/jaricom.c',
+        '../../third_party/libjpeg_turbo/src/jcapimin.c',
+        '../../third_party/libjpeg_turbo/src/jcapistd.c',
+        '../../third_party/libjpeg_turbo/src/jcarith.c',
+        '../../third_party/libjpeg_turbo/src/jccoefct.c',
+        '../../third_party/libjpeg_turbo/src/jccolor.c',
+        '../../third_party/libjpeg_turbo/src/jcdctmgr.c',
+        '../../third_party/libjpeg_turbo/src/jchuff.c',
+        '../../third_party/libjpeg_turbo/src/jchuff.h',
+        '../../third_party/libjpeg_turbo/src/jcinit.c',
+        '../../third_party/libjpeg_turbo/src/jcmainct.c',
+        '../../third_party/libjpeg_turbo/src/jcmarker.c',
+        '../../third_party/libjpeg_turbo/src/jcmaster.c',
+        '../../third_party/libjpeg_turbo/src/jcomapi.c',
+        '../../third_party/libjpeg_turbo/src/jconfig.h',
+        '../../third_party/libjpeg_turbo/src/jconfigint.h',
+        '../../third_party/libjpeg_turbo/src/jcparam.c',
+        '../../third_party/libjpeg_turbo/src/jcphuff.c',
+        '../../third_party/libjpeg_turbo/src/jcprepct.c',
+        '../../third_party/libjpeg_turbo/src/jcsample.c',
+        '../../third_party/libjpeg_turbo/src/jcstest.c',
+        '../../third_party/libjpeg_turbo/src/jctrans.c',
+        '../../third_party/libjpeg_turbo/src/jdapimin.c',
+        '../../third_party/libjpeg_turbo/src/jdapistd.c',
+        '../../third_party/libjpeg_turbo/src/jdarith.c',
+        '../../third_party/libjpeg_turbo/src/jdatadst.c',
+        '../../third_party/libjpeg_turbo/src/jdatadst-tj.c',
+        '../../third_party/libjpeg_turbo/src/jdatasrc.c',
+        '../../third_party/libjpeg_turbo/src/jdatasrc-tj.c',
+        '../../third_party/libjpeg_turbo/src/jdcoefct.c',
+        '../../third_party/libjpeg_turbo/src/jdcoefct.h',
+        '../../third_party/libjpeg_turbo/src/jdcolor.c',
+        '../../third_party/libjpeg_turbo/src/jdct.h',
+        '../../third_party/libjpeg_turbo/src/jddctmgr.c',
+        '../../third_party/libjpeg_turbo/src/jdhuff.c',
+        '../../third_party/libjpeg_turbo/src/jdhuff.h',
+        '../../third_party/libjpeg_turbo/src/jdinput.c',
+        '../../third_party/libjpeg_turbo/src/jdmainct.c',
+        '../../third_party/libjpeg_turbo/src/jdmainct.h',
+        '../../third_party/libjpeg_turbo/src/jdmarker.c',
+        '../../third_party/libjpeg_turbo/src/jdmaster.c',
+        '../../third_party/libjpeg_turbo/src/jdmaster.h',
+        '../../third_party/libjpeg_turbo/src/jdmerge.c',
+        '../../third_party/libjpeg_turbo/src/jdphuff.c',
+        '../../third_party/libjpeg_turbo/src/jdpostct.c',
+        '../../third_party/libjpeg_turbo/src/jdsample.c',
+        '../../third_party/libjpeg_turbo/src/jdsample.h',
+        '../../third_party/libjpeg_turbo/src/jdtrans.c',
+        '../../third_party/libjpeg_turbo/src/jerror.c',
+        '../../third_party/libjpeg_turbo/src/jerror.h',
+        '../../third_party/libjpeg_turbo/src/jfdctflt.c',
+        '../../third_party/libjpeg_turbo/src/jfdctfst.c',
+        '../../third_party/libjpeg_turbo/src/jfdctint.c',
+        '../../third_party/libjpeg_turbo/src/jidctflt.c',
+        '../../third_party/libjpeg_turbo/src/jidctfst.c',
+        '../../third_party/libjpeg_turbo/src/jidctint.c',
+        '../../third_party/libjpeg_turbo/src/jidctred.c',
+        '../../third_party/libjpeg_turbo/src/jinclude.h',
+        '../../third_party/libjpeg_turbo/src/jmemmgr.c',
+        '../../third_party/libjpeg_turbo/src/jmemnobs.c',
+        '../../third_party/libjpeg_turbo/src/jmemsys.h',
+        '../../third_party/libjpeg_turbo/src/jmorecfg.h',
+        '../../third_party/libjpeg_turbo/src/jpegcomp.h',
+        '../../third_party/libjpeg_turbo/src/jpegint.h',
+        '../../third_party/libjpeg_turbo/src/jpeglib.h',
+        '../../third_party/libjpeg_turbo/src/jpeg_nbits_table.h',
+        '../../third_party/libjpeg_turbo/src/jpegtran.c',
+        '../../third_party/libjpeg_turbo/src/jquant1.c',
+        '../../third_party/libjpeg_turbo/src/jquant2.c',
+        '../../third_party/libjpeg_turbo/src/jsimddct.h',
+        '../../third_party/libjpeg_turbo/src/jsimd.h',
+        '../../third_party/libjpeg_turbo/src/jsimd_none.c',
+        '../../third_party/libjpeg_turbo/src/jutils.c',
+        '../../third_party/libjpeg_turbo/src/jversion.h',
+      ],
+      'include_dirs': [
+        '../../third_party/libjpeg_turbo/src/',
+      ],
+      'conditions': [
+        ['OS == "android"', {
+          'cflags': [
+             '-Wno-unused-but-set-variable',
+           ],
+        }],
+        ['OS in ["mac", "ios"]', {
+          'xcode_settings': {
+            'OTHER_CFLAGS': [
+              '-Wno-conversion',
+              '-Wno-sign-compare',
+             ],
+          },
+        }],
+        ['OS == "win"', {
+          'msvs_disabled_warnings': [
+            '4146',   # Unary minux operator applied to unsigned type.
+            '4244',   # Conversion from __int64 to int [64-bit builds].
+            '4267',   # Conversion from size_t to int [64-bit builds].
+            '4334',   # Result of 32-bit shift implicitly converted to 64 bits.
+          ],
+        }],
+      ],
+    },  # target: ionjpeg
 
     {
       'target_name': 'ionstblib',

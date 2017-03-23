@@ -16,11 +16,11 @@ limitations under the License.
 */
 
 #include <functional>
+#include <thread>  // NOLINT(build/c++11)
 
 #include "ion/base/spinmutex.h"
 #include "ion/port/barrier.h"
 #include "ion/port/mutex.h"
-#include "ion/port/threadutils.h"
 
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
@@ -43,7 +43,11 @@ void GenericMutexTest<MutexT>::TestExclusion(int iterations) {
   for (int i = 0; i < iterations; ++i) {
     port::Barrier barrier(2);
 
-    std::function<bool()> thread_func = [&](){
+    EXPECT_FALSE(mutex_.IsLocked());
+    mutex_.Lock();
+    EXPECT_TRUE(mutex_.IsLocked());
+
+    std::thread thread([&]() {
       EXPECT_FALSE(mutex_.TryLock());
 
       // Wait twice, so that the main thread knows we reached this point,
@@ -62,13 +66,7 @@ void GenericMutexTest<MutexT>::TestExclusion(int iterations) {
       barrier.Wait();
 
       return true;
-    };
-
-    EXPECT_FALSE(mutex_.IsLocked());
-    mutex_.Lock();
-    EXPECT_TRUE(mutex_.IsLocked());
-
-    port::ThreadId thread = port::SpawnThreadStd(&thread_func);
+    });
 
     barrier.Wait();  // Thread failed to lock.
     mutex_.Unlock();
@@ -85,7 +83,7 @@ void GenericMutexTest<MutexT>::TestExclusion(int iterations) {
     mutex_.Unlock();
     EXPECT_FALSE(mutex_.IsLocked());
 
-    port::JoinThread(thread);
+    thread.join();
   }
 }
 

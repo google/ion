@@ -24,7 +24,6 @@ limitations under the License.
 #  include <cstdlib>
 #elif defined(ION_PLATFORM_WINDOWS)
 #  if !ION_PRODUCTION
-#    include <assert.h>  // For checking return values (port has no logging).
 #    include <windows.h>
 #    include <WinBase.h>
 #    include <DbgHelp.h>
@@ -34,6 +33,7 @@ limitations under the License.
 #  endif
 #endif
 
+#include <assert.h>  // For checking return values (port has no logging).
 #include <sstream>
 
 namespace ion {
@@ -46,6 +46,7 @@ StackTrace::StackTrace() {
   const int kMaxStackTraceDepth = 128;  // Arbitrary limit.
   addresses_.resize(kMaxStackTraceDepth);
   const int depth = backtrace(&addresses_[0], kMaxStackTraceDepth);
+  assert(depth > 0);
   addresses_.resize(depth);
 
 #elif defined(ION_PLATFORM_WINDOWS)

@@ -74,6 +74,9 @@ class MockGraphicsManager : public GraphicsManager {
   // Sets the context profile mask of the manager to the passed mask.
   void SetContextProfileMask(int mask);
 
+  // Sets the context flags of the manager to the passed value.
+  void SetContextFlags(int flags);
+
   // Rechecks for function groups and version.
   using GraphicsManager::InitGlInfo;
 

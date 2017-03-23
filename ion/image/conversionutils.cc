@@ -1014,43 +1014,50 @@ static const ImagePtr DataToImage(const void* data, size_t data_size,
       data, data_size, flip_vertically, is_wipeable, allocator);
 }
 
+static const std::vector<uint8> ImageToPng(
+    const Image& image, bool flip_vertically) {
+  std::vector<uint8> result;
+  uint8* image_data = nullptr;
+  ImagePtr flipped_image;
+
+  if (flip_vertically) {
+    flipped_image.Reset(new Image);
+    flipped_image->Set(image.GetFormat(), image.GetWidth(), image.GetHeight(),
+                       base::DataContainer::CreateAndCopy<uint8>(
+                           image.GetData()->GetData<uint8>(),
+                           image.GetDataSize(),
+                           false,
+                           image.GetAllocator()));
+    FlipImage(flipped_image);
+    image_data = const_cast<uint8*>(
+        flipped_image->GetData()->GetData<uint8>());
+  } else {
+    image_data = const_cast<uint8*>(image.GetData()->GetData<uint8>());
+  }
+
+  int num_bytes;
+  if (unsigned char* result_data = stbi_write_png_to_mem(
+          image_data, 0, image.GetWidth(), image.GetHeight(),
+          Image::GetNumComponentsForFormat(image.GetFormat()),
+          &num_bytes)) {
+    result = std::vector<uint8>(result_data, result_data + num_bytes);
+    stbi_image_free(result_data);
+  }
+  return result;
+}
+
 // Converts an Image to the external_format, returning a byte vector. Returns
 // an empty vector if anything goes wrong.
 static const std::vector<uint8> ImageToData(
     const Image& image, ExternalImageFormat external_format,
     bool flip_vertically) {
-  std::vector<uint8> result;
-
-  // STBLIB supports writing to PNG, but not JPEG.
-  if (external_format == kPng) {
-    uint8* image_data = nullptr;
-    ImagePtr flipped_image;
-
-    if (flip_vertically) {
-      flipped_image.Reset(new Image);
-      flipped_image->Set(image.GetFormat(), image.GetWidth(), image.GetHeight(),
-                         base::DataContainer::CreateAndCopy<uint8>(
-                              image.GetData()->GetData<uint8>(),
-                              image.GetDataSize(),
-                              false,
-                              image.GetAllocator()));
-      FlipImage(flipped_image);
-      image_data = const_cast<uint8*>(
-          flipped_image->GetData()->GetData<uint8>());
-    } else {
-      image_data = const_cast<uint8*>(image.GetData()->GetData<uint8>());
-    }
-
-    int num_bytes;
-    if (unsigned char* result_data = stbi_write_png_to_mem(
-            image_data, 0, image.GetWidth(), image.GetHeight(),
-            Image::GetNumComponentsForFormat(image.GetFormat()),
-            &num_bytes)) {
-      result = std::vector<uint8>(result_data, result_data + num_bytes);
-      stbi_image_free(result_data);
-    }
+  std::vector<uint8> data;
+  switch (external_format) {
+    case kPng:
+      data = ImageToPng(image, flip_vertically);
+      break;
   }
-  return result;
+  return data;
 }
 
 // Returns an Image of the same format as |image|, but with half the width and
@@ -1364,7 +1371,6 @@ const std::vector<uint8> ION_API ConvertToExternalImageData(
     bool flip_vertically) {
   if (!ImageHasData(image))
     return std::vector<uint8>();
-
   return ImageToData(*image, external_format, flip_vertically);
 }
 

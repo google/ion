@@ -24,6 +24,7 @@ limitations under the License.
 #include <map>
 #include <memory>
 #include <string>
+#include <thread>  // NOLINT(build/c++11)
 #include <vector>
 
 #include "ion/base/invalid.h"
@@ -36,7 +37,6 @@ limitations under the License.
 #include "ion/gfxutils/shadermanager.h"
 #include "ion/gfxutils/shadersourcecomposer.h"
 #include "ion/port/semaphore.h"
-#include "ion/port/threadutils.h"
 #include "ion/portgfx/visual.h"
 #include "ion/remote/tests/httpservertest.h"
 
@@ -70,11 +70,7 @@ namespace {
 
 class ShaderHandlerTest : public RemoteServerTest {
  protected:
-  ShaderHandlerTest()
-      : renderer_thread_(ion::port::kInvalidThreadId),
-        renderer_thread_func_(
-            std::bind(&ShaderHandlerTest::RendererFunc, this)),
-        renderer_thread_quit_flag_(false) {}
+  ShaderHandlerTest() : renderer_thread_quit_flag_(false) {}
 
   ~ShaderHandlerTest() override {}
 
@@ -87,7 +83,7 @@ class ShaderHandlerTest : public RemoteServerTest {
   }
 
   void TearDown() override {
-    ASSERT_EQ(ion::port::kInvalidThreadId, renderer_thread_);
+    ASSERT_EQ(std::thread::id(), renderer_thread_.get_id());
     RemoteServerTest::TearDown();
   }
 
@@ -95,20 +91,19 @@ class ShaderHandlerTest : public RemoteServerTest {
   // thread blocks on the completion of the request.  Thus we run the Renderer
   // in a separate thread here.
   void StartRenderer() {
-    ASSERT_EQ(ion::port::kInvalidThreadId, renderer_thread_);
+    ASSERT_EQ(std::thread::id(), renderer_thread_.get_id());
     renderer_thread_quit_flag_.store(false, std::memory_order_relaxed);
     render_thread_start_.reset(new Semaphore());
-    renderer_thread_ = ion::port::SpawnThreadStd(&renderer_thread_func_);
+    renderer_thread_ = std::thread(&ShaderHandlerTest::RendererFunc, this);
     render_thread_start_->Wait();
     render_thread_start_.reset();
   }
 
   void StopRenderer() {
-    ASSERT_NE(ion::port::kInvalidThreadId, renderer_thread_);
+    ASSERT_NE(std::thread::id(), renderer_thread_.get_id());
     renderer_thread_quit_flag_.store(true, std::memory_order_relaxed);
-    ion::port::JoinThread(renderer_thread_);
-
-    renderer_thread_ = ion::port::kInvalidThreadId;
+    renderer_thread_.join();
+    renderer_thread_ = std::thread();
   }
 
   bool RendererFunc() {
@@ -152,8 +147,7 @@ class ShaderHandlerTest : public RemoteServerTest {
   }
 
   // State supporting the renderer thread.
-  ion::port::ThreadId renderer_thread_;
-  std::function<bool()> renderer_thread_func_;
+  std::thread renderer_thread_;
   std::unique_ptr<Semaphore> render_thread_start_;
   std::atomic<bool> renderer_thread_quit_flag_;
 

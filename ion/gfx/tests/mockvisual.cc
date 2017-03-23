@@ -995,6 +995,10 @@ class MockVisual::ShadowState {
     context_profile_mask_ = mask;
   }
 
+  void SetContextFlags(int flags) {
+    context_flags_ = flags;
+  }
+
   void SetForceFunctionFailure(const std::string& func_name,
                                bool always_fails) {
     if (always_fails)
@@ -7120,21 +7124,18 @@ class MockVisual::ShadowState {
   // Last error.
   GLenum error_code_;
 
-  // Extensions strings.
+  // Extensions strings. Stored as both a single space-separated string and a
+  // vector of individual strings, so that glGetString can return a constant
+  // value.
   std::string extensions_string_;
   std::vector<std::string> extension_strings_;
 
-  // Vendor string.
   std::string vendor_string_;
-
-  // Renderer string.
   std::string renderer_string_;
-
-  // Version string.
   std::string version_string_;
 
-  // Context profile mask.
   GLint context_profile_mask_;
+  GLint context_flags_;
 
   // Maximum buffer size for testing out-of-memory errors.
   GLsizeiptr max_buffer_size_;
@@ -7283,6 +7284,7 @@ MockVisual::ShadowState::ShadowState(int window_width, int window_height)
   renderer_string_ = "Ion fake OpenGL / ES";
   version_string_ = "3.3 Ion OpenGL / ES";
   context_profile_mask_ = GL_CONTEXT_COMPATIBILITY_PROFILE_BIT;
+  context_flags_ = 0;
   generate_mipmap_hint_ = GL_DONT_CARE;
   line_width_ = 1.f;
   pack_alignment_ = unpack_alignment_ = 4;
@@ -7467,6 +7469,8 @@ void MockVisual::ShadowState::Getv(GLenum pname, T* params) {
         ION_SET_INDEX(i, color_write_masks_[i]);
       }
       break;
+    case GL_CONTEXT_FLAGS:
+      ION_SET(context_flags_);
     case GL_CONTEXT_PROFILE_MASK:
       ION_SET(context_profile_mask_);
     case GL_CULL_FACE_MODE:
@@ -7960,6 +7964,11 @@ void MockVisual::SetVersionString(const std::string& version) {
 void MockVisual::SetContextProfileMask(int mask) {
   base::LockGuard lock(shadow_state_->GetMutex());
   shadow_state_->SetContextProfileMask(mask);
+}
+
+void MockVisual::SetContextFlags(int value) {
+  base::LockGuard lock(shadow_state_->GetMutex());
+  shadow_state_->SetContextFlags(value);
 }
 
 void MockVisual::SetForceFunctionFailure(const std::string& func_name,

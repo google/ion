@@ -35,7 +35,6 @@ limitations under the License.
 #include "ion/gfxprofile/gpuprofiler.h"
 #include "ion/port/atomic.h"
 #include "ion/port/fileutils.h"
-#include "ion/port/threadutils.h"
 #include "ion/port/timer.h"
 #include "ion/portgfx/visual.h"
 #include "ion/profile/timeline.h"
@@ -706,7 +705,7 @@ static bool EventLoop(CallTraceManagerWithMockTimer* call_trace_manager,
 }
 
 static void CheckTimelineThread(
-    const Timeline& timeline, const ion::port::ThreadId& thread_id,
+    const Timeline& timeline, std::thread::id thread_id,
     const std::string& thread_name,
     const std::vector<const char*>& expected_event_names) {
   TimelineSearch search(timeline, thread_id);
@@ -951,6 +950,71 @@ TEST_F(CallTraceTest, AnnotatedOutput) {
   }
 }
 
+TEST_F(CallTraceTest, JsonSafeAnnotations) {
+  const std::vector<std::string> expected_json_strings{
+    "123",
+    "-123",
+    "123",
+    "true",
+    "false",
+    "\"normal_string\"",
+    "\"\\\"\\\\\\b\\f\\n\\r\\t\"",
+    "1e+9999",
+    "-1e+9999",
+    "null",
+#if defined(JSON_HAS_INT64)
+    "-733007751850",
+    "733007751850",
+#endif
+  };
+
+  {
+    ScopedTracer scope(GetTraceRecorder(), "Scope");
+    GetTraceRecorder()->AnnotateCurrentScope("Value", "123");
+    GetTraceRecorder()->AnnotateCurrentScopeWithJsonSafeValue("Value", -123);
+    GetTraceRecorder()->AnnotateCurrentScopeWithJsonSafeValue("Value", 123U);
+    GetTraceRecorder()->AnnotateCurrentScopeWithJsonSafeValue("Value", true);
+    GetTraceRecorder()->AnnotateCurrentScopeWithJsonSafeValue("Value", false);
+    GetTraceRecorder()->AnnotateCurrentScopeWithJsonSafeValue(
+        "Value", "normal_string");
+    GetTraceRecorder()->AnnotateCurrentScopeWithJsonSafeValue(
+        "Value", "\"\\\b\f\n\r\t");
+    GetTraceRecorder()->AnnotateCurrentScopeWithJsonSafeValue(
+        "Value", std::numeric_limits<double>::infinity());
+    GetTraceRecorder()->AnnotateCurrentScopeWithJsonSafeValue(
+        "Value", -std::numeric_limits<double>::infinity());
+    GetTraceRecorder()->AnnotateCurrentScopeWithJsonSafeValue(
+        "Value", std::numeric_limits<double>::quiet_NaN());
+#if defined(JSON_HAS_INT64)
+    GetTraceRecorder()->AnnotateCurrentScopeWithJsonSafeValue(
+        "Value", -733007751850LL);
+    GetTraceRecorder()->AnnotateCurrentScopeWithJsonSafeValue(
+        "Value", 733007751850ULL);
+#endif
+  }
+  // Enter, leave, and appendData events per iteration.
+  EXPECT_EQ(2U + expected_json_strings.size(),
+            GetTraceRecorder()->GetNumTraces());
+  EXPECT_EQ(1U, GetNumScopeEvents());
+
+  std::string output = call_trace_manager_->SnapshotCallTraces();
+  TraceReader reader(output);
+
+  // Query the events in the parser.
+  const std::vector<Event>& eb = reader.GetMainEventBuffer();
+
+  EXPECT_EQ("wtf.zone#create", eb[0].name);
+  EXPECT_EQ("wtf.zone#set", eb[1].name);
+  EXPECT_EQ("Scope", eb[2].name);
+  // Test if all annotations match expected JSON strings.
+  for (uint32 i = 0; i < expected_json_strings.size(); ++i) {
+    const Event& e = eb[i + 3];
+    EXPECT_EQ("wtf.scope#appendData", e.name);
+    EXPECT_EQ("Value", e.GetAsciiArg("name"));
+    EXPECT_EQ(expected_json_strings[i], e.GetAsciiArg("value"));
+  }
+  EXPECT_EQ("wtf.scope#leave", eb[expected_json_strings.size()+3].name);
+}
 
 TEST_F(CallTraceTest, BasicOutputWithFrames) {
   const int kNumIterations = 10;
@@ -1880,18 +1944,18 @@ TEST_F(CallTraceTest, TimelineMultiThreaded) {
   std::vector<const char*> event_names_0 = {"A", "B", "C"};
   std::vector<const char*> event_names_1 = {"D", "E", "F"};
   std::vector<const char*> event_names_2 = {"G", "H", "I"};
-  std::function<bool()> f0 = std::bind(
-      EventLoop, this->call_trace_manager_.get(), "thread_0", event_names_0);
-  std::function<bool()> f1 = std::bind(
-      EventLoop, this->call_trace_manager_.get(), "thread_1", event_names_1);
-  std::function<bool()> f2 = std::bind(
-      EventLoop, this->call_trace_manager_.get(), "thread_2", event_names_2);
-  ion::port::ThreadId thread_id_0 = ion::port::SpawnThreadStd(&f0);
-  ion::port::ThreadId thread_id_1 = ion::port::SpawnThreadStd(&f1);
-  ion::port::ThreadId thread_id_2 = ion::port::SpawnThreadStd(&f2);
-  ion::port::JoinThread(thread_id_0);
-  ion::port::JoinThread(thread_id_1);
-  ion::port::JoinThread(thread_id_2);
+  std::thread t0(EventLoop, this->call_trace_manager_.get(), "thread_0",
+                 event_names_0);
+  std::thread t1(EventLoop, this->call_trace_manager_.get(), "thread_1",
+                 event_names_1);
+  std::thread t2(EventLoop, this->call_trace_manager_.get(), "thread_2",
+                 event_names_2);
+  std::thread::id thread_id_0 = t0.get_id();
+  std::thread::id thread_id_1 = t1.get_id();
+  std::thread::id thread_id_2 = t2.get_id();
+  t0.join();
+  t1.join();
+  t2.join();
 
   Timeline timeline = call_trace_manager_->BuildTimeline();
 

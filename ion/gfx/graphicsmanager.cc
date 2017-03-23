@@ -42,7 +42,7 @@ namespace gfx {
 class CapabilityValue {
  public:
   typedef base::Variant<GLint, GLfloat, math::Range1f, math::Range1i,
-                        GraphicsManager::ShaderPrecision,
+                        math::Point2i, GraphicsManager::ShaderPrecision,
                         std::vector<GLint> > CapabilityVariant;
   typedef void(*Getter)(GraphicsManager* gm, CapabilityValue* cv);
 
@@ -115,6 +115,14 @@ class CapabilityValue {
     cv->value_.Set(math::Range1i(val[0], val[1]));
   }
 
+  static void GetIntPoint(GraphicsManager* gm, CapabilityValue* cv) {
+    GraphicsManager::ErrorSilencer silencer(gm);
+    GLint val[2];
+    val[0] = val[1] = 0;
+    gm->GetIntegerv(cv->enum1_, val);
+    cv->value_.Set(math::Point2i(val[0], val[1]));
+  }
+
   static void GetShaderPrecision(GraphicsManager* gm, CapabilityValue* cv) {
     GraphicsManager::ErrorSilencer silencer(gm);
     GLint range[2], precision = 0;
@@ -143,9 +151,9 @@ class CapabilityValue {
   bool uninitialized_;
 };
 
-class GraphicsManager::CapabilityHelper {
+class GraphicsManager::CapabilityCache {
  public:
-  CapabilityHelper() {
+  CapabilityCache() {
 #define ION_SINGLE_CAP(index, enum, getter) \
   capabilities_[index] = CapabilityValue(enum, GL_NONE, CapabilityValue::getter)
 #define ION_DOUBLE_CAP(index, enum1, enum2, getter) \
@@ -201,7 +209,7 @@ class GraphicsManager::CapabilityHelper {
                    GL_MAX_VERTEX_UNIFORM_COMPONENTS, GetInt);
     ION_SINGLE_CAP(kMaxVertexUniformVectors, GL_MAX_VERTEX_UNIFORM_VECTORS,
                    GetInt);
-    ION_SINGLE_CAP(kMaxViewportDims, GL_MAX_VIEWPORT_DIMS, GetIntRange);
+    ION_SINGLE_CAP(kMaxViewportDims, GL_MAX_VIEWPORT_DIMS, GetIntPoint);
     ION_SINGLE_CAP(kMaxViews, GL_MAX_VIEWS_OVR, GetInt);
     ION_DOUBLE_CAP(kShaderBinaryFormats, GL_SHADER_BINARY_FORMATS,
                    GL_NUM_SHADER_BINARY_FORMATS, GetIntVector);
@@ -237,7 +245,6 @@ class GraphicsManager::CapabilityHelper {
 #undef ION_DOUBLE_CAP
   }
 
-  ~CapabilityHelper() {}
   const CapabilityValue::CapabilityVariant& GetCapabilityValue(
       GraphicsManager* gm, GraphicsManager::Capability cap) {
     return capabilities_[cap].GetValue(gm);
@@ -313,6 +320,7 @@ GraphicsManager::feature_names_[kNumFeatureIds] = {
   FEATURE_ENTRY(kEglImage),
   FEATURE_ENTRY(kElementIndex32Bit),
   FEATURE_ENTRY(kFramebufferBlit),
+  FEATURE_ENTRY(kFramebufferTargets),
   FEATURE_ENTRY(kFramebufferTextureLayer),
   FEATURE_ENTRY(kGeometryShader),
   FEATURE_ENTRY(kGetString),
@@ -440,7 +448,7 @@ GraphicsManager::ErrorSilencer::~ErrorSilencer() {
 GraphicsManager::GraphicsManager()
     : gl_get_error_(nullptr),
       features_(GetAllocator(), kNumFeatureIds, Feature()),
-      capability_helper_(new CapabilityHelper),
+      capability_cache_(new CapabilityCache),
       wrapped_function_names_(*this),
       is_error_checking_enabled_(kErrorCheckingDefault),
       last_error_code_(GL_NO_ERROR),
@@ -475,7 +483,7 @@ void GraphicsManager::Init() {
 template <typename T>
 const T GraphicsManager::GetCapabilityValue(Capability cap) {
   const CapabilityValue::CapabilityVariant& value =
-      capability_helper_->GetCapabilityValue(this, cap);
+      capability_cache_->GetCapabilityValue(this, cap);
   const T& val = value.Get<T>();
   if (base::IsInvalidReference(val))
     LOG(WARNING) << "Invalid type requested for capability " << cap;
@@ -490,6 +498,8 @@ template const math::Range1f
     GraphicsManager::GetCapabilityValue<math::Range1f>(Capability cap);
 template const math::Range1i
     GraphicsManager::GetCapabilityValue<math::Range1i>(Capability cap);
+template const math::Point2i
+    GraphicsManager::GetCapabilityValue<math::Point2i>(Capability cap);
 template const GraphicsManager::ShaderPrecision
     GraphicsManager::GetCapabilityValue<GraphicsManager::ShaderPrecision>(
         Capability cap);
@@ -662,7 +672,7 @@ void GraphicsManager::InitGlInfo() {
   // and renderer blacklists. Additional functional checks go after that.
   SetFeatureSupportedIf(kCore, GlVersions(10U, 20U, 10U), "", "");
   SetFeatureSupportedIf(kClipDistance, GlVersions(31U, 0U, 0U),
-                        "clip_distance", "");
+                        "clip_distance,EXT_clip_cull_distance", "");
   SetFeatureSupportedIf(kCopyBufferSubData, GlVersions(31U, 30U, 0U),
                         "copy_buffer", "");
   SetFeatureSupportedIf(kDebugLabel, GlVersions(0U, 0U, 0U),
@@ -681,6 +691,7 @@ void GraphicsManager::InitGlInfo() {
                         "element_index_uint", "");
   SetFeatureSupportedIf(kFramebufferBlit, GlVersions(20U, 30U, 20U),
                         "framebuffer_blit", "");
+  SetFeatureSupportedIf(kFramebufferTargets, GlVersions(31U, 30U, 20U), "", "");
   SetFeatureSupportedIf(kFramebufferTextureLayer, GlVersions(30U, 30U, 20U),
                         "geometry_shader4,geometry_program4", "");
   // The EXT version of the geometry shader extension is incompatible with the
@@ -862,6 +873,10 @@ void GraphicsManager::SetFeatureSupportedIf(
     const std::string& extensions, const std::string& disabled_renderers) {
   SetFeatureSupported(feature, CheckSupport(versions, extensions,
                                             disabled_renderers));
+}
+
+void GraphicsManager::ClearCapabilityCache() {
+  capability_cache_.reset(new CapabilityCache);
 }
 
 }  // namespace gfx

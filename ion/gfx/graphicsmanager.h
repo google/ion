@@ -106,7 +106,7 @@ class ION_API GraphicsManager : public base::Referent {
     kMaxVertexTextureImageUnits,                 // int
     kMaxVertexUniformComponents,                 // int
     kMaxVertexUniformVectors,                    // int
-    kMaxViewportDims,                            // math::Range1i
+    kMaxViewportDims,                            // math::Point2i
     kMaxViews,                                   // int
     kShaderBinaryFormats,                        // std::vector<int>
     kTransformFeedbackVaryingMaxLength,          // int
@@ -145,6 +145,8 @@ class ION_API GraphicsManager : public base::Referent {
     kEglImage,  // This covers both OES_EGL_image and OES_EGL_image_external.
     kElementIndex32Bit,
     kFramebufferBlit,
+    // DRAW_FRAMEBUFFER and READ_FRAMEBUFFER are valid FBO binding targets.
+    kFramebufferTargets,
     kFramebufferTextureLayer,
     kGeometryShader,
     kGetString,  // glGetStringi
@@ -398,6 +400,9 @@ class ION_API GraphicsManager : public base::Referent {
                              const std::string& extensions,
                              const std::string& disabled_renderers);
 
+  // Clears the cached values of capabilities.
+  void ClearCapabilityCache();
+
  private:
   // Convenience typedef for the map of function groups..
   typedef base::AllocVector<Feature> FeatureVector;
@@ -405,7 +410,7 @@ class ION_API GraphicsManager : public base::Referent {
   typedef GLenum (*GetErrorPtr)();
 
   // An internal class that helps track capability values.
-  class CapabilityHelper;
+  class CapabilityCache;
 
   // This nested class is used to check for errors after invoking an OpenGL
   // function. The check is called from the destructor, so instance should be
@@ -471,7 +476,7 @@ class ION_API GraphicsManager : public base::Referent {
 #endif
 
   // Helper class for tracking capability values.
-  std::unique_ptr<CapabilityHelper> capability_helper_;
+  std::unique_ptr<CapabilityCache> capability_cache_;
 
   // Maintains a set of the names of functions that are wrapped by the manager,
   // primarily for testing.

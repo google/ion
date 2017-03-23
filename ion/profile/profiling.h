@@ -65,4 +65,10 @@ ION_API CallTraceManager* GetCallTraceManager();
         ::ion::profile::GetCallTraceManager()->GetTraceRecorder(),          \
         ++(*ION_PROFILING_PASTE3(frame_number_)));
 
+// Use this macro to annotate a name/value pair in the current scope (opened by,
+// e.g., ION_PROFILE_FUNCTION().) |value| can be a string (char* or
+// std::string), boolean, or numerical values.
+#define ION_ANNOTATE(name, value) ::ion::profile::GetCallTraceManager()-> \
+    GetTraceRecorder()->AnnotateCurrentScopeWithJsonSafeValue(name, value);
+
 #endif  // ION_PROFILE_PROFILING_H_

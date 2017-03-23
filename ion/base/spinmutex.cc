@@ -17,8 +17,9 @@ limitations under the License.
 
 #include "ion/base/spinmutex.h"
 
+#include <thread>  // NOLINT(build/c++11)
+
 #include "ion/base/logging.h"
-#include "ion/port/threadutils.h"
 
 namespace ion {
 namespace base {
@@ -32,7 +33,7 @@ void SpinMutex::Lock() {
              already_locked, true, std::memory_order_acquire)) {
     already_locked = false;
     if (++try_count > 1000) {
-      port::YieldThread();
+      std::this_thread::yield();
     }
   }
 }

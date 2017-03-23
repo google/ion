@@ -340,11 +340,14 @@ class Tree {
     Object(const void* pointer_in, const std::string& type_in,
            const std::string& label_in, bool is_inside_field_in)
         : pointer(pointer_in), type(type_in),
-          label(label_in), is_inside_field(is_inside_field_in) {}
+          label(label_in), is_inside_field(is_inside_field_in),
+          has_enable_field(false), is_enabled(false) {}
     const void* pointer;
     std::string type;
     std::string label;
     bool is_inside_field;
+    bool has_enable_field;
+    bool is_enabled;
     std::vector<StringField> string_fields;
     std::vector<TableField> table_fields;
     std::vector<ObjectField> object_fields;
@@ -384,6 +387,13 @@ class Tree {
   void EndObject() {
     DCHECK(!cur_objects_.empty());
     cur_objects_.pop_back();
+  }
+
+  // Adds a checkbox button for enabling/disabling a Node's visibility.
+  void AddNodeButton(const std::string& name, const std::string& node_label,
+                     const std::string& command, bool checked) {
+    GetCurObject()->has_enable_field = true;
+    GetCurObject()->is_enabled = checked;
   }
 
   // Adds a field as a StringField by first converting the given value to a
@@ -630,7 +640,7 @@ class TreeBuilder {
 void TreeBuilder::AddNode(const Node& node) {
   ScopedLabeledObject<Node> obj(&tree_, &node, "Node", false);
 
-  tree_.AddField("Enabled", node.IsEnabled());
+  tree_.AddNodeButton("Enabled", node.GetLabel(), "Enable", node.IsEnabled());
 
   // Shader program.
   if (const ShaderProgram* program = node.GetShaderProgram().Get())
@@ -1266,6 +1276,11 @@ void TextTreePrinter::PrintObject(size_t object_index) {
   ++indent_level_;
 
   // Fields.
+  if (object.has_enable_field) {
+    Tree::StringField enabled_state("Enabled",
+                                    object.is_enabled ? "true" : "false");
+    PrintStringField(enabled_state);
+  }
   for (size_t i = 0; i < object.string_fields.size(); ++i)
     PrintStringField(object.string_fields[i]);
   for (size_t i = 0; i < object.table_fields.size(); ++i)
@@ -1421,11 +1436,21 @@ void HtmlTreePrinter::PrintObject(size_t object_index) {
   PrintObjectHeader(object);
 
   // Fields.
-  const bool has_fields = (!object.string_fields.empty() ||
+  const bool has_fields = (object.has_enable_field ||
+                           !object.string_fields.empty() ||
                            !object.table_fields.empty() ||
                            !object.object_fields.empty());
   if (has_fields)
     PrintFieldHeader();
+
+  if (object.has_enable_field) {
+    Tree::StringField enable_checkbox(
+      "Enabled",
+      std::string("<input type=\"checkbox\" ")
+      + "id=\"" + object.label + "\" class=\"button\" "
+      + (object.is_enabled ? "checked" : "") + ">");
+    PrintStringField(enable_checkbox);
+  }
 
   for (size_t i = 0; i < object.string_fields.size(); ++i)
     PrintStringField(object.string_fields[i]);
@@ -1448,8 +1473,8 @@ void HtmlTreePrinter::PrintObject(size_t object_index) {
 void HtmlTreePrinter::PrintObjectHeader(const Tree::Object& object) {
   // Create a checkbox that can be opened and closed.
   out_ << "<li><input type =\"checkbox\" checked=\"checked\" id=\"list-"
-       << object_counter_ << "\"/><label for=\"list-" << object_counter_
-       << "\">";
+       << object_counter_ << "\" class=\"tree_expandbox\"/><label for=\"list-"
+       << object_counter_ << "\">";
 
   // If the type is not empty, this is a real object, not just a container.
   if (!object.type.empty()) {

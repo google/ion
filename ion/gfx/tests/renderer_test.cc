@@ -1209,11 +1209,9 @@ TEST_F(RendererTest, VertexArraysPerThread) {
     Reset();
     VisualPtr share_visual = MockVisual::CreateShared(*visual_);
     RendererPtr renderer(new Renderer(gm_));
-    std::function<bool()> thread_function =
-        std::bind(RenderingThread, renderer, share_visual, &root);
-    ion::port::ThreadId thread_id = ion::port::SpawnThreadStd(&thread_function);
+    std::thread render_thread(RenderingThread, renderer, share_visual, &root);
     // MockVisual is not thread-safe, so we don't try to render concurrently.
-    ion::port::JoinThread(thread_id);
+    render_thread.join();
     renderer->DrawScene(root);
     EXPECT_EQ(1U, trace_verifier_->GetCountOf("BindAttribLocation"));
     EXPECT_EQ(2U, trace_verifier_->GetCountOf("VertexAttribPointer"));
@@ -1225,10 +1223,8 @@ TEST_F(RendererTest, VertexArraysPerThread) {
     Reset();
     VisualPtr share_visual = MockVisual::CreateShared(*visual_);
     RendererPtr renderer(new Renderer(gm_));
-    std::function<bool()> thread_function =
-        std::bind(RenderingThread, renderer, share_visual, &root);
-    ion::port::ThreadId thread_id = ion::port::SpawnThreadStd(&thread_function);
-    ion::port::JoinThread(thread_id);
+    std::thread render_thread(RenderingThread, renderer, share_visual, &root);
+    render_thread.join();
     renderer->DrawScene(root);
     EXPECT_EQ(1U, trace_verifier_->GetCountOf("BindAttribLocation"));
     EXPECT_EQ(2U, trace_verifier_->GetCountOf("VertexAttribPointer"));
@@ -5126,10 +5122,9 @@ TEST_F(RendererTest, ConcurrentShader) {
     EXPECT_EQ(1U, before.infos[0].uniforms.size());
     EXPECT_EQ(-7.f, before.infos[0].uniforms[0].value.Get<float>());
 
-    std::function<bool()> thread_function = std::bind(
-        UniformThread, renderer, share_visual, root, uindex, 2.f, &other_infos);
-    port::ThreadId tid = port::SpawnThreadStd(&thread_function);
-    port::JoinThread(tid);
+    std::thread uniform_thread(UniformThread, renderer, share_visual, root,
+                               uindex, 2.f, &other_infos);
+    uniform_thread.join();
 
     EXPECT_EQ(1U, other_infos.size());
     EXPECT_EQ(1U, other_infos[0].uniforms.size());
@@ -5168,10 +5163,9 @@ TEST_F(RendererTest, ConcurrentShader) {
     EXPECT_EQ(1U, before.infos[0].uniforms.size());
     EXPECT_EQ(-7.f, before.infos[0].uniforms[0].value.Get<float>());
 
-    std::function<bool()> thread_function = std::bind(
-        UniformThread, renderer, share_visual, root, uindex, 2.f, &other_infos);
-    port::ThreadId tid = port::SpawnThreadStd(&thread_function);
-    port::JoinThread(tid);
+    std::thread uniform_thread(UniformThread, renderer, share_visual, root,
+                               uindex, 2.f, &other_infos);
+    uniform_thread.join();
 
     EXPECT_EQ(1U, other_infos.size());
     EXPECT_EQ(1U, other_infos[0].uniforms.size());

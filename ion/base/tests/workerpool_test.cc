@@ -394,7 +394,7 @@ TEST(WorkerPoolTest, StressTest) {
       pool.ResizeThreadPool(new_thread_count);
     }
 
-    ion::port::YieldThread();
+    std::this_thread::yield();
   }
 }
 

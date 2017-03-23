@@ -103,6 +103,9 @@
       # Allows 'Foo&&' (e.g., move constructors).
       'COMPILER_HAS_RVALUEREF',
 
+      # Unsuffixed Windows API functions resolve to Unicode variants.
+      'UNICODE=1',
+
       # Doublespeak for "don't bloat namespace with incompatible winsock
       # versions that I didn't include".
       # http://msdn.microsoft.com/en-us/library/windows/desktop/ms737629.aspx

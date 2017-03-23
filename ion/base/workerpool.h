@@ -20,11 +20,11 @@ limitations under the License.
 
 #include <atomic>
 #include <functional>
+#include <mutex>   // NOLINT(build/c++11)
+#include <thread>  // NOLINT(build/c++11)
 
-#include "ion/base/stlalloc/allocset.h"
-#include "ion/port/mutex.h"
+#include "ion/base/stlalloc/allocvector.h"
 #include "ion/port/semaphore.h"
-#include "ion/port/threadutils.h"
 
 namespace ion {
 namespace base {
@@ -111,7 +111,7 @@ class WorkerPool : public ion::base::Allocatable {
   static void Post(port::Semaphore* sema);
 
   Worker* const worker_;
-  ion::base::AllocSet<ion::port::ThreadId> threads_;
+  ion::base::AllocVector<std::thread> threads_;
   port::Semaphore work_sema_;
   port::Semaphore active_threads_sema_;
   std::atomic<bool> suspended_;
@@ -124,7 +124,7 @@ class WorkerPool : public ion::base::Allocatable {
   // enter the "slow path" logic.
   std::atomic<bool> slow_path_;
   std::function<bool()> spawn_func_;
-  mutable ion::port::Mutex mutex_;
+  mutable std::mutex mutex_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(WorkerPool);
 };

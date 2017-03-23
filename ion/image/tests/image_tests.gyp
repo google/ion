@@ -29,7 +29,8 @@
       ],
       'dependencies' : [
         'image_tests_assets',
-        '<(ion_dir)/image/image.gyp:ionimage_for_tests',
+        '<(ion_dir)/image/image.gyp:ionimage',
+        '<(ion_dir)/image/image.gyp:ionimagejpeg',
         '<(ion_dir)/base/base.gyp:ionbase_for_tests',
         '<(ion_dir)/external/gtest.gyp:iongtest_safeallocs',
         '<(ion_dir)/port/port.gyp:ionport',

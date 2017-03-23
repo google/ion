@@ -172,6 +172,28 @@ TEST_F(FieldOfViewTest, FromProjectionMatrix) {
   EXPECT_NEAR(kTop.Degrees(), test_fov.GetTop().Degrees(), kTol);
 }
 
+TEST_F(FieldOfViewTest, FromInfiniteFarProjectionMatrix) {
+  // Ensure that we are able to correctly reconstruct a FieldOfView from an
+  // infinite projection matrix.
+  const float kTol = 1e-5f;
+  const Anglef kLeft = Anglef::FromDegrees(10.0f);
+  const Anglef kRight = Anglef::FromDegrees(20.0f);
+  const Anglef kBottom = Anglef::FromDegrees(30.0f);
+  const Anglef kTop = Anglef::FromDegrees(40.0f);
+  const FieldOfView<float> fov(kLeft, kRight, kBottom, kTop);
+
+  const float kNear = 0.01f;
+  const float kFarEpsilon = 0.0f;
+  const Matrix4f proj_mat = fov.GetInfiniteFarProjectionMatrix(kNear,
+                                                               kFarEpsilon);
+  const FieldOfView<float> test_fov =
+      FieldOfView<float>::FromProjectionMatrix(proj_mat);
+  EXPECT_NEAR(kLeft.Degrees(), test_fov.GetLeft().Degrees(), kTol);
+  EXPECT_NEAR(kRight.Degrees(), test_fov.GetRight().Degrees(), kTol);
+  EXPECT_NEAR(kBottom.Degrees(), test_fov.GetBottom().Degrees(), kTol);
+  EXPECT_NEAR(kTop.Degrees(), test_fov.GetTop().Degrees(), kTol);
+}
+
 // Sanity test for shorthands.
 TEST_F(FieldOfViewTest, FromDegreesAndRadians) {
   const float kTol = 1e-5f;

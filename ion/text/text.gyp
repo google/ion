@@ -56,7 +56,6 @@
         '../gfx/gfx.gyp:iongfx',
         '../gfxutils/gfxutils.gyp:iongfxutils',
         '<(ion_dir)/base/base.gyp:ionbase',
-        '<(ion_dir)/image/image.gyp:ionimage',
         '<(ion_dir)/port/port.gyp:ionport',
       ],
       'conditions': [
@@ -147,7 +146,6 @@
         '../base/base.gyp:ionbase_for_tests',
         '../gfx/gfx.gyp:iongfx',
         '../gfxutils/gfxutils.gyp:iongfxutils_for_tests',
-        '../image/image.gyp:ionimage_for_tests',
       ],
     },  # target: iontext_for_tests
   ],  # targets

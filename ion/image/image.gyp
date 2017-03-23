@@ -49,6 +49,19 @@
     },
 
     {
+      'target_name' : 'ionimagejpeg',
+      'type': 'static_library',
+      'sources' : [
+        'exportjpeg.cc',
+        'exportjpeg.h',
+      ],
+      'dependencies': [
+        '../gfx/gfx.gyp:iongfx',
+        '<(ion_dir)/external/external.gyp:ionjpeg',
+      ],
+    },
+
+    {
       'target_name': 'ionimage_for_tests',
       'type': 'static_library',
       'sources': [
@@ -64,5 +77,5 @@
         '../portgfx/portgfx.gyp:ionportgfx_for_tests',
       ],
     },  # target: ionimage_for_tests
-  ],
+],
 }

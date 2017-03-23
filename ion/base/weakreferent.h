@@ -104,7 +104,7 @@ class WeakReferent : public Referent {
     // Because we can't do the atomic CAS below directly into a SharedPtr,
     // we instead manage the ref-count of the Proxy manually (however, each
     // WeakReferentPtr uses a SharedPtr as usual).
-    proxy->IncrementRefCount();
+    proxy->IncrementRefCount(this);
     Proxy* null = nullptr;
     if (proxy_.compare_exchange_strong(null, proxy)) {
       // Success!  Return the newly-instantiated Proxy.
@@ -115,7 +115,7 @@ class WeakReferent : public Referent {
       // Couldn't swap in a new Proxy because someone on a different thread beat
       // us to it, so use theirs and destroy the one we created.  Since the
       // Proxy refs itself in the constructor, we unref it to destroy it.
-      proxy->DecrementRefCount();
+      proxy->DecrementRefCount(this);
       proxy = proxy_;
       // Since our atomic CAS is a full memory-barrier...
       DCHECK(proxy_.load() != nullptr) << "proxy should not be NULL after CAS";
@@ -148,7 +148,7 @@ class WeakReferent : public Referent {
         DCHECK_EQ(ref_count_.load(), 0);
         proxy->SetOrphaned();
       }
-      proxy->DecrementRefCount();
+      proxy->DecrementRefCount(this);
     }
     delete this;
   }

@@ -38,7 +38,7 @@ namespace image {
 
 // External image formats supported by ConvertToExternalImageData().
 enum ExternalImageFormat {
-  kPng
+  kPng,
 };
 
 // Converts an existing Image to the given target format and returns the
@@ -140,7 +140,7 @@ ION_API bool IsIonRawImageFormat(const void* data, size_t data_size);
 // Converts an existing Image to data in |external_format|, returning a vector.
 // If |flip_vertically| is true, the resulting image is inverted in the Y
 // dimension. The vector will be empty if the conversion is not possible for any
-// reason. Note that converting to JPEG is not currently supported.
+// reason.
 ION_API const std::vector<uint8> ConvertToExternalImageData(
     const gfx::ImagePtr& image, ExternalImageFormat external_format,
     bool flip_vertically);
