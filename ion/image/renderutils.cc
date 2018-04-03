@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -201,7 +201,7 @@ static const gfx::ImagePtr RenderToImage(
   DCHECK(renderer->GetGraphicsManager().Get());
   const gfx::GraphicsManager& gm = *renderer->GetGraphicsManager();
   const gfx::Image::Format target_format =
-      (gm.GetGlApiStandard() == gfx::GraphicsManager::kEs &&
+      (gm.GetGlFlavor() == gfx::GraphicsManager::kEs &&
        gm.GetGlVersion() == 20) ? gfx::Image::kRgb565Byte : gfx::Image::kRgb8;
 
   // Create a temporary FrameBufferObject and render into it.

@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,13 +44,24 @@
             '-Wconversion',
           ],
         }],
-        ['OS == "windows"', {
+        ['OS == "win"', {
           'defines': [
             'GURL_OS_WINDOWS',
           ],
           'msvs_disabled_warnings': [
             # Conversion from size_t to int.
             '4267',
+          ],
+        }],
+        ['OS in ["ios", "mac"]', {
+          'xcode_settings': {
+            'OTHER_CFLAGS': [
+              '-Wno-conversion',
+              '-Wno-shorten-64-to-32',
+            ],
+          },
+          'defines': [
+            'GURL_OS_POSIX',
           ],
         }, { # else
           'conditions': [
@@ -67,11 +78,13 @@
         }],
       ],  # conditions
       'sources': [
+        '<(gurl_src_dir)/base/strings/string_piece.cc',
         '<(gurl_src_dir)/base/strings/string_util.cc',
         '<(gurl_src_dir)/base/strings/utf_string_conversion_utils.cc',
         '<(gurl_src_dir)/base/third_party/icu/icu_utf.cc',
         '<(gurl_src_dir)/url/gurl.cc',
         '<(gurl_src_dir)/url/origin.cc',
+        '<(gurl_src_dir)/url/scheme_host_port.cc',
         '<(gurl_src_dir)/url/third_party/mozilla/url_parse.cc',
         '<(gurl_src_dir)/url/url_canon_etc.cc',
         '<(gurl_src_dir)/url/url_canon_filesystemurl.cc',
@@ -99,7 +112,7 @@
           '<(third_party_dir)/googleurl/src',
         ],
         'conditions': [
-          ['OS == "windows"', {
+          ['OS == "win"', {
             'defines': [
               'GURL_OS_WINDOWS',
             ],

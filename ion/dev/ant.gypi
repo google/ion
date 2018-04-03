@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
   'variables': {
     'ant': '/path/to/ant.bin',
 
-    # TODO(user): This is terrible, but I can't figure out how to "spell"
+
     # this in Gyp.  This mess is essentially 'arch_tag_arm' = <(android_abi)
     'arch_tag_arm': 'armeabi-v7a',
     'arch_tag_arm64': 'arm64-v8a',

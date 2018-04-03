@@ -1,3 +1,20 @@
+/**
+Copyright 2017 Google Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS-IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+*/
+
 /*
  **********************************************************************
  *   Copyright (C) 1998-2009, International Business Machines
@@ -60,7 +77,7 @@ void LEGlyphStorage::reset()
     }
 }
 
-// FIXME: This might get called more than once, for various reasons. Is
+// 
 // testing for pre-existing glyph and charIndices arrays good enough?
 void LEGlyphStorage::allocateGlyphArray(le_int32 initialGlyphCount, le_bool rightToLeft, LEErrorCode &success)
 {
@@ -107,7 +124,7 @@ void LEGlyphStorage::allocateGlyphArray(le_int32 initialGlyphCount, le_bool righ
     }
 
     if (fInsertionList == NULL) {
-        // FIXME: check this for failure?
+        // 
         fInsertionList = new LEInsertionList(rightToLeft);
         if (fInsertionList == NULL) { 
             LE_DELETE_ARRAY(fCharIndices);
@@ -122,7 +139,7 @@ void LEGlyphStorage::allocateGlyphArray(le_int32 initialGlyphCount, le_bool righ
     }
 }
 
-// FIXME: do we want to initialize the positions to [0, 0]?
+// 
 le_int32 LEGlyphStorage::allocatePositions(LEErrorCode &success)
 {
     if (LE_FAILURE(success)) {
@@ -144,7 +161,7 @@ le_int32 LEGlyphStorage::allocatePositions(LEErrorCode &success)
     return fGlyphCount;
 }
 
-// FIXME: do we want to initialize the aux data to NULL?
+// 
 le_int32 LEGlyphStorage::allocateAuxData(LEErrorCode &success)
 {
     if (LE_FAILURE(success)) {
@@ -549,7 +566,7 @@ LEGlyphID *LEGlyphStorage::insertGlyphs(le_int32  atIndex, le_int32 insertCount)
     return insertGlyphs(atIndex, insertCount, ignored);
 }
 
-// FIXME: add error checking?
+// 
 LEGlyphID *LEGlyphStorage::insertGlyphs(le_int32  atIndex, le_int32 insertCount, LEErrorCode& success)
 {
     return fInsertionList->insert(atIndex, insertCount, success);
@@ -595,7 +612,7 @@ le_int32 LEGlyphStorage::applyInsertions()
     // If the current position is at the end of the array
     // update it to point to the end of the new array. The
     // insertion callback will handle all other cases.
-    // FIXME: this is left over from GlyphIterator, but there's no easy
+    // 
     // way to implement this here... it seems that GlyphIterator doesn't
     // really need it 'cause the insertions don't get  applied until after a
     // complete pass over the glyphs, after which the iterator gets reset anyhow...
@@ -618,7 +635,7 @@ le_bool LEGlyphStorage::applyInsertion(le_int32 atPosition, le_int32 count, LEGl
     // if the current position is within the block we're shifting
     // it needs to be updated to the current glyph's
     // new location.
-    // FIXME: this is left over from GlyphIterator, but there's no easy
+    // 
     // way to implement this here... it seems that GlyphIterator doesn't
     // really need it 'cause the insertions don't get  applied until after a
     // complete pass over the glyphs, after which the iterator gets reset anyhow...

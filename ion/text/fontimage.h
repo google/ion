@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -135,7 +135,7 @@ class FontImage : public base::Referent {
 };
 
 // Convenience typedef for shared pointer to a FontImage.
-typedef base::ReferentPtr<FontImage>::Type FontImagePtr;
+using FontImagePtr = base::SharedPtr<FontImage>;
 
 //-----------------------------------------------------------------------------
 //
@@ -180,7 +180,7 @@ class StaticFontImage : public FontImage {
 };
 
 // Convenience typedef for shared pointer to a StaticFontImage.
-typedef base::ReferentPtr<StaticFontImage>::Type StaticFontImagePtr;
+using StaticFontImagePtr = base::SharedPtr<StaticFontImage>;
 
 //-----------------------------------------------------------------------------
 //
@@ -238,12 +238,12 @@ class DynamicFontImage : public FontImage {
 
   // This is the same as FindImageData(), but instead returns the index of the
   // ImageData, or kInvalidIndex if unsuccessful.
-  size_t FindImageDataIndex(const GlyphSet& glyph_set);
+  size_t FindImageDataIndex(const GlyphSet& unfiltered_glyph_set);
 
   // Returns the index of an ImageData instance that contains all of the
   // glyphs (present in the Font) in glyph_set, or kInvalidIndex if there
   // are none.
-  size_t FindContainingImageDataIndex(const GlyphSet& glyph_set);
+  size_t FindContainingImageDataIndex(const GlyphSet& unfiltered_glyph_set);
 
  protected:
   ~DynamicFontImage() override;
@@ -276,7 +276,7 @@ class DynamicFontImage : public FontImage {
 };
 
 // Convenience typedef for shared pointer to a DynamicFontImage.
-typedef base::ReferentPtr<DynamicFontImage>::Type DynamicFontImagePtr;
+using DynamicFontImagePtr = base::SharedPtr<DynamicFontImage>;
 
 }  // namespace text
 }  // namespace ion

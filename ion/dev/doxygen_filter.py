@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -84,7 +84,7 @@ class DoxygenFormatter(object):
         # doesn't treat it like a code block.
         (re.compile(r'(^\s*)//\s{4,}([-\d*].*)'), r'\1 \2', self.COMMENT),
 
-        # Replace TODO(user) in a comment with @todo (user)
+
         (re.compile(r'TODO'), r'@todo ', self.COMMENT),
 
         # Replace leading 'Note:' or 'Note that' in a comment with @note

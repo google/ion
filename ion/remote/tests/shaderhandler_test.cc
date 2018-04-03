@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,22 +15,30 @@ limitations under the License.
 
 */
 
+#include "absl/memory/memory.h"
 #if !ION_PRODUCTION
 
 #include "ion/remote/shaderhandler.h"
 
+#include <atomic>
+#include <functional>
 #include <map>
+#include <memory>
 #include <string>
+#include <thread>  // NOLINT(build/c++11)
 #include <vector>
 
 #include "ion/base/invalid.h"
 #include "ion/base/zipassetmanager.h"
+#include "ion/gfx/graphicsmanager.h"
 #include "ion/gfx/renderer.h"
 #include "ion/gfx/shaderinputregistry.h"
 #include "ion/gfx/shaderprogram.h"
-#include "ion/gfx/tests/mockgraphicsmanager.h"
+#include "ion/gfx/tests/fakegraphicsmanager.h"
 #include "ion/gfxutils/shadermanager.h"
 #include "ion/gfxutils/shadersourcecomposer.h"
+#include "ion/port/semaphore.h"
+#include "ion/portgfx/glcontext.h"
 #include "ion/remote/tests/httpservertest.h"
 
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
@@ -41,47 +49,82 @@ namespace remote {
 // Save some typing by typedefing the handler pointer.
 typedef HttpServer::RequestHandlerPtr RequestHandlerPtr;
 
-using gfx::ShaderInputRegistry;
-using gfx::ShaderInputRegistryPtr;
-using gfx::ShaderProgram;
-using gfx::ShaderProgramPtr;
+using gfx::GraphicsManagerPtr;
 using gfx::Renderer;
 using gfx::RendererPtr;
-using gfx::testing::MockGraphicsManager;
-using gfx::testing::MockGraphicsManagerPtr;
-using gfx::testing::MockVisual;
+using gfx::ShaderInputRegistry;
+using gfx::ShaderInputRegistryPtr;
+using gfx::ShaderProgramPtr;
+using gfx::testing::FakeGraphicsManager;
+using gfx::testing::FakeGlContext;
 using gfxutils::ShaderManager;
 using gfxutils::ShaderManagerPtr;
-using gfxutils::StringComposer;
 using gfxutils::ShaderSourceComposer;
 using gfxutils::ShaderSourceComposerPtr;
+using gfxutils::StringComposer;
+using port::Semaphore;
+using portgfx::GlContext;
+using portgfx::GlContextPtr;
 
 namespace {
 
 class ShaderHandlerTest : public RemoteServerTest {
  protected:
+  ShaderHandlerTest() : renderer_thread_quit_flag_(false) {}
+
+  ~ShaderHandlerTest() override {}
+
   void SetUp() override {
     RemoteServerTest::SetUp();
-    visual_.reset(new MockVisual(800, 800));
-    gm_.Reset(new MockGraphicsManager());
-    renderer_.Reset(new Renderer(gm_));
-    sm_.Reset(new ShaderManager());
-
     server_->SetHeaderHtml("");
     server_->SetFooterHtml("");
-    server_->RegisterHandler(RequestHandlerPtr(new ShaderHandler(
-        sm_, renderer_)));
+
+    shader_manager_.Reset(new ShaderManager());
   }
 
   void TearDown() override {
-    sm_.Reset(NULL);
-    renderer_.Reset(NULL);
-    gm_.Reset(NULL);
+    ASSERT_EQ(std::thread::id(), renderer_thread_.get_id());
     RemoteServerTest::TearDown();
-    // This is after the parent TearDown because the server holding the
-    // shader manager keeps the graphics manager alive and it needs a MockVisual
-    // right up until it is released.
-    visual_.reset();
+  }
+
+  // The Renderer must continue to process info request even as the main test
+  // thread blocks on the completion of the request.  Thus we run the Renderer
+  // in a separate thread here.
+  void StartRenderer() {
+    ASSERT_EQ(std::thread::id(), renderer_thread_.get_id());
+    renderer_thread_quit_flag_.store(false, std::memory_order_relaxed);
+    render_thread_start_ = absl::make_unique<Semaphore>();
+    renderer_thread_ = std::thread(&ShaderHandlerTest::RendererFunc, this);
+    render_thread_start_->Wait();
+    render_thread_start_.reset();
+  }
+
+  void StopRenderer() {
+    ASSERT_NE(std::thread::id(), renderer_thread_.get_id());
+    renderer_thread_quit_flag_.store(true, std::memory_order_relaxed);
+    renderer_thread_.join();
+    renderer_thread_ = std::thread();
+  }
+
+  bool RendererFunc() {
+    GlContextPtr gl_context = FakeGlContext::Create(800, 800);
+    GlContext::MakeCurrent(gl_context);
+    GraphicsManagerPtr graphics_manager(new FakeGraphicsManager());
+    RendererPtr renderer(new Renderer(graphics_manager));
+    RequestHandlerPtr sh(new ShaderHandler(shader_manager_, renderer));
+    server_->RegisterHandler(sh);
+
+    // Notify the thread calling StartRender() that |renderer| is set up.
+    render_thread_start_->Post();
+
+    // Now service info requests on this thread.
+    while (!renderer_thread_quit_flag_.load(std::memory_order_relaxed)) {
+      renderer->ProcessResourceInfoRequests();
+    }
+
+    // Clean up renderer state.
+    server_->UnregisterHandler(sh->GetBasePath());
+    return true;
   }
 
   void VerifyHtmlTitle(int line, const std::string& title) {
@@ -103,10 +146,12 @@ class ShaderHandlerTest : public RemoteServerTest {
     }
   }
 
-  std::unique_ptr<MockVisual> visual_;
-  MockGraphicsManagerPtr gm_;
-  RendererPtr renderer_;
-  ShaderManagerPtr sm_;
+  // State supporting the renderer thread.
+  std::thread renderer_thread_;
+  std::unique_ptr<Semaphore> render_thread_start_;
+  std::atomic<bool> renderer_thread_quit_flag_;
+
+  gfxutils::ShaderManagerPtr shader_manager_;
 };
 
 // Simple composer that fakes a dependency and changes to it.
@@ -161,6 +206,7 @@ class Composer : public ShaderSourceComposer {
 }  // anonymous namespace
 
 TEST_F(ShaderHandlerTest, ServeShaders) {
+  StartRenderer();
   std::vector<std::string> elements;
 
   GetUri("/ion/shaders/does/not/exist");
@@ -187,18 +233,24 @@ TEST_F(ShaderHandlerTest, ServeShaders) {
       new StringComposer("vertex1dep", "vertex1"));
   ShaderSourceComposerPtr vertex_composer2(
       new StringComposer("vertex2dep", "vertex2"));
+  ShaderSourceComposerPtr geometry_composer2(
+      new StringComposer("geometry2dep", "geometry2"));
   ShaderSourceComposerPtr fragment_composer1(
       new StringComposer("fragment1dep", "fragment1"));
   ShaderSourceComposerPtr fragment_composer2(
       new StringComposer("fragment2dep", "fragment2"));
-  ShaderProgramPtr shader1(sm_->CreateShaderProgram(
+  ShaderProgramPtr shader1(shader_manager_->CreateShaderProgram(
       "shader1", registry, vertex_composer1, fragment_composer1));
-  ShaderProgramPtr shader2(sm_->CreateShaderProgram(
+  ShaderProgramPtr shader2(shader_manager_->CreateShaderProgram(
       "shader2", registry, vertex_composer2, fragment_composer2));
+  ShaderProgramPtr shader3(shader_manager_->CreateShaderProgram(
+      "shader3", registry, vertex_composer2, fragment_composer2,
+      geometry_composer2));
 
   GetUri("/ion/shaders/shader_status");
   EXPECT_EQ(200, response_.status);
-  EXPECT_EQ("shader1,OK,OK,OK\nshader2,OK,OK,OK", response_.data);
+  EXPECT_EQ("shader1,OK,OK,OK\nshader2,OK,OK,OK\nshader3,OK,OK,OK",
+            response_.data);
 
   GetUri("/ion/shaders");
   EXPECT_EQ(200, response_.status);
@@ -207,11 +259,12 @@ TEST_F(ShaderHandlerTest, ServeShaders) {
   elements.push_back("shader_editor");
   elements.push_back("shader1");
   elements.push_back("shader2");
+  elements.push_back("shader3");
   VerifyListElements(__LINE__, elements);
   // Check the raw list.
   GetUri("/ion/shaders?raw");
   EXPECT_EQ(200, response_.status);
-  EXPECT_EQ("shader1\nshader2", response_.data);
+  EXPECT_EQ("shader1\nshader2\nshader3", response_.data);
 
   // Get info on shader1.
   GetUri("/ion/shaders/shader1");
@@ -277,22 +330,24 @@ TEST_F(ShaderHandlerTest, ServeShaders) {
   // Set a dependency source.
   GetUri(
       "/ion/shaders/shader1/fragment/"
-      "fragment1dep?set_source=some%20new%20source&nonblocking");
+      "fragment1dep?set_source=some%20new%20source");
   EXPECT_EQ(200, response_.status);
   EXPECT_EQ("Shader source changed.", response_.data);
   // Check that the source has changed.
   GetUri("/ion/shaders/shader1/fragment/fragment1dep");
   EXPECT_EQ(200, response_.status);
   EXPECT_EQ("some new source", response_.data);
-  // Force callback to occur to avoid a memory leak.
-  renderer_->ProcessResourceInfoRequests();
 
   // Try getting an invalid info log.
   GetUri("/ion/shaders/shader1/geometry/%7Cinfo%20log%7C");
   Verify404(__LINE__);
+
+  StopRenderer();
 }
 
 TEST_F(ShaderHandlerTest, ShaderEditor) {
+  StartRenderer();
+
   // Check that the shader editor HTML file is served.
   GetUri("/ion/shaders/shader_editor");
   EXPECT_EQ(200, response_.status);
@@ -307,25 +362,29 @@ TEST_F(ShaderHandlerTest, ShaderEditor) {
 
   GetUri("/ion/shaders/shader_editor/notafile.html");
   Verify404(__LINE__);
+
+  StopRenderer();
 }
 
 TEST_F(ShaderHandlerTest, FormatInfoLogs) {
+  StartRenderer();
+
   // Create a couple of shaders.
   ShaderInputRegistryPtr registry(new ShaderInputRegistry());
   ShaderSourceComposerPtr vertex_composer(
       new StringComposer("vertex_dep", "vertex"));
   ShaderSourceComposerPtr fragment_composer(
       new StringComposer("fragment_dep", "fragment"));
-  ShaderProgramPtr shader(sm_->CreateShaderProgram(
+  ShaderProgramPtr shader(shader_manager_->CreateShaderProgram(
       "shader", registry, vertex_composer, fragment_composer));
 
   // Set the shader info logs.
   const std::string non_apple_log(
-      "0(11): error C1234: some error message\n<br>"
-      "0(42): note HHGTTG42: the meaning of everything");
+      "1(11): error C1234: some error message\n"
+      "1(42): note HHGTTG42: the meaning of everything");
   const std::string apple_log(
-      "ERROR: 0:11: some error message\n<br>"
-      "NOTE: 0:42: the meaning of everything");
+      "ERROR: 1:11: some error message\n"
+      "NOTE: 1:42: the meaning of everything");
 
   shader->GetVertexShader()->SetInfoLog(non_apple_log);
   shader->GetFragmentShader()->SetInfoLog(apple_log);
@@ -341,9 +400,13 @@ TEST_F(ShaderHandlerTest, FormatInfoLogs) {
             "fragment_dep:42: the meaning of everything<br>\n", response_.data);
   GetUri("/ion/shaders/shader/geometry/%7Cinfo%20log%7C");
   Verify404(__LINE__);
+
+  StopRenderer();
 }
 
 TEST_F(ShaderHandlerTest, UpdateAndServeChangedDependencies) {
+  StartRenderer();
+
   // Nothing should have changed yet, since there's nothing to change.
   GetUri("/ion/shaders/update_changed_dependencies");
   EXPECT_EQ(200, response_.status);
@@ -354,7 +417,7 @@ TEST_F(ShaderHandlerTest, UpdateAndServeChangedDependencies) {
   ShaderSourceComposerPtr fragment_composer(
       new Composer("fragment_dep", "fragment"));
   ShaderInputRegistryPtr registry(new ShaderInputRegistry());
-  ShaderProgramPtr shader(sm_->CreateShaderProgram(
+  ShaderProgramPtr shader(shader_manager_->CreateShaderProgram(
       "shader", registry, vertex_composer, fragment_composer));
 
   // Now change a dependency.
@@ -376,6 +439,8 @@ TEST_F(ShaderHandlerTest, UpdateAndServeChangedDependencies) {
   GetUri("/ion/shaders/update_changed_dependencies");
   EXPECT_EQ(200, response_.status);
   EXPECT_EQ(";", response_.data);
+
+  StopRenderer();
 }
 
 }  // namespace remote

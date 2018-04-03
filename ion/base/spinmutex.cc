@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,8 +17,9 @@ limitations under the License.
 
 #include "ion/base/spinmutex.h"
 
+#include <thread>  // NOLINT(build/c++11)
+
 #include "ion/base/logging.h"
-#include "ion/port/threadutils.h"
 
 namespace ion {
 namespace base {
@@ -32,7 +33,7 @@ void SpinMutex::Lock() {
              already_locked, true, std::memory_order_acquire)) {
     already_locked = false;
     if (++try_count > 1000) {
-      port::YieldThread();
+      std::this_thread::yield();
     }
   }
 }

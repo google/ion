@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,11 +21,9 @@ limitations under the License.
 
 #include <algorithm>
 
-#include "ion/base/lockguards.h"
 #include "ion/base/staticsafedeclare.h"
 #include "ion/math/matrix.h"
 #include "ion/port/atomic.h"
-#include "ion/port/mutex.h"
 
 namespace ion {
 namespace gfx {
@@ -67,19 +65,9 @@ class ShaderInputRegistry::StaticData {
   StaticData()
       : registry_count_(0), largest_registry_size_(0) {}
 
-  // Gets the number of registries created.
-  int32_t GetRegistryCount() const {
-    return registry_count_;
-  }
-
   // Gets a unique identifier for a registry.
   int32_t GetUniqueId() const {
     return ++registry_count_;
-  }
-
-  // Gets the size of the largest registry.
-  int32_t GetLargestRegistrySize() const {
-    return largest_registry_size_;
   }
 
   // Sets the size of the largest registry if size is larger than the currently

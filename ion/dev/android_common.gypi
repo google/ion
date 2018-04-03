@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -46,9 +46,6 @@
     # Traits of our toolchain.
     'android_ndk_dir': '../../relative/path/to/android_ndk',
     'android_ndk_abs_dir': '/abs/path/to/android-ndk-r10e',
-
-    'android_sdk_dir': '../../relative/path/to/android-sdk-<(host_os)',
-
     'android_ndk_arch_dir': '<(android_ndk_abs_dir)/<(android_toolchain)/<(host_os)-x86_64',
     'android_ndk_sysroot': '<(android_ndk_arch_dir)/lib/gcc/<(android_tool_prefix)/4.9',
 

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,14 +21,13 @@ limitations under the License.
 
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
-
 #if defined(ION_PLATFORM_NACL)
 #include "ppapi/cpp/module.h"
 
 namespace pp {
 Module* CreateModule() {
   // Do nothing.  We don't (yet) have any test code requiring a module.
-  return NULL;
+  return nullptr;
 }
 }  // namespace pp
 #endif

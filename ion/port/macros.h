@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ limitations under the License.
 // copy only type cannot be used in std::vector due to gcc bug 49836.
 // It should be the last thing in a class declaration.
 // The defined operator must not actually be called.
-// TODO(user): remove platforms from this list as they move off of
+// 
 // libstdc++ 4.6 or earlier.
 #if (defined(ION_PLATFORM_NACL) && !defined(ION_PLATFORM_PNACL)) || \
     (defined(ION_PLATFORM_LINUX) && !defined(ION_GOOGLE_INTERNAL)) || \

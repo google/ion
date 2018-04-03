@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ limitations under the License.
 */
 
 #include "ion/math/utils.h"
+#include "ion/math/tests/testutils.h"
 
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
@@ -54,6 +55,46 @@ TEST(Utils, Abs) {
   EXPECT_EQ(1LL, Abs(-1LL));
   EXPECT_EQ(0.1f, Abs(-0.1f));
   EXPECT_EQ(0.01, Abs(-0.01));
+}
+
+TEST(Utils, ScalarsAlmostEqual) {
+  using ion::math::testing::IsAlmostEqual;
+  using ::testing::Not;
+
+  EXPECT_THAT(14.f, IsAlmostEqual(14.001f, 0.0015f));
+  EXPECT_THAT(14.f, Not(IsAlmostEqual(14.002f, 0.0015f)));
+  EXPECT_THAT(14.0, IsAlmostEqual(14.001, 0.0015));
+  EXPECT_THAT(14.0, Not(IsAlmostEqual(14.002, 0.0015)));
+}
+
+TEST(Utils, ScalarsAlmostZero) {
+  using ion::math::AlmostZero;
+
+  EXPECT_TRUE(AlmostZero(0.0f));
+  EXPECT_TRUE(AlmostZero(std::numeric_limits<float>::epsilon()));
+  EXPECT_FALSE(AlmostZero(std::numeric_limits<float>::epsilon() * 2.0f));
+  EXPECT_TRUE(AlmostZero(-std::numeric_limits<float>::epsilon()));
+  EXPECT_FALSE(AlmostZero(-std::numeric_limits<float>::epsilon() * 2.0f));
+
+  EXPECT_TRUE(AlmostZero(0.0));
+  EXPECT_TRUE(AlmostZero(std::numeric_limits<double>::epsilon()));
+  EXPECT_FALSE(AlmostZero(std::numeric_limits<double>::epsilon() * 2.0));
+  EXPECT_TRUE(AlmostZero(-std::numeric_limits<double>::epsilon()));
+  EXPECT_FALSE(AlmostZero(-std::numeric_limits<double>::epsilon() * 2.0));
+
+  const float tolerance_float = 0.001f;
+  EXPECT_TRUE(AlmostZero(0.0f, tolerance_float));
+  EXPECT_TRUE(AlmostZero(tolerance_float, tolerance_float));
+  EXPECT_FALSE(AlmostZero(tolerance_float * 2.0f, tolerance_float));
+  EXPECT_TRUE(AlmostZero(-tolerance_float, tolerance_float));
+  EXPECT_FALSE(AlmostZero(-tolerance_float * 2.0f, tolerance_float));
+
+  const double tolerance_double = 0.001;
+  EXPECT_TRUE(AlmostZero(0.0, tolerance_double));
+  EXPECT_TRUE(AlmostZero(tolerance_double, tolerance_double));
+  EXPECT_FALSE(AlmostZero(tolerance_double * 2.0f, tolerance_double));
+  EXPECT_TRUE(AlmostZero(-tolerance_double, tolerance_double));
+  EXPECT_FALSE(AlmostZero(-tolerance_double * 2.0f, tolerance_double));
 }
 
 TEST(Utils, Square) {
@@ -311,6 +352,12 @@ TEST(Utils, Lerp) {
   EXPECT_EQ(0.99, Lerp(1.0, 2.0, -0.01));
   EXPECT_EQ(0.0, Lerp(1.0, 2.0, -1.0));
   EXPECT_EQ(-1.0, Lerp(1.0, 2.0, -2.0));
+
+  // Verify Lerp'ing between ints using a float doesn't cause a conversion
+  // warning. Even though there is a genuine narrowing concern on this
+  // operation for ints over 8 million, it's common enough that we explicitly
+  // suppress the warning for Lerp.
+  EXPECT_EQ(50, Lerp(0, 100, 0.5f));
 }
 
 TEST(Utils, IsPowerOfTwo) {

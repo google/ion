@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -40,7 +40,6 @@
         'incompletetype.h',
         'indexmap_test.cc',
         'invalid_test.cc',
-        'lockguards_test.cc',
         'logchecker_test.cc',
         'logging_test.cc',
         'memoryzipstream_test.cc',
@@ -48,11 +47,13 @@
         'nulllogentrywriter_test.cc',
         'once_test.cc',
         'readwritelock_test.cc',
+        'scalarsequence_test.cc',
         'scopedallocation_test.cc',
         'serialize_test.cc',
         'setting_test.cc',
         'settingmanager_test.cc',
         'sharedptr_test.cc',
+        'signal_test.cc',
         'spinmutex_test.cc',
         'staticsafedeclare_test.cc',
         'stlallocator_test.cc',

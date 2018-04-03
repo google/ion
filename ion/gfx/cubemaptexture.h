@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -67,13 +67,17 @@ class ION_API CubeMapTexture : public TextureBase {
       faces_[face].SetImage(level, image, this);
   }
   bool HasImage(CubeFace face, size_t level) const {
-    return faces_[face].HasImage(level);
+    return level < GetImmutableLevels() || faces_[face].HasImage(level);
   }
   const ImagePtr GetImage(CubeFace face, size_t level) const {
+    if (level < GetImmutableLevels()) {
+      return GetImmutableImage();
+    }
     return faces_[face].GetImage(level);
   }
   size_t GetImageCount(CubeFace face) const {
-    return faces_[face].GetImageCount();
+    return GetImmutableLevels() ? GetImmutableLevels()
+                                : faces_[face].GetImageCount();
   }
   void SetSubImage(CubeFace face, size_t level, const math::Point2ui offset,
                    const ImagePtr& image) {
@@ -95,6 +99,8 @@ class ION_API CubeMapTexture : public TextureBase {
   // protected or private destructors.
   ~CubeMapTexture() override;
 
+  void ClearNonImmutableImages() override;
+
  private:
   // Called when a Texture that this depends on changes.
   void OnNotify(const base::Notifier* notifier) override;
@@ -112,7 +118,7 @@ class ION_API CubeMapTexture : public TextureBase {
 };
 
 // Convenience typedef for shared pointer to a CubeMapTexture.
-typedef base::ReferentPtr<CubeMapTexture>::Type CubeMapTexturePtr;
+using CubeMapTexturePtr = base::SharedPtr<CubeMapTexture>;
 
 }  // namespace gfx
 }  // namespace ion

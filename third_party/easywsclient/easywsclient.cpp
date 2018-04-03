@@ -1,4 +1,21 @@
 
+/**
+Copyright 2017 Google Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS-IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+*/
+
 #ifdef _WIN32
     #if defined(_MSC_VER) && !defined(_CRT_SECURE_NO_WARNINGS)
         #define _CRT_SECURE_NO_WARNINGS // _CRT_SECURE_NO_WARNINGS for sscanf errors in MSVC2013 Express
@@ -246,7 +263,7 @@ class _RealWebSocket : public easywsclient::WebSocket
     //template<class Callable>
     //void dispatch(Callable callable)
     virtual void _dispatch(WebSocket::Callback & callable) {
-        // TODO: consider acquiring a lock on rxbuf...
+        // 
         while (true) {
             wsheader_type ws;
             if (rxbuf.size() < 2) { return; /* Need at least 2 */ }
@@ -255,7 +272,7 @@ class _RealWebSocket : public easywsclient::WebSocket
             ws.opcode = (Opcode) (data[0] & 0x0f);
             ws.mask = (data[1] & 0x80) == 0x80;
             ws.N0 = (data[1] & 0x7f);
-            ws.header_size = 2 + (ws.N0 == 126? 2 : 0) + (ws.N0 == 127? 6 : 0) + (ws.mask? 4 : 0);
+            ws.header_size = 2 + (ws.N0 == 126? 2 : 0) + (ws.N0 == 127? 8 : 0) + (ws.mask? 4 : 0);
             if (rxbuf.size() < ws.header_size) { return; /* Need: ws.header_size - rxbuf.size() */ }
             int i = 0;
             if (ws.N0 < 126) {
@@ -296,7 +313,8 @@ class _RealWebSocket : public easywsclient::WebSocket
 
             // We got a whole message, now do something with it:
             if (false) { }
-            else if (ws.opcode == TEXT_FRAME && ws.fin) {
+            // Google change: Also accept BINARY_FRAME.
+            else if ((ws.opcode == TEXT_FRAME || ws.opcode == BINARY_FRAME) && ws.fin) {
                 if (ws.mask) { for (size_t i = 0; i != ws.N; ++i) { rxbuf[i+ws.header_size] ^= ws.masking_key[i&0x3]; } }
                 std::string data(rxbuf.begin()+ws.header_size, rxbuf.begin()+ws.header_size+(size_t)ws.N);
                 callable((const std::string) data);
@@ -324,12 +342,12 @@ class _RealWebSocket : public easywsclient::WebSocket
 
     // Google change: add ability to set "FIN" bit.
     virtual void sendData(Opcode type, const std::string& message, bool fin) {
-        // TODO:
+        // 
         // Masking key should (must) be derived from a high quality random
         // number generator, to mitigate attacks on non-WebSocket friendly
         // middleware:
         const uint8_t masking_key[4] = { 0x12, 0x34, 0x56, 0x78 };
-        // TODO: consider acquiring a lock on txbuf...
+        // 
         if (readyState == CLOSING || readyState == CLOSED) { return; }
         std::vector<uint8_t> header;
         uint64_t message_size = message.size();
@@ -357,7 +375,7 @@ class _RealWebSocket : public easywsclient::WebSocket
                 header[7] = masking_key[3];
             }
         }
-        else { // TODO: run coverage testing here
+        else { // 
             header[1] = 127 | (useMask ? 0x80 : 0);
             header[2] = (message_size >> 56) & 0xff;
             header[3] = (message_size >> 48) & 0xff;
@@ -470,7 +488,7 @@ easywsclient::WebSocket::pointer from_url(const std::string& url, bool useMask, 
                 fprintf(messageStream, "ERROR: Got bad status connecting to %s: %s", url.c_str(), line);
             return NULL;
         }
-        // TODO: verify response headers,
+        // 
         while (true) {
             for (i = 0; i < 2 || (i < 255 && line[i-2] != '\r' && line[i-1] != '\n'); ++i) { if (recv(sockfd, line+i, 1, 0) == 0) { return NULL; } }
             if (line[0] == '\r' && line[1] == '\n') { break; }

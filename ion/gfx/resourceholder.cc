@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,17 +16,20 @@ limitations under the License.
 */
 
 #include "ion/gfx/resourceholder.h"
-
 #include <algorithm>
+#include "ion/port/macros.h"
 
 namespace ion {
 namespace gfx {
 
 ResourceHolder::ResourceHolder()
-    : resources_(*this),
+    : overflow_resources_(*this),
       resource_count_(0),
       fields_(*this),
-      label_(kLabelChanged, std::string(), this) {}
+      label_(kLabelChanged, std::string(), this) {
+  std::fill(resources_.begin(), resources_.end(),
+            ResourceGroup(GetAllocator()));
+}
 
 ResourceHolder::~ResourceHolder() {
   // We don't need to lock because if anyone else is accessing resources_ there
@@ -39,13 +42,8 @@ ResourceHolder::~ResourceHolder() {
   // the correct thing to do when the ResourceManager initiates the
   // destruction). This would cause modifications to resources_ while we iterate
   // over them, leading to crashes.
-  for (const auto& group : resources_)
-    for (const auto& entry : group)
-      entry.second->holder_ = nullptr;
-
-  for (const auto& group : resources_)
-    for (const auto& entry : group)
-      entry.second->OnDestroyed();
+  IterateOverAllResources(NullHolder);
+  IterateOverAllResources(OnDestroyed);
 }
 
 void ResourceHolder::SetResource(size_t index, ResourceKey key,
@@ -59,51 +57,71 @@ void ResourceHolder::SetResource(size_t index, ResourceKey key,
       resource->OnChanged(fields_[i]->GetBit());
   }
 
-  ResourceBase* old_resource = nullptr;
-  base::WriteLock write_lock(&lock_);
-  base::WriteGuard guard(&write_lock);
-
-  // Increase the size of resources_ if necessary, or reduce its size if
-  // possible.
-  if (index >= resources_.size()) {
-    if (resource) {
-      // Only resize the vector if we are actually setting a non-NULL resource.
-      resources_.resize(index + 1U, ResourceGroup(*this));
-    } else {
-      // If resource is null and the index is out of current range,
-      // there is nothing to unset, so we can return early.
-      return;
-    }
+  base::WriteLock write_lock(&overflow_lock_);
+  base::WriteGuard guard(&write_lock, base::kDeferLock);
+  if (index >= kInlineResourceGroups) {
+    guard.Lock();
   }
-
+  ResourceBase* old_resource = nullptr;
+  ResourceGroup* group = GetResourceGroupLocked(index, true);
+  DCHECK(group);
   // Look up the previously set value at this index and key, if any.
-  auto found = resources_[index].find(key);
-  old_resource = (found == resources_[index].end() ? nullptr : found->second);
+  ResourceMap::iterator found;
+  if (!group->map.empty()) {
+    found = group->map.find(key);
+    old_resource = (found == group->map.end() ?
+                    nullptr : found->second);
+  } else if (group && group->cached_resource != nullptr &&
+             group->cached_resource_key == key) {
+    old_resource = group->cached_resource;
+  }
 
   // Add or remove the resource.
   if (resource) {
     // We are adding a resource to the holder or replacing an existing one.
     resource->holder_ = this;
     if (old_resource) {
-      // Remove the old resource. We can reuse the found iterator to avoid
-      // a second hash map lookup.
+      // We are replacing. Remove the old resource.
       old_resource->holder_ = nullptr;
-      found->second = resource;
+      if (!group->map.empty())
+        found->second = resource;
+      group->cached_resource = resource;
+      group->cached_resource_key = key;
     } else {
-      // No resource was previously set here.
-      resources_[index].emplace(key, resource);
+      // Here we are adding a new resource.
+      if (group->IsEmpty()) {
+        // Common case where have a single resource so avoid creating
+        // ResourceMap.
+        group->cached_resource = resource;
+        group->cached_resource_key = key;
+      } else if (!group->map.empty()) {
+        group->map.emplace(key, resource);
+      } else {
+        // Start using ResourceMap when we have > 1 resources and add initial
+        // resource to map.
+        DCHECK(group->cached_resource);
+        group->map.emplace(group->cached_resource_key, group->cached_resource);
+        group->map.emplace(key, resource);
+      }
     }
   } else if (old_resource) {
     // We are removing a resource from the holder.
     old_resource->holder_ = nullptr;
-    resources_[index].erase(found);
-    if (index + 1 == resources_.size()) {
-      // Removing a resource could have caused the
-      auto first_nonempty = std::find_if(resources_.rbegin(), resources_.rend(),
-          [](const ResourceGroup& group) { return !group.empty(); });
-      resources_.resize(std::distance(first_nonempty, resources_.rend()),
-                        ResourceGroup(*this));
+    if (!group->map.empty()) {
+      group->map.erase(found);
+      if (group->map.size() == 1U) {
+        // If we only have 1 resource, store it in cached_resource and delete
+        // map.
+        group->cached_resource = group->map.begin()->second;
+        group->cached_resource_key = group->map.begin()->first;
+        group->map.clear();
+      }
+    } else {
+      DCHECK_EQ(old_resource, group->cached_resource);
+      group->cached_resource = nullptr;
+      group->cached_resource_key = ~0;
     }
+    ShrinkResourceGroupsLocked();
   }
   // If both resource and old_resource are null, there is nothing to do.
 
@@ -114,16 +132,40 @@ void ResourceHolder::SetResource(size_t index, ResourceKey key,
     ++resource_count_;
   else if (!resource && old_resource)
     --resource_count_;
-
-  // Sanity check: the group with the highest index must be non-empty.
-  DCHECK(resources_.empty() || !resources_.back().empty());
 }
 
-ResourceBase* ResourceHolder::GetResource(size_t index, ResourceKey key) const {
-  const size_t count = resources_.size();
-  if (index >= count) return nullptr;
-  auto found = resources_[index].find(key);
-  return found == resources_[index].end() ? nullptr : found->second;
+void ResourceHolder::IterateOverAllResources(const IterateFunc& func) const {
+  for (const ResourceGroup& group : resources_) {
+    if (!group.map.empty()) {
+      for (const auto& entry : group.map)
+        func(entry.second);
+    } else if (group.cached_resource) {
+      func(group.cached_resource);
+    }
+  }
+  base::ReadLock read_lock(&overflow_lock_);
+  base::ReadGuard guard(&read_lock);
+  for (const ResourceGroup& group : overflow_resources_) {
+    if (!group.map.empty()) {
+      for (const auto& entry : group.map)
+        func(entry.second);
+    } else if (group.cached_resource) {
+      func(group.cached_resource);
+    }
+  }
+}
+
+void ResourceHolder::ShrinkResourceGroupsLocked() const {
+  if (overflow_resources_.empty()) return;
+  size_t overflow_size = overflow_resources_.size();
+  while (overflow_size > 0 &&
+         overflow_resources_[overflow_size - 1].IsEmpty()) {
+    --overflow_size;
+  }
+  overflow_resources_.resize(overflow_size);
+  // Sanity check: the group with the highest index must be non-empty.
+  DCHECK(overflow_size == 0 ||
+         !overflow_resources_[overflow_size - 1].IsEmpty());
 }
 
 ResourceHolder::FieldBase::~FieldBase() {}

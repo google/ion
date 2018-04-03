@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -116,6 +116,8 @@ const gfx::ShaderInputRegistryPtr BasicBuilder::GetShaderInputRegistry() {
 void BasicBuilder::GetShaderStrings(std::string* id_string,
                                     std::string* vertex_source,
                                     std::string* fragment_source) {
+  // If you copy code from here, and change the shaders. You must also change
+  // the id_string. If you do not, you are likely to have strange failures.
   *id_string = "Basic Text Shader";
   *vertex_source = kVertexShaderSource;
   *fragment_source = kFragmentShaderSource;

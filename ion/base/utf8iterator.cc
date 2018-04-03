@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -138,6 +138,8 @@ size_t Utf8Iterator::ComputeCharCount() const {
   // Return 0 on error.
   return it.GetState() == kEndOfString ? count : 0;
 }
+
+size_t Utf8Iterator::GetCurrentByteIndex() const { return cur_index_; }
 
 uint8 Utf8Iterator::GetNextByte() {
   if (state_ == kInString) {

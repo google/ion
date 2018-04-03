@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -55,6 +55,22 @@ float Layout::GetLineAdvanceHeight() const {
 
 void Layout::SetLineAdvanceHeight(float line_advance) {
   line_advance_height_ = line_advance;
+}
+
+const math::Point2f& Layout::GetPosition() const {
+  return position_;
+}
+
+void Layout::SetPosition(const math::Point2f& position) {
+  position_ = position;
+}
+
+const math::Vector2f& Layout::GetSize() const {
+  return size_;
+}
+
+void Layout::SetSize(const math::Vector2f& size) {
+  size_ = size;
 }
 
 // Helpers for logging Layouts/Glyphs/Quads.

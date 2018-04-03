@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ limitations under the License.
 #include "ion/base/static_assert.h"
 #include "ion/math/utils.h"
 #include "ion/portgfx/glheaders.h"
+#include "absl/base/macros.h"
 
 namespace ion {
 namespace gfx {
@@ -82,13 +83,14 @@ TextureBase::TextureBase(TextureType type)
     : sampler_(kSamplerChanged, SamplerPtr(), this),
       base_level_(kBaseLevelChanged, 0, this),
       max_level_(kMaxLevelChanged, 1000, this),
-      swizzle_red_(kSwizzleRedChanged, kRed, kRed, kAlpha, this),
-      swizzle_green_(kSwizzleGreenChanged, kGreen, kRed, kAlpha, this),
-      swizzle_blue_(kSwizzleBlueChanged, kBlue, kRed, kAlpha, this),
-      swizzle_alpha_(kSwizzleAlphaChanged, kAlpha, kRed, kAlpha, this),
+      swizzle_red_(kSwizzleRedChanged, kRed, kRed, kZero, this),
+      swizzle_green_(kSwizzleGreenChanged, kGreen, kRed, kZero, this),
+      swizzle_blue_(kSwizzleBlueChanged, kBlue, kRed, kZero, this),
+      swizzle_alpha_(kSwizzleAlphaChanged, kAlpha, kRed, kZero, this),
       texture_type_(type),
       immutable_image_(kImmutableImageChanged, ImagePtr(), this),
       immutable_levels_(0),
+      is_protected_(false),
       multisample_samples_(kMultisampleChanged, 0, this),
       multisample_fixed_sample_locations_(kMultisampleChanged, true, this) {}
 
@@ -105,7 +107,7 @@ void TextureBase::SetSampler(const SamplerPtr& sampler) {
     new_sampler->AddReceiver(this);
 }
 
-void TextureBase::SetImmutableImage(const ImagePtr& image, size_t levels) {
+bool TextureBase::SetImmutableImage(const ImagePtr& image, size_t levels) {
   if (image.Get()) {
     if (immutable_image_.Get().Get()) {
       LOG(ERROR) << "ION: SetImmutableImage() called on an already immutable "
@@ -116,8 +118,20 @@ void TextureBase::SetImmutableImage(const ImagePtr& image, size_t levels) {
     } else {
       immutable_levels_ = levels;
       immutable_image_.Set(image);
+      ClearNonImmutableImages();
+      return true;
     }
   }
+  return false;
+}
+
+bool TextureBase::SetProtectedImage(const ImagePtr& image, size_t levels) {
+  // Only change state if there was a valid call to SetImmutableImage().
+  if (SetImmutableImage(image, levels)) {
+    is_protected_ = true;
+    return true;
+  }
+  return false;
 }
 
 //-----------------------------------------------------------------------------
@@ -218,6 +232,10 @@ void Texture::OnNotify(const base::Notifier* notifier) {
   }
 }
 
+void Texture::ClearNonImmutableImages() {
+  face_.ClearMipmapImages();
+}
+
 }  // namespace gfx
 
 namespace base {
@@ -227,12 +245,15 @@ using gfx::Texture;
 // Specialize for Texture::Swizzle.
 template <> ION_API
 const EnumHelper::EnumData<Texture::Swizzle> EnumHelper::GetEnumData() {
-  static const GLenum kValues[] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
-  static const char* kStrings[] = { "Red", "Green", "Blue", "Alpha" };
-  ION_STATIC_ASSERT(ARRAYSIZE(kValues) == ARRAYSIZE(kStrings),
+  static const GLenum kValues[] =
+      { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA, GL_ONE, GL_ZERO };
+  static const char* kStrings[] =
+      { "Red", "Green", "Blue", "Alpha", "One", "Zero" };
+  ION_STATIC_ASSERT(ABSL_ARRAYSIZE(kValues) == ABSL_ARRAYSIZE(kStrings),
                     "EnumHelper size mismatch");
   return EnumData<Texture::Swizzle>(
-      base::IndexMap<Texture::Swizzle, GLenum>(kValues, ARRAYSIZE(kValues)),
+      base::IndexMap<Texture::Swizzle, GLenum>(kValues,
+                                               ABSL_ARRAYSIZE(kValues)),
       kStrings);
 }
 

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -219,14 +219,14 @@ typedef std::basic_string<char16, url::base::string16_char_traits> string16;
 // to occur even when a std::basic_string<> does not cross shared library
 // boundaries, such as in statically-linked executables.
 //
-// TODO(user): File this bug with Apple and update this note with a bug number.
+// 
 
 extern template
 class std::basic_string<url::base::char16, url::base::string16_char_traits>;
 
 #endif  // WCHAR_T_IS_UTF32
 
-// TODO(user) update users of string16 to use the namespace and remove
+// 
 // this "using".
 using url::base::char16;
 using url::base::string16;

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -40,9 +40,14 @@ class ION_API Shape : public base::Referent {
     kTriangles,  // Default.
     kTriangleFan,
     kTriangleStrip,
+    kPatches,
   };
 
   Shape();
+
+  // Creates a shallow copy of the shape that shares the same vertex attribute
+  // buffer data and index buffer data.
+  Shape(const Shape& from);
 
   // Returns/sets the label of this.
   const std::string& GetLabel() const { return label_; }
@@ -114,6 +119,9 @@ class ION_API Shape : public base::Referent {
   // Returns the instance count that the vertex range is set to.
   int GetVertexRangeInstanceCount(size_t i) const;
 
+  void SetPatchVertices(int count) { patch_vertices_ = count; }
+  int GetPatchVertices() const { return patch_vertices_; }
+
  protected:
   // The destructor is protected because all base::Referent classes must have
   // protected or private destructors.
@@ -158,13 +166,16 @@ class ION_API Shape : public base::Referent {
   // the shape is drawn with regular functions. Note that this value will be
   // ignored if vertex range is enabled.
   int instance_count_;
+  // Number of vertex per patch this shape contains. Only used when primitive
+  // type is kPatches. Default value is 3.
+  int patch_vertices_;
   // An identifying name for this Shape that can appear in debug streams and
   // printouts of a scene.
   std::string label_;
 };
 
 // Convenience typedef for shared pointer to a Shape.
-typedef base::ReferentPtr<Shape>::Type ShapePtr;
+using ShapePtr = base::SharedPtr<Shape>;
 
 }  // namespace gfx
 }  // namespace ion

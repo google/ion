@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,9 +28,9 @@ namespace gfx {
 // when tracing OpenGL calls.
 class ION_API TracingHelper {
  public:
-  // The constructor sets up the data necessary to map OpenGL constant values
-  // to mnemonic names.
-  TracingHelper();
+  using GlEnumMap = std::unordered_map<int, const char*>;
+
+  TracingHelper() {}
 
   // This templated function is used to print each OpenGL function argument in
   // a more readable way. The unspecialized version just converts the type to a
@@ -39,8 +39,9 @@ class ION_API TracingHelper {
   template <typename T> const std::string ToString(const char* arg_type, T arg);
 
  private:
-  // Indexed vector mapping OpenGL constant values to constant names.
-  std::unordered_map<int, std::string> constants_;
+  // Implemented in tracinghelperenums.cc.
+  static GlEnumMap* CreateGlEnumMap();
+  static const GlEnumMap& GetGlEnumMap();
 };
 
 #if !ION_PRODUCTION

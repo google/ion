@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,16 +26,19 @@
         'attribute_test.cc',
         'attributearray_test.cc',
         'bufferobject_test.cc',
+        'computeprogram_test.cc',
         'cubemaptexture_test.cc',
         'framebufferobject_test.cc',
-        'glplatformcaps.inc',
         'graphicsmanager_test.cc',
         'image_test.cc',
         'indexbuffer_test.cc',
-        'mockgraphicsmanager_test.cc',
+        'fakegraphicsmanager_test.cc',
         'mockresource_test.cc',
         'node_test.cc',
+        'renderer_common.h',
+        'renderer_common.cc',
         'renderer_test.cc',
+        'renderer_texture_test.cc',
         'resourcemanager_test.cc',
         'sampler_test.cc',
         'shader_test.cc',
@@ -44,15 +47,18 @@
         'shape_test.cc',
         'statetable_test.cc',
         'texture_test.cc',
-        'texturemanager_test.cc',
         'tracecallextractor_test.cc',
+        'transformfeedback_test.cc',
         'uniform_test.cc',
         'uniformblock_test.cc',
         'uniformholder_test.cc',
         'updatestatetable_test.cc',
       ],
+      'cflags_cc': [
+        '-Wno-unused-function',
+      ],
       'conditions': [
-        ['OS == "windows" and not angle', {
+        ['OS == "win" and not angle', {
           'sources!': [
             'graphicsmanager_test.cc',
             'resourcemanager_test.cc',
@@ -60,7 +66,7 @@
         }],
         ['OS == "asmjs"', {
           'sources!': [
-            # TODO(user): Re-enable this test by creating a stubbed out
+
             # canvas.
             'graphicsmanager_test.cc',
           ],
@@ -71,6 +77,7 @@
         '<(ion_dir)/external/external.gyp:ionzlib',
         '<(ion_dir)/external/gtest.gyp:iongtest_safeallocs',
         '<(ion_dir)/gfx/gfx.gyp:iongfx_for_tests',
+        '<(ion_dir)/gfxutils/gfxutils.gyp:iongfxutils',
         '<(ion_dir)/port/port.gyp:ionport',
         '<(ion_dir)/portgfx/portgfx.gyp:ionportgfx_for_tests',
       ],

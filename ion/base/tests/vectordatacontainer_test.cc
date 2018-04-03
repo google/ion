@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ namespace base {
 TEST(VectorDataContainerTest, UnwipableData) {
   VectorDataContainer<double>* vdc = new VectorDataContainer<double>(false);
   DataContainerPtr ptr(vdc);
-  EXPECT_TRUE(ptr->GetData() == NULL);
+  EXPECT_TRUE(ptr->GetData() == nullptr);
   EXPECT_FALSE(ptr->IsWipeable());
 
   const AllocVector<double>& data = vdc->GetVector();
@@ -39,14 +39,14 @@ TEST(VectorDataContainerTest, UnwipableData) {
 
   mut_data.push_back(100.);
   mut_data.push_back(102.);
-  EXPECT_FALSE(ptr->GetData() == NULL);
+  EXPECT_FALSE(ptr->GetData() == nullptr);
   const double* data_ptr = ptr->GetData<double>();
   EXPECT_EQ(100., data_ptr[0]);
   EXPECT_EQ(102., data_ptr[1]);
   EXPECT_EQ(data_ptr, &data[0]);
 
   ptr->WipeData();
-  EXPECT_FALSE(ptr->GetData() == NULL);
+  EXPECT_FALSE(ptr->GetData() == nullptr);
   EXPECT_FALSE(data.empty());
   EXPECT_FALSE(mut_data.empty());
   data_ptr = ptr->GetData<double>();
@@ -58,7 +58,7 @@ TEST(VectorDataContainerTest, UnwipableData) {
 TEST(VectorDataContainerTest, WipableData) {
   VectorDataContainer<int>* vdc = new VectorDataContainer<int>(true);
   DataContainerPtr ptr(vdc);
-  EXPECT_TRUE(ptr->GetData() == NULL);
+  EXPECT_TRUE(ptr->GetData() == nullptr);
   EXPECT_TRUE(ptr->IsWipeable());
 
   const AllocVector<int>& data = vdc->GetVector();
@@ -68,13 +68,13 @@ TEST(VectorDataContainerTest, WipableData) {
   EXPECT_EQ(&mut_data, &data);
 
   mut_data.push_back(10);
-  EXPECT_FALSE(ptr->GetData() == NULL);
+  EXPECT_FALSE(ptr->GetData() == nullptr);
   const int* data_ptr = ptr->GetData<int>();
   EXPECT_EQ(10, data_ptr[0]);
   EXPECT_EQ(data_ptr, &data[0]);
 
   ptr->WipeData();
-  EXPECT_TRUE(ptr->GetData() == NULL);
+  EXPECT_TRUE(ptr->GetData() == nullptr);
   EXPECT_TRUE(data.empty());
   EXPECT_TRUE(mut_data.empty());
   EXPECT_GE(1U, data.capacity());

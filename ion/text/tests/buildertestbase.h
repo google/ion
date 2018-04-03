@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ template <typename BuilderType> class BuilderTestBase : public ::testing::Test {
   void SetUp() override {
     builder_ =
         new TestBuilder(gfxutils::ShaderManagerPtr(), FontImage::kStatic);
-    EXPECT_FALSE(builder_->GetFont().Get() == NULL);
+    EXPECT_TRUE(builder_->GetFont());
   }
 
   // Returns the Font.
@@ -125,14 +125,28 @@ template <typename BuilderType> class BuilderTestBase : public ::testing::Test {
     builder_ = new TestBuilder(sm, FontImage::kStatic);
   }
 
+  // Replaces the builder with one that uses a ShaderManager that already
+  // contains a shader with the same shader name as used by the builder.
+  // Returns the newly created ShaderManager.
+  gfxutils::ShaderManagerPtr UseBuilderWithShaderManagerAndShader() {
+    gfxutils::ShaderManagerPtr sm(new gfxutils::ShaderManager());
+    builder_ = new TestBuilder(sm, FontImage::kStatic);
+    return sm;
+  }
+
+  // Provides a formatted version of the shader id.
+  const std::string GetShaderIdString() const {
+    return std::string("  Shader ID: \"") + GetShaderId() + "\"\n";
+  }
+
   // Derived classes must implement these functions.
-  virtual const std::string GetShaderIdString() const = 0;
+  virtual const std::string GetShaderId() const = 0;
   virtual const std::string GetUniformString() const = 0;
 
   // Tests that BuilderType properly propagate sub-images to Textures and clears
   // them from ImageData.
   ::testing::AssertionResult TestDynamicFontSubImages() {
-    typename base::ReferentPtr<BuilderType>::Type builder(
+    base::SharedPtr<BuilderType> builder(
         new TestBuilder(gfxutils::ShaderManagerPtr(), FontImage::kDynamic));
     Layout layout = BuildLayout("bg");
 
@@ -152,7 +166,7 @@ template <typename BuilderType> class BuilderTestBase : public ::testing::Test {
     }
 
     // Add some more glyphs to force sub-image creation.
-    GlyphSet glyph_set(base::AllocatorPtr(NULL));
+    GlyphSet glyph_set(base::AllocatorPtr(nullptr));
     glyph_set.insert(dfi->GetFont()->GetDefaultGlyphForChar('A'));
     glyph_set.insert(dfi->GetFont()->GetDefaultGlyphForChar('.'));
     const FontImage::ImageData& data = dfi->FindImageData(glyph_set);
@@ -193,7 +207,7 @@ template <typename BuilderType> class BuilderTestBase : public ::testing::Test {
                       shader_manager, base::AllocatorPtr()) {}
   };
 
-  typename base::ReferentPtr<BuilderType>::Type builder_;
+  base::SharedPtr<BuilderType> builder_;
 };
 
 }  // namespace testing

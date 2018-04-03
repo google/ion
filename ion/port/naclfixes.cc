@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ int getaddrinfo(const char *node, const char *service,
 void freeaddrinfo(struct addrinfo *res) {}
 
 char *gai_strerror(int errcode) {
-  return NULL;
+  return nullptr;
 }
 
 int getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen) {

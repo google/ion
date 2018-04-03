@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,8 +34,8 @@ namespace math {
 // returns the other range. Otherwise, it returns the smallest Range containing
 // both.
 template <int Dimension, typename T>
-const Range<Dimension, T> RangeUnion(const Range<Dimension, T> &r0,
-                                     const Range<Dimension, T> &r1) {
+Range<Dimension, T> RangeUnion(const Range<Dimension, T>& r0,
+                               const Range<Dimension, T>& r1) {
   Range<Dimension, T> result(r0);
   result.ExtendByRange(r1);
   return result;
@@ -45,8 +45,8 @@ const Range<Dimension, T> RangeUnion(const Range<Dimension, T> &r0,
 // this returns an empty range. Otherwise, it returns the largest Range
 // contained by both.
 template <int Dimension, typename T>
-const Range<Dimension, T> RangeIntersection(const Range<Dimension, T> &r0,
-                                            const Range<Dimension, T> &r1) {
+Range<Dimension, T> RangeIntersection(const Range<Dimension, T>& r0,
+                                      const Range<Dimension, T>& r1) {
   if (r0.IsEmpty() || r1.IsEmpty()) {
     return Range<Dimension, T>();
   } else {
@@ -104,8 +104,7 @@ bool RangesAlmostEqual(const Range<Dimension, T>& r0,
 // the given factor. If the factor is not positive, this returns an empty
 // Range.
 template <int Dimension, typename T>
-const Range<Dimension, T> ScaleRange(const Range<Dimension, T>& r,
-                                     T scale_factor) {
+Range<Dimension, T> ScaleRange(const Range<Dimension, T>& r, T scale_factor) {
   typedef Range<Dimension, T> RangeType;
   RangeType scaled;
   if (!r.IsEmpty() && scale_factor > static_cast<T>(0)) {
@@ -120,7 +119,7 @@ const Range<Dimension, T> ScaleRange(const Range<Dimension, T>& r,
 // by the given per-dimension factors. If any factor is not positive, this
 // returns an empty Range.
 template <int Dimension, typename T>
-const Range<Dimension, T> ScaleRangeNonUniformly(
+Range<Dimension, T> ScaleRangeNonUniformly(
     const Range<Dimension, T>& r, const Vector<Dimension, T> scale_factors) {
   typedef Range<Dimension, T> RangeType;
   RangeType scaled;
@@ -146,8 +145,8 @@ const Range<Dimension, T> ScaleRangeNonUniformly(
 // point Vector, the modulation will occur using floating point multiply.  If
 // any factor is not positive, this returns an empty Range.
 template <int Dimension, typename T1, typename T2>
-const Range<Dimension, T1> ModulateRange(
-    const Range<Dimension, T1>& r, const Vector<Dimension, T2> modulation) {
+Range<Dimension, T1> ModulateRange(const Range<Dimension, T1>& r,
+                                   const Vector<Dimension, T2> modulation) {
   typedef Range<Dimension, T1> RangeType;
   RangeType modulated;
   if (!r.IsEmpty()) {

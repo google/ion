@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ files, relative to the .iad file. THIS IS IMPORTANT! Returning absolute paths to
 source files is no bueno for certain gyp generators (xcode).
 """
 
-
+__author__ = 'dimator@google.com (Dimi Shahbaz)'
 
 import argparse
 import os

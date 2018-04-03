@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -121,7 +121,7 @@
              ],
           },
         }],
-        ['OS == "windows"', {
+        ['OS == "win"', {
           'sources': [
             '<(freetype2_dir)/src/base/ftsystem.c',
           ],
@@ -130,6 +130,7 @@
             '4146',  # Unary minus applied to unsigned type.
             '4244',  # Conversion loses precision.
             '4267',  # Conversion loses data.
+            '4312',  # Conversion from A to B of greater size.
           ],
         }],
         ['OS == "android"', {

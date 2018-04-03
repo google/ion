@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ limitations under the License.
 
 // ION_ARGCOUNT(__VA_ARGS__) returns the number of arguments passed to it, up to
 // 64 arguments. See:
-// http://groups.google.com/group/comp.std.c/browse_thread/thread/77ee8c8f92e4a3fbugfc464319b1ee5?pli=1  NOLINT
+// http://groups.google.com/group/comp.std.c/browse_thread/thread/77ee8c8f92e4a3fb/346fc464319b1ee5?pli=1  NOLINT
 
 // This expansion is unfortunately necessary because of a bug in VS2010 that
 // does not expand __VA_ARGS__ properly when passed to another macro.

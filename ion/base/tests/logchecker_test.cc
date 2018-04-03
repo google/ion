@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,19 +20,9 @@ limitations under the License.
 #include "ion/base/stringutils.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
-class LogChecker : public testing::Test {
- public:
-  LogChecker() {
-    // Null out the break handler so we don't trigger breakpoints or abort when
-    // we throw fatal errors.
-    ion::base::SetBreakHandler(std::function<void()>());
-  }
-  ~LogChecker() override { ion::base::RestoreDefaultBreakHandler(); }
-};
-
 // Logging is disabled in production mode.
 #if !ION_PRODUCTION
-TEST_F(LogChecker, Basic) {
+TEST(LogChecker, Basic) {
   ion::base::LogChecker log_checker;
   EXPECT_FALSE(log_checker.HasAnyMessages());
 
@@ -54,34 +44,39 @@ TEST_F(LogChecker, Basic) {
   EXPECT_TRUE(log_checker.HasNoMessage("WARNING", "Another"));
   EXPECT_FALSE(log_checker.HasAnyMessages());
 
-  LOG(FATAL) << "Fatal error";
+  // Note there is no message since we are using a LogChecker.
+  EXPECT_DEATH_IF_SUPPORTED(LOG(FATAL) << "Fatal error", "");
+  // With EXPECT_DEATH, we will get no messages.
   EXPECT_FALSE(log_checker.HasMessage("ERROR", "Fatal"));
   EXPECT_FALSE(log_checker.HasMessage("FATAL", "fatal"));
-  EXPECT_FALSE(log_checker.HasNoMessage("FATAL", "Fatal"));
-  EXPECT_TRUE(log_checker.HasMessage("FATAL", "Fatal"));
+  EXPECT_FALSE(log_checker.HasMessage("FATAL", "Fatal"));
+  EXPECT_TRUE(log_checker.HasNoMessage("FATAL", "Fatal"));
   EXPECT_TRUE(log_checker.HasNoMessage("ERROR", "Fatal"));
   EXPECT_TRUE(log_checker.HasNoMessage("FATAL", "fatal"));
 
-  LOG(DFATAL) << "DFatal error";
+  EXPECT_DEATH_IF_SUPPORTED(LOG(DFATAL) << "DFatal error", "");
+  // With EXPECT_DEATH, we will get no messages.
   EXPECT_FALSE(log_checker.HasMessage("ERROR", "Fatal"));
   EXPECT_FALSE(log_checker.HasMessage("FATAL", "fatal"));
-  EXPECT_FALSE(log_checker.HasNoMessage("DFATAL", "DFatal"));
-  EXPECT_TRUE(log_checker.HasMessage("DFATAL", "DFatal"));
+  EXPECT_FALSE(log_checker.HasMessage("DFATAL", "DFatal"));
+  EXPECT_TRUE(log_checker.HasNoMessage("DFATAL", "DFatal"));
   EXPECT_TRUE(log_checker.HasNoMessage("ERROR", "Fatal"));
   EXPECT_TRUE(log_checker.HasNoMessage("FATAL", "fatal"));
 
-  const int* null_int_ptr = NULL;
-  const int* null_int_ptr_result = CHECK_NOTNULL(null_int_ptr);
+  const int* null_int_ptr = nullptr;
+  const int* null_int_ptr_result = nullptr;
+  EXPECT_DEATH_IF_SUPPORTED(null_int_ptr_result = CHECK_NOTNULL(null_int_ptr),
+                            "");
   EXPECT_FALSE(log_checker.HasMessage("ERROR", "NOTNULL"));
   EXPECT_FALSE(log_checker.HasMessage("FATAL", "Notnull"));
-  EXPECT_FALSE(log_checker.HasNoMessage("FATAL", "NOTNULL"));
-  EXPECT_TRUE(log_checker.HasMessage("FATAL", "NOTNULL"));
+  EXPECT_FALSE(log_checker.HasMessage("FATAL", "NOTNULL"));
+  EXPECT_TRUE(log_checker.HasNoMessage("FATAL", "NOTNULL"));
   EXPECT_TRUE(log_checker.HasNoMessage("ERROR", "NOTNULL"));
   EXPECT_TRUE(log_checker.HasNoMessage("FATAL", "Notnull"));
-  EXPECT_TRUE(null_int_ptr_result == NULL);
+  EXPECT_TRUE(null_int_ptr_result == nullptr);
 }
 
-TEST_F(LogChecker, GetAllMessages) {
+TEST(LogChecker, GetAllMessages) {
   ion::base::LogChecker log_checker;
   EXPECT_TRUE(log_checker.GetAllMessages().empty());
 
@@ -103,7 +98,7 @@ TEST_F(LogChecker, GetAllMessages) {
   EXPECT_FALSE(log_checker.HasAnyMessages());
 }
 
-TEST_F(LogChecker, HasSecondMessage) {
+TEST(LogChecker, HasSecondMessage) {
   ion::base::LogChecker log_checker;
   EXPECT_TRUE(log_checker.GetAllMessages().empty());
 
@@ -120,7 +115,7 @@ TEST_F(LogChecker, HasSecondMessage) {
   EXPECT_FALSE(log_checker.HasAnyMessages());
 }
 
-TEST_F(LogChecker, DestroyedWithMessages) {
+TEST(LogChecker, DestroyedWithMessages) {
   // Test that destroying a LogChecker when it contains error messages will
   // produce an error message. This uses an outer LogChecker to trap the
   // message produced by the inner one.
@@ -133,7 +128,7 @@ TEST_F(LogChecker, DestroyedWithMessages) {
 }
 #endif
 
-TEST_F(LogChecker, UninstallsWhenDestroyed) {
+TEST(LogChecker, UninstallsWhenDestroyed) {
   {
     ion::base::LogChecker checker;
     EXPECT_EQ(&checker, ion::base::GetLogEntryWriter());

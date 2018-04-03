@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,21 +29,75 @@
       'target_name': 'ionportgfx',
       'type': 'static_library',
       'sources': [
-        'getglprocaddress.cc',
-        'getglprocaddress.h',
+        'glenums.h',
         'glheaders.h',
         'isextensionsupported.cc',
         'isextensionsupported.h',
         'setswapinterval.cc',
         'setswapinterval.h',
-        'visual.cc',
-        'visual.h',
+        'glcontext.cc',
+        'glcontext.h',
       ],
       'conditions': [
-        ['OS in ["ios", "mac"]', {
+        ['OS in ["win"] and ogles20==0', {
           'sources' : [
-            'visual_darwin.mm',
+            'wglcontext.cc',
+            'window_win32.cc',
+            'window_win32.h',
           ],
+        }],
+        ['OS in ["win"] and ogles20==1', {
+          'sources' : [
+            'eglcontext.cc',
+            'eglcontextbase.cc',
+            'eglcontextbase.h',
+          ],
+        }],
+        ['OS in ["ios"]', {
+          'sources' : [
+            'eaglcontext.mm',
+          ],
+        }],
+        ['OS in ["mac"]', {
+          'sources' : [
+            'nsglcontext.mm',
+          ],
+        }],
+        ['OS in ["linux"]', {
+          'sources' : [
+            'glxcontext.cc',
+          ],
+        }],
+        ['OS in ["android"]', {
+          'sources' : [
+            'eglcontext.cc',
+            'eglcontextbase.cc',
+            'eglcontextbase.h',
+          ],
+        }],
+        ['OS in ["nacl"]', {
+          'sources' : [
+            'naclcontext.cc',
+          ],
+        }],
+        ['OS in ["asmjs"]', {
+          'sources' : [
+            'asmjscontext.cc',
+            'eglcontextbase.cc',
+            'eglcontextbase.h',
+          ],
+        }],
+        # OpenGL ES is required for these platforms or when OGLES20 is
+        # explicitly enabled.
+        ['OS in ["android", "ios", "nacl", "asmjs", "qnx"] or ogles20==1', {
+          'defines': [
+            'ION_GFX_OGLES20=1',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'ION_GFX_OGLES20=1',
+            ],
+          },
         }],
       ],
       'dependencies': [

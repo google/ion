@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ limitations under the License.
 
 // Adapts Google's standard base/port.h for Ion.
 
-#if defined(ION_PLATFORM_ANDROID) || defined(ION_PLATFORM_GENERIC_ARM)
+#if defined(ION_PLATFORM_ANDROID) || defined(ION_GOOGLE_INTERNAL)
 #include <cerrno>  // For ENOMEM.
 #endif
 
@@ -40,7 +40,7 @@ using std::set;
 #if !defined(ION_GOOGLE_INTERNAL)
 using std::string;
 #endif
-#if defined(ION_PLATFORM_ANDROID) || defined(ION_PLATFORM_GENERIC_ARM)
+#if defined(ION_PLATFORM_ANDROID) || defined(ION_GOOGLE_INTERNAL)
 #define IS_LITTLE_ENDIAN
 // The Android definition of isinf changes not by compiler, but based
 // on the level of the ABI you're targeting.  ABI9 provides no definition
@@ -58,6 +58,7 @@ using std::isnan;
 using std::swap;
 using std::vector;
 
+#include "ion/port/override/absl/base/port.h"
 #include "util/port.h"
 
 // It seems that clang does not define nullptr_t where we expects it.

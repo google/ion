@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ namespace ion {
 namespace gfx {
 class BufferObject;
 // Convenience typedef for shared pointer to a BufferObject.
-typedef base::ReferentPtr<BufferObject>::Type BufferObjectPtr;
+using BufferObjectPtr = base::SharedPtr<BufferObject>;
 
 // A BufferObject describes a generic array of data used, for example, to
 // describe the vertices in a Shape or data retrieved from a framebuffer. It is
@@ -54,12 +54,12 @@ typedef base::ReferentPtr<BufferObject>::Type BufferObjectPtr;
 //  - kStreamDraw: The data store contents will be modified once and used at
 //                 most a few times.
 //
-// A BufferObject can be bound to two possible targets: a kElementBuffer or a
-// kArrayBuffer. kElementBuffer means the data will be used as an element array
-// defining indices, while kArrayBuffer means the data will be used for array
-// data, such as vertices. BufferObjects are by default kArrayBuffers; see
-// the IndexBuffer class for creating types of kElementBuffer to be used as
-// index arrays.
+// A BufferObject can be bound to a number of targets, but only two targets
+// are used for draw calls: kElementBuffer and kArrayBuffer. kElementBuffer
+// means the data will be used as an element array defining indices, while
+// kArrayBuffer means the data will be used for array data, such as vertices.
+// BufferObjects are by default kArrayBuffers; see the IndexBuffer class for
+// creating types of kElementBuffer to be used as index arrays.
 //
 // After a buffer's data has been set through SetData(), callers can modify
 // sub-ranges of data through SetSubData(), or update the entire buffer's data
@@ -94,7 +94,14 @@ class ION_API BufferObject : public ResourceHolder {
     kArrayBuffer,
     kElementBuffer,
     kCopyReadBuffer,
-    kCopyWriteBuffer
+    kCopyWriteBuffer,
+    kTransformFeedbackBuffer,
+    kNumTargets
+  };
+
+  enum IndexedTarget {
+    kIndexedTransformFeedbackBuffer,
+    kNumIndexedTargets
   };
 
   enum UsageMode {
@@ -131,12 +138,6 @@ class ION_API BufferObject : public ResourceHolder {
     BufferObjectPtr src;
   };
 
-  // Creates a BufferObject of type kArrayBuffer.
-  BufferObject();
-
-  // Gets the buffer target.
-  Target GetTarget() const { return target_; }
-
   struct Spec {
     // Default constructor for STL.
     Spec()
@@ -164,6 +165,12 @@ class ION_API BufferObject : public ResourceHolder {
     ComponentType type;
   };
 
+  // Creates a BufferObject.
+  BufferObject();
+
+  // Gets the buffer's initial bind target.
+  Target GetInitialTarget() const { return initial_target_; }
+
   // Describes an element of an arbitrary datatype to the BufferObject. An
   // element is defined by its byte offset into the struct, its type, and the
   // number of components it contains.
@@ -180,7 +187,7 @@ class ION_API BufferObject : public ResourceHolder {
 
   // Gets the Spec at index spec_index. If spec_index is invalid,
   // returns an InvalidReference.
-  const Spec& GetSpec(const size_t spec_index) const;
+  const Spec& GetSpec(const size_t element_index) const;
 
   // Gets the number of Specs in the BufferObject.
   size_t GetSpecCount() const { return specs_.size(); }
@@ -349,8 +356,9 @@ class ION_API BufferObject : public ResourceHolder {
   // The data.
   Field<BufferData> data_;
 
-  // Target to bind the data to.
-  Target target_;
+  // Initial bind target. Note that the buffer may be bound to other targets
+  // depending on how it is used.
+  const Target initial_target_;
 
   // Ranges of the BufferObject's data container that have been modified. It is
   // mutable so that it can be cleared even in const instances.

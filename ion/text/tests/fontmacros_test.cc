@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@ limitations under the License.
 
 */
 
-#include "ion/base/logchecker.h"
 #include "ion/text/fontmacros.h"
+#include "ion/base/logchecker.h"
 #include "ion/text/fonts/roboto_regular.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
@@ -27,7 +27,7 @@ TEST(FontMacrosTest, IonFont) {
   base::LogChecker logchecker;
   FontManagerPtr fm(new FontManager);
   ion::text::FontPtr font = ION_FONT(fm, roboto_regular, 56U, 4U);
-  EXPECT_FALSE(font.Get() == NULL);
+  EXPECT_TRUE(font);
   EXPECT_EQ("roboto_regular", font->GetName());
   EXPECT_EQ(56U, font->GetSizeInPixels());
   EXPECT_EQ(4U, font->GetSdfPadding());

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ limitations under the License.
 #include "ion/gfx/tests/mockresource.h"
 #include "ion/math/vector.h"
 
+#include "absl/memory/memory.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
 namespace ion {
@@ -39,7 +40,7 @@ class SamplerTest : public ::testing::Test {
  protected:
   void SetUp() override {
     sampler_.Reset(new Sampler());
-    resource_.reset(new MockSamplerResource);
+    resource_ = absl::make_unique<MockSamplerResource>();
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());
     sampler_->SetResource(0U, 0, resource_.get());
     EXPECT_EQ(resource_.get(), sampler_->GetResource(0U, 0));
@@ -49,7 +50,7 @@ class SamplerTest : public ::testing::Test {
   }
 
   // This is to ensure that the resource holder goes away before the resource.
-  void TearDown() override { sampler_.Reset(NULL); }
+  void TearDown() override { sampler_.Reset(nullptr); }
 
   SamplerPtr sampler_;
   std::unique_ptr<MockSamplerResource> resource_;

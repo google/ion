@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -53,10 +53,10 @@ TEST(ScopedAllocation, NoInstances) {
   {
     ion::base::ScopedAllocation<TestClass> scoped_tc(a, 0);
 
-    // Nothing should have been allocated and the pointer should be NULL.
+    // Nothing should have been allocated and the pointer should be null.
     EXPECT_EQ(0U, a->GetNumAllocated());
     EXPECT_EQ(0U, a->GetNumDeallocated());
-    EXPECT_TRUE(scoped_tc.Get() == NULL);
+    EXPECT_TRUE(scoped_tc.Get() == nullptr);
     EXPECT_EQ(0U, TestClass::GetNumConstructors());
     EXPECT_EQ(0U, TestClass::GetNumDestructors());
   }
@@ -82,7 +82,7 @@ TEST(ScopedAllocation, OneInstance) {
     // Make sure the TestClass was allocated and constructed properly.
     EXPECT_EQ(1U, TestClass::GetNumConstructors());
     EXPECT_EQ(0U, TestClass::GetNumDestructors());
-    EXPECT_FALSE(scoped_tc.Get() == NULL);
+    EXPECT_FALSE(scoped_tc.Get() == nullptr);
     EXPECT_EQ(123, scoped_tc.Get()->GetA());
   }
   // The TestClass should have been destroyed.
@@ -107,7 +107,7 @@ TEST(ScopedAllocation, NInstances) {
     // properly.
     EXPECT_EQ(4U, TestClass::GetNumConstructors());
     EXPECT_EQ(0U, TestClass::GetNumDestructors());
-    EXPECT_FALSE(scoped_tc.Get() == NULL);
+    EXPECT_FALSE(scoped_tc.Get() == nullptr);
     for (int i = 0; i < 4; ++i)
       EXPECT_EQ(123, scoped_tc.Get()[i].GetA());
   }
@@ -152,7 +152,7 @@ TEST(ScopedAllocation, HeapAllocation) {
   // properly.
   EXPECT_EQ(4U, TestClass::GetNumConstructors());
   EXPECT_EQ(0U, TestClass::GetNumDestructors());
-  EXPECT_FALSE(scoped_tc->Get() == NULL);
+  EXPECT_FALSE(scoped_tc->Get() == nullptr);
   for (int i = 0; i < 4; ++i)
     EXPECT_EQ(123, scoped_tc->Get()[i].GetA());
 
@@ -174,12 +174,12 @@ TEST(ScopedAllocation, TransferToDataContainer) {
   {
     ion::base::ScopedAllocation<TestClass> scoped_tc(a, 4);
     TestClass* ptr = scoped_tc.Get();
-    EXPECT_FALSE(ptr == NULL);
+    EXPECT_FALSE(ptr == nullptr);
 
     // This should empty out the ScopedAllocation instance.
     dc = scoped_tc.TransferToDataContainer(false);
-    EXPECT_TRUE(scoped_tc.Get() == NULL);
-    ASSERT_FALSE(dc.Get() == NULL);
+    EXPECT_TRUE(scoped_tc.Get() == nullptr);
+    ASSERT_FALSE(dc.Get() == nullptr);
     EXPECT_EQ(ptr, dc->GetData());
 
     // Both the TestClass array and DataContainer should have been allocated.
@@ -198,7 +198,7 @@ TEST(ScopedAllocation, TransferToDataContainer) {
 
   // Delete the DataContainer, which should cause the instances to be destroyed
   // and deleted as well.
-  dc = NULL;
+  dc = nullptr;
 
   // Now all TestClass instances should have been destroyed.
   EXPECT_EQ(4U, TestClass::GetNumConstructors());
@@ -216,13 +216,13 @@ TEST(ScopedAllocation, TransferEmptyToDataContainer) {
   ion::base::DataContainerPtr dc;
   {
     ion::base::ScopedAllocation<TestClass> scoped_tc(a, 0);
-    EXPECT_TRUE(scoped_tc.Get() == NULL);
+    EXPECT_TRUE(scoped_tc.Get() == nullptr);
     dc = scoped_tc.TransferToDataContainer(false);
-    ASSERT_FALSE(dc.Get() == NULL);
-    EXPECT_TRUE(scoped_tc.Get() == NULL);
-    EXPECT_TRUE(dc->GetData() == NULL);
+    ASSERT_FALSE(dc.Get() == nullptr);
+    EXPECT_TRUE(scoped_tc.Get() == nullptr);
+    EXPECT_TRUE(dc->GetData() == nullptr);
   }
-  dc = NULL;
+  dc = nullptr;
   EXPECT_EQ(0U, TestClass::GetNumConstructors());
   EXPECT_EQ(0U, TestClass::GetNumDestructors());
   // Only the DataContainer itself should have been allocated and deallocated

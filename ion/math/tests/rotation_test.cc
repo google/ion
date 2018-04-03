@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -80,6 +80,26 @@ TEST(Rotation, Constructor) {
   EXPECT_EQ(qi[3], qr[3]);
 }
 
+TEST(Rotation, TypeConvertingConstructor) {
+  // Test conversion from double to float.
+  {
+    const Rotationd rotd = Rotationd::FromAxisAndAngle(
+        Vector3d(1.0, 0.0, 0.0), Angled::FromDegrees(30.0));
+    const Rotationf rotf(rotd);
+    EXPECT_PRED2((testing::VectorsAlmostEqual<4, float>),
+                 rotf.GetQuaternion(), Vector4f(rotd.GetQuaternion()));
+  }
+
+  // Test conversion from float to double.
+  {
+    const Rotationf rotf = Rotationf::FromAxisAndAngle(
+        Vector3f(1.0f, 0.0f, 0.0f), Anglef::FromDegrees(30.0f));
+    const Rotationd rotd(rotf);
+    EXPECT_PRED2((testing::VectorsAlmostEqual<4, float>),
+                 Vector4f(rotd.GetQuaternion()), rotf.GetQuaternion());
+  }
+}
+
 TEST(Rotation, SetQuaternion) {
   const Vector4d unnormalized(1.0, 2.0, -3.0, 4.0);
   const Vector4d normalized = Normalized(unnormalized);
@@ -143,9 +163,11 @@ TEST(Rotation, AxisAngle) {
   EXPECT_EQ(0.0, angle.Radians());
 }
 
-TEST(Rotation, EulerAngles) {
-  // Create a rotation composed of 0.1 radians in Y, 0.2 radians in X, and
-  // 0.3 radians in Z.
+TEST(Rotation, EulerAnglesGetRollPitchYaw) {
+  // Create a composition of rotations in the order:
+  // - 0.3 radians in Z
+  // - 0.2 radians in X
+  // - 0.1 radians in Y
   Rotationd rotation_yaw = Rotationd::FromAxisAndAngle(
       Vector3d(0, 1, 0), Angled::FromRadians(.1));
   Rotationd rotation_pitch = Rotationd::FromAxisAndAngle(
@@ -163,12 +185,86 @@ TEST(Rotation, EulerAngles) {
   EXPECT_PRED2((testing::VectorsAlmostEqual<4, double>),
       rotation_final.GetQuaternion(), check_quaternion);
 
-  // Check component angles.
-  Angled yaw;
-  Angled pitch;
-  Angled roll;
-  rotation_final.GetEulerAngles(&yaw, &pitch, &roll);
+  // Check GetRollPitchYaw() and GetEulerAngles() produce the correct component
+  // angles.
   static const double kTolerance = 1e-8;
+  Angled yaw, pitch, roll;
+  rotation_final.GetRollPitchYaw(&roll, &pitch, &yaw);
+  EXPECT_NEAR(0.1, yaw.Radians(), kTolerance);
+  EXPECT_NEAR(0.2, pitch.Radians(), kTolerance);
+  EXPECT_NEAR(0.3, roll.Radians(), kTolerance);
+  rotation_final.GetEulerAngles(&yaw, &pitch, &roll);
+  EXPECT_NEAR(0.1, yaw.Radians(), kTolerance);
+  EXPECT_NEAR(0.2, pitch.Radians(), kTolerance);
+  EXPECT_NEAR(0.3, roll.Radians(), kTolerance);
+}
+
+TEST(Rotation, EulerAnglesGetYawPitchRoll) {
+  // Create a composition of rotations in the order:
+  // - 0.1 radians in Y
+  // - 0.2 radians in X
+  // - 0.3 radians in Z
+  Rotationd rotation_yaw =
+      Rotationd::FromAxisAndAngle(Vector3d(0, 1, 0), Angled::FromRadians(.1));
+  Rotationd rotation_pitch =
+      Rotationd::FromAxisAndAngle(Vector3d(1, 0, 0), Angled::FromRadians(.2));
+  Rotationd rotation_roll =
+      Rotationd::FromAxisAndAngle(Vector3d(0, 0, 1), Angled::FromRadians(.3));
+  Rotationd rotation_final = rotation_yaw * (rotation_pitch * rotation_roll);
+
+  // Check GetYawPitchRoll() produces the correct component angles.
+  static const double kTolerance = 1e-8;
+  Angled yaw, pitch, roll;
+  rotation_final.GetYawPitchRoll(&yaw, &pitch, &roll);
+  EXPECT_NEAR(0.1, yaw.Radians(), kTolerance);
+  EXPECT_NEAR(0.2, pitch.Radians(), kTolerance);
+  EXPECT_NEAR(0.3, roll.Radians(), kTolerance);
+}
+
+TEST(Rotation, EulerAnglesFromRollPitchYaw) {
+  // Use FromRollPitchYaw to create a composition of rotations in the order:
+  // - 0.3 radians in Z
+  // - 0.2 radians in X
+  // - 0.1 radians in Y
+  Rotationd rotation = Rotationd::FromRollPitchYaw(Angled::FromRadians(0.3),
+                                                   Angled::FromRadians(0.2),
+                                                   Angled::FromRadians(0.1));
+
+  // Check GetRollPitchYaw() and GetEulerAngles() produce the correct component
+  // angles.
+  static const double kTolerance = 1e-8;
+  Angled yaw, pitch, roll;
+  rotation.GetRollPitchYaw(&roll, &pitch, &yaw);
+  EXPECT_NEAR(0.1, yaw.Radians(), kTolerance);
+  EXPECT_NEAR(0.2, pitch.Radians(), kTolerance);
+  EXPECT_NEAR(0.3, roll.Radians(), kTolerance);
+  rotation.GetEulerAngles(&yaw, &pitch, &roll);
+  EXPECT_NEAR(0.1, yaw.Radians(), kTolerance);
+  EXPECT_NEAR(0.2, pitch.Radians(), kTolerance);
+  EXPECT_NEAR(0.3, roll.Radians(), kTolerance);
+
+  // Check that FromEulerAngles() produces the same rotation.
+  EXPECT_PRED2((testing::VectorsAlmostEqual<4, double>),
+               rotation.GetQuaternion(),
+               Rotationd::FromEulerAngles(Angled::FromRadians(0.1),
+                                          Angled::FromRadians(0.2),
+                                          Angled::FromRadians(0.3))
+                   .GetQuaternion());
+}
+
+TEST(Rotation, EulerAnglesFromYawPitchRoll) {
+  // Create a composition of rotations in the order:
+  // - 0.1 radians in Y
+  // - 0.2 radians in X
+  // - 0.3 radians in Z
+  Rotationd rotation = Rotationd::FromYawPitchRoll(Angled::FromRadians(0.1),
+                                                   Angled::FromRadians(0.2),
+                                                   Angled::FromRadians(0.3));
+
+  // Check GetYawPitchRoll() produces the correct component angles.
+  static const double kTolerance = 1e-8;
+  Angled yaw, pitch, roll;
+  rotation.GetYawPitchRoll(&yaw, &pitch, &roll);
   EXPECT_NEAR(0.1, yaw.Radians(), kTolerance);
   EXPECT_NEAR(0.2, pitch.Radians(), kTolerance);
   EXPECT_NEAR(0.3, roll.Radians(), kTolerance);
@@ -193,11 +289,9 @@ TEST(Rotation, EulerAnglesStraightUp) {
       rotation_final.GetQuaternion(), check_quaternion);
 
   // Check component angles.
-  Angled yaw;
-  Angled pitch;
-  Angled roll;
-  rotation_final.GetEulerAngles(&yaw, &pitch, &roll);
   static const double kTolerance = 1e-8;
+  Angled yaw, pitch, roll;
+  rotation_final.GetRollPitchYaw(&roll, &pitch, &yaw);
   EXPECT_NEAR(0.4, yaw.Radians(), kTolerance);
   EXPECT_NEAR(M_PI_2, pitch.Radians(), kTolerance);
   EXPECT_NEAR(0., roll.Radians(), kTolerance);
@@ -222,11 +316,9 @@ TEST(Rotation, EulerAnglesStraightDown) {
       rotation_final.GetQuaternion(), check_quaternion);
 
   // Check component angles.
-  Angled yaw;
-  Angled pitch;
-  Angled roll;
-  rotation_final.GetEulerAngles(&yaw, &pitch, &roll);
   static const double kTolerance = 1e-8;
+  Angled yaw, pitch, roll;
+  rotation_final.GetRollPitchYaw(&roll, &pitch, &yaw);
   EXPECT_NEAR(0.5, yaw.Radians(), kTolerance);
   EXPECT_NEAR(-M_PI_2, pitch.Radians(), kTolerance);
   EXPECT_NEAR(0., roll.Radians(), kTolerance);

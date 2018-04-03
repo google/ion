@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ namespace gfxutils {
 class ION_API Printer {
  public:
   // Available output formats.
-  // TODO(user): Implement HTML format.
+  // 
   enum Format {
     kText,   // Regular text format.
     kHtml,   // HTML format (a tree of nested objects).

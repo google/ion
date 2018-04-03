@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ limitations under the License.
 #include "ion/base/logging.h"
 #include "ion/base/static_assert.h"
 #include "ion/portgfx/glheaders.h"
+#include "absl/base/macros.h"
 
 namespace ion {
 namespace gfx {
@@ -120,15 +121,19 @@ void StateTable::MergeNonClearValuesFrom(const StateTable& other,
     ION_UPDATE_VALUE(kCullFaceModeValue, cull_face_mode)
     ION_UPDATE_VALUE(kDepthWriteMaskValue, depth_write_mask)
     ION_UPDATE_VALUE(kFrontFaceModeValue, front_face_mode)
+    ION_UPDATE_VALUE(kDefaultInnerTessellationLevelValue,
+                     default_inner_tess_level)
+    ION_UPDATE_VALUE(kDefaultOuterTessellationLevelValue,
+                     default_outer_tess_level)
     ION_UPDATE_VALUE(kDepthFunctionValue, depth_function)
     ION_UPDATE_VALUE(kDepthRangeValue, depth_range)
-    ION_UPDATE_VALUE(kDrawBufferValue, draw_buffer);
     // Hints are an array of unknown size and so must be handled specially.
     if (other.IsValueSet(StateTable::kHintsValue)) {
       for (int i = 0; i < kNumHints; ++i)
         data_.hints[i] = other.data_.hints[i];
     }
     ION_UPDATE_VALUE(kLineWidthValue, line_width)
+    ION_UPDATE_VALUE(kMinSampleShadingValue, min_sample_shading)
     ION_UPDATE_VALUE(
         kPolygonOffsetValue, polygon_offset_factor, polygon_offset_units)
     ION_UPDATE_VALUE(
@@ -203,6 +208,12 @@ void StateTable::ResetValue(Value value) {
     case kClearDepthValue:
       ION_COPY_VAL(clear_depth_value);
       break;
+    case kDefaultInnerTessellationLevelValue:
+      ION_COPY_VAL(default_inner_tess_level);
+      break;
+    case kDefaultOuterTessellationLevelValue:
+      ION_COPY_VAL(default_outer_tess_level);
+      break;
     case kDepthFunctionValue:
       ION_COPY_VAL(depth_function);
       break;
@@ -212,9 +223,6 @@ void StateTable::ResetValue(Value value) {
     case kDepthWriteMaskValue:
       ION_COPY_VAL(depth_write_mask);
       break;
-    case kDrawBufferValue:
-      ION_COPY_VAL(draw_buffer);
-      break;
     case kHintsValue:
       for (int i = 0; i < kNumHints; ++i) {
         ION_COPY_VAL(hints[i]);
@@ -222,6 +230,9 @@ void StateTable::ResetValue(Value value) {
       break;
     case kLineWidthValue:
       ION_COPY_VAL(line_width);
+      break;
+    case kMinSampleShadingValue:
+      ION_COPY_VAL(min_sample_shading);
       break;
     case kPolygonOffsetValue:
       ION_COPY_VAL(polygon_offset_factor);
@@ -358,14 +369,6 @@ void StateTable::SetDepthWriteMask(bool mask) {
 }
 
 //---------------------------------------------------------------------------
-// Draw buffer state.
-
-void StateTable::SetDrawBuffer(DrawBuffer draw_buffer) {
-  data_.draw_buffer = draw_buffer;
-  data_.values_set.set(kDrawBufferValue);
-}
-
-//---------------------------------------------------------------------------
 // Hint state.
 
 void StateTable::SetHint(HintTarget target, HintMode mode) {
@@ -379,6 +382,14 @@ void StateTable::SetHint(HintTarget target, HintMode mode) {
 void StateTable::SetLineWidth(float width) {
   data_.line_width = width;
   data_.values_set.set(kLineWidthValue);
+}
+
+//---------------------------------------------------------------------------
+// Minimum sample shading fraction state.
+
+void StateTable::SetMinSampleShading(float fraction) {
+  data_.min_sample_shading = fraction;
+  data_.values_set.set(kMinSampleShadingValue);
 }
 
 //---------------------------------------------------------------------------
@@ -492,7 +503,7 @@ namespace base {
 using gfx::StateTable;
 
 #define ION_CHECK_ARRAYS(enums, strings)                        \
-  ION_STATIC_ASSERT(ARRAYSIZE(enums) == ARRAYSIZE(strings),     \
+  ION_STATIC_ASSERT(ABSL_ARRAYSIZE(enums) == ABSL_ARRAYSIZE(strings),     \
                     "Wrong size for " #strings)
 
 // The unspecialized version of GetEnumData() should never be called, as it
@@ -503,34 +514,54 @@ template <> ION_API const EnumHelper::EnumData<StateTable::Capability>
 EnumHelper::GetEnumData() {
   static const GLenum kCapabilities[] = {
       GL_BLEND,
+      GL_CLIP_DISTANCE0,
+      GL_CLIP_DISTANCE1,
+      GL_CLIP_DISTANCE2,
+      GL_CLIP_DISTANCE3,
+      GL_CLIP_DISTANCE4,
+      GL_CLIP_DISTANCE5,
+      GL_CLIP_DISTANCE6,
+      GL_CLIP_DISTANCE7,
       GL_CULL_FACE,
       GL_DEBUG_OUTPUT_SYNCHRONOUS,
       GL_DEPTH_TEST,
       GL_DITHER,
       GL_MULTISAMPLE,
       GL_POLYGON_OFFSET_FILL,
+      GL_RASTERIZER_DISCARD,
       GL_SAMPLE_ALPHA_TO_COVERAGE,
       GL_SAMPLE_COVERAGE,
+      GL_SAMPLE_SHADING,
       GL_SCISSOR_TEST,
       GL_STENCIL_TEST,
   };
   static const char* kCapabilityStrings[] = {
       "Blend",
+      "ClipDistance0",
+      "ClipDistance1",
+      "ClipDistance2",
+      "ClipDistance3",
+      "ClipDistance4",
+      "ClipDistance5",
+      "ClipDistance6",
+      "ClipDistance7",
       "CullFace",
       "DebugOutputSynchronous",
       "DepthTest",
       "Dither",
       "Multisample",
       "PolygonOffsetFill",
+      "RasterizerDiscard",
       "SampleAlphaToCoverage",
       "SampleCoverage",
+      "SampleShading",
       "ScissorTest",
       "StencilTest",
   };
   ION_CHECK_ARRAYS(kCapabilities, kCapabilityStrings);
   return EnumData<StateTable::Capability>(
       base::IndexMap<StateTable::Capability, GLenum>(
-          kCapabilities, ARRAYSIZE(kCapabilities)),
+          kCapabilities, ABSL_ARRAYSIZE(kCapabilities)),
       kCapabilityStrings);
 }
 
@@ -538,15 +569,15 @@ EnumHelper::GetEnumData() {
 template <> ION_API const EnumHelper::EnumData<StateTable::BlendEquation>
 EnumHelper::GetEnumData() {
   static const GLenum kBlendEquations[] = {
-    GL_FUNC_ADD, GL_FUNC_REVERSE_SUBTRACT, GL_FUNC_SUBTRACT
+    GL_FUNC_ADD, GL_FUNC_REVERSE_SUBTRACT, GL_FUNC_SUBTRACT, GL_MIN, GL_MAX
   };
   static const char* kBlendEquationStrings[] = {
-    "Add", "ReverseSubtract", "Subtract",
+    "Add", "ReverseSubtract", "Subtract", "Min", "Max"
   };
   ION_CHECK_ARRAYS(kBlendEquations, kBlendEquationStrings);
   return EnumData<StateTable::BlendEquation>(
       base::IndexMap<StateTable::BlendEquation, GLenum>(
-          kBlendEquations, ARRAYSIZE(kBlendEquations)),
+          kBlendEquations, ABSL_ARRAYSIZE(kBlendEquations)),
       kBlendEquationStrings);
 }
 
@@ -570,7 +601,7 @@ EnumHelper::GetEnumData() {
   ION_CHECK_ARRAYS(kBlendFunctionFactors, kBlendFunctionFactorStrings);
   return EnumData<StateTable::BlendFunctionFactor>(
       base::IndexMap<StateTable::BlendFunctionFactor, GLenum>(
-          kBlendFunctionFactors, ARRAYSIZE(kBlendFunctionFactors)),
+          kBlendFunctionFactors, ABSL_ARRAYSIZE(kBlendFunctionFactors)),
       kBlendFunctionFactorStrings);
 }
 
@@ -586,7 +617,7 @@ EnumHelper::GetEnumData() {
   ION_CHECK_ARRAYS(kCullFaceModes, kCullFaceModeStrings);
   return EnumData<StateTable::CullFaceMode>(
       base::IndexMap<StateTable::CullFaceMode, GLenum>(
-          kCullFaceModes, ARRAYSIZE(kCullFaceModes)),
+          kCullFaceModes, ABSL_ARRAYSIZE(kCullFaceModes)),
       kCullFaceModeStrings);
 }
 
@@ -604,25 +635,8 @@ EnumHelper::GetEnumData() {
   ION_CHECK_ARRAYS(kDepthFunctions, kDepthFunctionStrings);
   return EnumData<StateTable::DepthFunction>(
       base::IndexMap<StateTable::DepthFunction, GLenum>(
-          kDepthFunctions, ARRAYSIZE(kDepthFunctions)),
+          kDepthFunctions, ABSL_ARRAYSIZE(kDepthFunctions)),
       kDepthFunctionStrings);
-}
-
-// Specialize for StateTable::DrawBuffer.
-template <>
-ION_API const EnumHelper::EnumData<StateTable::DrawBuffer>
-EnumHelper::GetEnumData() {
-  static const GLenum kDrawBuffers[] = {
-    GL_BACK, GL_BACK_LEFT, GL_BACK_RIGHT, GL_FRONT, GL_FRONT_AND_BACK,
-    GL_FRONT_LEFT, GL_FRONT_RIGHT, GL_LEFT, GL_NONE, GL_RIGHT};
-  static const char* kDrawBufferStrings[] = {
-    "Back", "BackLeft", "BackRight", "Front", "FrontAndBack",
-    "FrontLeft", "FrontRight", "Left", "None", "Right"};
-  ION_CHECK_ARRAYS(kDrawBuffers, kDrawBufferStrings);
-  return EnumData<StateTable::DrawBuffer>(
-      base::IndexMap<StateTable::DrawBuffer, GLenum>(kDrawBuffers,
-                                                     ARRAYSIZE(kDrawBuffers)),
-      kDrawBufferStrings);
 }
 
 // Specialize for StateTable::FrontFaceMode.
@@ -635,7 +649,7 @@ EnumHelper::GetEnumData() {
   ION_CHECK_ARRAYS(kFrontFaceModes, kFrontFaceModeStrings);
   return EnumData<StateTable::FrontFaceMode>(
       base::IndexMap<StateTable::FrontFaceMode, GLenum>(
-          kFrontFaceModes, ARRAYSIZE(kFrontFaceModes)),
+          kFrontFaceModes, ABSL_ARRAYSIZE(kFrontFaceModes)),
       kFrontFaceModeStrings);
 }
 
@@ -649,7 +663,7 @@ EnumHelper::GetEnumData() {
   ION_CHECK_ARRAYS(kHintModes, kHintModeStrings);
   return EnumData<StateTable::HintMode>(
       base::IndexMap<StateTable::HintMode, GLenum>(
-          kHintModes, ARRAYSIZE(kHintModes)),
+          kHintModes, ABSL_ARRAYSIZE(kHintModes)),
       kHintModeStrings);
 }
 
@@ -667,7 +681,7 @@ EnumHelper::GetEnumData() {
   ION_CHECK_ARRAYS(kStencilFunctions, kStencilFunctionStrings);
   return EnumData<StateTable::StencilFunction>(
       base::IndexMap<StateTable::StencilFunction, GLenum>(
-          kStencilFunctions, ARRAYSIZE(kStencilFunctions)),
+          kStencilFunctions, ABSL_ARRAYSIZE(kStencilFunctions)),
       kStencilFunctionStrings);
 }
 
@@ -686,7 +700,7 @@ EnumHelper::GetEnumData() {
   ION_CHECK_ARRAYS(kStencilOperations, kStencilOperationStrings);
   return EnumData<StateTable::StencilOperation>(
       base::IndexMap<StateTable::StencilOperation, GLenum>(
-          kStencilOperations, ARRAYSIZE(kStencilOperations)),
+          kStencilOperations, ABSL_ARRAYSIZE(kStencilOperations)),
       kStencilOperationStrings);
 }
 
@@ -706,9 +720,10 @@ const StateTable::Data& StateTable::GetDefaultData() {
 }
 
 StateTable::Data::Data(bool unused) {
-  // Reset all the capability flags except kDither.
+  // Reset all the capability flags except kDither and kMultisample.
   capabilities.reset();
   capabilities.set(kDither);
+  capabilities.set(kMultisample);
 
   // Reset all the is-set flags.
   capabilities_set.reset();
@@ -730,13 +745,13 @@ StateTable::Data::Data(bool unused) {
   depth_function = kDepthLess;
   depth_range.Set(0.0f, 1.0f);
   depth_write_mask = true;
-  draw_buffer = kBack;
   hints[kGenerateMipmapHint] = kHintDontCare;
   line_width = 1.0f;
   polygon_offset_factor = 0.0f;
   polygon_offset_units = 0.0f;
   sample_coverage_value = 1.0f;
   sample_coverage_inverted = false;
+  min_sample_shading = 0.0f;
   scissor_box.Set(math::Point2i::Zero(), math::Point2i::Zero());
   front_stencil_function = back_stencil_function = kStencilAlways;
   front_stencil_reference_value = back_stencil_reference_value = 0;

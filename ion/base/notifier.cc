@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -82,7 +82,7 @@ void Notifier::Notify() const {
   ReadLock lock(&mutex_);
   ReadGuard guard(&lock);
   for (size_t i = 0; i < receivers_.size();) {
-    ReferentPtr<Notifier>::Type receiver = receivers_[i].Acquire();
+    SharedPtr<Notifier> receiver = receivers_[i].Acquire();
     if (receiver.Get()) {
       receiver->OnNotify(this);
       ++i;

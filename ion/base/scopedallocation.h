@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -112,8 +112,8 @@ template <typename T> class ION_API ScopedAllocation {
           allocator_->AllocateMemory(sizeof(size_t) + count_ * sizeof(T));
       instance_ptr_ = new(memory_ptr_) T[count_];
     } else {
-      memory_ptr_ = NULL;
-      instance_ptr_ = NULL;
+      memory_ptr_ = nullptr;
+      instance_ptr_ = nullptr;
     }
   }
 
@@ -123,13 +123,13 @@ template <typename T> class ION_API ScopedAllocation {
   // deleting the data.
   T* Release() {
     T* ptr = instance_ptr_;
-    instance_ptr_ = NULL;
+    instance_ptr_ = nullptr;
     // Leave memory_ptr_ and count alone so that DeleteData() works properly.
     return ptr;
   }
 
   // Deleter function passed to a DataContainer by TransferToDataContainer().
-  static void Deleter(void* data, size_t count, AllocatorPtr allocator,
+  static void Deleter(void* data, size_t count, const AllocatorPtr& allocator,
                       void* memory_ptr) {
     DeleteData(reinterpret_cast<T*>(data), count, allocator, memory_ptr);
   }

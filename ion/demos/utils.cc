@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -76,7 +76,7 @@ ion::gfx::ShapePtr LoadShapeAsset(
     const ion::gfx::BufferObjectPtr& vb = element.buffer_object;
     const ion::base::DataContainerPtr& container = vb->GetData();
     // Get a generic pointer to the data.
-    // FIXME: This assumes the position always comes first in each vertex
+    // 
     // in the data.
     uint8* data = container->GetMutableData<uint8>();
     const size_t num_verts = vb->GetCount();

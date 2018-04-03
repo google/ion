@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -163,6 +163,28 @@ TEST(Range, MakeEmpty) {
   EXPECT_FALSE(r3f.IsEmpty());
   r3f.MakeEmpty();
   EXPECT_TRUE(r3f.IsEmpty());
+}
+
+TEST(Range, Convert) {
+  {
+    // Convert Range1f to Range1d.
+    Range1f r1f;
+    r1f.SetMinPoint(2.0f);
+    r1f.SetMaxPoint(4.0f);
+    Range1d r1d(r1f);
+    EXPECT_EQ(r1d.GetMinPoint()[0], 2.0);
+    EXPECT_EQ(r1d.GetMaxPoint()[0], 4.0);
+  }
+
+  {
+    // Convert Range2d to Range2f.
+    Range2d r2d;
+    r2d.SetMinPoint(Point2d(1.0, 2.0));
+    r2d.SetMaxPoint(Point2d(4.0, 8.0));
+    Range2f r2f(r2d);
+    EXPECT_EQ(r2f.GetMinPoint(), Point2f(1.0f, 2.0f));
+    EXPECT_EQ(r2f.GetMaxPoint(), Point2f(4.0f, 8.0f));
+  }
 }
 
 TEST(Range, GetSize) {

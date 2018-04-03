@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ limitations under the License.
 #include "ion/base/enumhelper.h"
 #include "ion/base/static_assert.h"
 #include "ion/portgfx/glheaders.h"
+#include "absl/base/macros.h"
 
 namespace ion {
 namespace gfx {
@@ -72,6 +73,13 @@ void CubeMapTexture::OnNotify(const base::Notifier* notifier) {
   }
 }
 
+void CubeMapTexture::ClearNonImmutableImages() {
+  for (size_t j = 0; j < 6; ++j) {
+    Face& face = faces_[j];
+    face.ClearMipmapImages();
+  }
+}
+
 }  // namespace gfx
 
 namespace base {
@@ -90,11 +98,11 @@ const EnumHelper::EnumData<CubeMapTexture::CubeFace> EnumHelper::GetEnumData() {
     "Negative X", "Negative Y", "Negative Z",
     "Positive X", "Positive Y", "Positive Z"
   };
-  ION_STATIC_ASSERT(ARRAYSIZE(kValues) == ARRAYSIZE(kStrings),
+  ION_STATIC_ASSERT(ABSL_ARRAYSIZE(kValues) == ABSL_ARRAYSIZE(kStrings),
                     "EnumHelper size mismatch");
   return EnumData<CubeMapTexture::CubeFace>(
       base::IndexMap<CubeMapTexture::CubeFace, GLenum>(kValues,
-                                                       ARRAYSIZE(kValues)),
+                                                       ABSL_ARRAYSIZE(kValues)),
       kStrings);
 }
 

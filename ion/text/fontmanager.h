@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ limitations under the License.
 #include "ion/base/referent.h"
 #include "ion/base/stlalloc/allocmap.h"
 #include "ion/external/gtest/gunit_prod.h"  // For FRIEND_TEST().
+#include "ion/port/memorymappedfile.h"
 #include "ion/text/font.h"
 #include "ion/text/fontimage.h"
 
@@ -39,7 +40,7 @@ class ION_API FontManager : public base::Referent {
 
   // Adds a Font to the manager. It will then be accessible via FindFont().
   // This does nothing if the Font is NULL.
-  void AddFont(const FontPtr& font);
+  virtual void AddFont(const FontPtr& font);
 
   // Constructs and adds a font to the manager. If a font with the given specs
   // already exists, just returns the already existing font. This will choose
@@ -47,26 +48,36 @@ class ION_API FontManager : public base::Referent {
   // and |data_size| non-zero, |data| will be read as TrueType data of length
   // |data_size| to build the font. Otherwise, behavior depends on specific
   // font implementations, see CoreTextFont and FreeTypeFont.
-  const FontPtr AddFont(const std::string& name, size_t size_in_pixels,
-                        size_t sdf_padding, const void* data, size_t data_size);
+  virtual const FontPtr AddFont(const std::string& name, size_t size_in_pixels,
+                                size_t sdf_padding, const void* data,
+                                size_t data_size);
 
   // Constructs and adds a font with name |font_name| from the zipasset with
   // name |zipasset_name|. If a font with the given specs already exists, just
   // returns the already existing font.
-  const FontPtr AddFontFromZipasset(const std::string& font_name,
-                                    const std::string& zipasset_name,
-                                    size_t size_in_pixels,
-                                    size_t sdf_padding);
+  virtual const FontPtr AddFontFromZipasset(const std::string& font_name,
+                                            const std::string& zipasset_name,
+                                            size_t size_in_pixels,
+                                            size_t sdf_padding);
+
+  // Constructs and adds a font with name |font_name| by loading the file at
+  // |file_path|. If a font with the given specs already exists, just returns
+  // the already existing font.
+  virtual const FontPtr AddFontFromFilePath(const std::string& font_name,
+                                            const std::string& file_path,
+                                            size_t size_in_pixels,
+                                            size_t sdf_padding);
 
   // Returns the Font associated with the given name and size. This will return
   // a NULL pointer unless the font was previously added with AddFont().
-  const FontPtr FindFont(const std::string& name, size_t size_in_pixels,
-                         size_t sdf_padding) const;
+  virtual const FontPtr FindFont(const std::string& name, size_t size_in_pixels,
+                                 size_t sdf_padding) const;
 
   // This can be used to cache FontImage instances in the manager. It
   // associates a FontImage with a client-defined string key. Passing a NULL
   // FontImage pointer removes the entry for that key.
-  void CacheFontImage(const std::string& key, const FontImagePtr& font_image) {
+  virtual void CacheFontImage(const std::string& key,
+                              const FontImagePtr& font_image) {
     if (font_image.Get())
       font_image_map_[key] = font_image;
     else
@@ -77,18 +88,19 @@ class ION_API FontManager : public base::Referent {
   // associates a FontImage with a string key that Ion derives based on the
   // provided font. Passing a NULL FontImage pointer removes the entry for that
   // key.
-  void CacheFontImage(const FontPtr& font, const FontImagePtr& font_image) {
+  virtual void CacheFontImage(const FontPtr& font,
+                              const FontImagePtr& font_image) {
     CacheFontImage(BuildFontKeyFromFont(*font), font_image);
   }
 
   // Returns the FontImage associated with the given key. It may be NULL.
-  const FontImagePtr GetCachedFontImage(const std::string& key) const {
+  virtual const FontImagePtr GetCachedFontImage(const std::string& key) const {
     const FontImageMap::const_iterator it = font_image_map_.find(key);
     return it == font_image_map_.end() ? FontImagePtr() : it->second;
   }
 
   // Returns the FontImage associated with the given Font. It may be NULL.
-  const FontImagePtr GetCachedFontImage(const FontPtr& font) const {
+  virtual const FontImagePtr GetCachedFontImage(const FontPtr& font) const {
     return GetCachedFontImage(BuildFontKeyFromFont(*font));
   }
 
@@ -100,6 +112,8 @@ class ION_API FontManager : public base::Referent {
  private:
   typedef base::AllocMap<std::string, FontPtr> FontMap;
   typedef base::AllocMap<std::string, FontImagePtr> FontImageMap;
+  typedef base::AllocMap<std::string, std::unique_ptr<port::MemoryMappedFile>>
+      MemoryMappedFileMap;
 
   // Constructs a string key from a Font for use in the Font map.
   static const std::string BuildFontKeyFromFont(const Font& font) {
@@ -116,13 +130,20 @@ class ION_API FontManager : public base::Referent {
   FontMap font_map_;
   // Maps a user-supplied string key to a FontImage instance.
   FontImageMap font_image_map_;
+  // Maps a file path to the MemoryMappedFile that backs one or more Font
+  // instances in |font_map_| that were loaded via AddFontFromFilePath() when
+  // using FreeTypeFonts. This is necessary because FreeTypeFont requires that
+  // the data backing it exist as long as the FreeTypeFont object does. This is
+  // cached per-path so that the same font being loaded at multiple sizes only
+  // maps the file into memory once.
+  MemoryMappedFileMap memory_mapped_font_files_map_;
 
   // Allow tests to access private functions.
   FRIEND_TEST(FontManagerTest, BuildFontKey);
 };
 
 // Convenience typedef for shared pointer to a FontManager.
-typedef base::ReferentPtr<FontManager>::Type FontManagerPtr;
+using FontManagerPtr = base::SharedPtr<FontManager>;
 
 }  // namespace text
 }  // namespace ion

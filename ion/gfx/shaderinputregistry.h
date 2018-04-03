@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -42,12 +42,18 @@ namespace gfx {
 class ShaderInputRegistry;
 
 // Convenience typedef for shared pointer to a ShaderInputRegistry.
-typedef base::ReferentPtr<ShaderInputRegistry>::Type ShaderInputRegistryPtr;
+using ShaderInputRegistryPtr = base::SharedPtr<ShaderInputRegistry>;
 
-// A ShaderInputRegistry is used to manage a collection of shader inputs
-// to a specific ShaderProgram (both uniforms and attributes). The registry
-// provides Create<Attribute>() and Create<Uniform>() functions that are the
-// only way to construct valid Attribute and Uniform instances.
+// A ShaderInputRegistry acts as a namespace for shader inputs (uniforms and
+// attributes). It isolates users from dealing with input locations. Shaders
+// using the same ShaderInputRegistry are expected to have matching types and
+// meanings for inputs that have identical names. A registry must be specified
+// for each ShaderProgram instance that is created.
+//
+// The registry provides Create<Attribute>() and Create<Uniform>() functions,
+// which are the only way to construct valid Attribute and Uniform instances.
+// By design, there is no way to delete inputs from a registry. The registry
+// must be kept alive as long as any inputs created from it might be used.
 //
 // A registry must be specified for each ShaderProgram instance that is
 // created.  There is also a ShaderInputRegistry instance representing some
@@ -129,18 +135,19 @@ class ION_API ShaderInputRegistry : public ResourceHolder {
   // This struct is stored for each registered ShaderInput.
   template <typename T>
   struct Spec {
-    Spec(const std::string& name_in = std::string(),
-         typename T::ValueType value_type_in =
-             static_cast<typename T::ValueType>(0),
-         const std::string& doc_string_in = std::string(),
-         typename CombineFunction<T>::Type combine_function_in = nullptr,
-         typename GenerateFunction<T>::Type generate_function_in = nullptr)
+    explicit Spec(
+        const std::string& name_in = std::string(),
+        typename T::ValueType value_type_in =
+            static_cast<typename T::ValueType>(0),
+        const std::string& doc_string_in = std::string(),
+        typename CombineFunction<T>::Type combine_function_in = nullptr,
+        typename GenerateFunction<T>::Type generate_function_in = nullptr)
         : name(name_in),
           value_type(value_type_in),
           doc_string(doc_string_in),
           index(0),
           registry_id(0),
-          registry(NULL),
+          registry(nullptr),
           combine_function(combine_function_in),
           generate_function(generate_function_in) {}
 
@@ -168,11 +175,12 @@ class ION_API ShaderInputRegistry : public ResourceHolder {
   // returns that ID.
   size_t GetId() const { return id_; }
 
-  // Includes another ShaderInputRegistry in this one. Any shader that
-  // implements the current registry may also Create() inputs from an included
-  // registry. If the passed registry defines an input defined by this registry
-  // or its includes an error is printed and the registry is not included.
-  // Returns whether the registry was included.
+  // Includes another ShaderInputRegistry in this one. This is similar to a
+  // "using namespace" declaration in C++. Any shader that uses the current
+  // registry may also Create() inputs from an included registry. If there is a
+  // name conflict (the passed registry defines an input also defined by this
+  // registry or its includes), an error is printed and the registry is not
+  // included. Returns whether the registry was included.
   bool Include(const ShaderInputRegistryPtr& reg);
 
   // Includes the global registry in this registry. See the above comment for
@@ -235,11 +243,11 @@ class ION_API ShaderInputRegistry : public ResourceHolder {
     if (it == spec_map_.end()) {
       // Neither this regisry nor its includes contains a spec with the right
       // name.
-      return NULL;
+      return nullptr;
     } else if (it->second.tag != T::GetTag()) {
       // A spec with the same name but different type already exists in this
       // registry.
-      return NULL;
+      return nullptr;
     } else {
       // This registry has a spec of the right type. Return it.
       return &GetSpecs<T>()[it->second.index];
@@ -250,10 +258,11 @@ class ION_API ShaderInputRegistry : public ResourceHolder {
   template <typename T> const base::AllocDeque<Spec<T> >& GetSpecs() const;
 
   // Constructs a ShaderInput with the given name and value. If the name is not
-  // found in the registry or its includes, the input is added to this registry,
-  // but if the value type is inconsistent with the registered type, this logs
-  // an error and returns an invalid ShaderInput instance (i.e., calling
-  // IsValid() on it will return false).
+  // found in the registry or its includes, the input is added to this registry.
+  // If the name is found and the value is of the same type, a copy of the
+  // existing instance is returned. If the name is found and the type is
+  // inconsistent, logs an error and returns an invalid ShaderInput instance
+  // (i.e., calling IsValid() on it will return false).
   template <typename ShaderInputType, typename T>
   const ShaderInputType Create(const std::string& name_in, const T& value) {
     // Determine the correct type that will allow a T to be stored.
@@ -264,7 +273,7 @@ class ION_API ShaderInputRegistry : public ResourceHolder {
     std::string name;
     ShaderInputType input;
     size_t index = 0, registry_id = 0, array_index = 0;
-    ShaderInputRegistry* registry = NULL;
+    ShaderInputRegistry* registry = nullptr;
     if (ParseShaderInputName(name_in, &name, &array_index)) {
       if (!Find<ShaderInputType>(name))
         Add<ShaderInputType>(Spec<ShaderInputType>(name, value_type));
@@ -275,6 +284,9 @@ class ION_API ShaderInputRegistry : public ResourceHolder {
     }
     return input;
   }
+  // Constructs a ShaderInput with the given name and value. The input must
+  // already exist in the registry or one of its includes, otherwise an invalid
+  // instance is returned.
   template <typename ShaderInputType, typename T>
   const ShaderInputType Create(const std::string& name_in,
                                const T& value) const {
@@ -286,7 +298,7 @@ class ION_API ShaderInputRegistry : public ResourceHolder {
     std::string name;
     ShaderInputType input;
     size_t index = 0, registry_id = 0, array_index = 0;
-    ShaderInputRegistry* registry = NULL;
+    ShaderInputRegistry* registry = nullptr;
     if (ParseShaderInputName(name_in, &name, &array_index) &&
         ValidateNameAndType<ShaderInputType>(name, value_type, 0U, &registry,
                                              &registry_id, &index))
@@ -311,7 +323,7 @@ class ION_API ShaderInputRegistry : public ResourceHolder {
         StoredType;
     Uniform input;
     size_t index = 0, registry_id = 0, array_index = 0;
-    ShaderInputRegistry* registry = NULL;
+    ShaderInputRegistry* registry = nullptr;
     UniformType value_type = Uniform::GetTypeByValue<StoredType>();
     std::string name;
     if (ParseShaderInputName(name_in, &name, &array_index)) {
@@ -332,7 +344,7 @@ class ION_API ShaderInputRegistry : public ResourceHolder {
         StoredType;
     Uniform input;
     size_t index = 0, registry_id = 0, array_index = 0;
-    ShaderInputRegistry* registry = NULL;
+    ShaderInputRegistry* registry = nullptr;
     UniformType value_type = Uniform::GetTypeByValue<StoredType>();
     std::string name;
     if (ParseShaderInputName(name_in, &name, &array_index) &&
@@ -344,11 +356,11 @@ class ION_API ShaderInputRegistry : public ResourceHolder {
   }
 
   // Convenience function that returns a pointer to the Spec associated with an
-  // Attribute or Uniform instance. These returns NULL if the Attribute or
+  // Attribute or Uniform instance. These return NULL if the Attribute or
   // Uniform is not valid.
   template <typename T>
   static const Spec<T>* GetSpec(const T& input) {
-    return !input.IsValid() ? NULL :
+    return !input.IsValid() ? nullptr :
         &input.GetRegistry().template GetSpecs<T>()[input.GetIndexInRegistry()];
   }
 
@@ -452,7 +464,7 @@ class ION_API ShaderInputRegistry : public ResourceHolder {
       const std::vector<std::string> tokens = base::SplitString(input, "[]");
       *name = tokens[0];
       if (tokens.size() > 1 && !tokens[1].empty())
-        *index = base::StringToInt32(tokens[1]);
+        *index = static_cast<size_t>(base::StringToInt32(tokens[1]));
     } else if (open_pos == std::string::npos &&
                close_pos == std::string::npos) {
       *name = input;
@@ -461,7 +473,6 @@ class ION_API ShaderInputRegistry : public ResourceHolder {
     }
     return true;
   }
-
 
   // Vectors of added Specs.
   Field<base::AllocDeque<UniformSpec> > uniform_specs_;

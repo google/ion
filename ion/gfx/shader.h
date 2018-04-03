@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,11 +22,12 @@ limitations under the License.
 
 #include "ion/base/referent.h"
 #include "ion/gfx/resourceholder.h"
+#include "ion/gfx/shaderinputregistry.h"
 
 namespace ion {
 namespace gfx {
 
-// Base class for Shader and ShaderProgram objects.
+// Base class for Shader and ProgramBase objects.
 class ION_API ShaderBase : public ResourceHolder {
  public:
   // Sets/returns a string documenting the shader program for help.
@@ -84,7 +85,7 @@ class ION_API Shader : public ShaderBase {
 };
 
 // Convenience typedef for shared pointers to Shaders.
-typedef base::ReferentPtr<Shader>::Type ShaderPtr;
+using ShaderPtr = base::SharedPtr<Shader>;
 
 }  // namespace gfx
 }  // namespace ion

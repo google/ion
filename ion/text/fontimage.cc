@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,7 +28,6 @@ limitations under the License.
 #include "ion/base/serialize.h"
 #include "ion/base/staticsafedeclare.h"
 #include "ion/gfx/sampler.h"
-#include "ion/image/conversionutils.h"
 #include "ion/math/utils.h"
 #include "ion/math/vector.h"
 #include "ion/text/binpacker.h"
@@ -243,7 +242,7 @@ static const SdfGrid PackIntoMinimalGrid(
   bool double_the_width = true;
   while (!bin_packer->Pack(Vector2ui(image_width, image_height))) {
     // Alternate doubling width/height.
-    // TODO(user): Investigate whether it is worth doing both and choosing the
+    // 
     // smaller result.
     if (double_the_width)
       image_width *= 2;
@@ -625,7 +624,7 @@ size_t DynamicFontImage::FindImageDataIndex(
   // Make sure that all required glyphs have SDF grids cached.
   GetFont()->CacheSdfGrids(glyph_set);
 
-  // TODO(user) Possibly make this more efficient by combining work done in
+  // NOTE: Possibly make this more efficient by combining work done in
   // the first 2 passes. Or do best-fit instead of first-fit.
 
   // See if there is an ImageData that already contains all of the glyphs.
@@ -653,8 +652,8 @@ size_t DynamicFontImage::FindContainingImageDataIndex(
   GlyphSet glyph_set(GetAllocator()->GetAllocatorForLifetime(base::kShortTerm),
                      unfiltered_glyph_set);
   GetFont()->FilterGlyphs(&glyph_set);
-  return glyph_set.size() ? FindContainingImageDataIndexPrefiltered(glyph_set)
-                          : base::kInvalidIndex;
+  return glyph_set.empty() ? base::kInvalidIndex
+                           : FindContainingImageDataIndexPrefiltered(glyph_set);
 }
 
 size_t DynamicFontImage::FindContainingImageDataIndexPrefiltered(
@@ -727,7 +726,7 @@ size_t DynamicFontImage::FindImageDataThatFits(const GlyphSet& glyph_set) {
                        &helper_->GetDeferredUpdates());
       } else {
         StoreSubImages(missing_grid_map, test_bin_packer, sta,
-                       wrapper.image_data.texture, NULL);
+                       wrapper.image_data.texture, nullptr);
       }
       // Compute per-glyph texture coordinate rectangles.
       wrapper.image_data.texture_rectangle_map = ComputeTextureRectangleMap(

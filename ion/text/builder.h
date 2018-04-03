@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -186,7 +186,7 @@ class ION_API Builder : public base::Referent {
 };
 
 // Convenience typedef for shared pointer to a Builder.
-typedef base::ReferentPtr<Builder>::Type BuilderPtr;
+using BuilderPtr = base::SharedPtr<Builder>;
 
 }  // namespace text
 }  // namespace ion

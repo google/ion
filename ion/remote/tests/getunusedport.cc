@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,23 +15,34 @@ limitations under the License.
 
 */
 
-
 #include "ion/remote/tests/getunusedport.h"
 
 #if defined(ION_PLATFORM_WINDOWS)
-#include <io.h>
-#define close(fd) closesocket(fd)
+#include <winsock2.h>
+#include <Ws2ipdef.h>
 typedef int socklen_t;
+typedef SOCKET ion_socket_t;
+namespace {
+void close(ion_socket_t socket) {
+  closesocket(socket);
+}
+}  // namespace
 #else
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <unistd.h>
+typedef int ion_socket_t;
 #endif
 
 #include "base/integral_types.h"
 #include "ion/base/lockguards.h"
 #include "ion/base/logging.h"
 #include "ion/port/environment.h"
+#include "ion/remote/portutils.h"
+#if defined(ION_PLATFORM_LINUX) && defined(ION_GOOGLE_INTERNAL)
+#include "net/util/ports.h"
+#endif
+
 
 namespace {
 
@@ -110,61 +121,74 @@ class PortIterator {
 
 static bool IsPortAvailable(int* port, bool is_tcp) {
   DCHECK_GE(*port, 0);
-  const int proto = is_tcp ? IPPROTO_TCP : 0;
-  const int fd = socket(AF_INET, is_tcp ? SOCK_STREAM : SOCK_DGRAM, proto);
-  if (fd < 0) {
-    return false;
-  }
 
-  // Reuseaddr lets us start up a server immediately after it exits.
-  int one = 1;
-  const char* options = reinterpret_cast<const char*>(&one);
-  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, options, sizeof(one)) < 0) {
-    close(fd);
-    return false;
-  }
+  // For a port to be considered available, the kernel must support at least one
+  // of (IPv6, IPv4), and the port must be available on each supported family.
+  bool got_socket = false;
+  for (int family : {AF_INET6, AF_INET}) {
+    const int proto = is_tcp ? IPPROTO_TCP : 0;
+    const ion_socket_t fd =
+        socket(family, is_tcp ? SOCK_STREAM : SOCK_DGRAM, proto);
+    if (fd != static_cast<ion_socket_t>(-1)) {
+      got_socket = true;
+    } else {
+      continue;
+    }
 
-  // Try binding to *port.
-  sockaddr_in addr;
-  addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = INADDR_ANY;
-  addr.sin_port = static_cast<uint16>(htons(static_cast<uint16>(*port)));
-  if (::bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
-    close(fd);
-    return false;
-  }
-
-  // Get the bound port number
-  socklen_t alen = sizeof(addr);
-  if (getsockname(fd, reinterpret_cast<sockaddr*>(&addr), &alen) < 0) {
-    close(fd);
-    return false;
-  }
-  if (alen > static_cast<socklen_t>(sizeof(addr))) {
-    close(fd);
-    return false;
-  }
-  const int actual_port = ntohs(addr.sin_port);
-  CHECK_GT(actual_port, 0);
-  if (*port == 0) {
-    *port = actual_port;
-  } else {
-    CHECK_EQ(*port, actual_port);
-  }
-
-  // Try listening on the port also, if the type is TCP
-  if (is_tcp) {
-    if (listen(fd, 1) < 0) {
+    // Reuseaddr lets us start up a server immediately after it exits.
+    int one = 1;
+    const char* options = reinterpret_cast<const char*>(&one);
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, options, sizeof(one)) < 0) {
       close(fd);
       return false;
     }
+
+    // Try binding to *port.
+    sockaddr_storage addr = ion::remote::MakeWildcard(family, *port);
+    sockaddr* paddr = reinterpret_cast<sockaddr*>(&addr);
+    // On Darwin the length must match the structure size;
+    // sizeof(sockaddr_storage) leads to an invalid argument error.
+    socklen_t alen = ion::remote::GetSockaddrLength(addr);
+    if (::bind(fd, paddr, alen) < 0) {
+      close(fd);
+      return false;
+    }
+
+    // Get the bound port number.
+    if (getsockname(fd, paddr, &alen) < 0) {
+      close(fd);
+      return false;
+    }
+    int actual_port = ion::remote::GetPort(addr);
+    CHECK_GT(actual_port, 0);
+    if (*port == 0) {
+      *port = actual_port;
+    } else {
+      CHECK_EQ(*port, actual_port);
+    }
+
+    // Try listening on the port also, if the type is TCP.
+    if (is_tcp) {
+      if (listen(fd, 1) < 0) {
+        close(fd);
+        return false;
+      }
+    }
+
+    close(fd);
   }
 
-  close(fd);
+  if (!got_socket) {
+    return false;
+  }
+
   return true;
 }
 
 static int PickUnusedPort(int num_ports_to_try) {
+#if defined(ION_GOOGLE_INTERNAL) && defined(ION_PLATFORM_LINUX)
+  return net_util::PickUnusedPortOrDie();
+#else
   // We repeatedly pick a port and then see whether or not it is
   // available for use both as a TCP socket and a UDP socket.  If some
   // unused ports have been assigned in the environment (by a test
@@ -200,6 +224,7 @@ static int PickUnusedPort(int num_ports_to_try) {
   LOG(ERROR) << "Could not find an open port after " << num_ports_to_try
              << " trials.";
   return 0;
+#endif
 }
 
 }  // anonymous namespace

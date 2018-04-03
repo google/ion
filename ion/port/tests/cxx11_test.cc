@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ limitations under the License.
 #include <type_traits>
 #include <vector>
 
+#include "absl/memory/memory.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
 // std::atomic functionality is tested in atomic_test.cc
@@ -143,7 +144,7 @@ struct FinalKeywordB final : FinalKeywordA {
 TEST(Cxx11, ReturnUnique) {
   std::unique_ptr<int> ptr = MakeUniqueInt(5);
   EXPECT_TRUE(ptr);
-  EXPECT_TRUE(ptr.get() != static_cast<int*>(NULL));
+  EXPECT_TRUE(ptr.get() != static_cast<int*>(nullptr));
   EXPECT_EQ(*ptr, 5);
 }
 
@@ -152,8 +153,8 @@ TEST(Cxx11, MoveUnique) {
   std::unique_ptr<double> ptr2;
 
   ptr2 = std::move(ptr1);
-  EXPECT_TRUE(ptr1.get() == static_cast<double*>(NULL));
-  EXPECT_TRUE(ptr2.get() != static_cast<double*>(NULL));
+  EXPECT_TRUE(ptr1.get() == static_cast<double*>(nullptr));
+  EXPECT_TRUE(ptr2.get() != static_cast<double*>(nullptr));
   EXPECT_FALSE(ptr1);
 }
 
@@ -165,16 +166,16 @@ TEST(Cxx11, UniqueInVector) {
   v.emplace_back(new int(1));
   EXPECT_EQ(v.size(), 1U);
   EXPECT_EQ(*v[0], 1);
-  v.push_back(std::unique_ptr<int>(new int(2)));
+  v.push_back(absl::make_unique<int>(2));
   EXPECT_EQ(*v[1], 2);
   v.push_back(std::move(ptr));
   EXPECT_EQ(*v[2], 3);
   EXPECT_EQ(v.size(), 3U);
 
-  ptr.reset(new int(4));
+  ptr = absl::make_unique<int>(4);
   v2.push_back(std::move(ptr));
   EXPECT_EQ(*v2.back(), 4);
-  v2.push_back(std::unique_ptr<int>(new int(5)));
+  v2.push_back(absl::make_unique<int>(5));
   EXPECT_EQ(*v2.back(), 5);
   v2.resize(30);
   v2.resize(2);
@@ -191,7 +192,7 @@ TEST(Cxx11, UniqueInMap) {
   std::unique_ptr<int> ptr(new int(0));
 
   m[0] = std::move(ptr);
-  m[1] = std::unique_ptr<int>(new int(1));
+  m[1] = absl::make_unique<int>(1);
 
   // Unlike std::vector::emplace_back(), we can't provide a raw int-ptr as an
   // argument to emplace().  In other words, this fails to compile:
@@ -202,22 +203,25 @@ TEST(Cxx11, UniqueInMap) {
   //   std::pair<int, std::unique_ptr<int>> p{1, new int(1)};
   //
   // It is not clear whether this behavior is compliant with the C++11 standard.
-  m.emplace(2, std::unique_ptr<int>(new int(2)));
+  m.emplace(2, absl::make_unique<int>(2));
+  ptr = absl::make_unique<int>(3);
+  m.emplace(3, std::move(ptr));
+  ptr = absl::make_unique<int>(4);
+  m.insert(std::make_pair(4, std::move(ptr)));
+  m.insert(std::make_pair(5, absl::make_unique<int>(5)));
 
-  EXPECT_EQ(3U, m.size());
-  EXPECT_EQ(0, *m[0]);
-  EXPECT_EQ(1, *m[1]);
-  EXPECT_EQ(2, *m[2]);
+  EXPECT_EQ(6U, m.size());
+  for (const auto& pair : m)
+    EXPECT_EQ(pair.first, *pair.second);
 
-  // Add a value '4' to m2; this will be gone after we assign m to m2.
-  m2[4] = std::unique_ptr<int>(new int(4));
+  // Add a value '5' to m2; this will be gone after we assign m to m2.
+  m2[6] = absl::make_unique<int>(6);
   m2 = std::move(m);
 
   EXPECT_EQ(0U, m.size());
-  EXPECT_EQ(3U, m2.size());
-  EXPECT_EQ(0, *m2[0]);
-  EXPECT_EQ(1, *m2[1]);
-  EXPECT_EQ(2, *m2[2]);
+  EXPECT_EQ(6U, m2.size());
+  for (const auto& pair : m)
+    EXPECT_EQ(pair.first, *pair.second);
 }
 
 TEST(Cxx11, AutoKeyword) {
@@ -237,8 +241,8 @@ TEST(Cxx11, FinalKeyword) {
 
 TEST(Cxx11, VariadicClassesAndTraits) {
   VarTemplate<int, double, int*, double*> tester;
-  int* iptr = NULL;
-  double* dptr = NULL;
+  int* iptr = nullptr;
+  double* dptr = nullptr;
   EXPECT_FALSE(tester.ReturnTrueForPointers(5));
   EXPECT_FALSE(tester.ReturnTrueForPointers(5.4));
   EXPECT_TRUE(tester.ReturnTrueForPointers(iptr));
@@ -316,32 +320,6 @@ TEST(Cxx11, Tuple) {
 
   // std::forward_as_tuple does not work on QNX or NaCl.
 }
-
-#if !defined(ION_PLATFORM_QNX) && !defined(ION_PLATFORM_NACL)
-// Doesn't work well on QNX or NaCl
-/*
-TODO(bug): Uncomment when Pulse linux servers upgraded to Trusty.
-TEST(Cxx11, UniqueInMap) {
-  std::map<int, std::unique_ptr<int>> m;
-  std::unique_ptr<int> ptr(new int(2));
-  EXPECT_TRUE(m[0].get() == static_cast<int*>(NULL));
-  m[0].reset(new int(0));
-  m[1] = std::unique_ptr<int>(new int(1));
-  m[2] = std::move(ptr);
-  m.insert(std::make_pair(3, std::unique_ptr<int>(new int(3))));
-  m.emplace(4, std::unique_ptr<int>(new int(4)));
-  ptr.reset(new int(5));
-  m.insert(std::make_pair(5, std::move(ptr)));
-  ptr.reset(new int(6));
-  m.emplace(6, std::move(ptr));
-
-  for (std::map<int, std::unique_ptr<int>>::iterator it = m.begin();
-       it != m.end(); ++it) {
-    EXPECT_EQ(it->first, *it->second);
-  }
-}
-*/
-#endif  // !defined(ION_PLATFORM_QNX) && !defined(ION_PLATFORM_NACL)
 
 #if !defined(ION_PLATFORM_QNX)
 // Fails to compile on QNX.

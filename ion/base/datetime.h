@@ -1,5 +1,5 @@
 /**
-Copyright 2005 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@ limitations under the License.
 
 */
 
+// Copyright 2005 Google Inc. All Rights Reserved.
 //
 #ifndef ION_BASE_DATETIME_H_
 #define ION_BASE_DATETIME_H_
@@ -28,6 +29,7 @@ limitations under the License.
 #include "base/integral_types.h"
 #include "ion/base/referent.h"
 #include "ion/external/gtest/gunit_prod.h"  // For FRIEND_TEST().
+#include "absl/memory/memory.h"
 
 namespace ion {
 namespace base {
@@ -63,8 +65,8 @@ class DateTime {
   class Range {
    public:
     Range() {
-      begin_.reset(new DateTime);
-      end_.reset(new DateTime);
+      begin_ = absl::make_unique<DateTime>();
+      end_ = absl::make_unique<DateTime>();
     }
     Range(const Range& rhs) {
       *begin_ = rhs.begin();
@@ -104,7 +106,7 @@ class DateTime {
   // Note: |requested_zone_hours| and |requested_zone_minutes| describe the
   // resultant DateTime, not the input secs.
   DateTime(int64 year, uint8 month, uint8 day, uint8 hour, uint8 minute,
-           uint8 second, uint32 nanosec = 0, int8 zone_hours = 0,
+           uint8 second, uint32 nanosecond = 0, int8 zone_hours = 0,
            int8 zone_minutes = 0);
 
   explicit DateTime(std::chrono::system_clock::time_point time,
@@ -172,14 +174,8 @@ class DateTime {
            int8 zone_hours,
            int8 zone_minutes);
 
-  void Set(int64 years,
-           uint8 months,
-           uint8 days,
-           uint8 hours,
-           uint8 minutes,
-           uint8 seconds,
-           uint32 nanoseconds,
-           int8 zone_hours,
+  void Set(int64 years, uint8 months, uint8 days, uint8 hours, uint8 minutes,
+           uint8 seconds, uint32 nanosecond, int8 zone_hours,
            int8 zone_minutes);
 
   void Set(const DateTime& other);
@@ -219,7 +215,7 @@ class DateTime {
   void Lerp(const DateTime& origin, const DateTime& target, double t);
 
   // Converts time to another time zone.
-  void AdjustTimeZone(int newHours, int newMins);
+  void AdjustTimeZone(int new_hours, int new_mins);
 
   // Converts time to user-readable string.
   //
@@ -327,7 +323,7 @@ class DateTime {
   // Checks if given string is in YYYY-MM formatr. If |date| is properly
   // formatted, this sets |date_out| to the time date specified and returns
   // true, otherwise it leaves |date|_out untouched and returns false.
-  static bool ParseYMString(const std::string& date, DateTime* date_out);
+  static bool ParseYMString(const std::string& str, DateTime* date_out);
 
   // Returns a specific field value in the DateTime object as defined by
   // DateTimeField |field| (kYear, kMonth, etc.).
