@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ limitations under the License.
 #include "ion/port/break.h"
 
 #if defined(ION_PLATFORM_LINUX) || defined(ION_PLATFORM_ANDROID) || \
-    defined(ION_PLATFORM_GENERIC_ARM)
+    defined(ION_GOOGLE_INTERNAL)
 #include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -44,7 +44,7 @@ namespace ion {
 namespace port {
 
 #if defined(ION_PLATFORM_LINUX) || defined(ION_PLATFORM_ANDROID) || \
-    defined(ION_PLATFORM_GENERIC_ARM)
+    defined(ION_GOOGLE_INTERNAL)
 
 bool IsDebuggerAttached() {
   // If current process is being ptrace()d, 'TracerPid' in /proc/self/status
@@ -62,7 +62,7 @@ bool IsDebuggerAttached() {
     const char *const kTracerPid = "TracerPid:\t";
     buf[len - 1] = '\0';
     const char *p = strstr(buf, kTracerPid);
-    if (p != NULL) {
+    if (p != nullptr) {
       rc = (strncmp(p + strlen(kTracerPid), "0\n", 2) != 0);
     }
   }
@@ -96,13 +96,8 @@ bool IsDebuggerAttached() {
 
   // Call sysctl.
   size = sizeof(info);
-  junk = sysctl(
-      mib,
-      static_cast<u_int>(sizeof(mib) / sizeof(*mib)),
-      &info,
-      &size,
-      NULL,
-      0);
+  junk = sysctl(mib, static_cast<u_int>(sizeof(mib) / sizeof(*mib)), &info,
+                &size, nullptr, 0);
   assert(junk == 0);
 
   // We're being debugged if the P_TRACED flag is set.
@@ -128,7 +123,7 @@ void Break() {
   if (IsDebuggerAttached()) {
 #if defined(ION_PLATFORM_LINUX) || defined(ION_PLATFORM_ANDROID) || \
     defined(ION_PLATFORM_MAC) || defined(ION_PLATFORM_IOS) || \
-    defined(ION_PLATFORM_GENERIC_ARM)
+    defined(ION_GOOGLE_INTERNAL)
     raise(SIGINT);
 #elif defined(ION_PLATFORM_WINDOWS)
     __debugbreak();
@@ -139,11 +134,15 @@ void Break() {
 }
 
 void BreakOrAbort() {
+#if defined(ION_PLATFORM_WINDOWS)
+  __debugbreak();
+#else
   if (IsDebuggerAttached()) {
     Break();
   } else {
     abort();
   }
+#endif
 }
 
 }  // namespace port

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,17 +18,15 @@ limitations under the License.
 #ifndef ION_PROFILE_CALLTRACEMANAGER_H_
 #define ION_PROFILE_CALLTRACEMANAGER_H_
 
-#include <chrono>  // NOLINT
+#include <chrono>  // NOLINT(build/c++11)
 #include <memory>
+#include <mutex>  // NOLINT(build/c++11)
 #include <vector>
 
 #include "ion/analytics/benchmark.h"
-#include "ion/base/lockguards.h"
 #include "ion/base/setting.h"
-#include "ion/base/stlalloc/allocunorderedmap.h"
-#include "ion/base/stlalloc/allocvector.h"
+#include "ion/base/stringtable.h"
 #include "ion/base/threadlocalobject.h"
-#include "ion/port/mutex.h"
 #include "ion/port/timer.h"
 #include "ion/profile/timeline.h"
 #include "ion/profile/timelinemetric.h"
@@ -92,15 +90,6 @@ class CallTraceManager : public base::Allocatable {
     kNumNamedTraceRecorders,
   };
 
-  // Custom scope event mapping from name (as a pointer to a literal string) to
-  // uint32 id. Note we explicitly cast the pointer to const void* since we do
-  // want to hash the pointer instead of the string; std::hash<const char*>
-  // would return error here.
-  typedef base::AllocUnorderedMap<const void*, uint32> ScopeEventMap;
-
-  // Reversed mapping from custom scope event id to name.
-  typedef base::AllocUnorderedMap<uint32, const char*> ReverseScopeEventMap;
-
   // List of TraceRecorders, one created for each thread of execution.
   typedef base::AllocVector<TraceRecorder*> TraceList;
 
@@ -122,21 +111,19 @@ class CallTraceManager : public base::Allocatable {
   // Gets the list of all trace recorders for all threads.
   const TraceList& GetAllTraceRecorders() const { return recorder_list_; }
 
-  // Queries the event id of a scope enter event, based on string_id.
-  // Only raw string literals are allowed for the string_id argument.
-  int GetScopeEnterEvent(const char* string_id);
+  // Returns the StringTable used for mapping strings to string IDs.
+  const base::StringTablePtr& GetStringTable() const { return string_table_; }
 
-  // Returns the name of the scope enter event with the given id.
-  const char* GetScopeEnterEventName(uint32 event_id) const;
+  // Returns the StringTable used for mapping scope event names to IDs.
+  const base::StringTablePtr& GetScopeEventTable() const {
+    return scope_events_;
+  }
 
   // Gets the number of arguments for a particular event.
   static int GetNumArgsForEvent(uint32 event_id);
 
   // Gets the argument types for a particular event.
   static EventArgType GetArgType(uint32 event_id, int arg_index);
-
-  // Returns the number of unique custom scope events recorded.
-  size_t GetNumScopeEvents() const { return scope_event_map_.size(); }
 
   // Returns a snapshot of traces to a string in binary .wtf-trace format.
   // https://github.com/google/tracing-framework/blob/master/docs/wtf-trace.md
@@ -172,6 +159,9 @@ class CallTraceManager : public base::Allocatable {
     timeline_metrics_.push_back(std::move(metric));
   }
 
+  // Remove all registered timeline metrics.
+  void RemoveAllTimelineMetrics() { timeline_metrics_.clear(); }
+
   // Runs all registered metrics on the current timeline and returns a benchmark
   // object containing the collected statistics.
   analytics::Benchmark RunTimelineMetrics() const;
@@ -181,7 +171,7 @@ class CallTraceManager : public base::Allocatable {
   struct NamedTraceRecorderArray {
     NamedTraceRecorderArray() {
       for (int i = 0; i < kNumNamedTraceRecorders; ++i) {
-        recorders[i] = NULL;
+        recorders[i] = nullptr;
       }
     }
 
@@ -193,7 +183,7 @@ class CallTraceManager : public base::Allocatable {
   TraceRecorder* AllocateTraceRecorder();
 
   // Protect state with a mutex!
-  port::Mutex mutex_;
+  std::mutex mutex_;
 
   // Thread local pointer to a TraceRecorder for recording call traces.
   base::ThreadLocalObject<TraceRecorder*> trace_recorder_;
@@ -211,13 +201,13 @@ class CallTraceManager : public base::Allocatable {
   // Provides accurate timing.
   port::Timer timer_;
 
-  // Map of custom scope events (literal strings to uint32 ids).
-  ScopeEventMap scope_event_map_;
+  // A StringTable for mapping string instances to unique IDs.
+  const base::StringTablePtr string_table_;
 
-  // Reverse map of custom scope events (uint32 ids to literal strings).
-  ReverseScopeEventMap reverse_scope_event_map_;
+  // A StringTable for mapping scope events to unique IDs.
+  const base::StringTablePtr scope_events_;
 
-  // The timeline metrics that have been registerd. These metrics will be run
+  // The timeline metrics that have been registered. These metrics will be run
   // when RunTimelineMetrics gets called.
   std::vector<std::unique_ptr<TimelineMetric>> timeline_metrics_;
 };
@@ -226,7 +216,7 @@ class CallTraceManager : public base::Allocatable {
 // TraceRecorder.
 class ScopedTracer {
  public:
-  ScopedTracer(TraceRecorder* recorder, int id);
+  ScopedTracer(TraceRecorder* recorder, const char* name);
   ~ScopedTracer();
 
  private:

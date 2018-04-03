@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@ limitations under the License.
 */
 
 #include "ion/base/invalid.h"
+
+#include <string>
 
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
@@ -35,10 +37,20 @@ TEST(Invalid, InvalidIndex) {
 
 TEST(Invalid, InvalidReference) {
   const int& invalid_int = ion::base::InvalidReference<int>();
-  EXPECT_TRUE(&invalid_int != NULL);
+  const std::string int_nullptr_string = std::to_string(
+      reinterpret_cast<uintptr_t>(static_cast<const int*>(nullptr)));
+  const std::string invalid_int_string =
+      std::to_string(reinterpret_cast<uintptr_t>(&invalid_int));
+  EXPECT_NE(int_nullptr_string, invalid_int_string);
+  EXPECT_EQ(int_nullptr_string, "0");
 
   const DummyStruct& invalid_dummy = ion::base::InvalidReference<DummyStruct>();
-  EXPECT_TRUE(&invalid_dummy != NULL);
+  const std::string nullptr_string = std::to_string(
+      reinterpret_cast<uintptr_t>(static_cast<const DummyStruct*>(nullptr)));
+  const std::string invalid_dummy_string =
+      std::to_string(reinterpret_cast<uintptr_t>(&invalid_dummy));
+  EXPECT_NE(nullptr_string, invalid_dummy_string);
+  EXPECT_EQ(nullptr_string, "0");
 }
 
 TEST(Invalid, InvalidEnum) {

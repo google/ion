@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,8 +18,9 @@ limitations under the License.
 #ifndef ION_BASE_READWRITELOCK_H_
 #define ION_BASE_READWRITELOCK_H_
 
+#include <mutex>  // NOLINT(build/c++11)
+
 #include "ion/port/atomic.h"
-#include "ion/port/mutex.h"
 #include "ion/port/semaphore.h"
 
 namespace ion {
@@ -76,7 +77,7 @@ class ION_API ReadWriteLock {
   std::atomic<int> reader_count_;
   std::atomic<int> writer_count_;
   port::Semaphore room_empty_;
-  port::Mutex turnstile_;
+  std::mutex turnstile_;
 
   DISALLOW_COPY_AND_ASSIGN(ReadWriteLock);
 };

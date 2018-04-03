@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,7 +33,6 @@
         'macros_test.cc',
         'memory_test.cc',
         'memorymappedfile_test.cc',
-        'mutex_test.cc',
         'semaphore_test.cc',
         'stacktrace_test.cc',
         'std_array_test.cc',

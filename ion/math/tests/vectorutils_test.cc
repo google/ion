@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,16 +19,25 @@ limitations under the License.
 
 #include <limits>
 
+#include "ion/math/tests/testutils.h"
 #include "ion/math/utils.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
 namespace ion {
 namespace math {
 
+TEST(VectorUtils, WithoutDimension) {
+  EXPECT_EQ(WithoutDimension(Vector4d(1.0, 2.0, 3.0, 4.0), 0),
+            Vector3d(2.0, 3.0, 4.0));
+  EXPECT_EQ(WithoutDimension(Vector4d(1.0, 2.0, 3.0, 4.0), 1),
+            Vector3d(1.0, 3.0, 4.0));
+  EXPECT_EQ(WithoutDimension(Vector4d(1.0, 2.0, 3.0, 4.0), 3),
+            Vector3d(1.0, 2.0, 3.0));
+}
+
 TEST(VectorUtils, Dot) {
   EXPECT_EQ((2.0 * -6.0) + (3.0 * 7.5) + (4.0 * 8.0) + (-5.5 * -9.0),
-            Dot(Vector4d(2.0, 3.0, 4.0, -5.5),
-                Vector4d(-6.0, 7.5, 8.0, -9.0)));
+            Dot(Vector4d(2.0, 3.0, 4.0, -5.5), Vector4d(-6.0, 7.5, 8.0, -9.0)));
 }
 
 TEST(VectorUtils, Cross) {
@@ -55,18 +64,26 @@ TEST(VectorUtils, Length) {
 
 TEST(VectorUtils, DistanceSquared) {
   EXPECT_EQ(25, DistanceSquared(Point2i::Zero(), Point2i(3, 4)));
-  EXPECT_NEAR(30.0, DistanceSquared(Point4d(1.0, 2.0, 3.0, 4.0),
-                                    Point4d(2.0, 6.0, 5.0, 7.0)), 1e-10);
-  EXPECT_NEAR(30.0, DistanceSquared(Point4d(2.0, 6.0, 5.0, 7.0),
-                                    Point4d(1.0, 2.0, 3.0, 4.0)), 1e-10);
+  EXPECT_NEAR(
+      30.0,
+      DistanceSquared(Point4d(1.0, 2.0, 3.0, 4.0), Point4d(2.0, 6.0, 5.0, 7.0)),
+      1e-10);
+  EXPECT_NEAR(
+      30.0,
+      DistanceSquared(Point4d(2.0, 6.0, 5.0, 7.0), Point4d(1.0, 2.0, 3.0, 4.0)),
+      1e-10);
 }
 
 TEST(VectorUtils, Distance) {
   EXPECT_EQ(5, Distance(Point2i::Zero(), Point2i(3, 4)));
-  EXPECT_NEAR(Sqrt(30.0), Distance(Point4d(1.0, 2.0, 3.0, 4.0),
-                                   Point4d(2.0, 6.0, 5.0, 7.0)), 1e-10);
-  EXPECT_NEAR(Sqrt(30.0), Distance(Point4d(2.0, 6.0, 5.0, 7.0),
-                                   Point4d(1.0, 2.0, 3.0, 4.0)), 1e-10);
+  EXPECT_NEAR(
+      Sqrt(30.0),
+      Distance(Point4d(1.0, 2.0, 3.0, 4.0), Point4d(2.0, 6.0, 5.0, 7.0)),
+      1e-10);
+  EXPECT_NEAR(
+      Sqrt(30.0),
+      Distance(Point4d(2.0, 6.0, 5.0, 7.0), Point4d(1.0, 2.0, 3.0, 4.0)),
+      1e-10);
 }
 
 TEST(VectorUtils, DistanceToSegment) {
@@ -99,9 +116,7 @@ TEST(VectorUtils, DistanceToSegment) {
 
   // Point is off the line; closest point lies on the interior of line.
   p = Point3d(10, 0, 0);
-  EXPECT_NEAR(
-      Sqrt(50.),
-      DistanceToSegment(p, start1, end1), 1e-6);
+  EXPECT_NEAR(Sqrt(50.), DistanceToSegment(p, start1, end1), 1e-6);
   EXPECT_NEAR(50., DistanceSquaredToSegment(p, start1, end1), 1e-6);
   EXPECT_EQ(Point3d(5, 0, 5), ClosestPointOnSegment(p, start1, end1));
 
@@ -122,6 +137,11 @@ TEST(VectorUtils, DistanceToSegment) {
   EXPECT_NEAR(5., DistanceToSegment(p, start2, end2), 1e-6);
   EXPECT_NEAR(25., DistanceSquaredToSegment(p, start2, end2), 1e-6);
   EXPECT_EQ(Point3d(10, 0, 10), ClosestPointOnSegment(p, start2, end2));
+
+  // Test floating point version to ensure there are no double to float casts
+  // which would generate compiler errors.
+  EXPECT_EQ(Point3f(Point3d(10, 0, 10)),
+            ClosestPointOnSegment(Point3f(p), Point3f(start2), Point3f(end2)));
 }
 
 TEST(VectorUtils, Normalize) {
@@ -178,12 +198,9 @@ TEST(VectorUtils, Orthonormal) {
 }
 
 TEST(VectorUtils, Rescale) {
-  EXPECT_EQ(Vector3d(3.0, 4.0, 0.0),
-            Rescale(Vector3d(30.0, 40.0, 0.0), 5.0));
-  EXPECT_EQ(Vector2d(-6.0, 8.0),
-            Rescale(Vector2d(-30.0, 40.0), 10.0));
-  EXPECT_EQ(Vector4d::Zero(),
-            Rescale(Vector4d(-30.0, 40.0, 50.0, 60.0), 0.0));
+  EXPECT_EQ(Vector3d(3.0, 4.0, 0.0), Rescale(Vector3d(30.0, 40.0, 0.0), 5.0));
+  EXPECT_EQ(Vector2d(-6.0, 8.0), Rescale(Vector2d(-30.0, 40.0), 10.0));
+  EXPECT_EQ(Vector4d::Zero(), Rescale(Vector4d(-30.0, 40.0, 50.0, 60.0), 0.0));
   EXPECT_EQ(Vector2d::Zero(), Rescale(Vector2d::Zero(), 2.));
   EXPECT_EQ(Vector3d::Zero(), Rescale(Vector3d::Zero(), 5.));
   EXPECT_EQ(Vector4d::Zero(), Rescale(Vector4d::Zero(), 9.));
@@ -198,14 +215,10 @@ TEST(VectorUtils, Projection) {
 }
 
 TEST(VectorUtils, VectorsAlmostEqual) {
-  EXPECT_TRUE(VectorsAlmostEqual(Vector2i(1, -1),
-                                 Vector2i(1, -1), 0));
-  EXPECT_TRUE(VectorsAlmostEqual(Vector2i(1, -1),
-                                 Vector2i(2, -2), 1));
-  EXPECT_FALSE(VectorsAlmostEqual(Vector2i(1, -1),
-                                  Vector2i(2, -3), 1));
-  EXPECT_FALSE(VectorsAlmostEqual(Vector2i(1, -1),
-                                  Vector2i(3, -2), 1));
+  EXPECT_TRUE(VectorsAlmostEqual(Vector2i(1, -1), Vector2i(1, -1), 0));
+  EXPECT_TRUE(VectorsAlmostEqual(Vector2i(1, -1), Vector2i(2, -2), 1));
+  EXPECT_FALSE(VectorsAlmostEqual(Vector2i(1, -1), Vector2i(2, -3), 1));
+  EXPECT_FALSE(VectorsAlmostEqual(Vector2i(1, -1), Vector2i(3, -2), 1));
   EXPECT_TRUE(VectorsAlmostEqual(Vector3d(1.0, 2.0, -3.0),
                                  Vector3d(1.0, 2.0, -3.0), 0.0));
   EXPECT_TRUE(VectorsAlmostEqual(Vector3d(1.0, 2.0, -3.0),
@@ -228,26 +241,24 @@ TEST(VectorUtils, MinMaxBoundPoint) {
 }
 
 TEST(PointUtils, PointsAlmostEqual) {
-  EXPECT_TRUE(PointsAlmostEqual(Point2i(1, -1),
-                                Point2i(1, -1), 0));
-  EXPECT_TRUE(PointsAlmostEqual(Point2i(1, -1),
-                                Point2i(2, -2), 1));
-  EXPECT_FALSE(PointsAlmostEqual(Point2i(1, -1),
-                                 Point2i(2, -3), 1));
-  EXPECT_FALSE(PointsAlmostEqual(Point2i(1, -1),
-                                 Point2i(3, -2), 1));
-  EXPECT_TRUE(PointsAlmostEqual(Point3d(1.0, 2.0, -3.0),
-                                Point3d(1.0, 2.0, -3.0), 0.0));
-  EXPECT_TRUE(PointsAlmostEqual(Point3d(1.0, 2.0, -3.0),
-                                Point3d(1.1, 1.9, -2.9), 0.11));
-  EXPECT_FALSE(PointsAlmostEqual(Point3d(1.0, 2.0, -3.0),
-                                 Point3d(1.2, 1.9, -2.9), 0.11));
-  EXPECT_FALSE(PointsAlmostEqual(Point3d(1.0, 2.0, -3.0),
-                                 Point3d(1.0, 2.0, -2.8), 0.11));
+  using ::testing::Not;
+  using ion::math::testing::IsAlmostEqual;
+  EXPECT_THAT(Point2i(1, -1), IsAlmostEqual(Point2i(1, -1), 0));
+  EXPECT_THAT(Point2i(1, -1), IsAlmostEqual(Point2i(2, -2), 1));
+  EXPECT_THAT(Point2i(1, -1), Not(IsAlmostEqual(Point2i(2, -3), 1)));
+  EXPECT_THAT(Point2i(1, -1), Not(IsAlmostEqual(Point2i(3, -2), 1)));
+  EXPECT_THAT(Point3d(1.0, 2.0, -3.0),
+              IsAlmostEqual(Point3d(1.0, 2.0, -3.0), 0.0));
+  EXPECT_THAT(Point3d(1.0, 2.0, -3.0),
+              IsAlmostEqual(Point3d(1.1, 1.9, -2.9), 0.11));
+  EXPECT_THAT(Point3d(1.0, 2.0, -3.0),
+              Not(IsAlmostEqual(Point3d(1.2, 1.9, -2.9), 0.11)));
+  EXPECT_THAT(Point3d(1.0, 2.0, -3.0),
+              Not(IsAlmostEqual(Point3d(1.0, 2.0, -2.8), 0.11)));
 
   // Negative tolerance should work.
-  EXPECT_TRUE(PointsAlmostEqual(Point3d(1.0, 2.0, -3.0),
-                                Point3d(1.0, 2.0, -3.1), -0.2));
+  EXPECT_THAT(Point3d(1.0, 2.0, -3.0),
+              IsAlmostEqual(Point3d(1.0, 2.0, -3.1), -0.2));
 }
 
 TEST(VectorUtils, Swizzle) {
@@ -348,12 +359,10 @@ TEST(VectorUtils, Swizzle) {
 TEST(VectorUtils, IsVectorFinite) {
   EXPECT_TRUE(IsVectorFinite(Point3d(1.0, 2.0, 3.0)));
   EXPECT_TRUE(IsVectorFinite(Vector4d(1.0, 2.0, 3.0, 4.0)));
-  EXPECT_FALSE(
-      IsVectorFinite(Point3d(1.0, std::numeric_limits<double>::infinity(),
-                             3.0)));
-  EXPECT_FALSE(IsVectorFinite(Vector4d(1.0, 2.0,
-                                 -std::numeric_limits<double>::infinity(),
-                                 4.0)));
+  EXPECT_FALSE(IsVectorFinite(
+      Point3d(1.0, std::numeric_limits<double>::infinity(), 3.0)));
+  EXPECT_FALSE(IsVectorFinite(
+      Vector4d(1.0, 2.0, -std::numeric_limits<double>::infinity(), 4.0)));
   EXPECT_FALSE(IsVectorFinite(Vector2d(sqrt(-1.0f), 1.0)));
 }
 

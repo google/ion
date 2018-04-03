@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,13 +21,19 @@ limitations under the License.
 #include "base/macros.h"
 #include "ion/base/readwritelock.h"
 #include "ion/base/spinmutex.h"
-#include "ion/port/mutex.h"
 
 namespace ion {
 namespace base {
 
 // This file contains utility classes for automatically locking and unlocking
 // mutexes.
+
+// Selects whether a lock should be acquired immediately when constructing
+// a guard, or only when Lock() is called on the guard.
+enum LockAction {
+  kAcquireLock,
+  kDeferLock
+};
 
 // Base class of guards that lock a mutex when created and unlock when
 // destroyed.
@@ -90,9 +96,12 @@ template <class MutexT>
 class ION_API GenericLockGuard : public GenericLockGuardBase<MutexT> {
  public:
   // The passed pointer must be non-NULL.
-  explicit GenericLockGuard(MutexT* m) : GenericLockGuardBase<MutexT>(m) {
-    this->mutex_.Lock();
-    this->is_locked_ = true;
+  explicit GenericLockGuard(MutexT* m, LockAction action = kAcquireLock)
+      : GenericLockGuardBase<MutexT>(m) {
+    if (action == kAcquireLock) {
+      this->mutex_.Lock();
+      this->is_locked_ = true;
+    }
   }
 
  private:
@@ -134,64 +143,6 @@ class ION_API GenericUnlockGuard {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(GenericUnlockGuard);
 };
-
-// A ManualLockGuard can be used to protect a variable with a mutex in
-// situations where it is not possible for scoping to be used. The mutex is
-// built into the class.
-template <typename T>
-class ION_API ManualLockGuard : public GenericLockGuardBase<port::Mutex> {
- public:
-  // The constructor is passed the initial value of the variable being
-  // protected.
-  explicit ManualLockGuard(const T& initial_value)
-      : GenericLockGuardBase<port::Mutex>(&local_mutex_),
-        initial_value_(initial_value),
-        current_value_(initial_value) {
-    is_locked_ = false;
-  }
-
-  // The destructor unlocks the mutex if necessary.
-  // This destructor is intentionally non-virtual for speed.  It duplicates what
-  // the base class destructor does.
-  ~ManualLockGuard() { Unlock(); }
-
-  // Sets the variable's value and locks the mutex. This blocks while the mutex
-  // is locked.
-  void SetAndLock(const T& new_value) {
-    Lock();
-    current_value_ = new_value;
-  }
-
-  // Resets the variable's value to the initial value (passed to the
-  // constructor), unlocks the mutex, and returns the previous value.
-  const T ResetAndUnlock() {
-    const T ret = current_value_;
-    current_value_ = initial_value_;
-    Unlock();
-    return ret;
-  }
-
-  // Returns the current value of the variable. This blocks if the mutex is
-  // already locked.
-  const T GetCurrentValue() {
-    Lock();
-    T ret = current_value_;
-    Unlock();
-    return ret;
-  }
-
- private:
-  port::Mutex local_mutex_;
-  T initial_value_;
-  T current_value_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ManualLockGuard);
-};
-
-// Convenient typedefs for ion::port::Mutex.
-typedef GenericLockGuard<port::Mutex> LockGuard;
-typedef GenericUnlockGuard<port::Mutex> UnlockGuard;
-typedef GenericTryLockGuard<port::Mutex> TryLockGuard;
 
 // Convenient typedefs for SpinMutex.
 typedef GenericLockGuard<SpinMutex> SpinLockGuard;

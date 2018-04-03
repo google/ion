@@ -1,0 +1,10 @@
+This is commit version c90f15d87f7679109edf0970a4238a0017b7cd95 of easywsclient.
+
+Local Google Modifications:
+- include netinet/in.h for IPPROTO_TCP
+- expose websocket opcodes in header file
+- expose raw sendData() method, and add ability to control setting of FIN flag
+- add virtual destructor to Callback
+- add function to set file pointer for messages
+- include sys/select.h for select()
+- initialize integer (https://github.com/dhbaird/easywsclient/pull/40)

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ limitations under the License.
 #include "ion/profile/timelinerange.h"
 #include "ion/profile/timelinescope.h"
 #include "ion/profile/timelinesearch.h"
+#include "absl/memory/memory.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 #include "third_party/jsoncpp/include/json/value.h"
 
@@ -32,7 +33,7 @@ static std::unique_ptr<Timeline> CreateTimelineWithSingleScope(
   std::unique_ptr<TimelineScope> scope(
       new TimelineScope(name, 0, 0, Json::nullValue));
   root->AddChild(std::move(scope));
-  return std::unique_ptr<Timeline>(new Timeline(std::move(root)));
+  return absl::make_unique<Timeline>(std::move(root));
 }
 
 static TimelineRange* AddRange(const uint32 start, const uint32 end,

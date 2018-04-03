@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -49,6 +49,9 @@ namespace base {
 class Referent : public Allocatable, public Shareable {
  protected:
   Referent() {}
+  // Constructor for Referents which can live on the stack or other
+  // non-Allocator-supplied memory.
+  explicit Referent(const AllocatorPtr& allocator) : Allocatable(allocator) {}
   ~Referent() override {}
 };
 

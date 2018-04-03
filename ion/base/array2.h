@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -78,7 +78,7 @@ template <typename T> class Array2 : public Allocatable {
   // and returns a NULL pointer if the indices are not valid.
   T* GetMutable(size_t column, size_t row) {
     const size_t index = GetIndex(column, row);
-    return index == base::kInvalidIndex ? NULL : &data_[index];
+    return index == base::kInvalidIndex ? nullptr : &data_[index];
   }
 
  private:

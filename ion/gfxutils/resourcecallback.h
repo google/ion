@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,10 +32,8 @@ namespace gfxutils {
 // This is accomplished by holding two references to itself.
 template <typename T> class ResourceCallback : public base::Referent {
  public:
-  typedef typename base::ReferentPtr<ResourceCallback<T> >::Type RefPtr;
-  explicit ResourceCallback(bool do_wait) {
-    if (!do_wait)
-      semaphore_.Post();
+  using RefPtr = base::SharedPtr<ResourceCallback<T>>;
+  ResourceCallback() {
     callback_holder_.Reset(this);
     wait_holder_.Reset(this);
   }
@@ -54,12 +52,12 @@ template <typename T> class ResourceCallback : public base::Referent {
     // Increment the ref count of this so that the member assignment can
     // succeed without calling the destructor.
     RefPtr holder(this);
-    callback_holder_ = NULL;
+    callback_holder_ = nullptr;
 
     // Signal that the callback has been called.
     semaphore_.Post();
 
-    holder = NULL;
+    holder = nullptr;
     // This may have been deleted by the above assignment; do not use the
     // ResourceCallback after Callback() returns.
   }
@@ -69,15 +67,15 @@ template <typename T> class ResourceCallback : public base::Referent {
     semaphore_.Wait();
 
     // Store the data if we've waited for the callback (in which case
-    // callback_holder_ is NULL) and the caller has requested it.
+    // callback_holder_ is nullptr) and the caller has requested it.
     if (!callback_holder_.Get() && data)
       *data = data_;
 
     // Increment the ref count of this so that the member assignment can
     // succeed without calling the destructor.
     RefPtr holder(this);
-    wait_holder_ = NULL;
-    holder = NULL;
+    wait_holder_ = nullptr;
+    holder = nullptr;
     // This may have been deleted by the above assignment; do not use the
     // ResourceCallback after WaitForCompletion() returns.
   }
@@ -85,8 +83,8 @@ template <typename T> class ResourceCallback : public base::Referent {
  protected:
   // The constructor is protected because this class is derived from Referent.
   ~ResourceCallback() override {
-    DCHECK(callback_holder_.Get() == NULL);
-    DCHECK(wait_holder_.Get() == NULL);
+    DCHECK(callback_holder_.Get() == nullptr);
+    DCHECK(wait_holder_.Get() == nullptr);
   }
 
   std::vector<T> data_;

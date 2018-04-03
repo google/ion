@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,13 +18,13 @@ limitations under the License.
 #ifndef ION_BASE_THREADLOCALOBJECT_H_
 #define ION_BASE_THREADLOCALOBJECT_H_
 
+#include <mutex>  // NOLINT(build/c++11)
 #include <vector>
 
 #include "ion/base/allocatable.h"
 #include "ion/base/allocator.h"
 #include "ion/base/lockguards.h"
 #include "ion/base/type_structs.h"
-#include "ion/port/mutex.h"
 #include "ion/port/threadutils.h"
 
 namespace ion {
@@ -87,6 +87,9 @@ template <typename T> class ThreadLocalObject {
     // Delete the key, which also invalidates all thread-local storage pointers
     // associated with it.
     port::DeleteThreadLocalStorageKey(key_);
+    // Resetting the key_ instance variable in case the
+    // ThreadLocalObject is used after it has been deallocated.
+    key_ = port::kInvalidThreadLocalStorageKey;
   }
 
   // Returns the ThreadLocalStorageKey created by the instance. This will be
@@ -121,11 +124,11 @@ template <typename T> class ThreadLocalObject {
   // Creates an instance of a T with the default constructor and puts it in
   // thread-local storage. Returns NULL if the ThreadLocalStorageKey is invalid.
   T* CreateAndStoreInstance() {
-    T* instance = NULL;
+    T* instance = nullptr;
     if (key_ != port::kInvalidThreadLocalStorageKey) {
       instance = AllocateInstance(allocator_);
       port::SetThreadLocalStorage(key_, instance);
-      LockGuard guard(&mutex_);
+      std::lock_guard<std::mutex> guard(mutex_);
       instances_.push_back(instance);
     }
     return instance;
@@ -140,7 +143,7 @@ template <typename T> class ThreadLocalObject {
 
   // Destroys all T instances created by this.
   void DestroyAllInstances() {
-    LockGuard guard(&mutex_);
+    std::lock_guard<std::mutex> guard(mutex_);
     const size_t num_instances = instances_.size();
     for (size_t i = 0; i < num_instances; ++i)
       delete instances_[i];
@@ -154,7 +157,7 @@ template <typename T> class ThreadLocalObject {
   // Vector of all T instances created by this.
   std::vector<T*> instances_;
   // Mutex protecting the instances_ vector.
-  port::Mutex mutex_;
+  std::mutex mutex_;
 };
 
 }  // namespace base

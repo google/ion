@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,8 +24,12 @@ limitations under the License.
 // scalar value type.
 //
 
+#include <functional>
+#include <type_traits>
+
 #include "base/integral_types.h"
 #include "ion/base/logging.h"
+#include "ion/base/scalarsequence.h"
 #include "ion/base/static_assert.h"
 #include "ion/base/stringutils.h"
 
@@ -81,7 +85,7 @@ class VectorBase {
   void Print(std::ostream& out, const char tag) const {  // NOLINT
     out << tag << "[";
     for (int i = 0; i < Dimension; ++i) {
-      out << elem_[i];
+      out << +elem_[i];
       if (i != Dimension - 1)
         out << ", ";
     }
@@ -105,27 +109,71 @@ class VectorBase {
 
  protected:
   // The default constructor zero-initializes all elements.
-  VectorBase() : elem_() {}
+  VectorBase() noexcept : elem_() {}
 
-  explicit VectorBase(T e0);           // Only when Dimension == 1.
-  VectorBase(T e0, T e1);              // Only when Dimension == 2.
-  VectorBase(T e0, T e1, T e2);        // Only when Dimension == 3.
-  VectorBase(T e0, T e1, T e2, T e3);  // Only when Dimension == 4.
+  constexpr explicit VectorBase(T e0);           // Only when Dimension == 1.
+  constexpr VectorBase(T e0, T e1);              // Only when Dimension == 2.
+  constexpr VectorBase(T e0, T e1, T e2);        // Only when Dimension == 3.
+  constexpr VectorBase(T e0, T e1, T e2, T e3);  // Only when Dimension == 4.
 
   // Constructor for an instance of dimension N from an instance of dimension
   // N-1 and a scalar of the correct type. This is defined only when Dimension
   // is at least 2.
-  VectorBase(const VectorBase<Dimension - 1, T>& v, T s);
+  constexpr VectorBase(const VectorBase<Dimension - 1, T>& v, T s);
 
   // Copy constructor from an instance of the same Dimension and any value type
   // that is compatible (via static_cast) with this instance's type.
-  template <typename U> explicit VectorBase(const VectorBase<Dimension, U>& v);
+  template <typename U>
+  constexpr explicit VectorBase(const VectorBase<Dimension, U>& v);
+
+  // Visual C++ 2015 Update 3 appears to have problems with overloaded
+  // constructors with variadic template parameters.  By separating out the
+  // constructors into separate initialization scopes, we avoid the problems
+  // with that compiler.
+
+  // Constructor helper to create a VectorBase of a different type, but same
+  // dimensionality.
+  template <typename U>
+  struct InitCast {
+    static constexpr VectorBase<Dimension, T> Invoke(
+        const VectorBase<Dimension, U>& source) {
+      return Invoke(
+          typename base::ScalarSequenceGenerator<size_t, Dimension>::Sequence(),
+          source);
+    }
+
+    template <size_t... index>
+    static constexpr VectorBase<Dimension, T> Invoke(
+        base::ScalarSequence<size_t, index...>,
+        const VectorBase<Dimension, U>& source) {
+      return VectorBase<Dimension, T>(static_cast<T>(source[index])...);
+    }
+  };
+
+  // Constructor helper to create a VectorBase from a lower-demension vector of
+  // the same type, with an extra parameter.
+  struct InitRaiseDimension {
+    static constexpr VectorBase<Dimension, T> Invoke(
+        const VectorBase<Dimension - 1, T>& source, T s) {
+      return Invoke(
+          typename base::ScalarSequenceGenerator<size_t,
+                                                 Dimension - 1>::Sequence(),
+          source, s);
+    }
+
+    template <size_t... index>
+    static constexpr VectorBase<Dimension, T> Invoke(
+        base::ScalarSequence<size_t, index...>,
+        const VectorBase<Dimension - 1, T>& source, T s) {
+      return VectorBase<Dimension, T>(source[index]..., s);
+    }
+  };
 
   // Returns an instance containing all zeroes.
-  static const VectorBase Zero();
+  static VectorBase Zero();
 
   // Returns an instance with all elements set to the given value.
-  static const VectorBase Fill(T value);
+  static VectorBase Fill(T value);
 
   //
   // Derived classes use these protected functions to implement type-safe
@@ -142,27 +190,42 @@ class VectorBase {
   void Divide(T s);
 
   // Unary negation.
-  const VectorBase Negation() const;
+  VectorBase Negation() const;
 
   // Binary component-wise multiplication.
-  static const VectorBase Product(const VectorBase& v0, const VectorBase& v1);
+  static VectorBase Product(const VectorBase& v0, const VectorBase& v1);
   // Binary component-wise division.
-  static const VectorBase Quotient(const VectorBase& v0, const VectorBase& v1);
+  static VectorBase Quotient(const VectorBase& v0, const VectorBase& v1);
   // Binary component-wise addition.
-  static const VectorBase Sum(const VectorBase& v0, const VectorBase& v1);
+  static VectorBase Sum(const VectorBase& v0, const VectorBase& v1);
   // Binary component-wise subtraction.
-  static const VectorBase Difference(const VectorBase& v0,
-                                     const VectorBase& v1);
+  static VectorBase Difference(const VectorBase& v0, const VectorBase& v1);
   // Binary multiplication by a scalar.
-  static const VectorBase Scale(const VectorBase& v, T s);
+  static VectorBase Scale(const VectorBase& v, T s);
   // Binary division by a scalar.
-  static const VectorBase Divide(const VectorBase& v, T s);
+  static VectorBase Divide(const VectorBase& v, T s);
+  // Reciprocal and multiplication by a scalar, i.e., s / v.
+  static VectorBase LeftDivide(T s, const VectorBase& v);
 
-  // Helper struct to aid in Zero, Fill, and Axis functions. It is a struct to
-  // allow partial template specialization.
-  template <int Dim, typename U> struct StaticHelper;
+  // Helper struct to aid in Axis functions. It is a struct to allow partial
+  // template specialization.
+  template <int Dim, typename U>
+  struct StaticHelper;
 
  private:
+  // Constructor taking elements from a lower dimension vector, and adding an
+  // extra dimension supplied by a parameter.  This constructor is used by the
+  // regular dimesional conversion constructor, as a utility for constexpr
+  // support.
+  template <size_t... index>
+  constexpr explicit VectorBase(base::ScalarSequence<size_t, index...>,
+                                const VectorBase<Dimension - 1, T>& v, T last);
+
+  // Constructor converting a indexable type to a vector of another type, using
+  // a ScalarSequence as a variadic index into the source vector.
+  template <typename U, size_t... index>
+  constexpr VectorBase(base::ScalarSequence<size_t, index...>, const U& v);
+
   // Element storage.
   T elem_[Dimension];
 };
@@ -176,37 +239,37 @@ template <int Dimension, typename T>
 class Vector : public VectorBase<Dimension, T> {
  public:
   // The default constructor zero-initializes all elements.
-  Vector() : BaseType() {}
+  Vector() noexcept : BaseType() {}
 
   // Dimension-specific constructors that are passed individual element values.
-  explicit Vector(T e0) : BaseType(e0) {}
-  Vector(T e0, T e1) : BaseType(e0, e1) {}
-  Vector(T e0, T e1, T e2) : BaseType(e0, e1, e2) {}
-  Vector(T e0, T e1, T e2, T e3) : BaseType(e0, e1, e2, e3) {}
+  constexpr explicit Vector(T e0) : BaseType(e0) {}
+  constexpr Vector(T e0, T e1) : BaseType(e0, e1) {}
+  constexpr Vector(T e0, T e1, T e2) : BaseType(e0, e1, e2) {}
+  constexpr Vector(T e0, T e1, T e2, T e3) : BaseType(e0, e1, e2, e3) {}
 
   // Constructor for a Vector of dimension N from a Vector of dimension N-1 and
   // a scalar of the correct type, assuming N is at least 2.
-  Vector(const Vector<Dimension - 1, T>& v, T s) : BaseType(v, s) {}
+  constexpr Vector(const Vector<Dimension - 1, T>& v, T s) : BaseType(v, s) {}
 
   // Copy constructor from a Vector of the same Dimension and any value type
   // that is compatible (via static_cast) with this Vector's type.
-  template <typename U> explicit Vector(const Vector<Dimension, U>& v)
-      : BaseType(v) {}
+  template <typename U>
+  constexpr explicit Vector(const VectorBase<Dimension, U>& v) : BaseType(v) {}
 
   // Returns a Vector containing all zeroes.
-  static const Vector Zero() { return ToVector(BaseType::Zero()); }
+  static Vector Zero() { return ToVector(BaseType::Zero()); }
 
   // Returns a Vector with all elements set to the given value.
-  static const Vector Fill(T value) { return ToVector(BaseType::Fill(value)); }
+  static Vector Fill(T value) { return ToVector(BaseType::Fill(value)); }
 
   // Returns a Vector representing the X axis.
-  static const Vector AxisX();
+  static Vector AxisX();
   // Returns a Vector representing the Y axis if it exists.
-  static const Vector AxisY();
+  static Vector AxisY();
   // Returns a Vector representing the Z axis if it exists.
-  static const Vector AxisZ();
+  static Vector AxisZ();
   // Returns a Vector representing the W axis if it exists.
-  static const Vector AxisW();
+  static Vector AxisW();
 
   // Self-modifying operators.
   void operator+=(const Vector& v) { BaseType::Add(v); }
@@ -215,33 +278,33 @@ class Vector : public VectorBase<Dimension, T> {
   void operator/=(T s) { BaseType::Divide(s); }
 
   // Unary negation operator.
-  const Vector operator-() const { return ToVector(BaseType::Negation()); }
+  Vector operator-() const { return ToVector(BaseType::Negation()); }
 
   // Binary operators.
-  friend const Vector operator+(const Vector& v0, const Vector& v1) {
+  friend Vector operator+(const Vector& v0, const Vector& v1) {
     return ToVector(BaseType::Sum(v0, v1));
   }
-  friend const Vector operator-(const Vector& v0, const Vector& v1) {
+  friend Vector operator-(const Vector& v0, const Vector& v1) {
     return ToVector(BaseType::Difference(v0, v1));
   }
-  friend const Vector operator*(const Vector& v, T s) {
+  friend Vector operator*(const Vector& v, T s) {
     return ToVector(BaseType::Scale(v, s));
   }
-  friend const Vector operator*(T s, const Vector& v) {
+  friend Vector operator*(T s, const Vector& v) {
     // Assume the commutative property holds for type T.
     return ToVector(BaseType::Scale(v, s));
   }
-  friend const Vector operator*(const Vector& v, const Vector& s) {
+  friend Vector operator*(const Vector& v, const Vector& s) {
     return ToVector(BaseType::Product(v, s));
   }
-  friend const Vector operator/(const Vector& v, const Vector& s) {
+  friend Vector operator/(const Vector& v, const Vector& s) {
     return ToVector(BaseType::Quotient(v, s));
   }
-  friend const Vector operator/(const Vector& v, T s) {
+  friend Vector operator/(const Vector& v, T s) {
     return ToVector(BaseType::Divide(v, s));
   }
-  friend const Vector operator/(T s, const Vector& v) {
-    return Vector(s / v[0], s / v[1], s / v[2]);
+  friend Vector operator/(T s, const Vector& v) {
+    return ToVector(BaseType::LeftDivide(s, v));
   }
 
   // Exact equality and inequality comparisons.
@@ -257,7 +320,7 @@ class Vector : public VectorBase<Dimension, T> {
   typedef VectorBase<Dimension, T> BaseType;
 
   // Converts a VectorBase of the correct type to a Vector.
-  static const Vector ToVector(const BaseType& b) {
+  static Vector ToVector(const BaseType& b) {
     // This is safe because Vector is the same size as VectorBase and has no
     // virtual functions. It's ugly, but better than the alternatives.
     return static_cast<const Vector&>(b);
@@ -293,28 +356,28 @@ class Point : public VectorBase<Dimension, T> {
   typedef Vector<Dimension, T> VectorType;
 
   // The default constructor zero-intializes all elements.
-  Point() : BaseType() {}
+  Point() noexcept : BaseType() {}
 
   // Dimension-specific constructors that are passed individual element values.
-  explicit Point(T e0) : BaseType(e0) {}
-  Point(T e0, T e1) : BaseType(e0, e1) {}
-  Point(T e0, T e1, T e2) : BaseType(e0, e1, e2) {}
-  Point(T e0, T e1, T e2, T e3) : BaseType(e0, e1, e2, e3) {}
+  constexpr explicit Point(T e0) : BaseType(e0) {}
+  constexpr Point(T e0, T e1) : BaseType(e0, e1) {}
+  constexpr Point(T e0, T e1, T e2) : BaseType(e0, e1, e2) {}
+  constexpr Point(T e0, T e1, T e2, T e3) : BaseType(e0, e1, e2, e3) {}
 
   // Constructor for a Point of dimension N from a Point of dimension N-1 and
   // a scalar of the correct type, assuming N is at least 2.
-  Point(const Point<Dimension - 1, T>& p, T s) : BaseType(p, s) {}
+  constexpr Point(const Point<Dimension - 1, T>& p, T s) : BaseType(p, s) {}
 
   // Copy constructor from a Point of the same Dimension and any value type
   // that is compatible (via static_cast) with this Point's type.
-  template <typename U> explicit Point(const Point<Dimension, U>& p)
-      : BaseType(p) {}
+  template <typename U>
+  constexpr explicit Point(const VectorBase<Dimension, U>& p) : BaseType(p) {}
 
   // Returns a Point containing all zeroes.
-  static const Point Zero() { return ToPoint(BaseType::Zero()); }
+  static Point Zero() { return ToPoint(BaseType::Zero()); }
 
   // Returns a Point with all elements set to the given value.
-  static const Point Fill(T value) { return ToPoint(BaseType::Fill(value)); }
+  static Point Fill(T value) { return ToPoint(BaseType::Fill(value)); }
 
   // Self-modifying operators.
   void operator+=(const Point& v) { BaseType::Add(v); }
@@ -324,44 +387,44 @@ class Point : public VectorBase<Dimension, T> {
   void operator/=(T s) { BaseType::Divide(s); }
 
   // Unary operators.
-  const Point operator-() const { return ToPoint(BaseType::Negation()); }
+  Point operator-() const { return ToPoint(BaseType::Negation()); }
 
   // Adding two Points produces another Point.
-  friend const Point operator+(const Point& p0, const Point& p1) {
+  friend Point operator+(const Point& p0, const Point& p1) {
     return ToPoint(BaseType::Sum(p0, p1));
   }
   // Adding a Vector to a Point produces another Point.
-  friend const Point operator+(const Point& p, const VectorType& v) {
+  friend Point operator+(const Point& p, const VectorType& v) {
     return ToPoint(BaseType::Sum(p, v));
   }
-  friend const Point operator+(const VectorType& v, const Point& p) {
+  friend Point operator+(const VectorType& v, const Point& p) {
     return ToPoint(BaseType::Sum(p, v));
   }
 
   // Subtracting a Vector from a Point produces another Point.
-  friend const Point operator-(const Point& p, const VectorType& v) {
+  friend Point operator-(const Point& p, const VectorType& v) {
     return ToPoint(BaseType::Difference(p, v));
   }
   // Subtracting two Points results in a Vector.
-  friend const VectorType operator-(const Point& p0, const Point& p1) {
+  friend VectorType operator-(const Point& p0, const Point& p1) {
     return ToVector(BaseType::Difference(p0, p1));
   }
 
   // Binary scale and division operators.
-  friend const Point operator*(const Point& p, T s) {
+  friend Point operator*(const Point& p, T s) {
     return ToPoint(BaseType::Scale(p, s));
   }
-  friend const Point operator*(T s, const Point& p) {
+  friend Point operator*(T s, const Point& p) {
     // Assume the commutative property holds for type T.
     return ToPoint(BaseType::Scale(p, s));
   }
-  friend const Point operator*(const Point& v, const Point& s) {
+  friend Point operator*(const Point& v, const Point& s) {
     return ToPoint(BaseType::Product(v, s));
   }
-  friend const Point operator/(const Point& v, const Point& s) {
+  friend Point operator/(const Point& v, const Point& s) {
     return ToPoint(BaseType::Quotient(v, s));
   }
-  friend const Point operator/(const Point& p, T s) {
+  friend Point operator/(const Point& p, T s) {
     return ToPoint(BaseType::Divide(p, s));
   }
 
@@ -378,13 +441,13 @@ class Point : public VectorBase<Dimension, T> {
   typedef VectorBase<Dimension, T> BaseType;
 
   // Converts a VectorBase of the correct type to a Point.
-  static const Point ToPoint(const BaseType& b) {
+  static Point ToPoint(const BaseType& b) {
     // This is safe because Point is the same size as VectorBase and has no
     // virtual functions. It's ugly, but better than the alternatives.
     return *static_cast<const Point*>(&b);
   }
   // Converts a VectorBase of the correct type to the corresponding Vector type.
-  static const VectorType ToVector(const BaseType& b) {
+  static VectorType ToVector(const BaseType& b) {
     return VectorType::ToVector(b);
   }
 };
@@ -404,70 +467,154 @@ std::istream& operator>>(std::istream& in, Point<Dimension, T>& v) {
 }
 
 //------------------------------------------------------------------------------
+// Optimization helpers.
+//------------------------------------------------------------------------------
+namespace vector_internal {
+
+// Unroller is a helper struct for compile-type force-unrolling of loops, using
+// indexed recursion.
+template <typename T>
+struct Unroller {
+  // General operators.
+  template <typename Op>
+  static void ScalarOp(T* a, const T* b, const T v, base::ScalarSequence<int>) {
+  }
+  template <typename Op, int I, int... Is>
+  static void ScalarOp(T* a, const T* b, const T v,
+                       base::ScalarSequence<int, I, Is...>) {
+    a[I] = Op{}(b[I], v);
+    ScalarOp<Op>(a, b, v, base::ScalarSequence<int, Is...>{});
+  }
+
+  template <typename Op>
+  static void ScalarLeftOp(T* a, const T* b, const T v,
+                           base::ScalarSequence<int>) {}
+  template <typename Op, int I, int... Is>
+  static void ScalarLeftOp(T* a, const T* b, const T v,
+                           base::ScalarSequence<int, I, Is...>) {
+    a[I] = Op{}(v, b[I]);
+    ScalarLeftOp<Op>(a, b, v, base::ScalarSequence<int, Is...>{});
+  }
+
+  template <typename Op>
+  static void VectorOp(T* a, const T* b, const T* c,
+                       base::ScalarSequence<int>) {}
+  template <typename Op, int I, int... Is>
+  static void VectorOp(T* a, const T* b, const T* c,
+                       base::ScalarSequence<int, I, Is...>) {
+    a[I] = Op{}(b[I], c[I]);
+    VectorOp<Op>(a, b, c, base::ScalarSequence<int, Is...>{});
+  }
+
+  template <typename Op>
+  static void UnaryOp(T* a, const T* b, base::ScalarSequence<int>) {}
+  template <typename Op, int I, int... Is>
+  static void UnaryOp(T* a, const T* b, base::ScalarSequence<int, I, Is...>) {
+    a[I] = Op{}(b[I]);
+    UnaryOp<Op>(a, b, base::ScalarSequence<int, Is...>{});
+  }
+
+  template <typename Op>
+  static bool BooleanOp(const T* a, const T* b, base::ScalarSequence<int>) {
+    return true;
+  }
+  template <typename Op, int I, int... Is>
+  static bool BooleanOp(const T* a, const T* b,
+                        base::ScalarSequence<int, I, Is...>) {
+    if (Op{}(a[I], b[I])) return false;
+    return BooleanOp<Op>(a, b, base::ScalarSequence<int, Is...>{});
+  }
+
+  // Specialized operators that don't fit the above pattern.
+  static T Dot(T sum, const T* a, const T* b, base::ScalarSequence<int>) {
+    return sum;
+  }
+  template <int I, int... Is>
+  static T Dot(T sum, const T* a, const T* b,
+               base::ScalarSequence<int, I, Is...>) {
+    return Dot(sum + a[I] * b[I], a, b, base::ScalarSequence<int, Is...>{});
+  }
+
+  static void Fill(T* a, const T b, base::ScalarSequence<int>) {}
+  template <int I, int... Is>
+  static void Fill(T* a, const T b, base::ScalarSequence<int, I, Is...>) {
+    a[I] = b;
+    Fill(a, b, base::ScalarSequence<int, Is...>{});
+  }
+
+  // Helper structs for use with the above.
+  struct Smaller {
+    constexpr const T& operator()(const T& a, const T& b) const {
+      return std::min(a, b);
+    }
+  };
+  struct Larger {
+    constexpr const T& operator()(const T& a, const T& b) const {
+      return std::max(a, b);
+    }
+  };
+  struct IsNotFinite {
+    constexpr const T& operator()(const T& a) const { return !IsFinite(a); }
+  };
+};
+
+}  // namespace vector_internal
+
+//------------------------------------------------------------------------------
 // VectorBase implementation.
 //------------------------------------------------------------------------------
 
 template <int Dimension, typename T>
-VectorBase<Dimension, T>::VectorBase(T e0) {
-  ION_STATIC_ASSERT(Dimension == 1, "Bad Dimension in VectorBase constructor");
-  elem_[0] = e0;
+constexpr VectorBase<Dimension, T>::VectorBase(T e0) : elem_{e0} {
+  static_assert(Dimension == 1, "Bad Dimension in VectorBase constructor");
 }
 
 template <int Dimension, typename T>
-VectorBase<Dimension, T>::VectorBase(T e0, T e1) {
-  ION_STATIC_ASSERT(Dimension == 2, "Bad Dimension in VectorBase constructor");
-  elem_[0] = e0;
-  elem_[1] = e1;
+constexpr VectorBase<Dimension, T>::VectorBase(T e0, T e1) : elem_{e0, e1} {
+  static_assert(Dimension == 2, "Bad Dimension in VectorBase constructor");
 }
 
 template <int Dimension, typename T>
-VectorBase<Dimension, T>::VectorBase(T e0, T e1, T e2) {
-  ION_STATIC_ASSERT(Dimension == 3, "Bad Dimension in VectorBase constructor");
-  elem_[0] = e0;
-  elem_[1] = e1;
-  elem_[2] = e2;
+constexpr VectorBase<Dimension, T>::VectorBase(T e0, T e1, T e2)
+    : elem_{e0, e1, e2} {
+  static_assert(Dimension == 3, "Bad Dimension in VectorBase constructor");
 }
 
 template <int Dimension, typename T>
-VectorBase<Dimension, T>::VectorBase(T e0, T e1, T e2, T e3) {
-  ION_STATIC_ASSERT(Dimension == 4, "Bad Dimension in VectorBase constructor");
-  elem_[0] = e0;
-  elem_[1] = e1;
-  elem_[2] = e2;
-  elem_[3] = e3;
+constexpr VectorBase<Dimension, T>::VectorBase(T e0, T e1, T e2, T e3)
+    : elem_{e0, e1, e2, e3} {
+  static_assert(Dimension == 4, "Bad Dimension in VectorBase constructor");
 }
 
 template <int Dimension, typename T>
-VectorBase<Dimension, T>::VectorBase(const VectorBase<Dimension - 1, T>& v,
-                                     T s) {
-  ION_STATIC_ASSERT(Dimension >= 2, "Bad Dimension in VectorBase constructor");
-  for (int i = 0; i < Dimension - 1; ++i)
-    elem_[i] = v[i];
-  elem_[Dimension - 1] = s;
+constexpr VectorBase<Dimension, T>::VectorBase(
+    const VectorBase<Dimension - 1, T>& v, T s)
+    : VectorBase(InitRaiseDimension::Invoke(v, s)) {
+  static_assert(Dimension >= 2, "Bad Dimension in VectorBase constructor");
 }
 
-template <int Dimension, typename T> template <typename U>
-VectorBase<Dimension, T>::VectorBase(const VectorBase<Dimension, U>& v) {
-  for (int i = 0; i < Dimension; ++i)
-    elem_[i] = static_cast<T>(v[i]);
-}
+template <int Dimension, typename T>
+template <typename U>
+constexpr VectorBase<Dimension, T>::VectorBase(
+    const VectorBase<Dimension, U>& v)
+    : VectorBase(InitCast<U>::Invoke(v)) {}
 
 template <int Dimension, typename T>
 void VectorBase<Dimension, T>::Set(T e0) {
-  ION_STATIC_ASSERT(Dimension == 1, "Bad Dimension in VectorBase::Set");
+  static_assert(Dimension == 1, "Bad Dimension in VectorBase::Set");
   elem_[0] = e0;
 }
 
 template <int Dimension, typename T>
 void VectorBase<Dimension, T>::Set(T e0, T e1) {
-  ION_STATIC_ASSERT(Dimension == 2, "Bad Dimension in VectorBase::Set");
+  static_assert(Dimension == 2, "Bad Dimension in VectorBase::Set");
   elem_[0] = e0;
   elem_[1] = e1;
 }
 
 template <int Dimension, typename T>
 void VectorBase<Dimension, T>::Set(T e0, T e1, T e2) {
-  ION_STATIC_ASSERT(Dimension == 3, "Bad Dimension in VectorBase::Set");
+  static_assert(Dimension == 3, "Bad Dimension in VectorBase::Set");
   elem_[0] = e0;
   elem_[1] = e1;
   elem_[2] = e2;
@@ -475,7 +622,7 @@ void VectorBase<Dimension, T>::Set(T e0, T e1, T e2) {
 
 template <int Dimension, typename T>
 void VectorBase<Dimension, T>::Set(T e0, T e1, T e2, T e3) {
-  ION_STATIC_ASSERT(Dimension == 4, "Bad Dimension in VectorBase::Set");
+  static_assert(Dimension == 4, "Bad Dimension in VectorBase::Set");
   elem_[0] = e0;
   elem_[1] = e1;
   elem_[2] = e2;
@@ -487,43 +634,29 @@ template <int Dimension, typename T>
 template <typename U>
 struct VectorBase<Dimension, T>::StaticHelper<1, U> {
   typedef math::Vector<1, U> Vector;
-  typedef math::VectorBase<1, U> VectorBase;
-  static const Vector AxisX() {
-    return Vector(static_cast<U>(1));
-  }
-  static const VectorBase Fill(U value) { return VectorBase(value); }
+  static Vector AxisX() { return Vector(static_cast<U>(1)); }
 };
 
 template <int Dimension, typename T>
 template <typename U>
 struct VectorBase<Dimension, T>::StaticHelper<2, U> {
   typedef math::Vector<2, U> Vector;
-  typedef math::VectorBase<2, U> VectorBase;
-  static const Vector AxisX() {
-    return Vector(static_cast<U>(1), static_cast<U>(0));
-  }
-  static const Vector AxisY() {
-    return Vector(static_cast<U>(0), static_cast<U>(1));
-  }
-  static const VectorBase Fill(U value) { return VectorBase(value, value); }
+  static Vector AxisX() { return Vector(static_cast<U>(1), static_cast<U>(0)); }
+  static Vector AxisY() { return Vector(static_cast<U>(0), static_cast<U>(1)); }
 };
 
 template <int Dimension, typename T>
 template <typename U>
 struct VectorBase<Dimension, T>::StaticHelper<3, U> {
   typedef math::Vector<3, U> Vector;
-  typedef math::VectorBase<3, U> VectorBase;
-  static const Vector AxisX() {
+  static Vector AxisX() {
     return Vector(static_cast<U>(1), static_cast<U>(0), static_cast<U>(0));
   }
-  static const Vector AxisY() {
+  static Vector AxisY() {
     return Vector(static_cast<U>(0), static_cast<U>(1), static_cast<U>(0));
   }
-  static const Vector AxisZ() {
+  static Vector AxisZ() {
     return Vector(static_cast<U>(0), static_cast<U>(0), static_cast<U>(1));
-  }
-  static const VectorBase Fill(U value) {
-    return VectorBase(value, value, value);
   }
 };
 
@@ -531,210 +664,262 @@ template <int Dimension, typename T>
 template <typename U>
 struct VectorBase<Dimension, T>::StaticHelper<4, U> {
   typedef math::Vector<4, U> Vector;
-  typedef math::VectorBase<4, U> VectorBase;
-  static const Vector AxisX() {
+  static Vector AxisX() {
     return Vector(static_cast<U>(1), static_cast<U>(0), static_cast<U>(0),
                   static_cast<U>(0));
   }
-  static const Vector AxisY() {
+  static Vector AxisY() {
     return Vector(static_cast<U>(0), static_cast<U>(1), static_cast<U>(0),
                   static_cast<U>(0));
   }
-  static const Vector AxisZ() {
+  static Vector AxisZ() {
     return Vector(static_cast<U>(0), static_cast<U>(0), static_cast<U>(1),
                   static_cast<U>(0));
   }
-  static const Vector AxisW() {
+  static Vector AxisW() {
     return Vector(static_cast<U>(0), static_cast<U>(0), static_cast<U>(0),
                   static_cast<U>(1));
   }
-  static const VectorBase Fill(U value) {
-    return VectorBase(value, value, value, value);
-  }
 };
 
-// Zero, Fill, and the Vector::Axis? functions use the above static methods.
+// The Vector::Axis? functions use the above static methods.
 template <int Dimension, typename T>
-const VectorBase<Dimension, T> VectorBase<Dimension, T>::Zero() {
-  static VectorBase<Dimension, T> v =
-      StaticHelper<Dimension, T>::Fill(static_cast<T>(0));
-  return v;
-}
-
-template <int Dimension, typename T>
-const VectorBase<Dimension, T> VectorBase<Dimension, T>::Fill(T value) {
-  return StaticHelper<Dimension, T>::Fill(value);
-}
-
-template <int Dimension, typename T>
-const Vector<Dimension, T> Vector<Dimension, T>::AxisX() {
+Vector<Dimension, T> Vector<Dimension, T>::AxisX() {
   static const Vector<Dimension, T> v =
       BaseType::template StaticHelper<Dimension, T>::AxisX();
   return v;
 }
 
 template <int Dimension, typename T>
-const Vector<Dimension, T> Vector<Dimension, T>::AxisY() {
+Vector<Dimension, T> Vector<Dimension, T>::AxisY() {
   static const Vector<Dimension, T> v =
       BaseType::template StaticHelper<Dimension, T>::AxisY();
   return v;
 }
 
 template <int Dimension, typename T>
-const Vector<Dimension, T> Vector<Dimension, T>::AxisZ() {
+Vector<Dimension, T> Vector<Dimension, T>::AxisZ() {
   static const Vector<Dimension, T> v =
       BaseType::template StaticHelper<Dimension, T>::AxisZ();
   return v;
 }
 
 template <int Dimension, typename T>
-const Vector<Dimension, T> Vector<Dimension, T>::AxisW() {
+Vector<Dimension, T> Vector<Dimension, T>::AxisW() {
   static const Vector<Dimension, T> v =
       BaseType::template StaticHelper<Dimension, T>::AxisW();
   return v;
 }
 
 template <int Dimension, typename T>
+VectorBase<Dimension, T> VectorBase<Dimension, T>::Zero() {
+  static VectorBase<Dimension, T> v;
+  return v;
+}
+
+template <int Dimension, typename T>
+VectorBase<Dimension, T> VectorBase<Dimension, T>::Fill(T value) {
+  VectorBase<Dimension, T> result;
+  vector_internal::Unroller<T>::Fill(
+      result.Data(), value,
+      typename base::ScalarSequenceGenerator<int, Dimension>::Sequence{});
+  return result;
+}
+
+template <int Dimension, typename T>
 void VectorBase<Dimension, T>::Add(const VectorBase& v) {
-  for (int i = 0; i < Dimension; ++i)
-    elem_[i] = static_cast<T>(elem_[i] + v.elem_[i]);
+  vector_internal::Unroller<T>::template VectorOp<std::plus<T>>(
+      Data(), Data(), v.Data(),
+      typename base::ScalarSequenceGenerator<int, Dimension>::Sequence{});
 }
 
 template <int Dimension, typename T>
 void VectorBase<Dimension, T>::Subtract(const VectorBase& v) {
-  for (int i = 0; i < Dimension; ++i)
-    elem_[i] = static_cast<T>(elem_[i] - v.elem_[i]);
+  vector_internal::Unroller<T>::template VectorOp<std::minus<T>>(
+      Data(), Data(), v.Data(),
+      typename base::ScalarSequenceGenerator<int, Dimension>::Sequence{});
 }
 
 template <int Dimension, typename T>
 void VectorBase<Dimension, T>::Multiply(T s) {
-  for (int i = 0; i < Dimension; ++i)
-    elem_[i] = static_cast<T>(elem_[i] * s);
+  vector_internal::Unroller<T>::template ScalarOp<std::multiplies<T>>(
+      Data(), Data(), s,
+      typename base::ScalarSequenceGenerator<int, Dimension>::Sequence{});
 }
 
 template <int Dimension, typename T>
 void VectorBase<Dimension, T>::Divide(T s) {
-  // TODO(user): See if specializing this for float/double to multiply by the
-  // reciprocal of s improves performance.
-  for (int i = 0; i < Dimension; ++i)
-    elem_[i] = static_cast<T>(elem_[i] / s);
+  vector_internal::Unroller<T>::template ScalarOp<std::divides<T>>(
+      Data(), Data(), s,
+      typename base::ScalarSequenceGenerator<int, Dimension>::Sequence{});
 }
 
 template <int Dimension, typename T>
-const VectorBase<Dimension, T> VectorBase<Dimension, T>::Negation() const {
-  VectorBase result;
-  for (int i = 0; i < Dimension; ++i)
-    result.elem_[i] = static_cast<T>(-elem_[i]);
+VectorBase<Dimension, T> VectorBase<Dimension, T>::Negation() const {
+  VectorBase<Dimension, T> result;
+  vector_internal::Unroller<T>::template UnaryOp<std::negate<T>>(
+      result.Data(), Data(),
+      typename base::ScalarSequenceGenerator<int, Dimension>::Sequence{});
   return result;
 }
 
 template <int Dimension, typename T>
-const VectorBase<Dimension, T> VectorBase<Dimension, T>::Product(
+VectorBase<Dimension, T> VectorBase<Dimension, T>::Product(
     const VectorBase& v0, const VectorBase& v1) {
   VectorBase result;
-  for (int i = 0; i < Dimension; ++i)
-    result.elem_[i] = static_cast<T>(v0.elem_[i] * v1.elem_[i]);
+  vector_internal::Unroller<T>::template VectorOp<std::multiplies<T>>(
+      result.Data(), v0.Data(), v1.Data(),
+      typename base::ScalarSequenceGenerator<int, Dimension>::Sequence{});
   return result;
 }
 
 template <int Dimension, typename T>
-const VectorBase<Dimension, T> VectorBase<Dimension, T>::Quotient(
+VectorBase<Dimension, T> VectorBase<Dimension, T>::Quotient(
     const VectorBase& v0, const VectorBase& v1) {
   VectorBase result;
-  for (int i = 0; i < Dimension; ++i)
-    result.elem_[i] = static_cast<T>(v0.elem_[i] / v1.elem_[i]);
+  vector_internal::Unroller<T>::template VectorOp<std::divides<T>>(
+      result.Data(), v0.Data(), v1.Data(),
+      typename base::ScalarSequenceGenerator<int, Dimension>::Sequence{});
   return result;
 }
 
 template <int Dimension, typename T>
-const VectorBase<Dimension, T> VectorBase<Dimension, T>::Sum(
+VectorBase<Dimension, T> VectorBase<Dimension, T>::Sum(const VectorBase& v0,
+                                                       const VectorBase& v1) {
+  VectorBase result;
+  vector_internal::Unroller<T>::template VectorOp<std::plus<T>>(
+      result.Data(), v0.Data(), v1.Data(),
+      typename base::ScalarSequenceGenerator<int, Dimension>::Sequence{});
+  return result;
+}
+
+template <int Dimension, typename T>
+VectorBase<Dimension, T> VectorBase<Dimension, T>::Difference(
     const VectorBase& v0, const VectorBase& v1) {
   VectorBase result;
-  for (int i = 0; i < Dimension; ++i)
-    result.elem_[i] = static_cast<T>(v0.elem_[i] + v1.elem_[i]);
+  vector_internal::Unroller<T>::template VectorOp<std::minus<T>>(
+      result.Data(), v0.Data(), v1.Data(),
+      typename base::ScalarSequenceGenerator<int, Dimension>::Sequence{});
   return result;
 }
 
 template <int Dimension, typename T>
-const VectorBase<Dimension, T> VectorBase<Dimension, T>::Difference(
-    const VectorBase& v0, const VectorBase& v1) {
+VectorBase<Dimension, T> VectorBase<Dimension, T>::Scale(const VectorBase& v,
+                                                         T s) {
   VectorBase result;
-  for (int i = 0; i < Dimension; ++i)
-    result.elem_[i] = static_cast<T>(v0.elem_[i] - v1.elem_[i]);
+  vector_internal::Unroller<T>::template ScalarOp<std::multiplies<T>>(
+      result.Data(), v.Data(), s,
+      typename base::ScalarSequenceGenerator<int, Dimension>::Sequence{});
   return result;
 }
 
 template <int Dimension, typename T>
-const VectorBase<Dimension, T> VectorBase<Dimension, T>::Scale(
-    const VectorBase& v, T s) {
+VectorBase<Dimension, T> VectorBase<Dimension, T>::Divide(const VectorBase& v,
+                                                          T s) {
   VectorBase result;
-  for (int i = 0; i < Dimension; ++i)
-    result.elem_[i] = static_cast<T>(v.elem_[i] * s);
+  vector_internal::Unroller<T>::template ScalarOp<std::divides<T>>(
+      result.Data(), v.Data(), s,
+      typename base::ScalarSequenceGenerator<int, Dimension>::Sequence{});
   return result;
 }
 
 template <int Dimension, typename T>
-const VectorBase<Dimension, T> VectorBase<Dimension, T>::Divide(
-    const VectorBase& v, T s) {
+VectorBase<Dimension, T> VectorBase<Dimension, T>::LeftDivide(
+    T s, const VectorBase& v) {
   VectorBase result;
-  for (int i = 0; i < Dimension; ++i)
-    result.elem_[i] = static_cast<T>(v.elem_[i] / s);
+  vector_internal::Unroller<T>::template ScalarLeftOp<std::divides<T>>(
+      result.Data(), v.Data(), s,
+      typename base::ScalarSequenceGenerator<int, Dimension>::Sequence{});
   return result;
 }
 
 template <int Dimension, typename T>
 bool VectorBase<Dimension, T>::AreValuesEqual(const VectorBase& v0,
                                               const VectorBase& v1) {
-  for (int i = 0; i < Dimension; ++i) {
-    if (v0.elem_[i] != v1.elem_[i])
-      return false;
-  }
-  return true;
+  return vector_internal::Unroller<T>::template BooleanOp<std::not_equal_to<T>>(
+      v0.Data(), v1.Data(),
+      typename base::ScalarSequenceGenerator<int, Dimension>::Sequence{});
 }
 
 //------------------------------------------------------------------------------
 // Dimension- and type-specific typedefs.
 //------------------------------------------------------------------------------
+#define ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type)              \
+  static_assert(std::is_trivially_destructible<type>::value, \
+                "Ion math type should be trivially destructible.");
 
-#define ION_INSTANTIATE_VECTOR_TYPE(type)       \
-typedef type<1, int8> type ## 1i8;              \
-typedef type<1, uint8> type ## 1ui8;            \
-typedef type<1, int16> type ## 1i16;            \
-typedef type<1, uint16> type ## 1ui16;          \
-typedef type<1, int32> type ## 1i;              \
-typedef type<1, uint32> type ## 1ui;            \
-typedef type<1, float> type ## 1f;              \
-typedef type<1, double> type ## 1d;             \
-typedef type<2, int8> type ## 2i8;              \
-typedef type<2, uint8> type ## 2ui8;            \
-typedef type<2, int16> type ## 2i16;            \
-typedef type<2, uint16> type ## 2ui16;          \
-typedef type<2, int32> type ## 2i;              \
-typedef type<2, uint32> type ## 2ui;            \
-typedef type<2, float> type ## 2f;              \
-typedef type<2, double> type ## 2d;             \
-typedef type<3, int8> type ## 3i8;              \
-typedef type<3, uint8> type ## 3ui8;            \
-typedef type<3, int16> type ## 3i16;            \
-typedef type<3, uint16> type ## 3ui16;          \
-typedef type<3, int32> type ## 3i;              \
-typedef type<3, uint32> type ## 3ui;            \
-typedef type<3, float> type ## 3f;              \
-typedef type<3, double> type ## 3d;             \
-typedef type<4, int8> type ## 4i8;              \
-typedef type<4, uint8> type ## 4ui8;            \
-typedef type<4, int16> type ## 4i16;            \
-typedef type<4, uint16> type ## 4ui16;          \
-typedef type<4, int32> type ## 4i;              \
-typedef type<4, uint32> type ## 4ui;            \
-typedef type<4, float> type ## 4f;              \
-typedef type<4, double> type ## 4d
+#define ION_INSTANTIATE_VECTOR_TYPE(type)        \
+  typedef type<1, int8> type##1i8;               \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##1i8)   \
+  typedef type<1, uint8> type##1ui8;             \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##1ui8)  \
+  typedef type<1, int16> type##1i16;             \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##1i16)  \
+  typedef type<1, uint16> type##1ui16;           \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##1ui16) \
+  typedef type<1, int32> type##1i;               \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##1i)    \
+  typedef type<1, uint32> type##1ui;             \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##1ui)   \
+  typedef type<1, float> type##1f;               \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##1f)    \
+  typedef type<1, double> type##1d;              \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##1d)    \
+  typedef type<2, int8> type##2i8;               \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##2i8)   \
+  typedef type<2, uint8> type##2ui8;             \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##2ui8)  \
+  typedef type<2, int16> type##2i16;             \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##2i16)  \
+  typedef type<2, uint16> type##2ui16;           \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##2ui16) \
+  typedef type<2, int32> type##2i;               \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##2i)    \
+  typedef type<2, uint32> type##2ui;             \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##2ui)   \
+  typedef type<2, float> type##2f;               \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##2f)    \
+  typedef type<2, double> type##2d;              \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##2d)    \
+  typedef type<3, int8> type##3i8;               \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##3i8)   \
+  typedef type<3, uint8> type##3ui8;             \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##3ui8)  \
+  typedef type<3, int16> type##3i16;             \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##3i16)  \
+  typedef type<3, uint16> type##3ui16;           \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##3ui16) \
+  typedef type<3, int32> type##3i;               \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##3i)    \
+  typedef type<3, uint32> type##3ui;             \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##3ui)   \
+  typedef type<3, float> type##3f;               \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##3f)    \
+  typedef type<3, double> type##3d;              \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##3d)    \
+  typedef type<4, int8> type##4i8;               \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##4i8)   \
+  typedef type<4, uint8> type##4ui8;             \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##4ui8)  \
+  typedef type<4, int16> type##4i16;             \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##4i16)  \
+  typedef type<4, uint16> type##4ui16;           \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##4ui16) \
+  typedef type<4, int32> type##4i;               \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##4i)    \
+  typedef type<4, uint32> type##4ui;             \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##4ui)   \
+  typedef type<4, float> type##4f;               \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##4f)    \
+  typedef type<4, double> type##4d;              \
+  ION_ENSURE_TRIVIALLY_DESTRUCTIBLE(type##4d)
 
 ION_INSTANTIATE_VECTOR_TYPE(VectorBase);
 ION_INSTANTIATE_VECTOR_TYPE(Vector);
 ION_INSTANTIATE_VECTOR_TYPE(Point);
 
 #undef ION_INSTANTIATE_VECTOR_TYPE
+#undef ION_ENSURE_TRIVIALLY_DESTRUCTIBLE
 
 }  // namespace math
 }  // namespace ion

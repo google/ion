@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ limitations under the License.
 
 #include <chrono>  // NOLINT
 #include <cstdio>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -66,6 +67,45 @@ ION_API bool RemoveFile(const std::string& path);
 // Returns the contents of |path|, non-recursively.  Only "." and ".." are
 // excluded.
 ION_API std::vector<std::string> ListDirectory(const std::string& path);
+
+// Returns true if |path| exists.
+ION_API bool FileExists(const std::string& path);
+
+// Returns true if |path| is a directory.
+ION_API bool IsDirectory(const std::string& path);
+
+// Creates directory including all intermediate directories that do not exist.
+// Permissions of the directory is platform dependent:
+//   * For Unix-based file systems, directory has permissions read, write,
+//     execute/search by owner.
+//   * For Windows-based file systems, directory inherits ACL of parent
+//     directory.
+//
+// Returns true if directory creation succeeded or directory already exists.
+ION_API bool MakeDirectory(const std::string& directory);
+
+// Deletes an empty directory. Returns true if directory successfully deleted.
+ION_API bool RemoveEmptyDirectory(const std::string& directory);
+
+// Deletes a directory and all of its contents. Returns false if the directory
+// does not exist or an error occurred trying to delete a child file or
+// directory. Function stops traversing contents if an error occurs.
+ION_API bool RemoveDirectoryRecursively(const std::string& directory);
+
+// A function that is called by DeleteTopLevelFiles() to determine whether
+// the file or directory should be deleted. Return true if |path| should
+// be removed.
+typedef std::function<bool(const std::string& path)> ShouldDeleteFileFunc;
+
+// Deletes top-level files and directories under |directory| that satisfy
+// the predicate |should_delete_fn|. Predicate returns true if |path| should be
+// deleted.
+//
+// Returns false if an error occurred trying to delete a file or if |directory|
+// does not exist.
+ION_API bool DeleteTopLevelFiles(
+    const std::string& path,
+    const std::function<bool(const std::string& path)>& should_delete_fn);
 
 }  // namespace port
 }  // namespace ion

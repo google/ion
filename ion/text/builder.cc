@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -70,7 +70,7 @@ static const gfx::StateTablePtr BuildStateTable(
 // representing text. The IndexBuffer will contain unsigned short indices. The
 // buffer data will be marked as wipeable if the usage_mode is
 // gfx::BufferObject::kStaticDraw. The allocator is used for the resulting
-// buffer; if it is NULL, the default short-term allocator is used.
+// buffer; if it is null, the default short-term allocator is used.
 static const gfx::IndexBufferPtr BuildIndexBuffer(
     const Layout& layout, gfx::BufferObject::UsageMode usage_mode,
     const base::AllocatorPtr& allocator) {
@@ -137,7 +137,7 @@ Builder::Builder(const FontImagePtr& font_image,
     : font_image_(font_image),
       shader_manager_(shader_manager),
       allocator_(base::AllocationManager::GetNonNullAllocator(allocator)),
-      image_data_(NULL) {}
+      image_data_(nullptr) {}
 
 Builder::~Builder() {}
 
@@ -180,14 +180,12 @@ bool Builder::Build(const Layout& layout,
     node_->AddShape(gfx::ShapePtr(new (allocator_) gfx::Shape()));
   UpdateShape(layout, usage_mode, node_->GetShapes()[0].Get());
 
-  image_data_ = NULL;
+  image_data_ = nullptr;
   return true;
 }
 
 const gfx::ShaderProgramPtr Builder::BuildShaderProgram() {
   // Get all the necessary items from the derived class.
-  if (!registry_.Get())
-    registry_ = GetShaderInputRegistry();
   std::string id_string;
   std::string vertex_source;
   std::string fragment_source;
@@ -195,7 +193,15 @@ const gfx::ShaderProgramPtr Builder::BuildShaderProgram() {
 
   gfx::ShaderProgramPtr program;
   if (shader_manager_.Get()) {
+    // If a shader with the subclass-provided name already exists, use it.
+    program = shader_manager_->GetShaderProgram(id_string);
+    if (program.Get()) {
+      registry_ = program->GetRegistry();
+      return program;
+    }
     // If there is a ShaderManager, use it to compose the program.
+    if (!registry_)
+      registry_ = GetShaderInputRegistry();
     program = shader_manager_->CreateShaderProgram(
         id_string, registry_,
         gfxutils::ShaderSourceComposerPtr(
@@ -206,12 +212,16 @@ const gfx::ShaderProgramPtr Builder::BuildShaderProgram() {
                 id_string + " fragment shader", fragment_source)));
   } else {
     // Otherwise, build the shader program directly.
+    if (!registry_)
+      registry_ = GetShaderInputRegistry();
     program = new(allocator_) gfx::ShaderProgram(registry_);
     program->SetLabel(id_string);
     program->SetVertexShader(
         gfx::ShaderPtr(new(allocator_) gfx::Shader(vertex_source)));
+    program->GetVertexShader()->SetLabel(id_string + " vertex shader");
     program->SetFragmentShader(
         gfx::ShaderPtr(new(allocator_) gfx::Shader(fragment_source)));
+    program->GetFragmentShader()->SetLabel(id_string + " fragment shader");
   }
   return program;
 }

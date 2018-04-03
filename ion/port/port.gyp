@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -46,8 +46,6 @@
         'memory.h',
         'memorymappedfile.cc',
         'memorymappedfile.h',
-        'mutex.cc',
-        'mutex.h',
         'nullptr.h',
         'semaphore.cc',
         'semaphore.h',
@@ -61,6 +59,7 @@
         'timer.cc',
         'timer.h',
         'trace.h',
+        'useresult.h',
       ],
 
       'conditions': [
@@ -72,6 +71,9 @@
           },
         }],
         ['OS == "ios"', {
+          'sources': [
+            'logging_ios.mm',
+          ],
           'xcode_settings': {
             # Force all files to compile as Objective-C++ because fileutils.cc
             # has some objective-c++ in it. Easier than calling it out
@@ -106,7 +108,9 @@
         ['OS == "linux"', {
           'link_settings': {
             'libraries': [
+              '-ldl',
               '-lrt',
+              '-latomic',
             ],
           }
         }],
@@ -122,7 +126,7 @@
             ],
           }
         }],
-        ['OS not in ["android", "nacl"]', {
+        ['OS not in ["android", "nacl", "ios"]', {
           'sources': [ 'logging_cerr.cc' ],
         }],
         ['OS == "asmjs"', {
@@ -142,9 +146,14 @@
     {
       'target_name': 'header_overrides',
       'type': 'none',
+      'dependencies': [
+        # This target depends on ABSL headers.
+        '../external/external.gyp:ionabsl',
+      ],
       'all_dependent_settings': {
         'include_dirs+': [
           '<(ion_dir)/port/override',
+          '<(ion_dir)/port/override/third_party',
         ],
       },
     },  # target: header_overrides

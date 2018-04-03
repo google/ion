@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -229,18 +229,20 @@ TEST(CallListTest, GetCall) {
                     std::placeholders::_2),
           5, true);
 
-  // Check that an improper set of arguments returns NULL.
-  EXPECT_TRUE(cl->GetCall<void(float)>(0) == NULL);
-  EXPECT_TRUE(cl->GetCall<int(int)>(0) != NULL);
+#if !ION_NO_RTTI
+  // Check that an improper set of arguments returns nullptr.
+  EXPECT_TRUE(cl->GetCall<void(float)>(0) == nullptr);
+  EXPECT_TRUE(cl->GetCall<int(int)>(0) != nullptr);
 
-  EXPECT_TRUE(cl->GetCall<int(int)>(1) == NULL);
+  EXPECT_TRUE(cl->GetCall<int(int)>(1) == nullptr);
   // Check that both free and member functions have the same signature.
-  EXPECT_TRUE(cl->GetCall<void(int)>(1) != NULL);
-  EXPECT_TRUE(cl->GetCall<void(int)>(2) != NULL);
+  EXPECT_TRUE(cl->GetCall<void(int)>(1) != nullptr);
+  EXPECT_TRUE(cl->GetCall<void(int)>(2) != nullptr);
 
-  EXPECT_TRUE(cl->GetCall<void(double)>(3) == NULL);
-  EXPECT_TRUE(cl->GetCall<void(int)>(3) == NULL);
-  EXPECT_TRUE(cl->GetCall<void(int, bool)>(3) != NULL);
+  EXPECT_TRUE(cl->GetCall<void(double)>(3) == nullptr);
+  EXPECT_TRUE(cl->GetCall<void(int)>(3) == nullptr);
+  EXPECT_TRUE(cl->GetCall<void(int, bool)>(3) != nullptr);
+#endif
 
   // Check argument values.
   EXPECT_EQ(4, cl->GetCall<int(int)>(0)->GetArg<0>());
@@ -273,7 +275,7 @@ TEST(CallListTest, GetCall) {
   cl->Clear();
   cl->Add(std::bind(&ValueStorage::GetIntWithParam, &v, std::placeholders::_1),
           1);
-  EXPECT_TRUE(cl->GetCall<int(int)>(0) != NULL);
+  EXPECT_TRUE(cl->GetCall<int(int)>(0) != nullptr);
   EXPECT_EQ(1, cl->GetCall<int(int)>(0)->GetArg<0>());
   cl->GetCall<int(int)>(0)->SetArg<0>(10);
   EXPECT_EQ(10, cl->GetCall<int(int)>(0)->GetArg<0>());

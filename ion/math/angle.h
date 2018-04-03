@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ limitations under the License.
 #include <ostream>  // NOLINT
 
 #include "ion/base/stringutils.h"
+#include "ion/math/utils.h"
 
 namespace ion {
 namespace math {
@@ -55,8 +56,6 @@ class Angle {
   T Radians() const { return radians_; }
   T Degrees() const {  return RadiansToDegrees(radians_); }
 
-  // TODO(user): add "wrap around 2_pi" functions?
-
   // Unary negation operator.
   const Angle operator-() const { return Angle::FromRadians(-radians_); }
 
@@ -67,19 +66,19 @@ class Angle {
   void operator/=(T s) { radians_ /= s; }
 
   // Binary operators.
-  friend const Angle operator+(const Angle& a0, const Angle& a1) {
+  friend Angle operator+(const Angle& a0, const Angle& a1) {
     return FromRadians(a0.radians_ + a1.radians_);
   }
-  friend const Angle operator-(const Angle& a0, const Angle& a1) {
+  friend Angle operator-(const Angle& a0, const Angle& a1) {
     return FromRadians(a0.radians_ - a1.radians_);
   }
-  friend const Angle operator*(const Angle& a, T s) {
+  friend Angle operator*(const Angle& a, T s) {
     return FromRadians(a.radians_ * s);
   }
-  friend const Angle operator*(T s, const Angle& a) {
+  friend Angle operator*(T s, const Angle& a) {
     return FromRadians(s * a.radians_);
   }
-  friend const Angle operator/(const Angle& a, T s) {
+  friend Angle operator/(const Angle& a, T s) {
     return FromRadians(a.radians_ / s);
   }
 
@@ -128,7 +127,7 @@ class Angle {
 // An Angle is streamed as degrees.
 template <typename T>
 std::ostream& operator<<(std::ostream& out, const Angle<T>& a) {
-  return out << a.Degrees() << " deg";
+  return out << +a.Degrees() << " deg";
 }
 
 template <typename T>
@@ -145,6 +144,19 @@ std::istream& operator>>(std::istream& in, Angle<T>& a) {
   }
 
   return in;
+}
+
+// Tests whether two angles are close enough.
+template <typename T>
+bool AlmostEqual(const Angle<T>& a, const Angle<T>& b,
+                 const Angle<T>& tolerance) {
+  Angle<T> difference = a - b;
+  T difference_radians =
+      std::fmod(Abs(difference.Radians()), static_cast<T>(2*M_PI));
+  if (difference_radians > static_cast<T>(M_PI)) {
+    difference_radians = static_cast<T>(2*M_PI) - difference_radians;
+  }
+  return Abs(difference_radians) <= Abs(tolerance.Radians());
 }
 
 //------------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -97,9 +97,11 @@ template <> inline void AddItem(const Benchmark::AccumulatedVariable& item,
 
 // Merges constants or variables from one Benchmark to another. Returns the
 // number of conflicts (items found in both from_items and the "to" Benchmark).
-template <typename T> static size_t MergeBenchmarkItems(
-    const std::string& item_type, const std::vector<T>& from_items,
-    std::set<std::string> ids, Benchmark* to) {
+template <typename T>
+static size_t MergeBenchmarkItems(const std::string& item_type,
+                                  const std::vector<T>& from_items,
+                                  const std::set<std::string>& ids,
+                                  Benchmark* to) {
   size_t num_conflicts = 0;
   const size_t count = from_items.size();
   for (size_t i = 0; i < count; ++i) {
@@ -287,7 +289,7 @@ void OutputAccumulatedVariableAsJson(const Benchmark::AccumulatedVariable& v,
 
   // Output standard deviation and variation only if they are not zero,
   // infinite, or NaN.
-  if (!isnan(v.standard_deviation) && !isinf(v.standard_deviation) &&
+  if (!std::isnan(v.standard_deviation) && !std::isinf(v.standard_deviation) &&
       math::Abs(v.standard_deviation) > kTolerance &&
       math::Abs(v.mean) > kTolerance) {
     out << "," << std::endl;

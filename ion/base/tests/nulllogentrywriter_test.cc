@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,17 +20,7 @@ limitations under the License.
 #include "ion/base/logchecker.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
-class NullLogEntryWriter : public testing::Test {
- public:
-  NullLogEntryWriter() {
-    // Null out the break handler so we don't trigger breakpoints or abort when
-    // we throw fatal errors.
-    ion::base::SetBreakHandler(std::function<void()>());
-  }
-  ~NullLogEntryWriter() override { ion::base::RestoreDefaultBreakHandler(); }
-};
-
-TEST_F(NullLogEntryWriter, Basic) {
+TEST(NullLogEntryWriter, Basic) {
   ion::base::LogChecker log_checker;
   EXPECT_FALSE(log_checker.HasAnyMessages());
 
@@ -54,12 +44,14 @@ TEST_F(NullLogEntryWriter, Basic) {
   ion::base::NullLogEntryWriter null_logger;
 
   LOG(ERROR) << "Another error";
-  LOG(FATAL) << "Fatal error";
-  LOG(DFATAL) << "DFatal error";
+#if !ION_PRODUCTION
+  EXPECT_DEATH_IF_SUPPORTED(LOG(FATAL) << "Fatal error", "");
+  EXPECT_DEATH_IF_SUPPORTED(LOG(DFATAL) << "Fatal error", "");
+#endif
   EXPECT_FALSE(log_checker.HasAnyMessages());
 }
 
-TEST_F(NullLogEntryWriter, UninstallsWhenDestroyed) {
+TEST(NullLogEntryWriter, UninstallsWhenDestroyed) {
   {
     ion::base::NullLogEntryWriter logger;
     EXPECT_EQ(&logger, ion::base::GetLogEntryWriter());

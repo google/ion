@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ limitations under the License.
 #include <sstream>
 #include <string>
 
+#include "ion/math/tests/testutils.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
 namespace ion {
@@ -130,6 +131,82 @@ TEST(Angle, Streaming) {
   in.str("2 rad");
   in >> a;
   EXPECT_EQ(2.0, a.Radians());
+}
+
+TEST(Angle, AnglesAlmostEqual) {
+  using ::testing::Not;
+  using ion::math::testing::IsAlmostEqual;
+
+  EXPECT_THAT(Anglef::FromDegrees(17.f),
+              IsAlmostEqual(Anglef::FromDegrees(17.f), Anglef()));
+  EXPECT_THAT(
+      Anglef::FromDegrees(17.f),
+      IsAlmostEqual(Anglef::FromDegrees(17.1f), Anglef::FromDegrees(0.2f)));
+  EXPECT_THAT(Anglef::FromDegrees(17.f),
+              Not(IsAlmostEqual(Anglef::FromDegrees(17.1f),
+                                Anglef::FromDegrees(0.05f))));
+  EXPECT_THAT(
+      Anglef::FromDegrees(17.f),
+      IsAlmostEqual(Anglef::FromDegrees(16.9f), Anglef::FromDegrees(0.2f)));
+  EXPECT_THAT(Anglef::FromDegrees(17.f),
+              Not(IsAlmostEqual(Anglef::FromDegrees(16.9f),
+                                Anglef::FromDegrees(0.05f))));
+  EXPECT_THAT(
+      Angled::FromRadians(2.0),
+      IsAlmostEqual(Angled::FromRadians(2.01), Angled::FromRadians(0.015)));
+  EXPECT_THAT(Angled::FromRadians(2.0),
+              Not(IsAlmostEqual(Angled::FromRadians(2.01),
+                                Angled::FromRadians(0.005))));
+  EXPECT_THAT(
+      Angled::FromRadians(2.0),
+      IsAlmostEqual(Angled::FromRadians(1.99), Angled::FromRadians(0.015)));
+  EXPECT_THAT(Angled::FromRadians(2.0),
+              Not(IsAlmostEqual(Angled::FromRadians(1.99),
+                                Angled::FromRadians(0.005))));
+
+  // Test boundary conditions for positive angles that are close to 360 degrees
+  // away from each other.
+  EXPECT_THAT(
+      Anglef::FromDegrees(0.1f),
+      IsAlmostEqual(Anglef::FromDegrees(359.9f), Anglef::FromDegrees(0.3f)));
+  EXPECT_THAT(Anglef::FromDegrees(0.1f),
+              Not(IsAlmostEqual(Anglef::FromDegrees(359.9f),
+                                Anglef::FromDegrees(0.1f))));
+  EXPECT_THAT(
+      Angled::FromDegrees(90.0),
+      IsAlmostEqual(Angled::FromDegrees(450.0), Angled::FromDegrees(5.0)));
+  EXPECT_THAT(
+      Angled::FromDegrees(90.0),
+      IsAlmostEqual(Angled::FromDegrees(455.0), Angled::FromDegrees(5.0)));
+  EXPECT_THAT(
+      Angled::FromDegrees(90.0),
+      IsAlmostEqual(Angled::FromDegrees(445.0), Angled::FromDegrees(5.0)));
+  EXPECT_THAT(Angled::FromDegrees(90),
+              Not(IsAlmostEqual(Angled::FromDegrees(455.001),
+                                Angled::FromDegrees(5.0))));
+  EXPECT_THAT(Angled::FromDegrees(90),
+              Not(IsAlmostEqual(Angled::FromDegrees(444.999),
+                                Angled::FromDegrees(5.0))));
+
+  // Test boundary conditions for angles near the 180/-180 degree boundary.
+  EXPECT_THAT(
+      Angled::FromDegrees(179.0),
+      IsAlmostEqual(Angled::FromDegrees(-179.0), Angled::FromDegrees(5.0)));
+  EXPECT_THAT(
+      Angled::FromDegrees(-179.0),
+      IsAlmostEqual(Angled::FromDegrees(179.0), Angled::FromDegrees(5.0)));
+  EXPECT_THAT(
+      Angled::FromDegrees(177.5),
+      IsAlmostEqual(Angled::FromDegrees(-177.5), Angled::FromDegrees(5.0)));
+  EXPECT_THAT(
+      Angled::FromDegrees(-177.5),
+      IsAlmostEqual(Angled::FromDegrees(177.5), Angled::FromDegrees(5.0)));
+  EXPECT_THAT(Angled::FromDegrees(177.49),
+              Not(IsAlmostEqual(Angled::FromDegrees(-177.5),
+                                Angled::FromDegrees(5.0))));
+  EXPECT_THAT(
+      Angled::FromDegrees(-177.49),
+      Not(IsAlmostEqual(Angled::FromDegrees(177.5), Angled::FromDegrees(5.0))));
 }
 
 }  // namespace math

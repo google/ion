@@ -1,0 +1,9 @@
+This is a modified version of Mongoose version 3.8.
+
+Local Modifications:
+- Fixed a bug on line 3545 where the offset of a read file was not being
+incremented.
+- Increased buffer size from 16k to 64k.
+- Protected stop_flag with pthread mutexes to avoid tsan warnings (cl/67552663).
+- Fixed potential XSS vulnerability where the server responds back to the
+- requester with the text of an invalid URI.

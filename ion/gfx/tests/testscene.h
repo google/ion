@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ class TestScene {
     math::Vector2f fv2;
   };
 
-  TestScene();
+  explicit TestScene(bool capture_varyings = false);
   ~TestScene() {}
 
   // Returns the root of the graph.
@@ -62,6 +62,8 @@ class TestScene {
 
   // Returns the source code of the scene's vertex shader.
   const std::string GetVertexShaderSource() const;
+  // Returns the source code of the scene's geometry shader.
+  const std::string GetGeometryShaderSource() const;
   // Returns the source code of the scene's fragment shader.
   const std::string GetFragmentShaderSource() const;
 

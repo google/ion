@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -58,12 +58,11 @@ NINJA_WINDOWS_BINARY_PATH = os.path.join(NINJA_DIR, 'ninja.exe')
 
 # The path to LLVM, used in the asmjs builder.  Currently works on Linux only.
 LLVM_PATH = os.path.abspath(os.path.join(
-    'third_party/emscripten/llvm-bin'))
+    ROOT_DIR, 'third_party/emscripten/llvm-bin'))
 
 # The path to nodejs, used in the asmjs builder.
 NODEJS_BINARY_PATH = os.path.abspath(os.path.join(
-    ROOT_DIR, 'third_party/nodejs/bin/node_0_8_14'))
-
+    ROOT_DIR, 'third_party/nodejs/bin/node'))
 
 # Path to android toolchain, used to help find certain toolchain binaries for
 # steps that are not handled by gyp.
@@ -85,7 +84,7 @@ CONFIGURATION_GYPI = 'dev/os.gypi'
 COMMON_VARIABLES = 'common_variables.gypi'
 
 NACL_SDK_DIR = os.path.abspath(os.path.join(
-    ROOT_DIR, 'third_party/native_client_sdk/pepper_44'))
+    ROOT_DIR, 'third_party/native_client_sdk/pepper_55'))
 
 # Enable importing gyp directly.
 sys.path.insert(1, os.path.join(GYP_PATH, 'pylib'))
@@ -211,13 +210,13 @@ def _FindNearestFiles(anchor, filename_to_find, root_dir=ROOT_DIR):
   This file will return the closest filename_to_find to the base filename, going
   up the directory tree. For example:
 
-    anchor: geo/render/ion/base/base.gyp
+    anchor: ion/base/base.gyp
     filename_to_find: common_variables.gypi
 
   Will look for files named:
 
-    $root_dir/geo/render/ion/base/common_variables.gypi
-    $root_dir/geo/render/ion/common_variables.gypi
+    $root_dir/ion/base/common_variables.gypi
+    $root_dir/ion/common_variables.gypi
     $root_dir/geo/render/common_variables.gypi
     $root_dir/geo/common_variables.gypi
     $root_dir/common_variables.gypi
@@ -326,7 +325,7 @@ class TargetBuilder(object):
   TARGET_FLAVOR = ''
 
   # The list of host OSes from which this builder can be built.  Subclasses must
-  # override this value.  Should be a subset of ['linux', 'mac', 'windows'].
+  # override this value.  Should be a subset of ['linux', 'mac', 'win'].
   POSSIBLE_HOST_OS = []
 
   # The name of the gyp generator that should be used to generate project files
@@ -360,7 +359,7 @@ class TargetBuilder(object):
     mapping = {
         'linux': NINJA_LINUX_BINARY_PATH,
         'mac': NINJA_MAC_BINARY_PATH,
-        'windows': NINJA_WINDOWS_BINARY_PATH,
+        'win': NINJA_WINDOWS_BINARY_PATH,
     }
     return mapping[host_os]
 
@@ -374,7 +373,6 @@ class TargetBuilder(object):
     # results in more stable runs, as there are some signal handling issues
     # (KeyboardInterrupt) that come into play with processes.
     self.pool = multiprocessing.dummy.Pool(processes=self.TEST_RUNNER_POOL_SIZE)
-
 
   def GypGenerator(self):
     """Returns the generator this builder will pass to gyp."""
@@ -398,7 +396,7 @@ class TargetBuilder(object):
     """
     if self.GYP_GENERATOR == 'ninja':
       # Without abspath, ninja throws "duplicate rule" errors.
-      # TODO(user): Make sure this is actually true, because using an
+
       # absolute path here may cause --generator-output not to work.
       return os.path.normpath(os.path.join(ROOT_DIR, filename))
     return filename
@@ -433,6 +431,10 @@ class TargetBuilder(object):
     gyp_defines['OS'] = self.TARGET_OS
     gyp_defines['flavor'] = self.TARGET_FLAVOR
     gyp_defines['gyp_out_os_dir'] = self.BuildOutputRootDir()
+
+    # Chromium-based gyp files contain conditionals based of target_arch, so
+    # this variable must at least exist.
+    gyp_defines['target_arch'] = ''
     return gyp_defines
 
   def GypArgs(self):
@@ -457,8 +459,10 @@ class TargetBuilder(object):
     Returns:
       A collections.defaultdict of extra arguments to pass to gyp.
     """
+    generator_flags = self.state.GetAdditionalGypGeneratorFlags()
+    generator_flags.append('output_dir={o}'.format(o=self.BuildOutputRootDir()))
     return collections.defaultdict(list, {
-        '-G': ['output_dir={o}'.format(o=self.BuildOutputRootDir())],
+        '-G': generator_flags,
         '--depth': '{m}'.format(m=ROOT_DIR),
         '--check': None,
         '--suffix': '_{p}'.format(p=self.TARGET_OS),
@@ -554,7 +558,7 @@ class TargetBuilder(object):
       An absolute path to the build tool for this builder.
     """
     # Default to ninja binary. Subclasses can override.
-    # TODO(user): Factor out a NinjaBuilder subclass and replace these
+
     # implementations in TargetBuilder with NotImplementedErrors.
     return self.NinjaForHost(self.host_os)
 
@@ -650,7 +654,7 @@ class TargetBuilder(object):
     for k, v in self.GypVariables().iteritems():
       gyp_args['-D'].append('{k}={v}'.format(k=k, v=v))
 
-    # TODO(user): Ew!  We shouldn't care about cmdflags in here.  Make a
+
     # separate builder for this.
     if self.cmdflags.gypd:
       gyp_generator = 'gypd'
@@ -700,6 +704,12 @@ class TargetBuilder(object):
         command_line += list(
             itertools.chain.from_iterable([FormatArgAndValue(k, x) for x in v]))
 
+    # Newer versions of gyp complain if there are multiple source files with the
+    # same filename in the same gyp files (even if they are in different targets
+    # or directories). Unfortunately Ion and Ion-dependent projects have many
+    # such cases, so we currently need to ignore this warning.
+    command_line.append('--no-duplicate-basename-check')
+
     command_line.append(filename)
 
     return command_line
@@ -736,7 +746,6 @@ class TargetBuilder(object):
 
     print 'gyp {0}'.format(' '.join(gyp_args))
 
-
     with WorkingDirectory(gyp_cwd):
       with EnvironmentVariables(gyp_env):
         ret = gyp.main(gyp_args)
@@ -762,7 +771,6 @@ class TargetBuilder(object):
     """
     if not self.CanBuildOnHost():
       raise InvalidTargetOSError('Cannot build target on this host')
-
 
     build_env = self.BuildEnv(configuration)
     build_cwd = self.BuildCWD()
@@ -1056,8 +1064,6 @@ class PNACLBuilder(NACLBuilder):
     return 0
 
 
-
-
 @RegisterBuilder
 class AndroidBuilder(TargetBuilder):
   """Android builder."""
@@ -1072,7 +1078,6 @@ class AndroidBuilder(TargetBuilder):
 
   ANDROID_ARCH = 'arm'
   ANDROID_TOOL_PREFIX = 'arm-linux-androideabi'
-
 
 
 @RegisterBuilder
@@ -1156,6 +1161,32 @@ class MacNinjaBuilder(TargetBuilder):
   POSSIBLE_HOST_OS = ['mac']
   GYP_GENERATOR = 'ninja'
   GYP_OUT_SUBDIR = 'mac-ninja'
+
+
+@RegisterBuilder
+class MacHybridBuilder(MacNinjaBuilder):
+  """Mac builder using Xcode-ninja hybrid."""
+  GYP_GENERATOR = 'xcode-ninja'
+  GYP_OUT_SUBDIR = 'mac-hybrid'
+
+  def GypArgs(self):
+    gyp_args = super(MacHybridBuilder, self).GypArgs()
+    gyp_args['--generator-output'] = '{d}'.format(d=GYP_PROJECTS_DIR)
+    # Xcode-ninja doesn't handle --suffix correctly. This should be fixed
+    # upstream, but for now just work around it.
+    del gyp_args['--suffix']
+    return gyp_args
+
+  def GypGenerator(self):
+    # Hybrid mode requires running two generators: xcode-ninja to create the
+    # shell project, and ninja to create the actual build files the shell uses.
+    return ['xcode-ninja', 'ninja']
+
+  def CleanGeneratorDirectory(self):
+    """Delete the generator files directory (xcode projects)."""
+    PrintStatus('Removing ' + GYP_PROJECTS_DIR)
+    if os.path.isdir(GYP_PROJECTS_DIR):
+      _SmartDeleteDirectory(GYP_PROJECTS_DIR)
 
 
 @RegisterBuilder
@@ -1269,7 +1300,6 @@ class IOSBuilder(MacBuilder):
     return path
 
 
-
 @RegisterBuilder
 class IOSSimulatorBuilder(IOSBuilder):
   """Builder for iOS simulator, using xcode."""
@@ -1279,7 +1309,6 @@ class IOSSimulatorBuilder(IOSBuilder):
   GYP_OUT_SUBDIR = 'ios-x86'
 
   SDK = 'iphonesimulator'
-
 
 
 @RegisterBuilder
@@ -1306,7 +1335,6 @@ class IOSNinjaBuilder(MacNinjaBuilder):
     return path
 
 
-
 @RegisterBuilder
 class IOSNinjaSimulatorBuilder(IOSNinjaBuilder):
   """Builder for iOS simulator, using ninja."""
@@ -1316,15 +1344,14 @@ class IOSNinjaSimulatorBuilder(IOSNinjaBuilder):
   GYP_OUT_SUBDIR = 'ios-x86-ninja'
 
 
-
 @RegisterBuilder
 class WindowsBuilderNinja(TargetBuilder):
   """Windows builder for ninja."""
 
-  TARGET_OS = 'windows'
-  POSSIBLE_HOST_OS = ['windows']
+  TARGET_OS = 'win'
+  POSSIBLE_HOST_OS = ['win']
   GYP_GENERATOR = 'ninja'
-  GYP_OUT_SUBDIR = 'windows-ninja'
+  GYP_OUT_SUBDIR = 'win-ninja'
 
   def GypArgs(self):
     gyp_args = super(WindowsBuilderNinja, self).GypArgs()
@@ -1391,16 +1418,16 @@ class WindowsHostBuilderNinja(WindowsBuilderNinja):
   clobber the ninja files from the non-tools builds.
   """
   TARGET_FLAVOR = 'host'
-  GYP_OUT_SUBDIR = 'windows-ninja-host'
+  GYP_OUT_SUBDIR = 'win-ninja-host'
 
 
 @RegisterBuilder
 class WindowsBuilderMSVS(TargetBuilder):
   """Windows builder for MSVS projects."""
-  TARGET_OS = 'windows'
-  POSSIBLE_HOST_OS = ['windows']
+  TARGET_OS = 'win'
+  POSSIBLE_HOST_OS = ['win']
   GYP_GENERATOR = 'msvs'
-  GYP_OUT_SUBDIR = 'windows-msvs'
+  GYP_OUT_SUBDIR = 'win-msvs'
 
   def GypArgs(self):
     gyp_args = super(WindowsBuilderMSVS, self).GypArgs()
@@ -1446,7 +1473,7 @@ class DumpDependencyBuilder(TargetBuilder):
   # TARGET_OS is deliberately unset.
   TARGET_OS = None
   # Any host OS is possible.
-  POSSIBLE_HOST_OS = ['linux', 'mac', 'windows']
+  POSSIBLE_HOST_OS = ['linux', 'mac', 'win']
   GYP_GENERATOR = 'dump_dependency_json'
   # This is unused, but a value is needed.
   GYP_OUT_SUBDIR = 'json'
@@ -1505,7 +1532,7 @@ class BuildState(object):
     try:
       self.host_os = GetHostOS()
     except KeyError:
-      # TODO(user): BuildState should not directly exit.
+
       ExitWithError('Unknown build OS returned by platform.system(): {0}'.
                     format(platform.system()))
 
@@ -1514,7 +1541,7 @@ class BuildState(object):
     self.default_target_os_ = {
         'mac': 'mac',
         'linux': 'linux',
-        'windows': 'windows',
+        'win': 'win',
     }[self.host_os]
 
     self.args_ = self._ParseCommandLineArgs(argv)
@@ -1574,6 +1601,16 @@ class BuildState(object):
     args = self.GetCommandLineOptions()
     variables.update([arg.split('=') for arg in args.D])
     return variables
+
+  def GetAdditionalGypGeneratorFlags(self):
+    """Returns list of additional gyp variables.
+
+    These are directly passed on the command line as -G=foo=bar.
+
+    Returns:
+      A list of extra flags to pass through to the gyp as generator flags.
+    """
+    return self.GetCommandLineOptions().G
 
   def GetGypFileToRun(self):
     """Returns the gypfile that should be passed to gyp.
@@ -1756,7 +1793,7 @@ class BuildState(object):
                 elif i == 'variables':
                   # Parse this 'variables' entry as a dictionary of its own.
                   dicts_to_eval.append({i: j})
-                # TODO(user): Parse 'conditions'.
+
             elif k == 'includes':
               files_to_parse.extend(
                   [os.path.join(os.path.dirname(f), include) for include in v])
@@ -1963,6 +2000,10 @@ class BuildState(object):
         help='What gyp generator to use.  If not specified, uses the default '
         'generator for the target OS.')
     parser.add_argument(
+        '-G', action='append',
+        default=[],
+        help='Generator flags to pass to gyp.')
+    parser.add_argument(
         'path',
         nargs='?',
         default=None,
@@ -2026,7 +2067,7 @@ def GetHostOS():
   return {
       'Darwin': 'mac',
       'Linux': 'linux',
-      'Windows': 'windows',
+      'Windows': 'win',
   }[platform.system()]
 
 

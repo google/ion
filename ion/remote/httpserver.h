@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,10 +19,10 @@ limitations under the License.
 #define ION_REMOTE_HTTPSERVER_H_
 
 #include <map>
+#include <mutex>  // NOLINT(build/c++11)
 #include <string>
 
 #include "ion/base/referent.h"
-#include "ion/port/mutex.h"
 
 struct mg_connection;
 struct mg_context;
@@ -44,7 +44,7 @@ class ION_API HttpServer {
   // instantiated Websocket for a specific connection request.
   class Websocket : public base::Referent {
    public:
-    Websocket() : helper_(NULL) {}
+    Websocket() : helper_(nullptr) {}
     ~Websocket() override {}
 
     // Override to take some action when the connection is first established.
@@ -62,7 +62,7 @@ class ION_API HttpServer {
     friend class WebsocketHelper;
     WebsocketHelper* helper_;
   };
-  typedef base::ReferentPtr<Websocket>::Type WebsocketPtr;
+  using WebsocketPtr = base::SharedPtr<Websocket>;
 
   // RequestHandlers handle requests for a file or path.
   class RequestHandler : public base::Referent {
@@ -112,7 +112,7 @@ class ION_API HttpServer {
    private:
     const std::string base_path_;
   };
-  typedef base::ReferentPtr<RequestHandler>::Type RequestHandlerPtr;
+  using RequestHandlerPtr = base::SharedPtr<RequestHandler>;
   typedef std::map<std::string, RequestHandlerPtr> HandlerMap;
 
   // Starts a HttpServer on the passed port with the passed number of handler
@@ -128,6 +128,13 @@ class ION_API HttpServer {
 
   // Returns whether the server is running.
   bool IsRunning() const;
+
+  // Disables the server and frees up the port, but keeps enough information
+  // around to re-initialize it.
+  void Pause();
+
+  // Recreates the server and claims the port.
+  void Resume();
 
   // Registers the passed handler at the path returned by
   // handler->GetBasePath().
@@ -168,14 +175,17 @@ class ION_API HttpServer {
   void UnregisterWebsocket(void* key);
   WebsocketHelper* FindWebsocket(void* key);
   WebsocketMap websockets_;
-  port::Mutex websocket_mutex_;
+  std::mutex websocket_mutex_;
+
+  int port_;
+  int num_threads_;
 
   mg_context* context_;
   // Registered request handlers. Guarded under a mutex so that RequestHandler
   // objects may be added/removed while requests are being serviced on other
   // threads.
   HandlerMap handlers_;
-  mutable ion::port::Mutex handlers_mutex_;
+  mutable std::mutex handlers_mutex_;
 
   // Header and footer HTML.
   std::string header_;

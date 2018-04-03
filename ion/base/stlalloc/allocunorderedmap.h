@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -78,7 +78,7 @@ class AllocUnorderedMap : public std::unordered_map<
  private:
   // C++11 leaves the default bucket count (hint) as an implementation-defined
   // value.  For concreteness we specify libstdc++'s value here.
-  // (see bug for what various platforms defaulted to as of 2014Q3)
+  // (see b/18172453 for what various platforms defaulted to as of 2014Q3)
   enum { kBucketCountHint = 10 };
 };
 

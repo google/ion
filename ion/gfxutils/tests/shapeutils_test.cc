@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ limitations under the License.
 #include "ion/base/allocationmanager.h"
 #include "ion/base/invalid.h"
 #include "ion/base/logchecker.h"
+#include "ion/base/tests/multilinestringsequal.h"
 #include "ion/base/zipassetmanager.h"
 #include "ion/base/zipassetmanagermacros.h"
 #include "ion/gfx/attributearray.h"
@@ -55,7 +56,8 @@ const float kSqrt2Over4 = static_cast<float>(M_SQRT2 / 4);
 //-----------------------------------------------------------------------------
 
 // This struct is used to test values inside buffer objects.
-template <typename T> struct BufferObjectValue {
+template <typename T>
+struct BufferObjectValue {
   BufferObjectValue(size_t index_in, const T& value_in)
       : index(index_in), value(value_in) {}
   size_t index;
@@ -92,16 +94,20 @@ class IndexBovTraits<IndexBov32> {
 
 // Tests for equality of values (in a BufferObjectElement). Specialized for
 // Points/Vectors to test near-equality.
-template <typename T> static bool ValuesEqual(const T& v0, const T& v1) {
+template <typename T>
+static bool ValuesEqual(const T& v0, const T& v1) {
   return v0 == v1;
 }
-template <> bool ValuesEqual<Point3f>(const Point3f& v0, const Point3f& v1) {
+template <>
+bool ValuesEqual<Point3f>(const Point3f& v0, const Point3f& v1) {
   return math::PointsAlmostEqual(v0, v1, 1e-4f);
 }
-template <> bool ValuesEqual<Point2f>(const Point2f& v0, const Point2f& v1) {
+template <>
+bool ValuesEqual<Point2f>(const Point2f& v0, const Point2f& v1) {
   return math::PointsAlmostEqual(v0, v1, 1e-4f);
 }
-template <> bool ValuesEqual<Vector3f>(const Vector3f& v0, const Vector3f& v1) {
+template <>
+bool ValuesEqual<Vector3f>(const Vector3f& v0, const Vector3f& v1) {
   return math::VectorsAlmostEqual(v0, v1, 1e-4f);
 }
 
@@ -120,42 +126,43 @@ static ::testing::AssertionResult TestBoe(
   const gfx::BufferObject::Spec& spec =
       boe.buffer_object->GetSpec(boe.spec_index);
   if (base::IsInvalidReference(spec)) {
-    return ::testing::AssertionFailure()
-        << "No spec for BOE with index " << index;
+    return ::testing::AssertionFailure() << "No spec for BOE with index "
+                                         << index;
   }
 
   // Component count.
   if (spec.component_count != expected_component_count) {
     return ::testing::AssertionFailure()
-        << "Wrong component count for BOE with index " << index << ": expected "
-        << expected_component_count << ", got " << spec.component_count;
+           << "Wrong component count for BOE with index " << index
+           << ": expected " << expected_component_count << ", got "
+           << spec.component_count;
   }
 
   // Component type.
   if (spec.type != expected_type) {
     return ::testing::AssertionFailure()
-        << "Wrong type for BOE with index " << index << ": expected "
-        << expected_type << ", got " << spec.type;
+           << "Wrong type for BOE with index " << index << ": expected "
+           << expected_type << ", got " << spec.type;
   }
 
   // BufferObject and data pointers.
   const gfx::BufferObjectPtr& bo = boe.buffer_object;
   const char* data = static_cast<const char*>(bo->GetData()->GetData());
   if (!data) {
-    return ::testing::AssertionFailure()
-        << "NULL data for BOE with index " << index;
+    return ::testing::AssertionFailure() << "Null data for BOE with index "
+                                         << index;
   }
   if (!bo.Get()) {
     return ::testing::AssertionFailure()
-        << "NULL BufferObject for BOE with index " << index;
+           << "Null BufferObject for BOE with index " << index;
   }
 
   // Value count.
   const size_t num_values = bo->GetCount();
   if (num_values != expected_value_count) {
     return ::testing::AssertionFailure()
-        << "Wrong value count for BOE with index " << index << ": expected "
-        << expected_value_count << ", got " << num_values;
+           << "Wrong value count for BOE with index " << index << ": expected "
+           << expected_value_count << ", got " << num_values;
   }
 
   // Selected values.
@@ -163,17 +170,17 @@ static ::testing::AssertionResult TestBoe(
     const BufferObjectValue<T>& bov = expected_buffer_object_values[i];
     if (bov.index >= num_values) {
       return ::testing::AssertionFailure()
-          << "Invalid value index " << bov.index
-          << " for bov specified for BOE with index " << index
-          << " (count is " << num_values << ")";
+             << "Invalid value index " << bov.index
+             << " for bov specified for BOE with index " << index
+             << " (count is " << num_values << ")";
     }
     const size_t stride = bo->GetStructSize();
     const char* ptr = &data[stride * bov.index + spec.byte_offset];
     const T* typed_ptr = reinterpret_cast<const T*>(ptr);
     if (!ValuesEqual(*typed_ptr, bov.value)) {
       return ::testing::AssertionFailure()
-          << "Wrong value for entry " << bov.index << " in BOE with index "
-          << index << ": expected " << bov.value << ", got " << *typed_ptr;
+             << "Wrong value for entry " << bov.index << " in BOE with index "
+             << index << ": expected " << bov.value << ", got " << *typed_ptr;
     }
   }
   return ::testing::AssertionSuccess();
@@ -187,7 +194,7 @@ template <typename IndexBovType>
 static ::testing::AssertionResult TestIndexBuffer(
     const gfx::IndexBufferPtr& ib, size_t expected_value_count,
     const std::vector<IndexBovType>& expected_buffer_object_values) {
-  if (!ib.Get()) return ::testing::AssertionFailure() << "NULL IndexBuffer";
+  if (!ib.Get()) return ::testing::AssertionFailure() << "Null IndexBuffer";
 
   // IndexBuffers must have exactly one spec.
   if (ib->GetSpecCount() != 1U) {
@@ -216,7 +223,7 @@ static ::testing::AssertionResult TestIndexBuffer(
       static_cast<const typename IndexBovTraits<IndexBovType>::ComponentTypeC*>(
           ib->GetData()->GetData());
   if (!data)
-    return ::testing::AssertionFailure() << "NULL data for IndexBuffer";
+    return ::testing::AssertionFailure() << "Null data for IndexBuffer";
 
   // Value count.
   const size_t num_values = ib->GetCount();
@@ -255,16 +262,16 @@ static ::testing::AssertionResult TestIndexBuffer(
 
 TEST(ShapeUtilsTest, BuildWireframeIndexBuffer) {
   static const size_t kNumIndices = 6U;
-  static const uint8 kByteIndices[kNumIndices] = { 1U, 2U, 3U, 4U, 5U, 6U };
-  static const uint16 kShortIndices[kNumIndices] = { 6U, 5U, 4U, 3U, 2U, 1U };
+  static const uint8 kByteIndices[kNumIndices] = {1U, 2U, 3U, 4U, 5U, 6U};
+  static const uint16 kShortIndices[kNumIndices] = {6U, 5U, 4U, 3U, 2U, 1U};
 
-  // NULL pointer.
+  // Null pointer.
   gfx::IndexBufferPtr tri_ib;
-  EXPECT_TRUE(BuildWireframeIndexBuffer(tri_ib).Get() == NULL);
+  EXPECT_TRUE(BuildWireframeIndexBuffer(tri_ib).Get() == nullptr);
 
   // No data.
   tri_ib = new gfx::IndexBuffer;
-  EXPECT_TRUE(BuildWireframeIndexBuffer(tri_ib).Get() == NULL);
+  EXPECT_TRUE(BuildWireframeIndexBuffer(tri_ib).Get() == nullptr);
 
   const base::AllocatorPtr& al =
       base::AllocationManager::GetDefaultAllocatorForLifetime(base::kShortTerm);
@@ -276,16 +283,16 @@ TEST(ShapeUtilsTest, BuildWireframeIndexBuffer) {
       kByteIndices, kNumIndices - 1U, false, al);
   tri_ib->SetData(dc, sizeof(kByteIndices[0]), kNumIndices - 1U,
                   gfx::BufferObject::kStaticDraw);
-  EXPECT_TRUE(BuildWireframeIndexBuffer(tri_ib).Get() == NULL);
+  EXPECT_TRUE(BuildWireframeIndexBuffer(tri_ib).Get() == nullptr);
 
   // This should work ok.
-  dc = base::DataContainer::CreateAndCopy<uint8>(
-      kByteIndices, kNumIndices, false, al);
+  dc = base::DataContainer::CreateAndCopy<uint8>(kByteIndices, kNumIndices,
+                                                 false, al);
   tri_ib->SetData(dc, sizeof(kByteIndices[0]), kNumIndices,
                   gfx::BufferObject::kStaticDraw);
   gfx::IndexBufferPtr line_ib = BuildWireframeIndexBuffer(tri_ib);
-  ASSERT_FALSE(line_ib.Get() == NULL);
-  ASSERT_FALSE(line_ib->GetData().Get() == NULL);
+  ASSERT_FALSE(line_ib.Get() == nullptr);
+  ASSERT_FALSE(line_ib->GetData().Get() == nullptr);
   EXPECT_EQ(al, line_ib->GetAllocator());
   EXPECT_EQ(12U, line_ib->GetCount());
   const uint8* line_bytes = line_ib->GetData()->GetData<uint8>();
@@ -305,13 +312,13 @@ TEST(ShapeUtilsTest, BuildWireframeIndexBuffer) {
   // Repeat with unsigned shorts.
   tri_ib = new gfx::IndexBuffer;
   tri_ib->AddSpec(gfx::BufferObject::kUnsignedShort, 1, 0);
-  dc = base::DataContainer::CreateAndCopy<uint16>(
-      kShortIndices, kNumIndices, false, al);
+  dc = base::DataContainer::CreateAndCopy<uint16>(kShortIndices, kNumIndices,
+                                                  false, al);
   tri_ib->SetData(dc, sizeof(kShortIndices[0]), kNumIndices,
                   gfx::BufferObject::kStaticDraw);
   line_ib = BuildWireframeIndexBuffer(tri_ib);
-  ASSERT_FALSE(line_ib.Get() == NULL);
-  ASSERT_FALSE(line_ib->GetData().Get() == NULL);
+  ASSERT_FALSE(line_ib.Get() == nullptr);
+  ASSERT_FALSE(line_ib->GetData().Get() == nullptr);
   EXPECT_EQ(al, line_ib->GetAllocator());
   EXPECT_EQ(12U, line_ib->GetCount());
   const uint16* line_shorts = line_ib->GetData()->GetData<uint16>();
@@ -341,7 +348,7 @@ TEST(ShapeUtilsTest, Rectangle) {
 
   // So are indices.
   static const size_t kNumIndices = 6U;
-  static const uint16 kIndices[kNumIndices] = { 0, 1, 2, 0, 2, 3 };
+  static const uint16 kIndices[kNumIndices] = {0, 1, 2, 0, 2, 3};
   std::vector<IndexBov16> index_bovs;
   for (size_t i = 0; i < kNumIndices; ++i)
     index_bovs.push_back(IndexBov16(i, kIndices[i]));
@@ -349,10 +356,10 @@ TEST(ShapeUtilsTest, Rectangle) {
   {
     // Build with default RectangleSpec.
     gfx::ShapePtr rect = BuildRectangleShape(spec);
-    ASSERT_FALSE(rect.Get() == NULL);
+    ASSERT_FALSE(rect.Get() == nullptr);
 
     const gfx::AttributeArrayPtr& aa = rect->GetAttributeArray();
-    ASSERT_FALSE(aa.Get() == NULL);
+    ASSERT_FALSE(aa.Get() == nullptr);
     EXPECT_EQ(3U, aa->GetAttributeCount());
     EXPECT_EQ(3U, aa->GetBufferAttributeCount());
 
@@ -373,8 +380,8 @@ TEST(ShapeUtilsTest, Rectangle) {
       norm_bovs.push_back(NormBov(i, Vector3f(0.f, 0.f, 1.f)));
     EXPECT_TRUE(TestBoe(aa, 2, 3U, gfx::BufferObject::kFloat, 4U, norm_bovs));
 
-    EXPECT_TRUE(TestIndexBuffer(rect->GetIndexBuffer(),
-                                kNumIndices, index_bovs));
+    EXPECT_TRUE(
+        TestIndexBuffer(rect->GetIndexBuffer(), kNumIndices, index_bovs));
   }
 
   {
@@ -386,10 +393,10 @@ TEST(ShapeUtilsTest, Rectangle) {
     spec.rotation = math::RotationMatrixAxisAngleNH(
         math::Vector3f::AxisZ(), math::Anglef::FromDegrees(90.f));
     gfx::ShapePtr rect = BuildRectangleShape(spec);
-    ASSERT_FALSE(rect.Get() == NULL);
+    ASSERT_FALSE(rect.Get() == nullptr);
 
     const gfx::AttributeArrayPtr& aa = rect->GetAttributeArray();
-    ASSERT_FALSE(aa.Get() == NULL);
+    ASSERT_FALSE(aa.Get() == nullptr);
     EXPECT_EQ(3U, aa->GetAttributeCount());
     EXPECT_EQ(3U, aa->GetBufferAttributeCount());
 
@@ -420,39 +427,39 @@ TEST(ShapeUtilsTest, RectanglePlaneNormals) {
   gfx::ShapePtr rect;
   spec.plane_normal = RegularPolygonSpec::kPositiveX;
   rect = BuildRectangleShape(spec);
-  EXPECT_TRUE(TestBoe(
-      rect->GetAttributeArray(), 0, 3U, gfx::BufferObject::kFloat, 4U,
-      std::vector<PosBov>(1, PosBov(0, Point3f(0.f, -.5f, .5f)))));
+  EXPECT_TRUE(
+      TestBoe(rect->GetAttributeArray(), 0, 3U, gfx::BufferObject::kFloat, 4U,
+              std::vector<PosBov>(1, PosBov(0, Point3f(0.f, -.5f, .5f)))));
 
   spec.plane_normal = RegularPolygonSpec::kNegativeX;
   rect = BuildRectangleShape(spec);
-  EXPECT_TRUE(TestBoe(
-      rect->GetAttributeArray(), 0, 3U, gfx::BufferObject::kFloat, 4U,
-      std::vector<PosBov>(1, PosBov(0, Point3f(0.f, -.5f, -0.5f)))));
+  EXPECT_TRUE(
+      TestBoe(rect->GetAttributeArray(), 0, 3U, gfx::BufferObject::kFloat, 4U,
+              std::vector<PosBov>(1, PosBov(0, Point3f(0.f, -.5f, -0.5f)))));
 
   spec.plane_normal = RegularPolygonSpec::kPositiveY;
   rect = BuildRectangleShape(spec);
-  EXPECT_TRUE(TestBoe(
-      rect->GetAttributeArray(), 0, 3U, gfx::BufferObject::kFloat, 4U,
-      std::vector<PosBov>(1, PosBov(0, Point3f(-.5f, 0.f, 0.5f)))));
+  EXPECT_TRUE(
+      TestBoe(rect->GetAttributeArray(), 0, 3U, gfx::BufferObject::kFloat, 4U,
+              std::vector<PosBov>(1, PosBov(0, Point3f(-.5f, 0.f, 0.5f)))));
 
   spec.plane_normal = RegularPolygonSpec::kNegativeY;
   rect = BuildRectangleShape(spec);
-  EXPECT_TRUE(TestBoe(
-      rect->GetAttributeArray(), 0, 3U, gfx::BufferObject::kFloat, 4U,
-      std::vector<PosBov>(1, PosBov(0, Point3f(-.5f, 0.f, -0.5f)))));
+  EXPECT_TRUE(
+      TestBoe(rect->GetAttributeArray(), 0, 3U, gfx::BufferObject::kFloat, 4U,
+              std::vector<PosBov>(1, PosBov(0, Point3f(-.5f, 0.f, -0.5f)))));
 
   spec.plane_normal = RegularPolygonSpec::kPositiveZ;
   rect = BuildRectangleShape(spec);
-  EXPECT_TRUE(TestBoe(
-      rect->GetAttributeArray(), 0, 3U, gfx::BufferObject::kFloat, 4U,
-      std::vector<PosBov>(1, PosBov(0, Point3f(-.5f, -.5f, 0.f)))));
+  EXPECT_TRUE(
+      TestBoe(rect->GetAttributeArray(), 0, 3U, gfx::BufferObject::kFloat, 4U,
+              std::vector<PosBov>(1, PosBov(0, Point3f(-.5f, -.5f, 0.f)))));
 
   spec.plane_normal = RegularPolygonSpec::kNegativeZ;
   rect = BuildRectangleShape(spec);
-  EXPECT_TRUE(TestBoe(
-      rect->GetAttributeArray(), 0, 3U, gfx::BufferObject::kFloat, 4U,
-      std::vector<PosBov>(1, PosBov(0, Point3f(.5f, -.5f, 0.f)))));
+  EXPECT_TRUE(
+      TestBoe(rect->GetAttributeArray(), 0, 3U, gfx::BufferObject::kFloat, 4U,
+              std::vector<PosBov>(1, PosBov(0, Point3f(.5f, -.5f, 0.f)))));
 }
 
 TEST(ShapeUtilsTest, RegularPolygon) {
@@ -462,10 +469,10 @@ TEST(ShapeUtilsTest, RegularPolygon) {
     // Build with default RegularPolygonSpec.
     const int num_vertices = spec.sides + 2;
     gfx::ShapePtr rect = BuildRegularPolygonShape(spec);
-    ASSERT_FALSE(rect.Get() == NULL);
+    ASSERT_FALSE(rect.Get() == nullptr);
 
     const gfx::AttributeArrayPtr& aa = rect->GetAttributeArray();
-    ASSERT_FALSE(aa.Get() == NULL);
+    ASSERT_FALSE(aa.Get() == nullptr);
     EXPECT_EQ(3U, aa->GetAttributeCount());
     EXPECT_EQ(3U, aa->GetBufferAttributeCount());
 
@@ -503,10 +510,10 @@ TEST(ShapeUtilsTest, RegularPolygon) {
     spec.sides = 4;
     const int num_vertices = spec.sides + 2;
     gfx::ShapePtr rect = BuildRegularPolygonShape(spec);
-    ASSERT_FALSE(rect.Get() == NULL);
+    ASSERT_FALSE(rect.Get() == nullptr);
 
     const gfx::AttributeArrayPtr& aa = rect->GetAttributeArray();
-    ASSERT_FALSE(aa.Get() == NULL);
+    ASSERT_FALSE(aa.Get() == nullptr);
     EXPECT_EQ(3U, aa->GetAttributeCount());
     EXPECT_EQ(3U, aa->GetBufferAttributeCount());
 
@@ -550,10 +557,10 @@ TEST(ShapeUtilsTest, RegularPolygon) {
         math::Vector3f::AxisZ(), math::Anglef::FromDegrees(90.f));
     const int num_vertices = spec.sides + 2;
     gfx::ShapePtr rect = BuildRegularPolygonShape(spec);
-    ASSERT_FALSE(rect.Get() == NULL);
+    ASSERT_FALSE(rect.Get() == nullptr);
 
     const gfx::AttributeArrayPtr& aa = rect->GetAttributeArray();
-    ASSERT_FALSE(aa.Get() == NULL);
+    ASSERT_FALSE(aa.Get() == nullptr);
     EXPECT_EQ(3U, aa->GetAttributeCount());
     EXPECT_EQ(3U, aa->GetBufferAttributeCount());
 
@@ -609,12 +616,11 @@ TEST(ShapeUtilsTest, VertexTypes) {
   rect = BuildRectangleShape(spec);
   {
     const gfx::AttributeArrayPtr& aa = rect->GetAttributeArray();
-    ASSERT_FALSE(aa.Get() == NULL);
+    ASSERT_FALSE(aa.Get() == nullptr);
     EXPECT_EQ(1U, aa->GetAttributeCount());
     EXPECT_EQ(1U, aa->GetBufferAttributeCount());
-    EXPECT_TRUE(TestBoe(
-        rect->GetAttributeArray(), 0, 3U, gfx::BufferObject::kFloat, 4U,
-        pos_bovs));
+    EXPECT_TRUE(TestBoe(rect->GetAttributeArray(), 0, 3U,
+                        gfx::BufferObject::kFloat, 4U, pos_bovs));
   }
 
   // Positions and texture coordinates.
@@ -622,15 +628,13 @@ TEST(ShapeUtilsTest, VertexTypes) {
   rect = BuildRectangleShape(spec);
   {
     const gfx::AttributeArrayPtr& aa = rect->GetAttributeArray();
-    ASSERT_FALSE(aa.Get() == NULL);
+    ASSERT_FALSE(aa.Get() == nullptr);
     EXPECT_EQ(2U, aa->GetAttributeCount());
     EXPECT_EQ(2U, aa->GetBufferAttributeCount());
-    EXPECT_TRUE(TestBoe(
-        rect->GetAttributeArray(), 0, 3U, gfx::BufferObject::kFloat, 4U,
-        pos_bovs));
-    EXPECT_TRUE(TestBoe(
-        rect->GetAttributeArray(), 1, 2U, gfx::BufferObject::kFloat, 4U,
-        tex_bovs));
+    EXPECT_TRUE(TestBoe(rect->GetAttributeArray(), 0, 3U,
+                        gfx::BufferObject::kFloat, 4U, pos_bovs));
+    EXPECT_TRUE(TestBoe(rect->GetAttributeArray(), 1, 2U,
+                        gfx::BufferObject::kFloat, 4U, tex_bovs));
   }
 
   // Positions and normals.
@@ -638,15 +642,13 @@ TEST(ShapeUtilsTest, VertexTypes) {
   rect = BuildRectangleShape(spec);
   {
     const gfx::AttributeArrayPtr& aa = rect->GetAttributeArray();
-    ASSERT_FALSE(aa.Get() == NULL);
+    ASSERT_FALSE(aa.Get() == nullptr);
     EXPECT_EQ(2U, aa->GetAttributeCount());
     EXPECT_EQ(2U, aa->GetBufferAttributeCount());
-    EXPECT_TRUE(TestBoe(
-        rect->GetAttributeArray(), 0, 3U, gfx::BufferObject::kFloat, 4U,
-        pos_bovs));
-    EXPECT_TRUE(TestBoe(
-        rect->GetAttributeArray(), 1, 3U, gfx::BufferObject::kFloat, 4U,
-        norm_bovs));
+    EXPECT_TRUE(TestBoe(rect->GetAttributeArray(), 0, 3U,
+                        gfx::BufferObject::kFloat, 4U, pos_bovs));
+    EXPECT_TRUE(TestBoe(rect->GetAttributeArray(), 1, 3U,
+                        gfx::BufferObject::kFloat, 4U, norm_bovs));
   }
 
   // The ShapeSpec::kPositionTexCoordsNormal case is the default and has been
@@ -673,10 +675,10 @@ TEST(ShapeUtilsTest, Box) {
   {
     // Build with default BoxSpec.
     gfx::ShapePtr box = BuildBoxShape(spec);
-    ASSERT_FALSE(box.Get() == NULL);
+    ASSERT_FALSE(box.Get() == nullptr);
 
     const gfx::AttributeArrayPtr& aa = box->GetAttributeArray();
-    ASSERT_FALSE(aa.Get() == NULL);
+    ASSERT_FALSE(aa.Get() == nullptr);
     EXPECT_EQ(3U, aa->GetAttributeCount());
     EXPECT_EQ(3U, aa->GetBufferAttributeCount());
 
@@ -703,10 +705,10 @@ TEST(ShapeUtilsTest, Box) {
     spec.rotation = math::RotationMatrixAxisAngleNH(
         math::Vector3f::AxisX(), math::Anglef::FromDegrees(90.f));
     gfx::ShapePtr box = BuildBoxShape(spec);
-    ASSERT_FALSE(box.Get() == NULL);
+    ASSERT_FALSE(box.Get() == nullptr);
 
     const gfx::AttributeArrayPtr& aa = box->GetAttributeArray();
-    ASSERT_FALSE(aa.Get() == NULL);
+    ASSERT_FALSE(aa.Get() == nullptr);
     EXPECT_EQ(3U, aa->GetAttributeCount());
     EXPECT_EQ(3U, aa->GetBufferAttributeCount());
 
@@ -738,10 +740,10 @@ TEST(ShapeUtilsTest, Ellipsoid) {
     // Build with default EllipsoidSpec. This has 10 bands and 10 sectors for a
     // total of 11 * 11 = 121 points.
     gfx::ShapePtr ellipsoid = BuildEllipsoidShape(spec);
-    ASSERT_FALSE(ellipsoid.Get() == NULL);
+    ASSERT_FALSE(ellipsoid.Get() == nullptr);
 
     const gfx::AttributeArrayPtr& aa = ellipsoid->GetAttributeArray();
-    ASSERT_FALSE(aa.Get() == NULL);
+    ASSERT_FALSE(aa.Get() == nullptr);
     EXPECT_EQ(3U, aa->GetAttributeCount());
     EXPECT_EQ(3U, aa->GetBufferAttributeCount());
 
@@ -781,10 +783,10 @@ TEST(ShapeUtilsTest, Ellipsoid) {
     spec.rotation = math::RotationMatrixAxisAngleNH(
         math::Vector3f::AxisY(), math::Anglef::FromDegrees(180.f));
     gfx::ShapePtr ellipsoid = BuildEllipsoidShape(spec);
-    ASSERT_FALSE(ellipsoid.Get() == NULL);
+    ASSERT_FALSE(ellipsoid.Get() == nullptr);
 
     const gfx::AttributeArrayPtr& aa = ellipsoid->GetAttributeArray();
-    ASSERT_FALSE(aa.Get() == NULL);
+    ASSERT_FALSE(aa.Get() == nullptr);
     EXPECT_EQ(3U, aa->GetAttributeCount());
     EXPECT_EQ(3U, aa->GetBufferAttributeCount());
 
@@ -821,10 +823,10 @@ TEST(ShapeUtilsTest, EllipsoidWithCustomLongitude) {
   spec.longitude_end = math::Anglef::FromDegrees(180.f);
 
   gfx::ShapePtr ellipsoid = BuildEllipsoidShape(spec);
-  ASSERT_FALSE(ellipsoid.Get() == NULL);
+  ASSERT_FALSE(ellipsoid.Get() == nullptr);
 
   const gfx::AttributeArrayPtr& aa = ellipsoid->GetAttributeArray();
-  ASSERT_FALSE(aa.Get() == NULL);
+  ASSERT_FALSE(aa.Get() == nullptr);
   EXPECT_EQ(3U, aa->GetAttributeCount());
   EXPECT_EQ(3U, aa->GetBufferAttributeCount());
 
@@ -870,10 +872,10 @@ TEST(ShapeUtilsTest, EllipsoidWithCustomLongitudeAndLatitude) {
   spec.latitude_end = math::Anglef::FromDegrees(90.f);
 
   gfx::ShapePtr ellipsoid = BuildEllipsoidShape(spec);
-  ASSERT_FALSE(ellipsoid.Get() == NULL);
+  ASSERT_FALSE(ellipsoid.Get() == nullptr);
 
   const gfx::AttributeArrayPtr& aa = ellipsoid->GetAttributeArray();
-  ASSERT_FALSE(aa.Get() == NULL);
+  ASSERT_FALSE(aa.Get() == nullptr);
   EXPECT_EQ(3U, aa->GetAttributeCount());
   EXPECT_EQ(3U, aa->GetBufferAttributeCount());
 
@@ -920,10 +922,10 @@ TEST(ShapeUtilsTest, EllipsoidWithCustomLatLonAndInvertedDirection) {
   spec.latitude_end = math::Anglef::FromDegrees(-90.f);
 
   gfx::ShapePtr ellipsoid = BuildEllipsoidShape(spec);
-  ASSERT_FALSE(ellipsoid.Get() == NULL);
+  ASSERT_FALSE(ellipsoid.Get() == nullptr);
 
   const gfx::AttributeArrayPtr& aa = ellipsoid->GetAttributeArray();
-  ASSERT_FALSE(aa.Get() == NULL);
+  ASSERT_FALSE(aa.Get() == nullptr);
   EXPECT_EQ(3U, aa->GetAttributeCount());
   EXPECT_EQ(3U, aa->GetBufferAttributeCount());
 
@@ -966,10 +968,10 @@ TEST(ShapeUtilsTest, DefaultCylinder) {
   // a total of 2 * 11 = 22 points, and each cap has 1 band for a total of
   // 2 * (1 + 11) = 24 points, for a grand total of 46 points.
   gfx::ShapePtr cylinder = BuildCylinderShape(spec);
-  ASSERT_FALSE(cylinder.Get() == NULL);
+  ASSERT_FALSE(cylinder.Get() == nullptr);
 
   const gfx::AttributeArrayPtr& aa = cylinder->GetAttributeArray();
-  ASSERT_FALSE(aa.Get() == NULL);
+  ASSERT_FALSE(aa.Get() == nullptr);
   EXPECT_EQ(3U, aa->GetAttributeCount());
   EXPECT_EQ(3U, aa->GetBufferAttributeCount());
 
@@ -1033,10 +1035,10 @@ TEST(ShapeUtilsTest, ModifiedCylinder) {
   spec.height = 20.f;
   {
     gfx::ShapePtr cylinder = BuildCylinderShape(spec);
-    ASSERT_FALSE(cylinder.Get() == NULL);
+    ASSERT_FALSE(cylinder.Get() == nullptr);
 
     const gfx::AttributeArrayPtr& aa = cylinder->GetAttributeArray();
-    ASSERT_FALSE(aa.Get() == NULL);
+    ASSERT_FALSE(aa.Get() == nullptr);
     EXPECT_EQ(3U, aa->GetAttributeCount());
     EXPECT_EQ(3U, aa->GetBufferAttributeCount());
 
@@ -1078,10 +1080,10 @@ TEST(ShapeUtilsTest, ModifiedCylinder) {
   spec.bottom_radius = 10.f;
   {
     gfx::ShapePtr cylinder = BuildCylinderShape(spec);
-    ASSERT_FALSE(cylinder.Get() == NULL);
+    ASSERT_FALSE(cylinder.Get() == nullptr);
 
     const gfx::AttributeArrayPtr& aa = cylinder->GetAttributeArray();
-    ASSERT_FALSE(aa.Get() == NULL);
+    ASSERT_FALSE(aa.Get() == nullptr);
     EXPECT_EQ(3U, aa->GetAttributeCount());
     EXPECT_EQ(3U, aa->GetBufferAttributeCount());
 
@@ -1123,16 +1125,16 @@ TEST(ShapeUtilsTest, ModifiedCylinder) {
     std::vector<PosBov> pos_bovs;
     // Index 15 should now be the bottom cap center.
     pos_bovs.push_back(PosBov(15, Point3f(1.f, -8.f, 3.f)));
-    EXPECT_TRUE(TestBoe(cylinder->GetAttributeArray(),
-                        0, 3U, gfx::BufferObject::kFloat, 26U, pos_bovs));
+    EXPECT_TRUE(TestBoe(cylinder->GetAttributeArray(), 0, 3U,
+                        gfx::BufferObject::kFloat, 26U, pos_bovs));
 
     // Turn both caps off.
     spec.has_bottom_cap = false;
     cylinder = BuildCylinderShape(spec);
     pos_bovs.clear();
     // Only the shaft should remain.
-    EXPECT_TRUE(TestBoe(cylinder->GetAttributeArray(),
-                        0, 3U, gfx::BufferObject::kFloat, 15U, pos_bovs));
+    EXPECT_TRUE(TestBoe(cylinder->GetAttributeArray(), 0, 3U,
+                        gfx::BufferObject::kFloat, 15U, pos_bovs));
 
     // Turn top cap on, leave bottom cap off.
     spec.has_top_cap = true;
@@ -1140,8 +1142,8 @@ TEST(ShapeUtilsTest, ModifiedCylinder) {
     pos_bovs.clear();
     // Index 15 should be the top cap center.
     pos_bovs.push_back(PosBov(15, Point3f(1.f, 12.f, 3.f)));
-    EXPECT_TRUE(TestBoe(cylinder->GetAttributeArray(),
-                        0, 3U, gfx::BufferObject::kFloat, 26U, pos_bovs));
+    EXPECT_TRUE(TestBoe(cylinder->GetAttributeArray(), 0, 3U,
+                        gfx::BufferObject::kFloat, 26U, pos_bovs));
 
     // Set top radius to 0, make sure top cap is gone.
     spec.has_top_cap = spec.has_bottom_cap = true;
@@ -1150,16 +1152,16 @@ TEST(ShapeUtilsTest, ModifiedCylinder) {
     pos_bovs.clear();
     // Index 15 should be the bottom cap center.
     pos_bovs.push_back(PosBov(15, Point3f(1.f, -8.f, 3.f)));
-    EXPECT_TRUE(TestBoe(cylinder->GetAttributeArray(),
-                        0, 3U, gfx::BufferObject::kFloat, 26U, pos_bovs));
+    EXPECT_TRUE(TestBoe(cylinder->GetAttributeArray(), 0, 3U,
+                        gfx::BufferObject::kFloat, 26U, pos_bovs));
 
     // Same for bottom radius.
     spec.bottom_radius = 0.f;
     cylinder = BuildCylinderShape(spec);
     pos_bovs.clear();
     // Only the shaft should remain.
-    EXPECT_TRUE(TestBoe(cylinder->GetAttributeArray(),
-                        0, 3U, gfx::BufferObject::kFloat, 15U, pos_bovs));
+    EXPECT_TRUE(TestBoe(cylinder->GetAttributeArray(), 0, 3U,
+                        gfx::BufferObject::kFloat, 15U, pos_bovs));
   }
 }
 
@@ -1175,14 +1177,22 @@ void VerifyExternalModelLoading(ExternalShapeSpec spec,
     const std::string& asset_data =
         base::ZipAssetManager::GetFileData(asset_name);
     EXPECT_TRUE(!base::IsInvalidReference(asset_data));
-    std::istringstream in(asset_data);
+    std::istringstream in;
+    if (kExtensions[i] == std::string("off") ||
+        kExtensions[i] == std::string("obj")) {
+      // Text-based formats need to be sanitized, as though the file were
+      // opened in text mode.
+      in.str(base::testing::SanitizeLineEndings(asset_data));
+    } else {
+      in.str(asset_data);
+    }
 
     spec.format = static_cast<ExternalShapeSpec::Format>(i);
     gfx::ShapePtr box = LoadExternalShape(spec, in);
-    EXPECT_TRUE(box.Get() != NULL);
+    EXPECT_TRUE(box.Get() != nullptr);
 
     const gfx::AttributeArrayPtr& aa = box->GetAttributeArray();
-    ASSERT_FALSE(aa.Get() == NULL);
+    ASSERT_FALSE(aa.Get() == nullptr);
     EXPECT_EQ(3U, aa->GetAttributeCount());
     EXPECT_EQ(3U, aa->GetBufferAttributeCount());
 
@@ -1191,13 +1201,12 @@ void VerifyExternalModelLoading(ExternalShapeSpec spec,
     // Normals.
     if (spec.format == ExternalShapeSpec::kDae ||
         spec.format == ExternalShapeSpec::kObj)
-      EXPECT_TRUE(
-          TestBoe(aa, 2, 3U, gfx::BufferObject::kFloat, 24U, normals));
+      EXPECT_TRUE(TestBoe(aa, 2, 3U, gfx::BufferObject::kFloat, 24U, normals));
 
     // Texture coordinates.
     if (spec.format != ExternalShapeSpec::kOff) {
-      EXPECT_TRUE(TestBoe(aa, 1, 2U, gfx::BufferObject::kFloat, 24U,
-                          texcoords));
+      EXPECT_TRUE(
+          TestBoe(aa, 1, 2U, gfx::BufferObject::kFloat, 24U, texcoords));
     }
   }
 }
@@ -1207,75 +1216,72 @@ TEST(ShapeUtilsTest, ExternalFormats) {
 
   // Texture coordinates are the same regardless of any spec
   // settings.  These sample a few selected values for a box.
-  std::vector<TexBov> tex_bovs {
-    {0, {0.f, 0.f}},
-    {7, {0.f, 1.f}},
-    {18, {1.f, 1.f}},
-    {23, {0.f, 1.f}},
+  std::vector<TexBov> tex_bovs{
+      {0, {0.f, 0.f}}, {7, {0.f, 1.f}}, {18, {1.f, 1.f}}, {23, {0.f, 1.f}},
   };
 
   // Normals are affected by rotations, but not translation or scaling.
-  std::vector<NormBov> norm_bovs {
-    {0, {0.f, 0.f, 1.f}},
-    {5, {0.f, 0.f, -1.f}},
-    {14, {-1.f, 0.f, 0.f}},
-    {22, {0.f, -1.f, 0.f}},
+  std::vector<NormBov> norm_bovs{
+      {0, {0.f, 0.f, 1.f}},
+      {5, {0.f, 0.f, -1.f}},
+      {14, {-1.f, 0.f, 0.f}},
+      {22, {0.f, -1.f, 0.f}},
   };
 
-  std::vector<NormBov> rotated_norm_bovs {
-    {0, {0.f, 0.f, 1.f}},
-    {5, {0.f, 0.f, -1.f}},
-    {14, {0.f, 1.f, 0.f}},
-    {22, {-1.f, 0.f, 0.f}},
+  std::vector<NormBov> rotated_norm_bovs{
+      {0, {0.f, 0.f, 1.f}},
+      {5, {0.f, 0.f, -1.f}},
+      {14, {0.f, 1.f, 0.f}},
+      {22, {-1.f, 0.f, 0.f}},
   };
 
   // Vertex positions.
-  std::vector<PosBov> pos_bovs {
-    {0, {-0.5f, -0.5f, 0.5f}},
-    {1, {0.5f, -0.5f, 0.5f}},
-    {13, {-0.5f, -0.5f, 0.5f}},
-    {21, {0.5f, -0.5f, -0.5f}},
+  std::vector<PosBov> pos_bovs{
+      {0, {-0.5f, -0.5f, 0.5f}},
+      {1, {0.5f, -0.5f, 0.5f}},
+      {13, {-0.5f, -0.5f, 0.5f}},
+      {21, {0.5f, -0.5f, -0.5f}},
   };
 
   // Non-centered vertex positions.
-  std::vector<PosBov> non_centered_pos_bovs {
-    {0, {-0.25f, -0.25f, 0.75f}},
-    {1, {0.75f, -0.25f, 0.75f}},
-    {13, {-0.25f, -0.25f, 0.75f}},
-    {21, {0.75f, -0.25f, -0.25f}},
+  std::vector<PosBov> non_centered_pos_bovs{
+      {0, {-0.25f, -0.25f, 0.75f}},
+      {1, {0.75f, -0.25f, 0.75f}},
+      {13, {-0.25f, -0.25f, 0.75f}},
+      {21, {0.75f, -0.25f, -0.25f}},
   };
 
   // Translated vertex positions.
-  std::vector<PosBov> translated_pos_bovs {
-    {0, {0.75f, 0.75f, 1.75f}},
-    {1, {1.75f, 0.75f, 1.75f}},
-    {13, {0.75f, 0.75f, 1.75f}},
-    {21, {1.75f, 0.75f, 0.75f}},
+  std::vector<PosBov> translated_pos_bovs{
+      {0, {0.75f, 0.75f, 1.75f}},
+      {1, {1.75f, 0.75f, 1.75f}},
+      {13, {0.75f, 0.75f, 1.75f}},
+      {21, {1.75f, 0.75f, 0.75f}},
   };
 
   // Centered and rotated vertex positions (rotate 270 deg. about Z).
-  std::vector<PosBov> centered_rotated_pos_bovs {
-    {0, {-0.5f, 0.5f, 0.5f}},
-    {1, {-0.5f, -0.5f, 0.5f}},
-    {13, {-0.5f, 0.5f, 0.5f}},
-    {21, {-0.5f, -0.5f, -0.5f}},
+  std::vector<PosBov> centered_rotated_pos_bovs{
+      {0, {-0.5f, 0.5f, 0.5f}},
+      {1, {-0.5f, -0.5f, 0.5f}},
+      {13, {-0.5f, 0.5f, 0.5f}},
+      {21, {-0.5f, -0.5f, -0.5f}},
   };
 
   // Vertex position after complex transform: scale x2,
   // rotate 270 deg. about Z, translate by Vector3f(1, 2, 3).
-  std::vector<PosBov> transformed_pos_bovs {
-    {0, {0.5f, 2.5f, 4.5f}},
-    {1, {0.5f, 0.5f, 4.5f}},
-    {13, {0.5f, 2.5f, 4.5f}},
-    {21, {0.5f, 0.5f, 2.5f}},
+  std::vector<PosBov> transformed_pos_bovs{
+      {0, {0.5f, 2.5f, 4.5f}},
+      {1, {0.5f, 0.5f, 4.5f}},
+      {13, {0.5f, 2.5f, 4.5f}},
+      {21, {0.5f, 0.5f, 2.5f}},
   };
 
   // Same as above, but centered first.
-  std::vector<PosBov> centered_transformed_pos_bovs {
-    {0, {0.f, 3.f, 4.f}},
-    {1, {0.f, 1.f, 4.f}},
-    {13, {0.f, 3.f, 4.f}},
-    {21, {0.f, 1.f, 2.f}},
+  std::vector<PosBov> centered_transformed_pos_bovs{
+      {0, {0.f, 3.f, 4.f}},
+      {1, {0.f, 1.f, 4.f}},
+      {13, {0.f, 3.f, 4.f}},
+      {21, {0.f, 1.f, 2.f}},
   };
 
   const std::string base_name("model.");
@@ -1297,8 +1303,8 @@ TEST(ShapeUtilsTest, ExternalFormats) {
     ExternalShapeSpec spec;
     spec.center_at_origin = false;
     spec.translation = Point3f::Fill(1.f);
-    VerifyExternalModelLoading(spec, base_name, translated_pos_bovs,
-                               norm_bovs, tex_bovs);
+    VerifyExternalModelLoading(spec, base_name, translated_pos_bovs, norm_bovs,
+                               tex_bovs);
   }
   {
     SCOPED_TRACE("Load centered and rotated");
@@ -1330,18 +1336,22 @@ TEST(ShapeUtilsTest, ExternalFormats) {
                                rotated_norm_bovs, tex_bovs);
   }
 
+// These two tests take way too long on Android (> 10 min), so skip them.
+// They get plenty of coverage on other platforms.
+#if !defined(ION_PLATFORM_ANDROID)
+
   // Load mesh with indices >= 65536 into 16-bit index buffer. Expect to fail.
   {
     base::LogChecker log_checker;
     ExternalShapeSpec spec;
     spec.format = ExternalShapeSpec::kObj;
     spec.center_at_origin = false;
-    const std::string& asset_data =
-        base::ZipAssetManager::GetFileData("model_with_32bit_indices.obj");
-    std::istringstream in(asset_data);
+    const std::string& asset_data = base::testing::SanitizeLineEndings(
+        base::ZipAssetManager::GetFileData("model_with_32bit_indices.obj"));
+    std::istringstream in(base::testing::SanitizeLineEndings(asset_data));
     gfx::ShapePtr grid = LoadExternalShape(spec, in);
-    EXPECT_FALSE(grid.Get() == NULL);
-    EXPECT_TRUE(grid->GetIndexBuffer().Get() == NULL);
+    EXPECT_FALSE(grid.Get() == nullptr);
+    EXPECT_TRUE(grid->GetIndexBuffer().Get() == nullptr);
     EXPECT_TRUE(log_checker.HasMessage(
         "ERROR", "Vertex index 65536 is too large to store as uint16"));
   }
@@ -1352,12 +1362,12 @@ TEST(ShapeUtilsTest, ExternalFormats) {
     spec.format = ExternalShapeSpec::kObj;
     spec.center_at_origin = false;
     spec.index_size = ExternalShapeSpec::IndexSize::k32Bit;
-    const std::string& asset_data =
-        base::ZipAssetManager::GetFileData("model_with_32bit_indices.obj");
-    std::istringstream in(asset_data);
+    const std::string& asset_data = base::testing::SanitizeLineEndings(
+        base::ZipAssetManager::GetFileData("model_with_32bit_indices.obj"));
+    std::istringstream in(base::testing::SanitizeLineEndings(asset_data));
     gfx::ShapePtr grid = LoadExternalShape(spec, in);
-    EXPECT_FALSE(grid.Get() == NULL);
-    EXPECT_FALSE(grid->GetIndexBuffer().Get() == NULL);
+    EXPECT_FALSE(grid.Get() == nullptr);
+    EXPECT_FALSE(grid->GetIndexBuffer().Get() == nullptr);
 
     // The mesh has 257 * 257 unique vertices.
     const uint32 kNumVertices = 257 * 257;
@@ -1372,13 +1382,15 @@ TEST(ShapeUtilsTest, ExternalFormats) {
     // largest index to the number of vertices in the mesh.
     const uint32* data = static_cast<const uint32*>(
         grid->GetIndexBuffer()->GetData()->GetData());
-    EXPECT_FALSE(data == NULL);
+    EXPECT_FALSE(data == nullptr);
     uint32 max_index = 0;
     for (uint32 i = 0; i < kNumIndices; ++i) {
       max_index = std::max(max_index, data[i]);
     }
     EXPECT_EQ(kNumVertices - 1, max_index);
   }
+
+#endif
 
   // Try an invalid format for coverage.
   const std::string& asset_data =
@@ -1387,7 +1399,16 @@ TEST(ShapeUtilsTest, ExternalFormats) {
   ExternalShapeSpec spec;
   std::istringstream in(asset_data);
   gfx::ShapePtr box = LoadExternalShape(spec, in);
-  EXPECT_TRUE(box.Get() == NULL);
+  EXPECT_TRUE(box.Get() == nullptr);
+}
+
+TEST(ShapeUtilsTest, PrimitiveList) {
+  gfx::ShapePtr p = gfxutils::BuildPrimitivesList(
+      ion::gfx::Shape::kTriangles, 6);
+  EXPECT_EQ(1U, p->GetVertexRangeCount());
+  EXPECT_EQ(6, p->GetVertexRange(0).GetSize());
+  EXPECT_NE(nullptr, p->GetAttributeArray().Get());
+  EXPECT_EQ(0U, p->GetAttributeArray()->GetAttributeCount());
 }
 
 }  // namespace gfxutils

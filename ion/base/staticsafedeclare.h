@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,15 +20,14 @@ limitations under the License.
 
 #include <stdint.h>
 
+#include <mutex>  // NOLINT(build/c++11)
 #include <type_traits>
 #include <vector>
 
-#include "ion/base/lockguards.h"
 #include "ion/base/shareable.h"
 #include "ion/base/sharedptr.h"
 #include "ion/base/static_assert.h"
 #include "ion/port/atomic.h"
-#include "ion/port/mutex.h"
 
 // Use the below ION_DECLARE_STATIC_* macros to safely initialize a local static
 // pointer variable with 4- or 8-byte size. These macros will not work for
@@ -69,7 +68,7 @@ limitations under the License.
 // new_variable. If the swap fails then destroys new_variable.
 #define ION_SAFE_ASSIGN_STATIC_POINTER(                          \
     type, variable, new_variable, add_func, destroyer) \
-  type null = NULL;                                              \
+  type null = nullptr;                                           \
   if (variable.compare_exchange_strong(null, new_variable)) {    \
     add_func(#type, new_variable);                               \
   } else {                                                       \
@@ -125,6 +124,14 @@ limitations under the License.
       constructor,                                                        \
       ion::base::StaticDeleterDeleter::GetInstance()->AddPointerToDelete, \
       delete)
+
+// Declare a static array variable with initialzer list.
+#define ION_DECLARE_SAFE_STATIC_ARRAY_WITH_INITIALIZERS(type, variable, count, \
+                                                        ...)                   \
+  ION_DECLARE_SAFE_STATIC(                                                     \
+      type*, variable, (new type[count]{__VA_ARGS__}),                         \
+      ion::base::StaticDeleterDeleter::GetInstance()->AddArrayToDelete,        \
+      delete[])
 
 namespace ion {
 namespace base {
@@ -195,27 +202,23 @@ class ION_API StaticDeleterDeleter : public Shareable {
   // Adds a regular pointer to be deleted when this class is destroyed.
   template <typename T>
   void AddPointerToDelete(const std::string& name, T* ptr) {
-    LockGuard locker(&mutex_);
+    std::lock_guard<std::mutex> locker(mutex_);
     deleters_.push_back(new StaticDeleter<T>(name, ptr));
   }
   // Adds an array pointer to be deleted when this class is destroyed.
   template <typename T>
   void AddArrayToDelete(const std::string& name, T* ptr) {
-    LockGuard locker(&mutex_);
+    std::lock_guard<std::mutex> locker(mutex_);
     deleters_.push_back(new StaticDeleter<T[]>(name, ptr));
   }
-  // Does nothing, but simplifies the above macros for static non-pointer
-  // instances.
-  template <typename T>
-  void IgnoreInstance(const std::string& name, const T& ptr) {}
 
   // Returns a pointer to the global instance.
   static StaticDeleterDeleter* GetInstance();
 
-  // Returns the deleter at the passed index. Returns NULL if the index is
+  // Returns the deleter at the passed index. Returns nullptr if the index is
   // invalid.
   const StaticDeleterBase* GetDeleterAt(size_t index) const {
-    return index < deleters_.size() ? deleters_[index] : NULL;
+    return index < deleters_.size() ? deleters_[index] : nullptr;
   }
 
   // Returns the number of deleters in this.
@@ -240,7 +243,7 @@ class ION_API StaticDeleterDeleter : public Shareable {
   std::vector<StaticDeleterBase*> deleters_;
 
   // Mutex to lock the pointer vector.
-  port::Mutex mutex_;
+  std::mutex mutex_;
 };
 
 }  // namespace base

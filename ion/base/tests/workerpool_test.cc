@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,14 +18,14 @@ limitations under the License.
 #include "ion/base/workerpool.h"
 
 #include <memory>
+#include <mutex>  // NOLINT(build/c++11)
 #include <random>
 
-#include "ion/base/lockguards.h"
 #include "ion/base/threadspawner.h"
 #include "ion/port/atomic.h"
 #include "ion/port/barrier.h"
-#include "ion/port/mutex.h"
 #include "ion/port/timer.h"
+#include "absl/memory/memory.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
 namespace ion {
@@ -34,13 +34,12 @@ namespace base {
 // Used to wait for |barrier| on another thread.
 std::unique_ptr<ion::base::ThreadSpawner> WaitForBarrier(
     ion::port::Barrier* barrier) {
-  return std::unique_ptr<ion::base::ThreadSpawner>(new ion::base::ThreadSpawner(
-      "WaitForBarrier",
-      [=]() -> bool {
+  return absl::make_unique<ion::base::ThreadSpawner>(
+      "WaitForBarrier", [=]() -> bool {
         ion::port::Timer::SleepNMilliseconds(1);
         barrier->Wait();
         return true;
-      }));
+      });
 }
 
 // Simple implementation of Worker that allows us to pause/resume in the
@@ -49,10 +48,10 @@ class TestWorker : public WorkerPool::Worker {
  public:
   TestWorker()
       : current_work_count_(0), total_work_count_(0), available_work_count_(0),
-        barrier_one_(NULL), barrier_two_(NULL), work_sema_(NULL) {}
+        barrier_one_(nullptr), barrier_two_(nullptr), work_sema_(nullptr) {}
 
   void SetBarriers(ion::port::Barrier* one, ion::port::Barrier* two) {
-    ion::base::LockGuard lock(&work_mutex_);
+    std::lock_guard<std::mutex> lock(work_mutex_);
     DCHECK((one && two) || (one == two))
         << "Barriers must both be NULL or both be non-NULL";
     barrier_one_ = one;
@@ -61,15 +60,15 @@ class TestWorker : public WorkerPool::Worker {
 
   void WaitUntilDoneWithBarriers() {
     alldone_sema_.Wait();
-    SetBarriers(NULL, NULL);
+    SetBarriers(nullptr, nullptr);
   }
 
   void DoWork() override {
-    ion::port::Barrier* one = NULL;
-    ion::port::Barrier* two = NULL;
+    ion::port::Barrier* one = nullptr;
+    ion::port::Barrier* two = nullptr;
 
     {
-      ion::base::LockGuard lock(&work_mutex_);
+      std::lock_guard<std::mutex> lock(work_mutex_);
       one = barrier_one_;
       two = barrier_two_;
 
@@ -117,7 +116,7 @@ class TestWorker : public WorkerPool::Worker {
   }
 
   void AddWork() {
-    ion::base::LockGuard lock(&work_mutex_);
+    std::lock_guard<std::mutex> lock(work_mutex_);
     ++available_work_count_;
     work_sema_->Post();
   }
@@ -134,7 +133,7 @@ class TestWorker : public WorkerPool::Worker {
   ion::port::Barrier* barrier_two_;
   ion::port::Semaphore alldone_sema_;
   ion::port::Semaphore* work_sema_;
-  ion::port::Mutex work_mutex_;
+  std::mutex work_mutex_;
 };
 
 // Verify that we don't deadlock if there is no work, then Suspend() is called.
@@ -394,7 +393,7 @@ TEST(WorkerPoolTest, StressTest) {
       pool.ResizeThreadPool(new_thread_count);
     }
 
-    ion::port::YieldThread();
+    std::this_thread::yield();
   }
 }
 

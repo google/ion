@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -70,7 +70,7 @@ class TestFont : public Font {
 
   std::map<CharIndex, GlyphIndex> charmap_;
 };
-typedef base::ReferentPtr<TestFont>::Type TestFontPtr;
+using TestFontPtr = base::SharedPtr<TestFont>;
 
 }  // anonymous namespace
 
@@ -128,7 +128,7 @@ TEST(FontTest, Font) {
 
 TEST(FontTest, AddGlyphsForAsciiCharacterRange) {
   FontPtr font(new testing::MockFont(32U, 0U));
-  GlyphSet glyphs(ion::base::AllocatorPtr(NULL));
+  GlyphSet glyphs(ion::base::AllocatorPtr(nullptr));
   font->AddGlyphsForAsciiCharacterRange(1, 127, &glyphs);
   // 6 of the 7 glyphs in MockFont are in the ASCII range, with DIVISION SIGN
   // being outside it.

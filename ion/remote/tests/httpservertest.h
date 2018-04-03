@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,15 +19,15 @@ limitations under the License.
 #define ION_REMOTE_TESTS_HTTPSERVERTEST_H_
 
 #include <memory>
+#include <utility>
 
 #include "ion/base/logging.h"
 #include "ion/base/serialize.h"
 #include "ion/base/stringutils.h"
-#include "ion/gfx/tests/mockgraphicsmanager.h"
-#include "ion/gfx/tests/mockvisual.h"
 #include "ion/remote/httpclient.h"
 #include "ion/remote/remoteserver.h"
 #include "ion/remote/tests/getunusedport.h"
+#include "absl/memory/memory.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 #include "third_party/mongoose/mongoose.h"
 
@@ -46,7 +46,7 @@ class HttpServerTest : public ::testing::Test {
 #endif
     const std::string port_string = base::ValueToString(port);
     localhost_ = "localhost:" + port_string;
-    server_.reset(new HttpServer(port, 4));
+    server_ = absl::make_unique<HttpServer>(port, 4);
 #if !defined(ION_PLATFORM_ASMJS) && !defined(ION_PLATFORM_NACL)
     EXPECT_TRUE(server_->IsRunning());
 #endif
@@ -80,7 +80,7 @@ class HttpServerTest : public ::testing::Test {
 
   void TearDown() override {
     // Shutdown the server.
-    server_.reset(NULL);
+    server_.reset(nullptr);
   }
 
   // Logs headers from a response to the tracing stream.
@@ -111,7 +111,8 @@ class HttpServerTest : public ::testing::Test {
 
 class HttpServerTestRequestHandler : public HttpServer::RequestHandler {
  public:
-  explicit HttpServerTestRequestHandler(HttpServer::RequestHandlerPtr inner)
+  explicit HttpServerTestRequestHandler(
+      const HttpServer::RequestHandlerPtr& inner)
       : HttpServer::RequestHandler(inner->GetBasePath()), inner_(inner) {}
   const std::string HandleRequest(const std::string& path,
                                   const HttpServer::QueryMap& args,
@@ -132,9 +133,11 @@ class HttpServerTestRequestHandler : public HttpServer::RequestHandler {
     return inner_->ConnectWebsocket(path, args);
   }
 
-  void SetPreHandler(std::function<void()> handler) { pre_handler_ = handler; }
+  void SetPreHandler(std::function<void()> handler) {
+    pre_handler_ = std::move(handler);
+  }
   void SetPostHandler(std::function<void()> handler) {
-    post_handler_ = handler;
+    post_handler_ = std::move(handler);
   }
 
  private:
@@ -155,17 +158,11 @@ class RemoteServerTest : public HttpServerTest {
 #endif
     const std::string port_string = base::ValueToString(port);
     localhost_ = "localhost:" + port_string;
-    server_.reset(new RemoteServer(port));
+    server_ = absl::make_unique<RemoteServer>(port);
 #if !defined(ION_PLATFORM_ASMJS) && !defined(ION_PLATFORM_NACL)
     EXPECT_TRUE(server_->IsRunning());
 #endif
   }
-
-  std::unique_ptr<gfx::testing::MockVisual> visual_;
-  gfx::testing::MockGraphicsManagerPtr graphics_manager_;
-  gfx::RendererPtr render_;
-  gfxutils::ShaderManagerPtr shader_manager_;
-  gfxutils::FramePtr frame_;
 };
 
 }  // namespace remote

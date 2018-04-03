@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -253,7 +253,7 @@ ION_API std::string UrlEncodeString(const std::string& str) {
   encoded.reserve(str.length() * 3);
   const size_t length = str.length();
   for (size_t i = 0; i < length; ++i) {
-    if (isalnum(str[i]) || strchr(kUnescaped, str[i]) != NULL) {
+    if (isalnum(str[i]) || strchr(kUnescaped, str[i]) != nullptr) {
       encoded.push_back(str[i]);
     } else {
       encoded.push_back('%');
@@ -394,31 +394,44 @@ ION_API std::string WebSafeBase64Decode(const std::string& str) {
 
   // Very conservative size estimate - decoded buffer is never larger
   // than input string.
-  const size_t buffer_length = encoded.length();
+  const size_t encoded_length = encoded.length();
 
-  char* result = reinterpret_cast<char*>(alloca(buffer_length));
+  std::string decoded;
+  // Add one to reserve space for the null terminator added by encoded.c_str().
+  decoded.resize(encoded_length + 1);
+
+  // std::string is guaranteed to hold contiguous characters in the C++11
+  // standard, and likely all implementations prior were contiguous as well.
+  // See http://www.open-std.org/jtc1/sc22/wg21/docs/lwg-defects.html#530
   int decoded_length = B64_decode(encoded.c_str(),
-                                  reinterpret_cast<uint8*>(result),
-                                  static_cast<int>(buffer_length));
+                                  reinterpret_cast<uint8*>(&(decoded[0])),
+                                  static_cast<int>(encoded_length));
   if (decoded_length == -1) {
     // Either an char is out of range or exceeded output max length.
     return "";
   }
-
-  return std::string(result, decoded_length);
+  decoded.resize(decoded_length);
+  return decoded;
 }
 
 ION_API std::string WebSafeBase64Encode(const std::string& input) {
   const size_t length = input.size();
   // Allocate at least enough memory; there are 4 output bytes for every 3 in
   // the input, plus the zero termination.
-  const size_t buffer_length = ((length + 2U) / 3U) * 4U + 1;
+  const size_t max_encoded_length = ((length + 2U) / 3U) * 4U + 1;
 
-  char* buffer = reinterpret_cast<char*>(alloca(buffer_length));
-  B64_encode(reinterpret_cast<const uint8*>(input.data()),
-             static_cast<int>(input.size()), buffer,
-             static_cast<int>(buffer_length));
-  return std::string(buffer);
+  std::string encoded;
+  encoded.resize(max_encoded_length);
+
+  // std::string is guaranteed to hold contiguous characters in the C++11
+  // standard, and likely all implementations prior were contiguous as well.
+  // See http://www.open-std.org/jtc1/sc22/wg21/docs/lwg-defects.html#530
+  int encoded_length = B64_encode(reinterpret_cast<const uint8*>(input.data()),
+                                  static_cast<int>(input.size()),
+                                  reinterpret_cast<char*>(&(encoded[0])),
+                                  static_cast<int>(max_encoded_length));
+  encoded.resize(encoded_length);
+  return encoded;
 }
 
 }  // namespace base

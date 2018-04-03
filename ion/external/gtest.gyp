@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,6 +36,8 @@
     'include_dirs': [
        '../../third_party/googletest/googletest/include',
        '../../third_party/googletest/googletest',
+       '../../third_party/googletest/googlemock/include',
+       '../../third_party/googletest/googlemock/',
     ],
 
     'direct_dependent_settings': {
@@ -47,6 +49,8 @@
       'include_dirs': [
          '../../third_party/googletest/googletest/include',
          '../../third_party/googletest/googletest',
+         '../../third_party/googletest/googlemock/include',
+         '../../third_party/googletest/googlemock/',
       ],
     },  # direct_dependent_settings
   },
@@ -102,7 +106,7 @@
         ':iongtest_safeallocs_no_main',
       ],
       'sources': [
-        '../../third_party/gmock/src/gmock-all.cc',
+        '../../third_party/googletest/googlemock/src/gmock-all.cc',
       ],
     },  # target: iongmock
   ],

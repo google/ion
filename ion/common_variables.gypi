@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,12 +30,23 @@
     # Use angle.
     'angle%': 0,
 
+    # Use ogles.
+    'ogles20%': 0,
 
     # Use curl in the net library (see net/net.gyp).
     'use_curl_net%': 0,
 
+    # Disable GL error checking by default.
+    'check_gl_errors%': 0,
+
+    # Disable GL profiling by default.
+    'ion_analytics_enabled%': 0,
+
+    # Disable tracking of shareable references by default.
+    'ion_track_shareable_references%': 0,
+
     'conditions': [
-      ['OS in ["android", "linux", "mac"]', {
+      ['OS in ["android", "mac", "win"]', {
         # Platforms where ICU is known to work well.  Trickiest bit to adding
         # new platforms to this list should be finding the ICU data files and
         # carrying out initialization (so, not rocket-science).

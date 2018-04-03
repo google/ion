@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -53,14 +53,14 @@ const Font::GlyphGrid& Font::GetGlyphGrid(GlyphIndex glyph_index) const {
 }
 
 Font::GlyphGrid* Font::GetMutableGlyphGrid(GlyphIndex glyph_index) const {
-  base::LockGuard guard(&mutex_);
+  std::lock_guard<std::mutex> guard(mutex_);
   return GetMutableGlyphGridLocked(glyph_index);
 }
 
 Font::GlyphGrid* Font::GetMutableGlyphGridLocked(GlyphIndex glyph_index) const {
-  DCHECK(mutex_.IsLocked());
+  DCHECK(!mutex_.try_lock());
   if (!glyph_index) {
-    return NULL;
+    return nullptr;
   }
   const auto& it = glyph_grid_map_.find(glyph_index);
   if (it == glyph_grid_map_.end()) {
@@ -69,7 +69,7 @@ Font::GlyphGrid* Font::GetMutableGlyphGridLocked(GlyphIndex glyph_index) const {
       glyph_grid_map_[glyph_index] = glyph;
       return &glyph_grid_map_[glyph_index];
     }
-    return NULL;
+    return nullptr;
   }
   return &it->second;
 }
@@ -82,7 +82,7 @@ const Font::GlyphGrid& Font::AddGlyph(GlyphIndex glyph_index,
                                       const GlyphGrid& glyph) const {
   if (base::IsInvalidReference(glyph))
     return glyph;
-  base::LockGuard guard(&mutex_);
+  std::lock_guard<std::mutex> guard(mutex_);
   return glyph_grid_map_[glyph_index] = glyph;
 }
 
@@ -123,7 +123,7 @@ bool Font::CacheSdfGrid(GlyphIndex glyph_index,
 }
 
 void Font::FilterGlyphs(GlyphSet* glyph_set) {
-  base::LockGuard guard(&mutex_);
+  std::lock_guard<std::mutex> guard(mutex_);
   for (auto it = glyph_set->begin(); it != glyph_set->end();) {
     GlyphGrid* glyph = GetMutableGlyphGridLocked(*it);
     if (!glyph || glyph->IsZeroSize()) {

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,8 +21,15 @@ limitations under the License.
 #include <cstring>
 
 #include "ion/base/logging.h"
+#include "ion/portgfx/glcontext.h"
 #include "ion/portgfx/glheaders.h"
-#include "ion/portgfx/visual.h"
+
+// ion/port/logging.h fixes conflict between the Windows global define of ERROR
+// and the logging.h ERROR. However, glheaders.h can redefine it, so remove it
+// again.
+#ifdef ERROR
+#undef ERROR
+#endif
 
 namespace ion {
 namespace portgfx {
@@ -30,8 +37,6 @@ namespace portgfx {
 ION_API bool IsExtensionSupported(const std::string& unprefixed_extension,
                                   const std::string& extensions_string) {
   if (unprefixed_extension.empty())
-    return false;
-  if (IsExtensionIncomplete(unprefixed_extension.c_str()))
     return false;
 
   // An extension is supported if it is in the list of GL extensions.
@@ -70,29 +75,32 @@ ION_API bool IsExtensionSupported(const std::string& unprefixed_extension,
 }
 
 ION_API bool IsExtensionSupported(const char* unprefixed_extension) {
-  if (!Visual::GetCurrent()) {
+  const GlContextPtr gl_context = GlContext::GetCurrent();
+  if (!gl_context) {
     // If there is no OpenGL context, we have no extensions. However, this
     // is probably a bug, so warn about it.
     LOG(WARNING) << "IsExtensionSupported(" << unprefixed_extension
                  << ") returning false because there is no OpenGL context.";
     return false;
   }
+
+  using GetStringFn = const GLubyte* (*)(GLenum);
+  const auto get_string_fn =
+      reinterpret_cast<GetStringFn>(gl_context->GetProcAddress(
+          "glGetString",
+          GlContext::kProcAddressCore | GlContext::kProcAddressPure));
+  if (!get_string_fn) {
+    LOG(ERROR) << "IsExtensionSupported(" << unprefixed_extension
+               << ") failed to retrieve extensions string.";
+    return false;
+  }
+
   const char* extensions =
-      reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
+      reinterpret_cast<const char*>(get_string_fn(GL_EXTENSIONS));
   if (!extensions) return false;
   const std::string unprefixed(unprefixed_extension);
   return IsExtensionSupported(std::string(unprefixed_extension),
                               std::string(extensions));
-}
-
-ION_API bool IsExtensionIncomplete(const char* unprefixed_extension) {
-#if defined(ION_PLATFORM_ANDROID) || defined(ION_PLATFORM_GENERIC_ARM)
-  // Disable vertex arrays on Android since there seems to be a buggy
-  // implementation of them in the SDK.
-  if (!strcmp(unprefixed_extension, "vertex_array_object"))
-    return true;
-#endif
-  return false;
 }
 
 }  // namespace portgfx

@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,10 +28,21 @@
       'include_dirs': [
         '<(root_dir)/',
         '<(root_dir)/third_party/icu/icu4c/source/common',
+        '<(root_dir)/third_party/icu/icu4c/source/common', # For cmemory.h
         '<(root_dir)/third_party/harfbuzz/src',
       ],
       'cflags_cc': [
         '-w',
+      ],
+      'defines': [
+        'U_COMMON_IMPLEMENTATION',
+        'U_STATIC_IMPLEMENTATION',
+        'U_IMPORT=',
+        'U_EXPORT=',
+      ],
+      'msvs_disabled_warnings': [
+        '4244', # Conversion from 64-bit to 32-bit types.
+        '4267', # Conversion from 64-bit to 32-bit types.
       ],
       'sources': [
         # To generate this list cd into third_party/iculehb/src/src and run:

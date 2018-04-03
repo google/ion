@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -82,7 +82,7 @@ TEST(UniformTest, CreateUniform) {
 
   Uniform u;
   EXPECT_FALSE(u.IsValid());
-  EXPECT_TRUE(ShaderInputRegistry::GetSpec(u) == NULL);
+  EXPECT_TRUE(ShaderInputRegistry::GetSpec(u) == nullptr);
   EXPECT_EQ(0U, u.GetStamp());
 
   // Create.
@@ -94,7 +94,7 @@ TEST(UniformTest, CreateUniform) {
   ASSERT_FALSE(base::IsInvalidReference(u.GetValue<float>()));
   EXPECT_EQ(17.2f, u.GetValue<float>());
   EXPECT_TRUE(base::IsInvalidReference(u.GetValue<int>()));
-  EXPECT_TRUE(ShaderInputRegistry::GetSpec(u) != NULL);
+  EXPECT_TRUE(ShaderInputRegistry::GetSpec(u) != nullptr);
   EXPECT_LT(0U, u.GetStamp());
   uint64 initial_stamp = u.GetStamp();
 
@@ -107,7 +107,7 @@ TEST(UniformTest, CreateUniform) {
   ASSERT_FALSE(base::IsInvalidReference(u.GetValue<float>()));
   EXPECT_EQ(17.2f, u2.GetValue<float>());
   EXPECT_TRUE(base::IsInvalidReference(u.GetValue<int>()));
-  EXPECT_TRUE(ShaderInputRegistry::GetSpec(u2) != NULL);
+  EXPECT_TRUE(ShaderInputRegistry::GetSpec(u2) != nullptr);
   EXPECT_EQ(initial_stamp, u.GetStamp());
   EXPECT_EQ(initial_stamp, u2.GetStamp());
 
@@ -357,7 +357,7 @@ TEST(UniformTest, CreateUniform) {
   ASSERT_FALSE(base::IsInvalidReference(u.GetValue<float>()));
   EXPECT_EQ(48.1f, u.GetValue<float>());
   EXPECT_TRUE(base::IsInvalidReference(u.GetValue<int>()));
-  EXPECT_TRUE(ShaderInputRegistry::GetSpec(u) != NULL);
+  EXPECT_TRUE(ShaderInputRegistry::GetSpec(u) != nullptr);
 
   // Change to bad type; leaves Uniform untouched.
   initial_stamp = u.GetStamp();
@@ -370,25 +370,25 @@ TEST(UniformTest, CreateUniform) {
   ASSERT_FALSE(base::IsInvalidReference(u.GetValue<float>()));
   EXPECT_EQ(48.1f, u.GetValue<float>());
   EXPECT_TRUE(base::IsInvalidReference(u.GetValue<int>()));
-  EXPECT_TRUE(ShaderInputRegistry::GetSpec(u) != NULL);
+  EXPECT_TRUE(ShaderInputRegistry::GetSpec(u) != nullptr);
 
   // Create with bad value type.
   u = reg->Create<Uniform>("myFloat", kVec2);
   EXPECT_FALSE(u.IsValid());
-  EXPECT_TRUE(ShaderInputRegistry::GetSpec(u) == NULL);
+  EXPECT_TRUE(ShaderInputRegistry::GetSpec(u) == nullptr);
   EXPECT_TRUE(log_checker.HasMessage("ERROR", "wrong value_type"));
 
   // Create with an unknown name.
   u = reg->Create<Uniform>("badName", 52);
   EXPECT_TRUE(u.IsValid());
   EXPECT_EQ(52, u.GetValue<int>());
-  EXPECT_TRUE(ShaderInputRegistry::GetSpec(u) != NULL);
+  EXPECT_TRUE(ShaderInputRegistry::GetSpec(u) != nullptr);
 
   u = Uniform();
   // Copy of an invalid Uniform should also be invalid.
   u2 = u;
   EXPECT_FALSE(u2.IsValid());
-  EXPECT_TRUE(ShaderInputRegistry::GetSpec(u2) == NULL);
+  EXPECT_TRUE(ShaderInputRegistry::GetSpec(u2) == nullptr);
 
   EXPECT_FALSE(log_checker.HasAnyMessages());
 

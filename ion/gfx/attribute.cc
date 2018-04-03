@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ const char* Attribute::GetValueTypeName(Attribute::ValueType type) {
 template <typename T>
 Attribute::ValueType Attribute::GetTypeByValue() {
   // The unspecialized version should never be called.
-  CHECK(false) <<"Unspecialized attribute GetTypeByValue() called.";
+  LOG(FATAL) << "Unspecialized attribute GetTypeByValue() called.";
   return kFloatAttribute;
 }
 // Specialize for each supported type.

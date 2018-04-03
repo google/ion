@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 */
+
+#include <chrono> // NOLINT
 
 #include "ion/base/setting.h"
 
@@ -187,6 +189,19 @@ TEST(Setting, BasicUsage) {
   EXPECT_EQ(4., static_cast<double>(double_setting));
   EXPECT_TRUE(double_setting.FromString("7.23,89"));
   EXPECT_EQ(7.23, static_cast<double>(double_setting));
+
+  // Chrono Duration
+  typedef std::chrono::duration<int64_t, std::nano> nsduration;
+  Setting<nsduration> ns_setting("ns", nsduration(1978), "a duration");
+  nsduration* mutable_dur = ns_setting.GetMutableValue();
+  EXPECT_EQ(nsduration(1978), ns_setting);
+  EXPECT_EQ(nsduration(1978), *mutable_dur);
+  EXPECT_EQ("a duration", ns_setting.GetDocString());
+  EXPECT_EQ(nsduration(1978), ns_setting.GetValue());
+  ns_setting = nsduration(1980);
+  EXPECT_EQ(nsduration(1980), ns_setting);
+  ns_setting.SetValue(nsduration(2000));
+  EXPECT_EQ(nsduration(2000), ns_setting);
 }
 
 TEST(Setting, AtomicSettings) {

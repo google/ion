@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,61 +19,58 @@ limitations under the License.
 
 #include <functional>
 #include <map>
+#include <mutex>  // NOLINT(build/c++11)
 #include <set>
 
 #include "ion/base/staticsafedeclare.h"
 #include "ion/port/atomic.h"
 #include "ion/port/break.h"
 #include "ion/port/logging.h"
+#include "ion/port/stacktrace.h"
 #include "ion/port/timer.h"
 
 namespace ion {
 namespace base {
 
 namespace logging_internal {
+namespace {
 
 // Stores the LogEntryWriter set by the user.
-static port::LogEntryWriter* s_writer_ = NULL;
+port::LogEntryWriter* s_writer = nullptr;
 
-// Stores the break handler that gets invoked by Logger::CheckMessage.
-static std::function<void()> s_break_handler_;
+// Logging mutexes. Since std::mutex constructors are constexpr, they are
+// effectively loaded in an already initialized state from the data segment of
+// the binary, and their destructors run after any other statics.
+std::mutex s_logger_mutex;
+std::mutex s_message_set_mutex;
+std::mutex s_logged_messages_mutex;
 
-static const std::function<void()> GetBreakHandler() {
-  static std::atomic<int> has_been_initialized_(0);
-  if (has_been_initialized_.exchange(1) == 0) {
-    RestoreDefaultBreakHandler();
-  }
-  return s_break_handler_;
-}
-
-static port::Mutex* GetSingleLoggerMutex() {
-  ION_DECLARE_SAFE_STATIC_POINTER(port::Mutex, mutex);
-  return mutex;
-}
-
-static std::set<std::string>& GetSingleLoggerMessageSet() {
+std::set<std::string>& GetSingleLoggerMessageSet() {
   ION_DECLARE_SAFE_STATIC_POINTER(std::set<std::string>, logged_messages);
   return *logged_messages;
 }
 
-static void BreakOnFatalSeverity(port::LogSeverity severity) {
+void BreakOnFatalSeverity(port::LogSeverity severity) {
   bool is_fatal = (severity == port::FATAL);
 #if ION_DEBUG
   is_fatal |= (severity == port::DFATAL);
 #endif
   if (is_fatal) {
-    // Call the break handler unless it has specifically been set to NULL
-    // using SetBreakHandler(NULL).
-    std::function<void()> break_handler = GetBreakHandler();
-    if (break_handler) {
-      break_handler();
+    // Log a stacktrace for debugging.
+    {
+      std::lock_guard<std::mutex> guard(s_logger_mutex);
+      port::StackTrace stacktrace;
+      GetDefaultLogEntryWriter()->Write(
+          severity,
+          "Dumping stack:\n" + stacktrace.GetSymbolString() + "\n");
     }
+
+    port::BreakOrAbort();
   }
 }
 
-static bool HasLoggedMessageSince(const char* file_name, int line_number,
-                                  float past_seconds) {
-  ION_DECLARE_SAFE_STATIC_POINTER(port::Mutex, mutex);
+bool HasLoggedMessageSince(const char* file_name, int line_number,
+                           float past_seconds) {
   const port::Timer::steady_clock::time_point now =
       port::Timer::steady_clock::now();
   const port::Timer::steady_clock::time_point when =
@@ -85,7 +82,7 @@ static bool HasLoggedMessageSince(const char* file_name, int line_number,
   str << file_name << ":" << line_number;
   const std::string key = str.str();
 
-  LockGuard guard(mutex);
+  std::lock_guard<std::mutex> guard(s_logged_messages_mutex);
   const auto& insert_pair = logged_messages.insert(std::make_pair(key, now));
   if (insert_pair.second) {
     // Entry was inserted with a new timestamp.
@@ -102,6 +99,8 @@ static bool HasLoggedMessageSince(const char* file_name, int line_number,
   }
 }
 
+}  // anonymous namespace
+
 Logger::Logger(const char* filename, int line_number,
                port::LogSeverity severity)
     : severity_(severity) {
@@ -109,9 +108,8 @@ Logger::Logger(const char* filename, int line_number,
 }
 
 Logger::~Logger() {
-  ION_DECLARE_SAFE_STATIC_POINTER(port::Mutex, mutex);
   {
-    LockGuard guard(mutex);
+    std::lock_guard<std::mutex> guard(s_logger_mutex);
     GetLogEntryWriter()->Write(severity_, stream_.str());
   }
 
@@ -125,7 +123,7 @@ NullLogger::NullLogger(port::LogSeverity severity) {
 }
 
 std::ostream& NullLogger::GetStream() {
-  static std::ostream null_stream(NULL);
+  static std::ostream null_stream(nullptr);
   return null_stream;
 }
 
@@ -138,20 +136,20 @@ const std::string Logger::CheckMessage(const char* check_string,
 }
 
 static std::ostream& GetNullStream() {
-  static std::ostream null_stream(NULL);
+  static std::ostream null_stream(nullptr);
   return null_stream;
 }
 
 SingleLogger::SingleLogger(const char* file_name, int line_number,
                            port::LogSeverity severity)
     : logger_(HasLoggedMessageAt(file_name, line_number)
-                  ? NULL
+                  ? nullptr
                   : new Logger(file_name, line_number, severity)) {}
 
 SingleLogger::~SingleLogger() {}
 
 void SingleLogger::ClearMessages() {
-  LockGuard guard(GetSingleLoggerMutex());
+  std::lock_guard<std::mutex> guard(s_message_set_mutex);
   GetSingleLoggerMessageSet().clear();
 }
 
@@ -160,7 +158,7 @@ std::ostream& SingleLogger::GetStream() {
 }
 
 bool SingleLogger::HasLoggedMessageAt(const char* file_name, int line_number) {
-  LockGuard guard(GetSingleLoggerMutex());
+  std::lock_guard<std::mutex> guard(s_message_set_mutex);
   std::set<std::string>& logged_messages = GetSingleLoggerMessageSet();
   std::stringstream str;
   str << file_name << ":" << line_number;
@@ -170,7 +168,7 @@ bool SingleLogger::HasLoggedMessageAt(const char* file_name, int line_number) {
 ThrottledLogger::ThrottledLogger(const char* file_name, int line_number,
                                  port::LogSeverity severity, float seconds)
     : logger_(HasLoggedMessageSince(file_name, line_number, seconds)
-                  ? NULL
+                  ? nullptr
                   : new Logger(file_name, line_number, severity)) {}
 
 ThrottledLogger::~ThrottledLogger() {}
@@ -179,18 +177,23 @@ std::ostream& ThrottledLogger::GetStream() {
   return logger_ ? logger_->GetStream() : GetNullStream();
 }
 
+void InitializeLogging() {
+  GetSingleLoggerMessageSet();
+  GetDefaultLogEntryWriter();
+}
+
 }  // namespace logging_internal
 
 //-----------------------------------------------------------------------------
 // Public functions.
 
-void SetLogEntryWriter(port::LogEntryWriter* w) {
-  logging_internal::s_writer_ = w;
+void SetLogEntryWriter(port::LogEntryWriter* writer) {
+  logging_internal::s_writer = writer;
 }
 
 port::LogEntryWriter* GetLogEntryWriter() {
-  return logging_internal::s_writer_ ? logging_internal::s_writer_
-                                     : GetDefaultLogEntryWriter();
+  return logging_internal::s_writer ? logging_internal::s_writer
+                                    : GetDefaultLogEntryWriter();
 }
 
 port::LogEntryWriter* GetDefaultLogEntryWriter() {
@@ -199,16 +202,6 @@ port::LogEntryWriter* GetDefaultLogEntryWriter() {
       (port::CreateDefaultLogEntryWriter()));
 
   return default_writer;
-}
-
-void SetBreakHandler(const std::function<void()>& break_handler) {
-  // Ensure the break handler has been initialized.
-  logging_internal::GetBreakHandler();
-  logging_internal::s_break_handler_ = break_handler;
-}
-
-void RestoreDefaultBreakHandler() {
-  logging_internal::s_break_handler_ = port::BreakOrAbort;
 }
 
 }  // namespace base

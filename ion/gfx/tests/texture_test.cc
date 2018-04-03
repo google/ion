@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ limitations under the License.
 #include "ion/math/utils.h"
 #include "ion/math/vector.h"
 
+#include "absl/memory/memory.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
 namespace ion {
@@ -95,7 +96,7 @@ class TextureTest : public ::testing::Test {
  protected:
   void SetUp() override {
     texture_.Reset(new Texture());
-    resource_.reset(new MockTextureResource);
+    resource_ = absl::make_unique<MockTextureResource>();
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());
     texture_->SetResource(0U, 0, resource_.get());
     EXPECT_EQ(resource_.get(), texture_->GetResource(0U, 0));
@@ -105,7 +106,7 @@ class TextureTest : public ::testing::Test {
   }
 
   // This is to ensure that the resource holder goes away before the resource.
-  void TearDown() override { texture_.Reset(NULL); }
+  void TearDown() override { texture_.Reset(nullptr); }
 
   TexturePtr texture_;
   std::unique_ptr<MockTextureResource> resource_;
@@ -115,7 +116,7 @@ TEST_F(TextureTest, DefaultModes) {
   // Check that the texture does not have an Image.
   EXPECT_FALSE(texture_->HasImage(0U));
   // Check that the texture does not have an Sampler.
-  EXPECT_TRUE(texture_->GetSampler().Get() == NULL);
+  EXPECT_FALSE(texture_->GetSampler());
   EXPECT_FALSE(resource_->AnyModifiedBitsSet());
 }
 
@@ -150,40 +151,54 @@ TEST_F(TextureTest, ImmutableTextures) {
   texture_->SetSampler(sampler);
   resource_->ResetModifiedBits();
 
-  EXPECT_TRUE(texture_->GetImmutableImage().Get() == NULL);
+  EXPECT_FALSE(texture_->GetImmutableImage());
   EXPECT_EQ(0U, texture_->GetImmutableLevels());
+  EXPECT_FALSE(texture_->IsProtected());
 
   ImagePtr image(new Image());
   // It is an error to try to specify 0 levels.
-  texture_->SetImmutableImage(image, 0U);
+  EXPECT_FALSE(texture_->SetProtectedImage(image, 0U));
   EXPECT_TRUE(log_checker.HasMessage(
       "ERROR", "SetImmutableImage() called with levels == 0"));
-  EXPECT_TRUE(texture_->GetImmutableImage().Get() == NULL);
+  EXPECT_FALSE(texture_->GetImmutableImage());
   EXPECT_EQ(0U, texture_->GetImmutableLevels());
   EXPECT_FALSE(resource_->AnyModifiedBitsSet());
+  EXPECT_FALSE(texture_->IsProtected());
 
+  // This image should be removed once the immutable image is set.
+  ImagePtr unused_image(new Image);
+  texture_->SetImage(0U, unused_image);
+  resource_->ResetModifiedBits();
   // This should succeed.
-  texture_->SetImmutableImage(image, 2U);
+  EXPECT_TRUE(texture_->SetProtectedImage(image, 2U));
   EXPECT_EQ(image.Get(), texture_->GetImmutableImage().Get());
   EXPECT_EQ(2U, texture_->GetImmutableLevels());
+  EXPECT_TRUE(texture_->IsProtected());
   EXPECT_FALSE(log_checker.HasAnyMessages());
   EXPECT_TRUE(
       resource_->TestOnlyModifiedBit(TextureBase::kImmutableImageChanged));
   resource_->ResetModifiedBits();
+  EXPECT_EQ(image.Get(), texture_->GetImmutableImage().Get());
+  EXPECT_EQ(image.Get(), texture_->GetImage(0U).Get());
+  EXPECT_EQ(image.Get(), texture_->GetImage(1U).Get());
+  EXPECT_FALSE(texture_->GetImage(2U));
 
   ImagePtr image2(new Image());
-  texture_->SetImmutableImage(image2, 4U);
+  EXPECT_FALSE(texture_->SetImmutableImage(image2, 4U));
   EXPECT_TRUE(log_checker.HasMessage(
       "ERROR", "SetImmutableImage() called on an already immutable"));
   EXPECT_EQ(image.Get(), texture_->GetImmutableImage().Get());
   EXPECT_EQ(2U, texture_->GetImmutableLevels());
+  EXPECT_TRUE(texture_->IsProtected());
 
   // Calling SetImage() on an immutable Texture is an error.
-  EXPECT_FALSE(texture_->HasImage(0U));
+  EXPECT_TRUE(texture_->HasImage(0U));
+  EXPECT_EQ(image.Get(), texture_->GetImage(0U).Get());
   texture_->SetImage(0U, image2);
   EXPECT_TRUE(
       log_checker.HasMessage("ERROR", "SetImage() called on immutable"));
-  EXPECT_FALSE(texture_->HasImage(0U));
+  EXPECT_TRUE(texture_->HasImage(0U));
+  EXPECT_EQ(image.Get(), texture_->GetImage(0U).Get());
   EXPECT_FALSE(resource_->AnyModifiedBitsSet());
 }
 

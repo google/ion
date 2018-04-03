@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -94,6 +94,7 @@ TEST(Utf8Iterator, AsciiOnly) {
   Utf8Iterator it("abcd 0123");
   EXPECT_EQ(Utf8Iterator::kInString, it.GetState());
   EXPECT_EQ(9U, it.ComputeCharCount());
+  EXPECT_EQ(0U, it.GetCurrentByteIndex());
   EXPECT_EQ(ToUnicode('a'), it.Next());
   EXPECT_EQ(ToUnicode('b'), it.Next());
   EXPECT_EQ(ToUnicode('c'), it.Next());
@@ -102,6 +103,7 @@ TEST(Utf8Iterator, AsciiOnly) {
   EXPECT_EQ(ToUnicode('0'), it.Next());
   EXPECT_EQ(ToUnicode('1'), it.Next());
   EXPECT_EQ(ToUnicode('2'), it.Next());
+  EXPECT_EQ(8U, it.GetCurrentByteIndex());
   EXPECT_EQ(Utf8Iterator::kInString, it.GetState());
   EXPECT_EQ(ToUnicode('3'), it.Next());
   EXPECT_EQ(Utf8Iterator::kEndOfString, it.GetState());
@@ -129,15 +131,24 @@ TEST(Utf8Iterator, AsciiAndUnicode) {
 
   Utf8Iterator it(s);
   EXPECT_EQ(8U, it.ComputeCharCount());
+  EXPECT_EQ(0U, it.GetCurrentByteIndex());
   EXPECT_EQ(0x0001U, it.Next());
+  EXPECT_EQ(1U, it.GetCurrentByteIndex());
   EXPECT_EQ(0x007fU, it.Next());
+  EXPECT_EQ(2U, it.GetCurrentByteIndex());
   EXPECT_EQ(0x0080U, it.Next());
+  EXPECT_EQ(4U, it.GetCurrentByteIndex());
   EXPECT_EQ(0x07ffU, it.Next());
+  EXPECT_EQ(6U, it.GetCurrentByteIndex());
   EXPECT_EQ(0x0800U, it.Next());
+  EXPECT_EQ(9U, it.GetCurrentByteIndex());
   EXPECT_EQ(0xffffU, it.Next());
+  EXPECT_EQ(12U, it.GetCurrentByteIndex());
   EXPECT_EQ(0x010000U, it.Next());
+  EXPECT_EQ(16U, it.GetCurrentByteIndex());
   EXPECT_EQ(Utf8Iterator::kInString, it.GetState());
   EXPECT_EQ(0x10ffffU, it.Next());
+  EXPECT_EQ(20U, it.GetCurrentByteIndex());
   EXPECT_EQ(Utf8Iterator::kEndOfString, it.GetState());
   EXPECT_EQ(Utf8Iterator::kInvalidCharIndex, it.Next());
 }

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ limitations under the License.
 #include "ion/port/memory.h"
 
 #if defined(ION_PLATFORM_LINUX) || defined(ION_PLATFORM_ANDROID) || \
-    defined(ION_PLATFORM_GENERIC_ARM)
+    defined(ION_GOOGLE_INTERNAL)
 #include <fstream>  // NOLINT(readability/streams)
 #include <sstream>
 #endif
@@ -34,7 +34,6 @@ limitations under the License.
 #include <windows.h>
 // psapi must be included after windows.h.
 #include <psapi.h>  // NOLINT(build/include_alpha)
-
 #pragma comment(lib, "psapi")
 #endif
 
@@ -43,7 +42,7 @@ limitations under the License.
 namespace {
 
 #if defined(ION_PLATFORM_LINUX) || defined(ION_PLATFORM_ANDROID) || \
-    defined(ION_PLATFORM_GENERIC_ARM)
+    defined(ION_GOOGLE_INTERNAL)
 // Return value for a particular key from a procfs file.
 static uint64 GetProcFSValue(const std::string& filename,
                              const std::string& key) {
@@ -77,13 +76,14 @@ namespace port {
 
 uint64 GetProcessResidentMemorySize() {
 #if defined(ION_PLATFORM_LINUX) || defined(ION_PLATFORM_ANDROID) || \
-    defined(ION_PLATFORM_GENERIC_ARM)
+    defined(ION_GOOGLE_INTERNAL)
   return GetProcFSValue("/proc/self/status", "VmRSS");
 #elif defined(ION_PLATFORM_MAC) || defined(ION_PLATFORM_IOS)
   struct task_basic_info info;
   mach_msg_type_number_t info_count = TASK_BASIC_INFO_COUNT;
   const int error_code = task_info(mach_task_self(), TASK_BASIC_INFO,
                                    (task_info_t)&info, &info_count);
+  (void)error_code;  // Silence unused variable warning.
   assert(error_code == KERN_SUCCESS);
   return info.resident_size;
 #elif defined(ION_PLATFORM_WINDOWS)
@@ -97,7 +97,7 @@ uint64 GetProcessResidentMemorySize() {
 
 uint64 GetSystemMemorySize() {
 #if defined(ION_PLATFORM_LINUX) || defined(ION_PLATFORM_ANDROID) || \
-    defined(ION_PLATFORM_GENERIC_ARM)
+    defined(ION_GOOGLE_INTERNAL)
   return GetProcFSValue("/proc/meminfo", "MemTotal");
 #elif defined(ION_PLATFORM_MAC) || defined(ION_PLATFORM_IOS)
   int mib[2];
@@ -105,7 +105,8 @@ uint64 GetSystemMemorySize() {
   mib[1] = HW_MEMSIZE;
   int64 system_memory_size;
   size_t size = sizeof(system_memory_size);
-  const int error_code = sysctl(mib, 2, &system_memory_size, &size, NULL, 0);
+  const int error_code = sysctl(mib, 2, &system_memory_size, &size, nullptr, 0);
+  (void)error_code;  // Silence unused variable warning.
   assert(error_code != ENOMEM);
   return system_memory_size;
 #elif defined(ION_PLATFORM_WINDOWS)

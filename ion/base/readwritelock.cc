@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,8 +30,8 @@ void ReadWriteLock::LockForRead() {
   // Prevent readers from proceeding if a writer is waiting. This makes the lock
   // function more like a Mutex under write contention.
   if (writer_count_) {
-    turnstile_.Lock();
-    turnstile_.Unlock();
+    turnstile_.lock();
+    turnstile_.unlock();
   }
   // The first reader prevents writers from obtaining the lock, or blocks until
   // a writer has finished.
@@ -47,13 +47,13 @@ void ReadWriteLock::UnlockForRead() {
 
 void ReadWriteLock::LockForWrite() {
   ++writer_count_;
-  turnstile_.Lock();
+  turnstile_.lock();
   room_empty_.Wait();
 }
 
 void ReadWriteLock::UnlockForWrite() {
   // Allow everyone to proceed.
-  turnstile_.Unlock();
+  turnstile_.unlock();
   room_empty_.Post();
   --writer_count_;
 }

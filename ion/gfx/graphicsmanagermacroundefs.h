@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,5 +22,6 @@ limitations under the License.
 #undef ION_PROFILE_GL_FUNC
 #undef ION_WRAP_PROD_GL_FUNC
 #undef ION_WRAP_NON_PROD_GL_FUNC
+#undef ION_WRAP_SKIP_GetError
 
 #endif  // ION_GFX_GRAPHICSMANAGERMACROUNDEFS_H_

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -156,7 +156,7 @@ void RemoteServer::Init(int port) {
       "<span><a href=\"/ion/shaders/shader_editor\">Shader editor</a></span>\n"
       "<span><a href=\"/ion/nodegraph\">Node graph display</a></span>\n"
       "<span><a href=\"/ion/tracing\">OpenGL tracing</a></span>\n"
-      "<span><a href=\"/ion/profile\">Run-time profile "
+      "<span><a href=\"/ion/calltrace\">Run-time profile "
       "diagram</a></span></div>\n";
 
   SetHeaderHtml(kHeaderHtml);
@@ -178,7 +178,9 @@ void RemoteServer::AddNode(const gfx::NodePtr& node) const {
   HttpServer::HandlerMap handler_map = GetHandlers();
   auto iter = handler_map.find("/ion/nodegraph");
   if (iter != handler_map.end()) {
-    dynamic_cast<NodeGraphHandler*>(iter->second.Get())->AddNode(node);
+    // Safe because we know a priori that this RequestHandler can be
+    // downcasted to a NodeGraphHandler.
+    static_cast<NodeGraphHandler*>(iter->second.Get())->AddNode(node);
   }
 #endif
 }
@@ -188,8 +190,9 @@ bool RemoteServer::RemoveNode(const gfx::NodePtr& node) const {
   HttpServer::HandlerMap handler_map = GetHandlers();
   auto iter = handler_map.find("/ion/nodegraph");
   if (iter != handler_map.end()) {
-    return dynamic_cast<NodeGraphHandler*>(iter->second.Get())
-        ->RemoveNode(node);
+    // Safe because we know a priori that this RequestHandler can be
+    // downcasted to a NodeGraphHandler.
+    return static_cast<NodeGraphHandler*>(iter->second.Get())->RemoveNode(node);
   }
 #endif
 

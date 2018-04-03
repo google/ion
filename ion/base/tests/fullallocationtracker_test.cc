@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,10 +26,6 @@ limitations under the License.
 #include "ion/base/stringutils.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
-#if defined(ION_GOOGLE_INTERNAL) && defined(ION_PLATFORM_LINUX)
-#include "base/heap-checker.h"
-#endif
-
 namespace ion {
 namespace base {
 
@@ -39,7 +35,7 @@ namespace {
 class DummyAllocator : public ion::base::Allocator {
  public:
   // Implementations don't matter - they will never be called.
-  void* Allocate(size_t size) override { return NULL; }
+  void* Allocate(size_t size) override { return nullptr; }
   void Deallocate(void* p) override {}
 };
 
@@ -127,7 +123,7 @@ TEST(FullAllocationTracker, Tracing) {
   AllocatorPtr da(new DummyAllocator);
 
   // Check that default value is correct.
-  EXPECT_EQ(NULL, fat->GetTracingStream());
+  EXPECT_EQ(nullptr, fat->GetTracingStream());
 
   // Check that the stream changes appropriately.
   std::ostringstream s;
@@ -180,7 +176,7 @@ TEST(FullAllocationTracker, DeletedWhileActive) {
   {
     fat->TrackAllocation(*da, 14U, Pointer(0xface));
     fat->TrackAllocation(*da, 62U, Pointer(0xbabe));
-    fat.Reset(NULL);  // Deletes the allocator with 2 active allocations.
+    fat.Reset(nullptr);  // Deletes the allocator with 2 active allocations.
   }
 
 #if !ION_PRODUCTION

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ namespace {
 class DummyAllocator : public ion::base::Allocator {
  public:
   // Implementations don't matter - they will never be called.
-  void* Allocate(size_t size) override { return NULL; }
+  void* Allocate(size_t size) override { return nullptr; }
   void Deallocate(void* p) override {}
 };
 
@@ -101,10 +101,10 @@ TEST(Allocator, GetAllocatorForLifetime) {
 
 TEST(Allocator, Tracker) {
   ion::base::AllocatorPtr al(new DummyAllocator);
-  EXPECT_TRUE(al->GetTracker().Get() == NULL);
+  EXPECT_FALSE(al->GetTracker());
   ion::base::AllocationTrackerPtr tr(new ion::base::FullAllocationTracker);
   al->SetTracker(tr);
   EXPECT_EQ(tr, al->GetTracker());
   al->SetTracker(ion::base::AllocationTrackerPtr());
-  EXPECT_TRUE(al->GetTracker().Get() == NULL);
+  EXPECT_FALSE(al->GetTracker());
 }

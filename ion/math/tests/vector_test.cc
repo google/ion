@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ TEST(Vector, VectorDefaultConstructorZeroInitializes) {
   // For a pointer type, zero-initialized means nullptr.  (Just to test
   // something other than a scalar type.)
   Vector<1, void*> v1p;
-  EXPECT_EQ(NULL, v1p[0]);
+  EXPECT_EQ(nullptr, v1p[0]);
 
   // Test a vector with several elements to ensure they're all zeroed.
   Vector4d v4d;
@@ -555,7 +555,9 @@ TEST(Vector, VectorUnaryAndBinaryMathOperators) {
   EXPECT_EQ(Vector4d(12.0, 16.5, 10.5, 21.0), 3.0 * v1);
   EXPECT_EQ(Vector4d(0.75, 1.0, 3.25, -2.0), v0 / 2.0);
 
+  EXPECT_EQ(Vector2d(4.0, 3.0), 12.0 / Vector2d(3.0, 4.0));
   EXPECT_EQ(Vector3d(6.0, 4.0, 3.0), 12.0 / Vector3d(2.0, 3.0, 4.0));
+  EXPECT_EQ(Vector4d(12.0, 6.0, 4.0, 3.0), 12.0 / Vector4d(1.0, 2.0, 3.0, 4.0));
 
   EXPECT_EQ(Vector4d(6.0, 11.0, 22.75, -28.0), v0 * v1);
   EXPECT_EQ(Vector4d(6.0, 11.0, 22.75, -28.0), v1 * v0);
@@ -853,6 +855,25 @@ TEST(Vector, Intrinsics) {
             Vector4f(1.5f, 2.f, 6.5f, -4.f) - Vector4f(4.f, 5.5, 3.5, 7.f));
   EXPECT_EQ(Vector4d(-2.5, -3.5, 3.0, -11.0),
             Vector4d(1.5, 2.0, 6.5, -4.0) - Vector4d(4.0, 5.5, 3.5, 7.0));
+}
+
+TEST(Vector, VectorPointConversions) {
+  Point3d p(0., 1., 2.);
+  Vector3d v(0., 1., 2.);
+  Point3f pf(0.f, 1.f, 2.f);
+  Vector3f vf(0.f, 1.f, 2.f);
+  EXPECT_EQ(p, Point3d(pf));
+  EXPECT_EQ(p, Point3d(v));
+  EXPECT_EQ(p, Point3d(vf));
+  EXPECT_EQ(pf, Point3f(p));
+  EXPECT_EQ(pf, Point3f(v));
+  EXPECT_EQ(pf, Point3f(vf));
+  EXPECT_EQ(v, Vector3d(p));
+  EXPECT_EQ(v, Vector3d(pf));
+  EXPECT_EQ(v, Vector3d(vf));
+  EXPECT_EQ(vf, Vector3f(p));
+  EXPECT_EQ(vf, Vector3f(pf));
+  EXPECT_EQ(vf, Vector3f(v));
 }
 
 }  // namespace math
