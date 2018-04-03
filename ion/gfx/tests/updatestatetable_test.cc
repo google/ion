@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ limitations under the License.
 */
 
 // These tests rely on trace streams, which are disabled in production builds.
+#include "absl/memory/memory.h"
 #if !ION_PRODUCTION
 
 #include "ion/gfx/updatestatetable.h"
@@ -26,7 +27,7 @@ limitations under the License.
 
 #include "ion/base/stringutils.h"
 #include "ion/gfx/statetable.h"
-#include "ion/gfx/tests/mockgraphicsmanager.h"
+#include "ion/gfx/tests/fakegraphicsmanager.h"
 #include "ion/gfx/tests/traceverifier.h"
 #include "ion/math/range.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
@@ -38,9 +39,9 @@ using math::Point2i;
 using math::Range1f;
 using math::Range2i;
 using math::Vector2i;
-using testing::MockGraphicsManager;
-using testing::MockGraphicsManagerPtr;
-using testing::MockVisual;
+using testing::FakeGraphicsManager;
+using testing::FakeGraphicsManagerPtr;
+using testing::FakeGlContext;
 
 // NOTE: The UpdateStateTable() function is tested via the public
 // Renderer::UpdateStateFromOpenGL() function, so there is no test for it
@@ -51,21 +52,16 @@ class UpdateStateTableTest : public ::testing::Test {
   void SetUp() override {
     st0_.Reset(new StateTable(kWidth, kHeight));
     st1_.Reset(new StateTable(kWidth, kHeight));
-    visual_.reset(new MockVisual(kWidth, kHeight));
-    gm_.Reset(new MockGraphicsManager());
+    gl_context_ = FakeGlContext::Create(kWidth, kHeight);
+    portgfx::GlContext::MakeCurrent(gl_context_);
+    gm_.Reset(new FakeGraphicsManager());
 
-    trace_verifier_ = new testing::TraceVerifier(gm_.Get());
-  }
-
-  void TearDown() override {
-    delete trace_verifier_;
-    gm_.Reset(NULL);
-    visual_.reset();
+    trace_verifier_ = absl::make_unique<testing::TraceVerifier>(gm_.Get());
   }
 
   // Resets call counts and the trace verifier.
   void Reset() {
-    MockGraphicsManager::ResetCallCount();
+    FakeGraphicsManager::ResetCallCount();
     trace_verifier_->Reset();
   }
 
@@ -94,7 +90,7 @@ class UpdateStateTableTest : public ::testing::Test {
     const bool old_value = st1_->IsEnabled(cap);
     st1_->Enable(cap, new_value);
     ResetAndUpdate();
-    EXPECT_EQ(1, MockGraphicsManager::GetCallCount());
+    EXPECT_EQ(1, FakeGraphicsManager::GetCallCount());
     EXPECT_TRUE(trace_verifier_->VerifyOneCall(
         std::string(new_value ? "Enable(" : "Disable(") + gl_cap_string + ")"));
     // Restore state for next test.
@@ -108,7 +104,7 @@ class UpdateStateTableTest : public ::testing::Test {
     const bool old_value = st1_->IsEnabled(cap);
     st1_->Enable(cap, new_value);
     ResetAndUpdateSet();
-    EXPECT_EQ(1, MockGraphicsManager::GetCallCount());
+    EXPECT_EQ(1, FakeGraphicsManager::GetCallCount());
     EXPECT_TRUE(trace_verifier_->VerifyOneCall("IsEnabled(" + gl_cap_string));
     st1_->Enable(cap, old_value);
     st1_->Reset();
@@ -129,20 +125,20 @@ class UpdateStateTableTest : public ::testing::Test {
   StateTablePtr st0_;
   StateTablePtr st1_;
 
-  MockGraphicsManagerPtr gm_;
+  FakeGraphicsManagerPtr gm_;
 
  private:
   static const int kWidth = 400;
   static const int kHeight = 300;
 
-  std::unique_ptr<MockVisual> visual_;
-  testing::TraceVerifier* trace_verifier_;
+  portgfx::GlContextPtr gl_context_;
+  std::unique_ptr<testing::TraceVerifier> trace_verifier_;
 };
 
 TEST_F(UpdateStateTableTest, UpdateFromStateTableNoOp) {
   // This should cause no calls to OpenGL.
   ResetAndUpdate();
-  EXPECT_EQ(0, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(0, FakeGraphicsManager::GetCallCount());
 }
 
 TEST_F(UpdateStateTableTest, UpdateFromStateTableCapability) {
@@ -152,7 +148,7 @@ TEST_F(UpdateStateTableTest, UpdateFromStateTableCapability) {
   TestOneCapability(StateTable::kCullFace, true, "GL_CULL_FACE");
   TestOneCapability(StateTable::kDepthTest, true, "GL_DEPTH_TEST");
   TestOneCapability(StateTable::kDither, false, "GL_DITHER");
-  TestOneCapability(StateTable::kMultisample, true, "GL_MULTISAMPLE");
+  TestOneCapability(StateTable::kMultisample, false, "GL_MULTISAMPLE");
   TestOneCapability(StateTable::kPolygonOffsetFill, true,
                     "GL_POLYGON_OFFSET_FILL");
   TestOneCapability(StateTable::kSampleAlphaToCoverage, true,
@@ -167,7 +163,7 @@ TEST_F(UpdateStateTableTest, UpdateFromStateTableCapability) {
   st1_->Enable(StateTable::kDepthTest, true);
   st1_->Enable(StateTable::kScissorTest, true);
   ResetAndUpdate();
-  EXPECT_EQ(3, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(3, FakeGraphicsManager::GetCallCount());
   std::vector<std::string> sorted_strings;
   sorted_strings.push_back("Enable(GL_DEPTH_TEST)");
   sorted_strings.push_back("Enable(GL_SCISSOR_TEST)");
@@ -182,39 +178,38 @@ TEST_F(UpdateStateTableTest, UpdateMultisampleFromStateTableCapability) {
   EXPECT_TRUE(GetGraphicsManager()->IsValidStateTableCapability(
       StateTable::kMultisample));
 
-  st1_->Enable(cap, true);
+  st1_->Enable(cap, false);
   ResetAndUpdate();
-  EXPECT_EQ(1, MockGraphicsManager::GetCallCount());
-  EXPECT_TRUE(GetTraceVerifier().VerifyOneCall(
-      std::string("Enable(" + gl_cap_string + ")")));
+  EXPECT_EQ(1, FakeGraphicsManager::GetCallCount());
+  EXPECT_TRUE(
+      GetTraceVerifier().VerifyOneCall("Disable(" + gl_cap_string + ")"));
 
-  // With cap multisample disabled, we shouldn't get any calls.
-  GetGraphicsManager()->EnableFunctionGroup(
-      GraphicsManager::kFramebufferMultisample, false);
+  // When multisample capability is not supported, we should not get any calls.
+  GetGraphicsManager()->EnableFeature(
+      GraphicsManager::kMultisampleCapability, false);
   EXPECT_FALSE(GetGraphicsManager()->IsValidStateTableCapability(
       StateTable::kMultisample));
   ResetAndUpdate();
   EXPECT_TRUE(GetTraceVerifier().VerifyNoCalls());
 
-  // UpdateSettingsInStateTable should also not set multisampling.
   Reset();
   UpdateSettingsInStateTable(st1_.Get(), gm_.Get());
   EXPECT_TRUE(GetTraceVerifier().VerifyNoCalls());
 
-  // Re-enable cap multisample, should get call again.
-  GetGraphicsManager()->EnableFunctionGroup(
-      GraphicsManager::kFramebufferMultisample, true);
+  // Re-enable multisample capability, should get call again.
+  GetGraphicsManager()->EnableFeature(
+      GraphicsManager::kMultisampleCapability, true);
   EXPECT_TRUE(GetGraphicsManager()->IsValidStateTableCapability(
       StateTable::kMultisample));
   ResetAndUpdate();
-  EXPECT_EQ(1, MockGraphicsManager::GetCallCount());
-  EXPECT_TRUE(GetTraceVerifier().VerifyOneCall(
-      std::string("Enable(" + gl_cap_string + ")")));
+  EXPECT_EQ(1, FakeGraphicsManager::GetCallCount());
+  EXPECT_TRUE(
+      GetTraceVerifier().VerifyOneCall("Disable(" + gl_cap_string + ")"));
 
   Reset();
   UpdateSettingsInStateTable(st1_.Get(), gm_.Get());
-  EXPECT_TRUE(GetTraceVerifier().VerifyOneCall(
-      std::string("IsEnabled(" + gl_cap_string + ")")));
+  EXPECT_TRUE(
+      GetTraceVerifier().VerifyOneCall("IsEnabled(" + gl_cap_string + ")"));
 }
 
 TEST_F(UpdateStateTableTest, InvalidStateTableCapDoesNotSuppressSubsequent) {
@@ -222,8 +217,8 @@ TEST_F(UpdateStateTableTest, InvalidStateTableCapDoesNotSuppressSubsequent) {
   const std::string& subsequent_gl_cap_string = "GL_POLYGON_OFFSET_FILL";
 
   // Make multisample an invalid state table capability.
-  GetGraphicsManager()->EnableFunctionGroup(
-      GraphicsManager::kFramebufferMultisample, false);
+  GetGraphicsManager()->EnableFeature(
+      GraphicsManager::kMultisampleCapability, false);
   EXPECT_FALSE(GetGraphicsManager()->IsValidStateTableCapability(
       StateTable::kMultisample));
 
@@ -233,9 +228,9 @@ TEST_F(UpdateStateTableTest, InvalidStateTableCapDoesNotSuppressSubsequent) {
 
   // Now update state. We should still get a call for GL_POLYGON_OFFSET_FILL.
   ResetAndUpdate();
-  EXPECT_EQ(1, MockGraphicsManager::GetCallCount());
-  EXPECT_TRUE(GetTraceVerifier().VerifyOneCall(
-      std::string("Enable(" + subsequent_gl_cap_string + ")")));
+  EXPECT_EQ(1, FakeGraphicsManager::GetCallCount());
+  EXPECT_TRUE(GetTraceVerifier().VerifyOneCall("Enable(" +
+                                               subsequent_gl_cap_string + ")"));
 }
 
 TEST_F(UpdateStateTableTest, UpdateFromStateTableCapabilityEnforced) {
@@ -268,7 +263,7 @@ TEST_F(UpdateStateTableTest, UpdateFromStateTableCapabilityEnforced) {
   st1_->Enable(StateTable::kDepthTest, false);
   st1_->Enable(StateTable::kScissorTest, false);
   ResetAndUpdate();
-  EXPECT_EQ(3, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(3, FakeGraphicsManager::GetCallCount());
   std::vector<std::string> sorted_strings;
   sorted_strings.push_back("Disable(GL_DEPTH_TEST)");
   sorted_strings.push_back("Disable(GL_SCISSOR_TEST)");
@@ -280,7 +275,7 @@ TEST_F(UpdateStateTableTest, ClearFromStateTableValues) {
 #define ION_TEST_VALUE(set_call, expected_string)                  \
   st1_->set_call;                                                  \
   ResetAndClear();                                                 \
-  EXPECT_EQ(1, MockGraphicsManager::GetCallCount());               \
+  EXPECT_EQ(1, FakeGraphicsManager::GetCallCount());               \
   EXPECT_TRUE(GetTraceVerifier().VerifyOneCall(expected_string));  \
   st1_->Reset()
 
@@ -289,7 +284,7 @@ TEST_F(UpdateStateTableTest, ClearFromStateTableValues) {
   st1_->set_call;                                                     \
   st1_->clear_call;                                                   \
   ResetAndClear();                                                    \
-  EXPECT_EQ(3, MockGraphicsManager::GetCallCount());                  \
+  EXPECT_EQ(3, FakeGraphicsManager::GetCallCount());                  \
   {                                                                   \
     std::vector<std::string> calls;                                   \
     calls.push_back(expected_string1);                                \
@@ -302,7 +297,7 @@ TEST_F(UpdateStateTableTest, ClearFromStateTableValues) {
 #define ION_TEST_VALUES(set_call, expected_string1, expected_string2)    \
   st1_->set_call;                                                        \
   ResetAndClear();                                                       \
-  EXPECT_EQ(2, MockGraphicsManager::GetCallCount());                     \
+  EXPECT_EQ(2, FakeGraphicsManager::GetCallCount());                     \
   EXPECT_TRUE(GetTraceVerifier().VerifyTwoCalls(                         \
   expected_string1, expected_string2));                                  \
   st1_->Reset()
@@ -352,7 +347,7 @@ TEST_F(UpdateStateTableTest, ClearFromStateTableValues) {
   st1_->SetClearDepthValue(0.5f);
   st1_->SetClearStencilValue(34529);
   ResetAndClear();
-  EXPECT_EQ(3, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(3, FakeGraphicsManager::GetCallCount());
   std::vector<std::string> sorted_strings;
   sorted_strings.push_back(
       "Clear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)");
@@ -367,7 +362,7 @@ TEST_F(UpdateStateTableTest, ClearFromStateTableValues) {
   st1_->SetClearStencilValue(54321);
   st1_->SetStencilWriteMasks(0x13572468, 0xfeebbeef);
   ResetAndClear();
-  EXPECT_EQ(4, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(4, FakeGraphicsManager::GetCallCount());
   sorted_strings.clear();
   sorted_strings.push_back("Clear(GL_STENCIL_BUFFER_BIT)");
   sorted_strings.push_back("ClearStencil(54321)");
@@ -389,7 +384,7 @@ TEST_F(UpdateStateTableTest, UpdateFromStateTableValues) {
 #define ION_TEST_VALUE(set_call, expected_string)                 \
   st1_->set_call;                                                 \
   ResetAndUpdate();                                               \
-  EXPECT_EQ(1, MockGraphicsManager::GetCallCount());              \
+  EXPECT_EQ(1, FakeGraphicsManager::GetCallCount());              \
   EXPECT_TRUE(GetTraceVerifier().VerifyOneCall(expected_string)); \
   st1_->Reset()
 
@@ -435,8 +430,6 @@ TEST_F(UpdateStateTableTest, UpdateFromStateTableValues) {
                  "DepthFunc(GL_EQUAL)");
   ION_TEST_VALUE(SetDepthRange(Range1f(0.f, .4f)), "DepthRangef(0, 0.4)");
   ION_TEST_VALUE(SetDepthRange(Range1f(.2f, .5f)), "DepthRangef(0.2, 0.5)");
-  ION_TEST_VALUE(SetDrawBuffer(StateTable::kFrontLeft),
-                 "DrawBuffer(GL_FRONT_LEFT)");
   ION_TEST_VALUE(SetHint(StateTable::kGenerateMipmapHint,
                          StateTable::kHintNicest),
                  "Hint(GL_GENERATE_MIPMAP_HINT, GL_NICEST)");
@@ -456,7 +449,7 @@ TEST_F(UpdateStateTableTest, UpdateFromStateTableValues) {
   st1_->SetStencilFunctions(StateTable::kStencilNotEqual, 42, 0xbabebabe,
                            StateTable::kStencilLess, 155, 0x87654321);
   ResetAndUpdate();
-  EXPECT_EQ(2, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(2, FakeGraphicsManager::GetCallCount());
   EXPECT_TRUE(GetTraceVerifier().VerifyTwoCalls(
       "StencilFuncSeparate(GL_BACK, GL_LESS, 155, 0x87654321)",
       "StencilFuncSeparate(GL_FRONT, GL_NOTEQUAL, 42, 0xbabebabe)"));
@@ -465,7 +458,7 @@ TEST_F(UpdateStateTableTest, UpdateFromStateTableValues) {
   st1_->SetStencilFunctions(StateTable::kStencilAlways, 0, 0xfffffff0,
                             StateTable::kStencilAlways, 1, 0xfffffff1);
   ResetAndUpdate();
-  EXPECT_EQ(2, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(2, FakeGraphicsManager::GetCallCount());
   EXPECT_TRUE(GetTraceVerifier().VerifyTwoCalls(
       "StencilFuncSeparate(GL_BACK, GL_ALWAYS, 1, 0xfffffff1)",
       "StencilFuncSeparate(GL_FRONT, GL_ALWAYS, 0, 0xfffffff0)"));
@@ -476,7 +469,7 @@ TEST_F(UpdateStateTableTest, UpdateFromStateTableValues) {
       StateTable::kStencilDecrement, StateTable::kStencilKeep,
       StateTable::kStencilZero, StateTable::kStencilReplace);
   ResetAndUpdate();
-  EXPECT_EQ(2, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(2, FakeGraphicsManager::GetCallCount());
   EXPECT_TRUE(GetTraceVerifier().VerifyTwoCalls(
       "StencilOpSeparate(GL_BACK, GL_KEEP, GL_ZERO, GL_REPLACE",
       "StencilOpSeparate(GL_FRONT, GL_INVERT, GL_KEEP, GL_DECR)"));
@@ -487,7 +480,7 @@ TEST_F(UpdateStateTableTest, UpdateFromStateTableValues) {
                              StateTable::kStencilKeep, StateTable::kStencilKeep,
                              StateTable::kStencilReplace);
   ResetAndUpdate();
-  EXPECT_EQ(2, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(2, FakeGraphicsManager::GetCallCount());
   EXPECT_TRUE(GetTraceVerifier().VerifyTwoCalls(
       "StencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_REPLACE",
       "StencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_DECR)"));
@@ -501,15 +494,15 @@ TEST_F(UpdateStateTableTest, UpdateFromStateTableValuesEnforced) {
 #define ION_TEST_VALUE(set_call, expected_string)                 \
   st1_->set_call;                                                 \
   ResetAndUpdate();                                               \
-  EXPECT_EQ(1, MockGraphicsManager::GetCallCount());              \
+  EXPECT_EQ(1, FakeGraphicsManager::GetCallCount());              \
   EXPECT_TRUE(GetTraceVerifier().VerifyOneCall(expected_string)); \
   st0_->set_call;                                                 \
   ResetAndUpdate();                                               \
-  EXPECT_EQ(0, MockGraphicsManager::GetCallCount());              \
+  EXPECT_EQ(0, FakeGraphicsManager::GetCallCount());              \
   EXPECT_TRUE(GetTraceVerifier().VerifyNoCalls());                \
   st1_->SetEnforceSettings(true);                                 \
   ResetAndUpdate();                                               \
-  EXPECT_EQ(1, MockGraphicsManager::GetCallCount());              \
+  EXPECT_EQ(1, FakeGraphicsManager::GetCallCount());              \
   EXPECT_TRUE(GetTraceVerifier().VerifyOneCall(expected_string)); \
   st1_->Reset()
 
@@ -552,8 +545,6 @@ TEST_F(UpdateStateTableTest, UpdateFromStateTableValuesEnforced) {
                  "DepthFunc(GL_EQUAL)");
   ION_TEST_VALUE(SetDepthRange(Range1f(0.f, .4f)), "DepthRangef(0, 0.4)");
   ION_TEST_VALUE(SetDepthRange(Range1f(.2f, .5f)), "DepthRangef(0.2, 0.5)");
-  ION_TEST_VALUE(SetDrawBuffer(StateTable::kFrontRight),
-                 "DrawBuffer(GL_FRONT_RIGHT)");
   ION_TEST_VALUE(
       SetHint(StateTable::kGenerateMipmapHint, StateTable::kHintNicest),
       "Hint(GL_GENERATE_MIPMAP_HINT, GL_NICEST)");
@@ -573,18 +564,18 @@ TEST_F(UpdateStateTableTest, UpdateFromStateTableValuesEnforced) {
   st1_->SetStencilFunctions(StateTable::kStencilNotEqual, 42, 0xbabebabe,
                             StateTable::kStencilLess, 155, 0x87654321);
   ResetAndUpdate();
-  EXPECT_EQ(2, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(2, FakeGraphicsManager::GetCallCount());
   EXPECT_TRUE(GetTraceVerifier().VerifyTwoCalls(
       "StencilFuncSeparate(GL_BACK, GL_LESS, 155, 0x87654321)",
       "StencilFuncSeparate(GL_FRONT, GL_NOTEQUAL, 42, 0xbabebabe)"));
   st0_->SetStencilFunctions(StateTable::kStencilNotEqual, 42, 0xbabebabe,
                             StateTable::kStencilLess, 155, 0x87654321);
   ResetAndUpdate();
-  EXPECT_EQ(0, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(0, FakeGraphicsManager::GetCallCount());
   EXPECT_TRUE(GetTraceVerifier().VerifyNoCalls());
   st1_->SetEnforceSettings(true);
   ResetAndUpdate();
-  EXPECT_EQ(2, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(2, FakeGraphicsManager::GetCallCount());
   EXPECT_TRUE(GetTraceVerifier().VerifyTwoCalls(
       "StencilFuncSeparate(GL_BACK, GL_LESS, 155, 0x87654321)",
       "StencilFuncSeparate(GL_FRONT, GL_NOTEQUAL, 42, 0xbabebabe)"));
@@ -593,18 +584,18 @@ TEST_F(UpdateStateTableTest, UpdateFromStateTableValuesEnforced) {
   st1_->SetStencilFunctions(StateTable::kStencilAlways, 0, 0xfffffff0,
                             StateTable::kStencilAlways, 1, 0xfffffff1);
   ResetAndUpdate();
-  EXPECT_EQ(2, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(2, FakeGraphicsManager::GetCallCount());
   EXPECT_TRUE(GetTraceVerifier().VerifyTwoCalls(
       "StencilFuncSeparate(GL_BACK, GL_ALWAYS, 1, 0xfffffff1)",
       "StencilFuncSeparate(GL_FRONT, GL_ALWAYS, 0, 0xfffffff0)"));
   st0_->SetStencilFunctions(StateTable::kStencilAlways, 0, 0xfffffff0,
                             StateTable::kStencilAlways, 1, 0xfffffff1);
   ResetAndUpdate();
-  EXPECT_EQ(0, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(0, FakeGraphicsManager::GetCallCount());
   GetTraceVerifier().VerifyNoCalls();
   st1_->SetEnforceSettings(true);
   ResetAndUpdate();
-  EXPECT_EQ(2, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(2, FakeGraphicsManager::GetCallCount());
   EXPECT_TRUE(GetTraceVerifier().VerifyTwoCalls(
       "StencilFuncSeparate(GL_BACK, GL_ALWAYS, 1, 0xfffffff1)",
       "StencilFuncSeparate(GL_FRONT, GL_ALWAYS, 0, 0xfffffff0)"));
@@ -615,7 +606,7 @@ TEST_F(UpdateStateTableTest, UpdateFromStateTableValuesEnforced) {
       StateTable::kStencilDecrement, StateTable::kStencilKeep,
       StateTable::kStencilZero, StateTable::kStencilReplace);
   ResetAndUpdate();
-  EXPECT_EQ(2, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(2, FakeGraphicsManager::GetCallCount());
   EXPECT_TRUE(GetTraceVerifier().VerifyTwoCalls(
       "StencilOpSeparate(GL_BACK, GL_KEEP, GL_ZERO, GL_REPLACE",
       "StencilOpSeparate(GL_FRONT, GL_INVERT, GL_KEEP, GL_DECR)"));
@@ -624,11 +615,11 @@ TEST_F(UpdateStateTableTest, UpdateFromStateTableValuesEnforced) {
       StateTable::kStencilDecrement, StateTable::kStencilKeep,
       StateTable::kStencilZero, StateTable::kStencilReplace);
   ResetAndUpdate();
-  EXPECT_EQ(0, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(0, FakeGraphicsManager::GetCallCount());
   EXPECT_TRUE(GetTraceVerifier().VerifyNoCalls());
   st1_->SetEnforceSettings(true);
   ResetAndUpdate();
-  EXPECT_EQ(2, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(2, FakeGraphicsManager::GetCallCount());
   GetTraceVerifier().VerifyTwoCalls(
       "StencilOpSeparate(GL_BACK, GL_KEEP, GL_ZERO, GL_REPLACE",
       "StencilOpSeparate(GL_FRONT, GL_INVERT, GL_KEEP, GL_DECR)");
@@ -639,7 +630,7 @@ TEST_F(UpdateStateTableTest, UpdateFromStateTableValuesEnforced) {
                              StateTable::kStencilKeep, StateTable::kStencilKeep,
                              StateTable::kStencilReplace);
   ResetAndUpdate();
-  EXPECT_EQ(2, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(2, FakeGraphicsManager::GetCallCount());
   EXPECT_TRUE(GetTraceVerifier().VerifyTwoCalls(
       "StencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_REPLACE",
       "StencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_DECR)"));
@@ -648,11 +639,11 @@ TEST_F(UpdateStateTableTest, UpdateFromStateTableValuesEnforced) {
                              StateTable::kStencilKeep, StateTable::kStencilKeep,
                              StateTable::kStencilReplace);
   ResetAndUpdate();
-  EXPECT_EQ(0, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(0, FakeGraphicsManager::GetCallCount());
   EXPECT_TRUE(GetTraceVerifier().VerifyNoCalls());
   st1_->SetEnforceSettings(true);
   ResetAndUpdate();
-  EXPECT_EQ(2, MockGraphicsManager::GetCallCount());
+  EXPECT_EQ(2, FakeGraphicsManager::GetCallCount());
   EXPECT_TRUE(GetTraceVerifier().VerifyTwoCalls(
       "StencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_REPLACE",
       "StencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_DECR)"));
@@ -668,7 +659,7 @@ TEST_F(UpdateStateTableTest, UpdateSettingsInStateTable) {
   ResetAndUpdateSet();                                      \
   calls = base::SplitString(expected_string, ";");          \
   EXPECT_EQ(static_cast<int>(calls.size()),                 \
-            MockGraphicsManager::GetCallCount());           \
+            FakeGraphicsManager::GetCallCount());           \
   EXPECT_TRUE(GetTraceVerifier().VerifySomeCalls(calls));   \
   st1_->Reset()
 
@@ -734,8 +725,6 @@ TEST_F(UpdateStateTableTest, UpdateSettingsInStateTable) {
                  "GetIntegerv(GL_DEPTH_FUNC");
   ION_TEST_VALUE(SetDepthRange(Range1f(0.f, .4f)), "GetFloatv(GL_DEPTH_RANGE");
   ION_TEST_VALUE(SetDepthRange(Range1f(.2f, .5f)), "GetFloatv(GL_DEPTH_RANGE");
-  ION_TEST_VALUE(SetDrawBuffer(StateTable::kFrontLeft),
-                 "GetIntegerv(GL_DRAW_BUFFER");
   ION_TEST_VALUE(SetLineWidth(.4f), "GetFloatv(GL_LINE_WIDTH");
   ION_TEST_VALUE(
       SetPolygonOffset(.5f, .2f),

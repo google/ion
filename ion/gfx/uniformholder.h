@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,21 +28,20 @@ limitations under the License.
 namespace ion {
 namespace gfx {
 
-// A UniformHolder is a base class for an object that holds Uniforms. Note that
-// adding a Uniform adds a _copy_ of the instance; to modify a uniform value use
-// ReplaceUniform() or SetUniformValue[At]().
+// A UniformHolder is a base class for an object that holds Uniform values. The
+// most important object derived from UniformHolder is Node.
 //
-// The ShaderInputRegistry of any Uniform added to a UniformHolder should have a
-// longer lifetime than the holder. If not, then if the Uniforms are used after
-// their creating registry has been destroyed (recall that Uniforms hold only a
-// pointer, not refptr to their registry) they will dereference freed memory.
+// The ShaderInputRegistry of any Uniform added to a UniformHolder must have a
+// longer lifetime than the holder. Otherwise, an invalid memory access will
+// result.
 class ION_API UniformHolder {
  public:
   // Adds a uniform to this and returns an index that can be used to refer
-  // to the uniform. Note that this index is invalid if ClearUniforms() is ever
-  // used, and may refer to a different uniform if the uniform is ever replaced
-  // with ReplaceUniform(). Returns base::kInvalidIndex if an attempt is made to
-  // add an invalid uniform.
+  // to the uniform. Note that this index has nothing to do with the GL concept
+  // of uniform location, it is invalid if ClearUniforms() is ever used, and may
+  // refer to a different uniform if the uniform is ever replaced with
+  // ReplaceUniform(). Returns base::kInvalidIndex if an attempt is made to add
+  // an invalid uniform.
   size_t AddUniform(const Uniform& uniform) {
     if (uniform.IsValid()) {
       uniforms_.push_back(uniform);
@@ -70,7 +69,7 @@ class ION_API UniformHolder {
     const size_t index = GetUniformIndex(name);
     if (index == base::kInvalidIndex)
       return false;
-    uniforms_.erase(uniforms_.begin() + index);
+    uniforms_.erase(uniforms_.begin() + static_cast<std::ptrdiff_t>(index));
     return true;
   }
 

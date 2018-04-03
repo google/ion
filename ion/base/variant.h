@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -293,7 +293,7 @@ class Variant {
 
   // Sets the type of this variant to be an array of count Ts. T must be a valid
   // type of this. The passed allocator is used to allocate the memory for the
-  // elements; if it is NULL then the current default allocator is used. This
+  // elements; if it is null, then the current default allocator is used. This
   // destroys any existing elements; variants do not resize like STL containers.
   template <typename T>
   void InitArray(const base::AllocatorPtr& allocator, size_t count) {
@@ -301,7 +301,7 @@ class Variant {
     alloc_ = AllocationManager::GetNonNullAllocator(allocator);
     count_ = count;
     tag_ = Tag<T>::kValue;
-    MakeArray(static_cast<const T*>(NULL), count);
+    MakeArray(static_cast<const T*>(nullptr), count);
   }
 
   // Copies the variant's type and value from another instance.
@@ -362,7 +362,7 @@ class Variant {
   // types), this returns a const reference to it.  Otherwise, it returns an
   // InvalidReference.
   template <typename T> const T& Get() const {
-    return Is<T>() ? GetValue(static_cast<const T*>(NULL)) :
+    return Is<T>() ? GetValue(static_cast<const T*>(nullptr)) :
         InvalidReference<T>();
   }
 
@@ -370,8 +370,9 @@ class Variant {
   // defined types), this returns a const reference to it if the index is valid.
   // Otherwise, it returns an InvalidReference.
   template <typename T> const T& GetValueAt(size_t i) const {
-    return IsArrayOf<T>() && i < count_ ? GetAt(static_cast<const T*>(NULL), i)
-                                        : InvalidReference<T>();
+    return IsArrayOf<T>() && i < count_
+        ? GetAt(static_cast<const T*>(nullptr), i)
+        : InvalidReference<T>();
   }
 
   // Sets the ith element of the array to the passed value. If the index is
@@ -404,7 +405,7 @@ class Variant {
   // array type of the underlying Variant. Examples:
   //   Variant<int, double> v;
   //   const float f = 10.f;
-  //   v.InitArray<int>(Allocator(NULL), 2);
+  //   v.InitArray<int>(Allocator(nullptr), 2);
   //   v[0] = 10;
   //   v[1] = static_cast<int>(f);
   //   const int i = v[0];
@@ -539,7 +540,7 @@ class Variant {
   // be used, while ExactTag requires an exact match.
   template <typename T> struct Tag {
     static const int kValue =
-        sizeof(GetSizedArrayForTag(*static_cast<const T*>(NULL)).array);
+        sizeof(GetSizedArrayForTag(*static_cast<const T*>(nullptr)).array);
   };
   template <typename T> struct ExactTag {
     static const int kValue =
@@ -591,7 +592,7 @@ class Variant {
       case Tag<T40>::kValue: values_.t40.Destroy(alloc_, count_); break;
       default: break;
     }
-    alloc_.Reset(NULL);
+    alloc_.Reset(nullptr);
   }
 
   void MakeArray(const T1*, size_t count) { values_.t1.Init(alloc_, count); }
@@ -775,8 +776,8 @@ class Variant {
           // This should never be reachable: if the "from" instance is an array
           // of values, it must have a valid tag.
           DCHECK(false) << "Invalid tag in array variant";
-          break;
 #endif  // COV_NF_END
+          break;
       }
     } else {
       switch (tag_) {

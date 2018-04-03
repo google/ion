@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -38,7 +38,24 @@ namespace image {
 
 // External image formats supported by ConvertToExternalImageData().
 enum ExternalImageFormat {
-  kPng
+  kPng,
+};
+
+// Specify possible rotation values (in 90 degree increments).
+// The integer values represent counter-clockwise rotations in 90 degree
+// increments (negative values will give an equivalent clockwise rotation
+// instead).
+// So, for example, 3 will result in a 3 * 90 == 270 degree CCW rotation.
+// -5 will result in a 5 * 90 == 450 (== 90 mod 360) degree CW rotation.
+enum ImageRotation {
+  kNoRotation = 0,
+  kRotateCCW90 = 1,
+  kRotate180 = 2,
+  kRotateCCW180 = kRotate180,
+  kRotateCCW270 = 3,
+  kRotateCW90 = -1,
+  kRotateCW180 = -2,
+  kRotateCW270 = -3,
 };
 
 // Converts an existing Image to the given target format and returns the
@@ -46,22 +63,34 @@ enum ExternalImageFormat {
 // for any reason.
 //
 // Currently-supported conversions:
-//   kDxt1 <-> kRgb888
-//   kDxt5 <-> kRgba8888
-//   kEtc1 <-> kRgb888
-//   kPvrtc1Rgba2 <- kRgba8888 (i.e. only one conversion direction available).
-//   kR8 <- kRgba888
-//   kR8 <- kRgb888
-//   kR8 <- kDxt1
-//   kR8 <- kDxt5
-//   kR8 <- kEtc1
+//   kLuminance, kLuminanceAlpha ->
+//     kR8, kRg8, kRgb8, kRgba8, kR32f, kRg32f, kRgb32f, kRgba32f,
+//     kEtc1, kDxt1, kDxt5, kPvrtc1Rgba2
+//   kR8 <-> kR32f
+//   kRg8 <-> kRg32f
+//   kRgb8 <-> kRgb32f
+//   kRgba8 <-> kRgba32f
+//   kEtc1 <-> kRgb8, kRgb32f, kDxt1
+//   kDxt1 <-> kRgb8, kRgb32f, kEtc1
+//   kDxt5 <-> kRgba8, kRgba32f
+//   kPvrtc1Rgba2 <- kRgba8, kRgba32f, kDxt5 (only one direction available).
+//   kR8 <- kRg8, kRgb8, kRgba8, kEtc1, kDxt1, kDxt5
+//   kR32f <- kRg32f, kRgb32f, kRgba32f
+//
+// Unsized formats are treated as their sized counterparts:
+//   kRgb888 == kRgb8
+//   kRgba8888 == kRgba8
+//   kRgbafloat == kRgba32f
 //
 // Note also that kPvrtc1Rgba2 only supports power-of-two-sized square textures
 // at least 8x8 pixels in size.
 //
-// The conversions to kR8 extract the red channel from an Rgb(a) image.  These
-// images can be used as luminance textures and use 1/4 the GPU memory of an
-// uncompressed monochrome Rgb image.
+// The conversions between the 8-bpc and floating-point types map the range
+// [0, 255] <-> [0.0f, 1.0f].
+//
+// The conversions to kR8/kR32f extract the red channel from an Rgb(a) image.
+// These images can be used as luminance textures and use 1/4 the GPU memory of
+// an uncompressed monochrome Rgb image.
 //
 // Conversion between 3-component and 4-component formats is not yet supported.
 // The |is_wipeable| flag is passed to the DataContainer for the new Image.
@@ -80,9 +109,9 @@ ION_API const gfx::ImagePtr ConvertImage(
 //
 // Supported formats: JPEG, PNG, TGA, BMP, PSD, GIF, HDR, PIC and "ION raw"
 // format (see below for specs of this "ION raw" format). This method attempts
-// to interpret |data| as the above formats, one after another in the abov order
-// until success, otherwise returns a NULL ImagePtr (i.e. when all supported
-// formats fail for any reasons).
+// to interpret |data| as the above formats, one after another in the above
+// order until success, otherwise returns a NULL ImagePtr (i.e. when all
+// supported formats fail for any reasons).
 //
 // If |flip_vertically| is true, the resulting image is inverted in the Y
 // dimension.  The |is_wipeable| flag is passed to the DataContainer for the
@@ -128,7 +157,7 @@ ION_API bool IsIonRawImageFormat(const void* data, size_t data_size);
 // Converts an existing Image to data in |external_format|, returning a vector.
 // If |flip_vertically| is true, the resulting image is inverted in the Y
 // dimension. The vector will be empty if the conversion is not possible for any
-// reason. Note that converting to JPEG is not currently supported.
+// reason.
 ION_API const std::vector<uint8> ConvertToExternalImageData(
     const gfx::ImagePtr& image, ExternalImageFormat external_format,
     bool flip_vertically);
@@ -159,6 +188,11 @@ ION_API void FlipImage(const gfx::ImagePtr& image);
 // Flips an image horizontally in place.
 // Doesn't work with compressed image formats (logs a warning).
 ION_API void FlipImageHorizontally(const gfx::ImagePtr& image);
+
+// Rotates an image counter-clockwise by the specified amount (see the
+// ImageRotation enum comments for details).
+// Doesn't work with compressed image formats (logs a warning).
+ION_API void RotateImage(const gfx::ImagePtr& image, ImageRotation rotation);
 
 // Converts a "pre-multiplied alpha" RGBA image into a "straight alpha" RGBA
 // image.  RGB values are divided by alpha (except when alpha = 0).

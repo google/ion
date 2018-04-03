@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -137,7 +137,7 @@ class ION_API Allocatable {
   // stores the passed allocator to use in subsequent calls to GetAllocator().
   // This is useful when a derived class has members that need a non-NULL
   // Allocator, for example to instantiate other Allocator-using objects.
-  explicit Allocatable(const AllocatorPtr& allocator);
+  explicit Allocatable(const AllocatorPtr& allocator_in);
 
  private:
   // Allow StlAllocator to set the placement Allocator.
@@ -172,9 +172,9 @@ class ION_API Allocatable {
 
   // These implement the new and delete operators.
   static void* New(size_t size, const AllocatorPtr& allocator);
-  static void Delete(void* mem_ptr);
+  static void Delete(void* memory_ptr);
   static void* PlacementNew(size_t size, const AllocatorPtr& allocator,
-                            void* ptr);
+                            void* memory_ptr);
 
   // Sets the Allocator to use for all allocations of Allocatables on this
   // thread until the next call to SetPlacementAllocator(NULL). This is required

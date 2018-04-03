@@ -1,0 +1,9 @@
+This is a version of ICU 54.1 's 'layoutex' subproject that builds against
+iculehb instead of ICU's deprecated 'layout' subproject. The original version of
+ICU layoutex remains in the ICU tree.  It is there for backwards compatibility.
+ICU has no external dependencies and does not want to add a dependency on
+iculehb.
+
+This is modified from the original ICU version in the following ways:
+- it uses the 'iculx' namespace instead of the 'icu' namespace
+- imports use iculehb's headers instead of layout's headers

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ limitations under the License.
 
 #include "ion/base/sharedptr.h"
 
-#include "ion/base/logchecker.h"
 #include "ion/base/shareable.h"
 #include "ion/base/tests/incompletetype.h"
 #include "ion/port/nullptr.h"
@@ -54,13 +53,25 @@ typedef ion::base::SharedPtr<DerivedTestCounter> DerivedTestCounterPtr;
 size_t TestCounter::s_num_deletions_ = 0;
 size_t DerivedTestCounter::s_num_deletions_ = 0;
 
+#if defined(ION_TRACK_SHAREABLE_REFERENCES)
+class Trackable : public ion::base::Shareable {
+ public:
+  Trackable(bool tracking_enabled) {
+    SetTrackReferencesEnabled(tracking_enabled);
+  }
+};
+typedef ion::base::SharedPtr<Trackable> TrackablePtr;
+#endif
+
+#if !ION_NO_RTTI
 using ion::base::DynamicPtrCast;
+#endif
 
 TEST(SharedPtr, Constructors) {
   {
-    // Default SharedPtr construction should have a NULL pointer.
+    // Default SharedPtr construction should have a null pointer.
     TestCounterPtr p;
-    EXPECT_TRUE(p.Get() == NULL);
+    EXPECT_TRUE(p.Get() == nullptr);
   }
 
   {
@@ -101,13 +112,37 @@ TEST(SharedPtr, Constructors) {
   // deletion counter is incremented when either class is deleted.
   EXPECT_EQ(4U, TestCounter::GetNumDeletions());
   EXPECT_EQ(3U, DerivedTestCounter::GetNumDeletions());
+
+#if !defined(ION_TRACK_SHAREABLE_REFERENCES)
+  {
+    // Move constructor.
+    TestCounter *t = new TestCounter;
+    TestCounterPtr p1(t);
+    EXPECT_EQ(1, t->GetRefCount());
+    TestCounterPtr p2(std::move(p1));
+    EXPECT_EQ(1, t->GetRefCount());
+    EXPECT_EQ(p2.Get(), t);
+  }
+  {
+    // Move constructor with derived type.
+    DerivedTestCounter *d = new DerivedTestCounter;
+    DerivedTestCounterPtr p1(d);
+    EXPECT_EQ(1, d->GetRefCount());
+    TestCounterPtr p2(std::move(p1));
+    EXPECT_EQ(1, d->GetRefCount());
+    EXPECT_EQ(p2.Get(), d);
+  }
+
+  EXPECT_EQ(6U, TestCounter::GetNumDeletions());
+  EXPECT_EQ(4U, DerivedTestCounter::GetNumDeletions());
+#endif
 }
 
 TEST(SharedPtr, Delete) {
   TestCounter::ClearNumDeletions();
   DerivedTestCounter::ClearNumDeletions();
 
-  // Default (NULL) pointer should not delete anything.
+  // Default (null) pointer should not delete anything.
   {
     TestCounterPtr p;
   }
@@ -162,8 +197,8 @@ TEST(SharedPtr, Assignment) {
 
   TestCounterPtr tp;
   DerivedTestCounterPtr dp;
-  EXPECT_TRUE(tp.Get() == NULL);
-  EXPECT_TRUE(dp.Get() == NULL);
+  EXPECT_FALSE(tp);
+  EXPECT_FALSE(dp);
 
   // Assignment to raw pointer.
   tp = t;
@@ -180,7 +215,7 @@ TEST(SharedPtr, Assignment) {
   tp2 = tp;
   EXPECT_EQ(t, tp2.Get());
   EXPECT_EQ(3, t->GetRefCount());
-  tp2 = NULL;
+  tp2 = nullptr;
   EXPECT_EQ(2, t->GetRefCount());
 
   // Assignment to compatible raw pointer.
@@ -189,9 +224,9 @@ TEST(SharedPtr, Assignment) {
   EXPECT_EQ(1, t->GetRefCount());
   EXPECT_EQ(2, d->GetRefCount());
 
-  // Assignment to NULL.
-  tp = NULL;
-  EXPECT_TRUE(tp.Get() == NULL);
+  // Assignment to nullptr.
+  tp = nullptr;
+  EXPECT_FALSE(tp);
   EXPECT_EQ(1, t->GetRefCount());
   EXPECT_EQ(1, d->GetRefCount());
 
@@ -201,6 +236,33 @@ TEST(SharedPtr, Assignment) {
   EXPECT_EQ(d, tp.Get());
   EXPECT_EQ(1, t->GetRefCount());
   EXPECT_EQ(3, d->GetRefCount());
+
+#if !defined(ION_TRACK_SHAREABLE_REFERENCES)
+  {
+    // Move assign.
+    TestCounter *t = new TestCounter;
+    TestCounterPtr p1(t);
+    TestCounterPtr p2;
+    EXPECT_EQ(1, t->GetRefCount());
+    EXPECT_EQ(p2.Get(), nullptr);
+    p2 = std::move(p1);
+    EXPECT_EQ(1, t->GetRefCount());
+    EXPECT_EQ(p1.Get(), nullptr);
+    EXPECT_EQ(p2.Get(), t);
+  }
+  {
+    // Move assign with derived type.
+    DerivedTestCounter *d = new DerivedTestCounter;
+    DerivedTestCounterPtr p1(d);
+    EXPECT_EQ(1, d->GetRefCount());
+    TestCounterPtr p2;
+    EXPECT_EQ(p2.Get(), nullptr);
+    p2 = std::move(p1);
+    EXPECT_EQ(1, d->GetRefCount());
+    EXPECT_EQ(p1.Get(), nullptr);
+    EXPECT_EQ(p2.Get(), d);
+  }
+#endif
 }
 
 TEST(SharedPtr, Operators) {
@@ -215,34 +277,33 @@ TEST(SharedPtr, Operators) {
   // == and != operators.
   TestCounter* t2 = new TestCounter;
   TestCounterPtr tp2;
-  // Pointer vs. NULL.
+
+  // Pointer vs. nullptr.
   EXPECT_FALSE(tp1 == tp2);
   EXPECT_TRUE(tp1 != tp2);
+  EXPECT_TRUE(tp1);
+  EXPECT_FALSE(tp2);
+
   // Pointer vs. pointer.
   tp2 = t2;
   EXPECT_FALSE(tp1 == tp2);
   EXPECT_TRUE(tp1 != tp2);
+
   // Identical pointers.
   tp1 = tp2;
   EXPECT_TRUE(tp1 == tp2);
   EXPECT_FALSE(tp1 != tp2);
-  // NULL pointers.
-  tp1 = tp2 = NULL;
+
+  // Null pointers.
+  tp1 = tp2 = nullptr;
   EXPECT_TRUE(tp1 == tp2);
   EXPECT_FALSE(tp1 != tp2);
 
-  // operator->() should DCHECK on NULL in debug mode.
-  {
-    ion::base::LogChecker logchecker;
-    ion::base::SetBreakHandler(kNullFunction);
-    TestCounterPtr tp3;
-    EXPECT_TRUE(tp3.operator->() == NULL);
-    ion::base::RestoreDefaultBreakHandler();
-#if ION_DEBUG
-    EXPECT_TRUE(
-        logchecker.HasMessage("DFATAL", "ptr_"));
+  // operator->() should DCHECK on nullptr in debug mode.
+  TestCounterPtr tp3;
+#if !ION_PRODUCTION
+  EXPECT_DEATH_IF_SUPPORTED(tp3.operator->(), "ptr_");
 #endif
-  }
 }
 
 TEST(SharedPtr, Swap) {
@@ -273,19 +334,21 @@ TEST(SharedPtr, Swap) {
   EXPECT_EQ(1, t2->GetRefCount());
   EXPECT_EQ(0U, TestCounter::GetNumDeletions());
 
-  // Swap pointer with NULL.
+  // Swap pointer with nullptr.
   TestCounterPtr tp3;
   tp1.swap(tp3);
-  EXPECT_TRUE(tp1.Get() == NULL);
+  EXPECT_FALSE(tp1);
   EXPECT_EQ(t1, tp3.Get());
   EXPECT_EQ(0U, TestCounter::GetNumDeletions());
 
-  // Swap NULL with pointer.
+  // Swap nullptr with pointer.
   tp1.swap(tp2);
   EXPECT_EQ(t2, tp1.Get());
-  EXPECT_TRUE(tp2.Get() == NULL);
+  EXPECT_FALSE(tp2);
   EXPECT_EQ(0U, TestCounter::GetNumDeletions());
 }
+
+#if !ION_NO_RTTI
 
 TEST(SharedPtr, DynamicPtrCast) {
   // Test DynamicPtrCast works for downcasting in a valid case.
@@ -302,20 +365,22 @@ TEST(SharedPtr, DynamicPtrCast) {
     TestCounter *b = new TestCounter;
     TestCounterPtr bp(b);
     DerivedTestCounterPtr dp = DynamicPtrCast<DerivedTestCounter>(bp);
-    EXPECT_EQ(NULL, dp.Get());
+    EXPECT_EQ(nullptr, dp.Get());
     EXPECT_EQ(1, b->GetRefCount());
   }
 }
 
+#endif
+
 TEST(SharedPtr, IncompleteType) {
   ion::base::SharedPtr<Incomplete> ptr = MakeIncomplete();
 
-  // TODO(user): If we ever write an is_complete type trait, use it here to
+  // 
   // verify incompleteness.
 
   // These operations should work with an incomplete type.
   Incomplete* raw = ptr.Get();
-  EXPECT_NE(raw, reinterpret_cast<Incomplete*>(NULL));
+  EXPECT_NE(raw, reinterpret_cast<Incomplete*>(0U));
 
   ion::base::SharedPtr<Incomplete> ptr2 = ptr;
   EXPECT_EQ(ptr2.Get(), ptr.Get());
@@ -332,6 +397,36 @@ TEST(SharedPtr, IncompleteType) {
 
   // And finally, destruction of all ptrs should work.
 }
+
+#if defined(ION_TRACK_SHAREABLE_REFERENCES)
+TEST(SharedPtr, TrackReferences) {
+  // Test default operation with reference tracking disabled.
+  Trackable* t = new Trackable(false);
+  EXPECT_EQ(0, t->GetRefCount());
+  EXPECT_TRUE(t->GetReferencesDebugString().empty());
+  TrackablePtr p(t);
+  EXPECT_EQ(1, t->GetRefCount());
+  EXPECT_TRUE(t->GetReferencesDebugString().empty());
+  p.Reset();
+
+  // Test operation with reference tracking enabled.
+  t = new Trackable(true);
+  EXPECT_EQ(0, t->GetRefCount());
+  EXPECT_TRUE(t->GetReferencesDebugString().empty());
+  p.Reset(t);
+  EXPECT_EQ(1, t->GetRefCount());
+  EXPECT_FALSE(t->GetReferencesDebugString().empty());
+  // Add a second reference.
+  TrackablePtr p2(p);
+  EXPECT_EQ(2, t->GetRefCount());
+  EXPECT_FALSE(t->GetReferencesDebugString().empty());
+  // Remove a reference.
+  p.Reset();
+  EXPECT_EQ(1, t->GetRefCount());
+  EXPECT_FALSE(t->GetReferencesDebugString().empty());
+  p2.Reset();
+}
+#endif
 
 TEST(SharedPtr, ConstructionPerfTest) {
   ion::port::Timer tmr;

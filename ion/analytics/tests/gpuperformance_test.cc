@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,15 +22,15 @@ limitations under the License.
 #include <limits>
 #include <sstream>
 
-#include "base/macros.h"
 #include "ion/analytics/benchmarkutils.h"
 #include "ion/base/logchecker.h"
 #include "ion/gfx/attribute.h"
 #include "ion/gfx/shaderinputregistry.h"
-#include "ion/gfx/tests/mockgraphicsmanager.h"
+#include "ion/gfx/tests/fakegraphicsmanager.h"
 #include "ion/gfx/tests/testscene.h"
 #include "ion/gfx/uniform.h"
 #include "ion/gfx/uniformblock.h"
+#include "absl/base/macros.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
 namespace ion {
@@ -188,7 +188,7 @@ static NodePtr BuildQuadNode() {
   return node;
 }
 
-static bool ScenesEqual(NodePtr scene1, NodePtr scene2) {
+static bool ScenesEqual(const NodePtr& scene1, const NodePtr& scene2) {
   // Compare counts for deep-copied items (since comparators do not generally
   // exist already for those classes) and compare true equality for
   // shallow-copied items.
@@ -238,17 +238,18 @@ static const Benchmark::Descriptor& GetVarDescriptor(
 class GPUPerformanceTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    visual_.reset(new gfx::testing::MockVisual(kWidth, kHeight));
-    gm_.Reset(new gfx::testing::MockGraphicsManager());
+    gl_context_ = gfx::testing::FakeGlContext::Create(kWidth, kHeight);
+    portgfx::GlContext::MakeCurrent(gl_context_);
+    gm_.Reset(new gfx::testing::FakeGraphicsManager());
   }
 
   void TearDown() override {
-    gm_.Reset(NULL);
-    visual_.reset();
+    gm_.Reset(nullptr);
+    gl_context_.Reset(nullptr);
   }
 
-  std::unique_ptr<gfx::testing::MockVisual> visual_;
-  gfx::testing::MockGraphicsManagerPtr gm_;
+  portgfx::GlContextPtr gl_context_;
+  gfx::testing::FakeGraphicsManagerPtr gm_;
   static const int kWidth = 400;
   static const int kHeight = 300;
 };
@@ -287,7 +288,7 @@ TEST_F(GPUPerformanceTest, Enables) {
       "WARNING", "kResource and kGpuMemory are incompatible"));
 }
 
-// TODO(user): If we had a MockTimer class that we could use with this
+// 
 // test, we could test for exact values (and thus absolutely correct values)
 // from the accumulation of benchmark measures.  It has happened that the
 // values from the benchmark were valid but not correct, requiring an update
@@ -307,7 +308,7 @@ TEST_F(GPUPerformanceTest, TestRunAllMeasurements) {
                                {GpuPerformanceTester::kGlTrace, 0., 0.},
                                {GpuPerformanceTester::kAllEnables, 3., 89.}};
 
-  const size_t count = ARRAYSIZE(data);
+  const size_t count = ABSL_ARRAYSIZE(data);
   for (size_t i = 0; i < count; ++i) {
     GpuPerformanceTester perf(kWidth, kHeight);
     perf.SetEnables(data[i].enables);
@@ -407,7 +408,7 @@ TEST_F(GPUPerformanceTest, IdTokenTest) {
   GpuPerformanceTester perf(kWidth, kHeight);
   const Benchmark perf_entries =
     perf.RunAllMeasurements(qnode, gm_, renderer);
-  // TODO(user): Finish these once the test suite is finally
+  // 
   // standardized.
   typedef GpuPerformanceTester GPT;
 

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@ class RefType : public ion::base::Referent {
  private:
   static size_t num_deletions_;
 };
-typedef ion::base::ReferentPtr<RefType>::Type RefTypePtr;
+using RefTypePtr = ion::base::SharedPtr<RefType>;
 size_t RefType::num_deletions_ = 0;
 
 // Struct containing a ReferentPtr.

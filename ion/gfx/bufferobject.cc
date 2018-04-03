@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ limitations under the License.
 #include "ion/base/invalid.h"
 #include "ion/base/logging.h"
 #include "ion/portgfx/glheaders.h"
+#include "absl/base/macros.h"
 
 namespace ion {
 namespace gfx {
@@ -28,14 +29,14 @@ namespace gfx {
 BufferObject::BufferObject()
     : specs_(*this),
       data_(kDataChanged, BufferData(), this),
-      target_(kArrayBuffer),
+      initial_target_(kArrayBuffer),
       sub_data_(*this),
       sub_data_changed_(kSubDataChanged, false, this) {}
 
 BufferObject::BufferObject(Target target)
     : specs_(*this),
       data_(kDataChanged, BufferData(), this),
-      target_(target),
+      initial_target_(target),
       sub_data_(*this),
       sub_data_changed_(kSubDataChanged, false, this) {}
 
@@ -111,31 +112,45 @@ EnumHelper::GetEnumData() {
       "Invalid", "Byte", "Unsigned Byte", "Short", "Unsigned Short", "Int",
       "Unsigned Int", "Float", "Float Matrix Column 2", "Float Matrix Column 3",
       "Float Matrix Column 4"};
-  ION_STATIC_ASSERT(ARRAYSIZE(kValues) == ARRAYSIZE(kStrings),
+  ION_STATIC_ASSERT(ABSL_ARRAYSIZE(kValues) == ABSL_ARRAYSIZE(kStrings),
                     "EnumHelper size mismatch");
   return EnumData<BufferObject::ComponentType>(
-      base::IndexMap<BufferObject::ComponentType, GLenum>(kValues,
-                                                          ARRAYSIZE(kValues)),
+      base::IndexMap<BufferObject::ComponentType, GLenum>(
+          kValues, ABSL_ARRAYSIZE(kValues)),
       kStrings);
 }
 
 template <> ION_API const EnumHelper::EnumData<BufferObject::Target>
 EnumHelper::GetEnumData() {
-  static const GLenum kValues[] = { GL_ARRAY_BUFFER,
-                                    GL_ELEMENT_ARRAY_BUFFER,
-                                    GL_COPY_READ_BUFFER,
-                                    GL_COPY_WRITE_BUFFER
+  static const GLenum kValues[] = {
+    GL_ARRAY_BUFFER, GL_ELEMENT_ARRAY_BUFFER, GL_COPY_READ_BUFFER,
+    GL_COPY_WRITE_BUFFER, GL_TRANSFORM_FEEDBACK_BUFFER
   };
   static const char* kStrings[] = {
-    "ArrayBuffer",
-    "Elementbuffer",
-    "CopyReadBuffer",
-    "CopyWriteBuffer"
+    "ArrayBuffer", "Elementbuffer", "CopyReadBuffer", "CopyWriteBuffer",
+    "TransformFeedbackBuffer"
   };
-  ION_STATIC_ASSERT(ARRAYSIZE(kValues) == ARRAYSIZE(kStrings),
+  ION_STATIC_ASSERT(ABSL_ARRAYSIZE(kValues) == ABSL_ARRAYSIZE(kStrings),
                     "EnumHelper size mismatch");
   return EnumData<BufferObject::Target>(
-      base::IndexMap<BufferObject::Target, GLenum>(kValues, ARRAYSIZE(kValues)),
+      base::IndexMap<BufferObject::Target, GLenum>(kValues,
+                                                   ABSL_ARRAYSIZE(kValues)),
+      kStrings);
+}
+
+template <> ION_API const EnumHelper::EnumData<BufferObject::IndexedTarget>
+EnumHelper::GetEnumData() {
+  static const GLenum kValues[] = {
+    GL_TRANSFORM_FEEDBACK_BUFFER
+  };
+  static const char* kStrings[] = {
+    "TransformFeedbackBuffer"
+  };
+  ION_STATIC_ASSERT(ABSL_ARRAYSIZE(kValues) == ABSL_ARRAYSIZE(kStrings),
+                    "EnumHelper size mismatch");
+  return EnumData<BufferObject::IndexedTarget>(
+      base::IndexMap<BufferObject::IndexedTarget, GLenum>(
+          kValues, ABSL_ARRAYSIZE(kValues)),
       kStrings);
 }
 
@@ -146,11 +161,11 @@ EnumHelper::GetEnumData() {
     GL_DYNAMIC_DRAW, GL_STATIC_DRAW, GL_STREAM_DRAW
   };
   static const char* kStrings[] = { "DynamicDraw", "StaticDraw", "StreamDraw" };
-  ION_STATIC_ASSERT(ARRAYSIZE(kValues) == ARRAYSIZE(kStrings),
+  ION_STATIC_ASSERT(ABSL_ARRAYSIZE(kValues) == ABSL_ARRAYSIZE(kStrings),
                     "EnumHelper size mismatch");
   return EnumData<BufferObject::UsageMode>(
       base::IndexMap<BufferObject::UsageMode, GLenum>(kValues,
-                                                      ARRAYSIZE(kValues)),
+                                                      ABSL_ARRAYSIZE(kValues)),
       kStrings);
 }
 

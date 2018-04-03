@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ limitations under the License.
 #ifndef ION_TEXT_FONT_H_
 #define ION_TEXT_FONT_H_
 
+#include <mutex>  // NOLINT(build/c++11)
 #include <string>
 
 #include "ion/base/allocator.h"
@@ -36,7 +37,7 @@ typedef uint32 CharIndex;
 
 // Convenience typedef for shared pointer to a Font.
 class Font;
-typedef base::ReferentPtr<Font>::Type FontPtr;
+using FontPtr = base::SharedPtr<Font>;
 
 // Font is a base class for implementation-specific representations of fonts.
 // It contains font metrics, glyph metrics, and rendered glyph grids.
@@ -49,7 +50,7 @@ class ION_API Font : public base::Referent {
     GlyphGrid() : pixels(), is_sdf(false) {}
     GlyphGrid(size_t width, size_t height);
 
-    // TODO(user): Try making this a smaller type than double.
+    // 
     base::Array2<double> pixels;
 
     // Returns true if glyph x- *or* y-size is zero.
@@ -62,13 +63,15 @@ class ION_API Font : public base::Referent {
   };
 
   // This struct represents the cumulative metrics for the font.
-  // TODO(bug): Consider entirely removing this 1-float struct.
   struct FontMetrics {
     // The default constructor initializes everything to 0.
-    FontMetrics() : line_advance_height(0.f) {}
+    FontMetrics() : line_advance_height(0.f), ascender(0.f) {}
 
     // Nominal font-wide line-advance height, in pixels.
     float line_advance_height;
+
+    // Height of the font-wide ascender or baseline, in pixels.
+    float ascender;
   };
 
   // Returns the name of the font.
@@ -179,7 +182,7 @@ class ION_API Font : public base::Referent {
   // support on-demand glyph loading from GetGlyphGrid() const method.
   mutable GlyphMap glyph_grid_map_;
   // Protect glyph_grid_map_. Mutable to allow locking from const methods.
-  mutable port::Mutex mutex_;
+  mutable std::mutex mutex_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Font);
 };

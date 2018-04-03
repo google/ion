@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ limitations under the License.
 #include "ion/base/logging.h"
 #include "ion/base/staticsafedeclare.h"
 
+#include "absl/memory/memory.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
 namespace ion {
@@ -91,13 +92,13 @@ TEST(SettingManager, GetRegisterUnregisterSettings) {
 
   std::unique_ptr<Setting<std::string> > string_setting;
   {
-    string_setting.reset(new Setting<std::string>(
-        "string setting", "\"string\"", ""));
+    string_setting = absl::make_unique<Setting<std::string>>("string setting",
+                                                             "\"string\"", "");
     EXPECT_EQ(1U, settings.size());
   }
   // The setting is still there.
   EXPECT_EQ(1U, settings.size());
-  EXPECT_TRUE(SettingManager::GetSetting("string setting") != NULL);
+  EXPECT_TRUE(SettingManager::GetSetting("string setting") != nullptr);
 }
 
 TEST(SettingManager, RegisterSameBeforeUnregisterSettings) {
@@ -107,20 +108,20 @@ TEST(SettingManager, RegisterSameBeforeUnregisterSettings) {
   std::unique_ptr<Setting<std::string>> string_setting(
       new Setting<std::string>("string setting", "\"string\"", ""));
   EXPECT_EQ(2U, settings.size());
-  EXPECT_TRUE(SettingManager::GetSetting("int") != NULL);
-  EXPECT_TRUE(SettingManager::GetSetting("string setting") != NULL);
+  EXPECT_TRUE(SettingManager::GetSetting("int") != nullptr);
+  EXPECT_TRUE(SettingManager::GetSetting("string setting") != nullptr);
   EXPECT_FALSE(log_checker.HasAnyMessages());
-  int_setting.reset(new Setting<int>("int", 12, ""));
+  int_setting = absl::make_unique<Setting<int>>("int", 12, "");
   EXPECT_TRUE(
       log_checker.HasMessage("WARNING", "Duplicate setting named 'int"));
-  string_setting.reset(
-      new Setting<std::string>("string setting", "\"string\"", ""));
+  string_setting = absl::make_unique<Setting<std::string>>("string setting",
+                                                           "\"string\"", "");
   EXPECT_TRUE(
       log_checker.HasMessage("WARNING", "Duplicate setting named 'string"));
   *(int_setting.get()) = 14;
   EXPECT_EQ(2U, settings.size());
-  EXPECT_TRUE(SettingManager::GetSetting("int") != NULL);
-  EXPECT_TRUE(SettingManager::GetSetting("string setting") != NULL);
+  EXPECT_TRUE(SettingManager::GetSetting("int") != nullptr);
+  EXPECT_TRUE(SettingManager::GetSetting("string setting") != nullptr);
   EXPECT_FALSE(log_checker.HasAnyMessages());
 }
 
@@ -204,7 +205,7 @@ TEST(SettingManager, RegisterSameBeforeUnregisterSettingsAndGroupListeners) {
   const SettingManager::SettingMap& settings = SettingManager::GetAllSettings();
   std::unique_ptr<Setting<int>> int_setting(
       new Setting<int>("group1/group2/int", 12, ""));
-  EXPECT_TRUE(SettingManager::GetSetting("group1/group2/int") != NULL);
+  EXPECT_TRUE(SettingManager::GetSetting("group1/group2/int") != nullptr);
   Listener listener1, listener2;
   SettingManager::RegisterGroupListener(
       "group1", "listener1",
@@ -216,7 +217,7 @@ TEST(SettingManager, RegisterSameBeforeUnregisterSettingsAndGroupListeners) {
   *int_setting = 21;
   EXPECT_TRUE(listener1.WasCalled());
   EXPECT_TRUE(listener2.WasCalled());
-  int_setting.reset(new Setting<int>("group1/group2/int", 12, ""));
+  int_setting = absl::make_unique<Setting<int>>("group1/group2/int", 12, "");
   *int_setting = 14;
   EXPECT_EQ(1U, settings.size());
   EXPECT_TRUE(log_checker.HasMessage(

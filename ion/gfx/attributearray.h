@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -128,7 +128,7 @@ class ION_API AttributeArray : public ResourceHolder {
     if (i < simple_attributes_.size()) {
       return &simple_attributes_[i];
     } else {
-      return NULL;
+      return nullptr;
     }
   }
 
@@ -183,7 +183,7 @@ class ION_API AttributeArray : public ResourceHolder {
 };
 
 // Convenience typedef for shared pointer to a AttributeArray.
-typedef base::ReferentPtr<AttributeArray>::Type AttributeArrayPtr;
+using AttributeArrayPtr = base::SharedPtr<AttributeArray>;
 
 }  // namespace gfx
 }  // namespace ion

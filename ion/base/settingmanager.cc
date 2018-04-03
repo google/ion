@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,16 +17,15 @@ limitations under the License.
 
 #include "ion/base/settingmanager.h"
 
+#include <mutex>  // NOLINT(build/c++11)
 #include <set>
 #include <vector>
 
 #include "ion/base/allocator.h"
-#include "ion/base/lockguards.h"
 #include "ion/base/logging.h"
 #include "ion/base/shareable.h"
 #include "ion/base/staticsafedeclare.h"
 #include "ion/base/stringutils.h"
-#include "ion/port/mutex.h"
 
 namespace ion {
 namespace base {
@@ -81,7 +80,7 @@ class SettingManager::SettingData : public Shareable {
   // The destructor is private since this is derived from base::Referent.
   ~SettingData() override {}
 
-  port::Mutex mutex_;
+  std::mutex mutex_;
   SettingMap settings_;
   GroupMap setting_groups_;
   SettingGroupMap groups_;
@@ -112,7 +111,7 @@ void SettingManager::SettingData::SettingListener(SettingBase* setting) {
 
 SettingBase* SettingManager::SettingData::GetSetting(const std::string& name) {
   SettingMap::const_iterator it = settings_.find(name);
-  return it == settings_.end() ? NULL : it->second;
+  return it == settings_.end() ? nullptr : it->second;
 }
 
 void SettingManager::SettingData::RegisterSetting(SettingBase* setting) {
@@ -121,7 +120,7 @@ void SettingManager::SettingData::RegisterSetting(SettingBase* setting) {
 
   // The mutex is only locked during setting creation and destruction.
   {
-    LockGuard lock(&mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
 
     SettingMap::const_iterator it = settings_.find(name);
     if (it != settings_.end()) {
@@ -162,13 +161,13 @@ void SettingManager::SettingData::RegisterSetting(SettingBase* setting) {
 void SettingManager::SettingData::UnregisterSetting(SettingBase* setting) {
   DCHECK(setting);
 
-  LockGuard lock(&mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   UnregisterSettingLocked(setting);
 }
 
 void SettingManager::SettingData::UnregisterSettingLocked(
     SettingBase* setting) {
-  DCHECK(mutex_.IsLocked());
+  DCHECK(!mutex_.try_lock());
   SettingMap::iterator it = settings_.find(setting->GetName());
   if (it != settings_.end() && it->second == setting) {
     const std::vector<std::string>& group_names =

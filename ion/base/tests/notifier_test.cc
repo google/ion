@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ class MyNotifier : public Notifier {
   ~MyNotifier() override {}
   size_t notifications_;
 };
-typedef base::ReferentPtr<MyNotifier>::Type MyNotifierPtr;
+using MyNotifierPtr = base::SharedPtr<MyNotifier>;
 
 }  // anonymous namespace
 
@@ -61,7 +61,7 @@ TEST(Notifier, AddRemoveReceivers) {
   MyNotifierPtr n3(new MyNotifier);
   MyNotifierPtr n4(new MyNotifier);
   MyNotifierPtr n5(new MyNotifier);
-  n->AddReceiver(NULL);
+  n->AddReceiver(nullptr);
   EXPECT_TRUE(notifiers.empty());
   n->AddReceiver(n2.Get());
   n->AddReceiver(n3.Get());
@@ -77,7 +77,7 @@ TEST(Notifier, AddRemoveReceivers) {
   n->AddReceiver(n5.Get());
   EXPECT_EQ(4U, notifiers.size());
 
-  n->RemoveReceiver(NULL);
+  n->RemoveReceiver(nullptr);
   EXPECT_EQ(4U, notifiers.size());
   EXPECT_EQ(4U, n->GetReceiverCount());
   n->RemoveReceiver(n5.Get());

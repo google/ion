@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -46,8 +46,8 @@ static const float kEpsilon = 1e-5f;
 
 class BasicBuilderTest : public testing::BuilderTestBase<BasicBuilder> {
  protected:
-  const std::string GetShaderIdString() const override {
-    return std::string("  Shader ID: \"Basic Text Shader\"\n");
+  const std::string GetShaderId() const override {
+    return std::string("Basic Text Shader");
   }
   const std::string GetUniformString() const override {
     return std::string(
@@ -109,7 +109,7 @@ TEST_F(BasicBuilderTest, BuildSuccess) {
   BasicBuilder* bb = GetBuilder();
   EXPECT_TRUE(bb->Build(layout, ion::gfx::BufferObject::kStreamDraw));
   gfx::NodePtr node = bb->GetNode();
-  EXPECT_FALSE(node.Get() == NULL);
+  EXPECT_TRUE(node);
   EXPECT_TRUE(
       math::RangesAlmostEqual(math::Range3f(math::Point3f(-7.f, -7.f, 0.f),
                                             math::Point3f(12.f, 13.f, 0.f)),
@@ -161,8 +161,8 @@ TEST_F(BasicBuilderTest, BuildFailure) {
   gfxutils::ShaderManagerPtr sm;
 
   {
-    // NULL FontImagePtr, valid Layout..
-    BasicBuilderPtr bb(new BasicBuilder(FontImagePtr(NULL), sm,
+    // Null FontImagePtr, valid Layout..
+    BasicBuilderPtr bb(new BasicBuilder(FontImagePtr(nullptr), sm,
                                         base::AllocatorPtr()));
     EXPECT_FALSE(bb->Build(layout, ion::gfx::BufferObject::kStreamDraw));
   }
@@ -182,7 +182,7 @@ TEST_F(BasicBuilderTest, Rebuild) {
   BasicBuilder* bb = GetBuilder();
   EXPECT_TRUE(bb->Build(layout, ion::gfx::BufferObject::kStreamDraw));
   gfx::NodePtr node = bb->GetNode();
-  EXPECT_FALSE(node.Get() == NULL);
+  EXPECT_TRUE(node);
   EXPECT_TRUE(
       math::RangesAlmostEqual(math::Range3f(math::Point3f(-7.f, -7.f, 0.f),
                                             math::Point3f(12.f, 13.f, 0.f)),
@@ -327,6 +327,31 @@ TEST_F(BasicBuilderTest, BuildWithShaderManager) {
       expected, BuildNodeString(bb->GetNode())));
 }
 
+TEST_F(BasicBuilderTest, BuildWithExistingShader) {
+  gfxutils::ShaderManagerPtr sm = UseBuilderWithShaderManagerAndShader();
+  // Create a trivial shader with the same name used by the BasicBuilder.
+  const std::string dummy_source = "#version 100\nvoid main(void) { }";
+  gfx::ShaderInputRegistryPtr registry(new gfx::ShaderInputRegistry());
+  gfx::ShaderProgramPtr shader = sm->CreateShaderProgram(
+      GetShaderId(), registry,
+      gfxutils::ShaderSourceComposerPtr(
+          new gfxutils::StringComposer("vertex shader", dummy_source)),
+      gfxutils::ShaderSourceComposerPtr(
+          new ion::gfxutils::StringComposer("fragment shader", dummy_source)));
+  // Verify the shader has been registered with the ShaderManager.
+  EXPECT_EQ(1U, sm->GetShaderProgramNames().size());
+  // Create a shader with the expected shader ID before building.
+  Layout layout = BuildLayout("bg");
+  BasicBuilder* bb = GetBuilder();
+  EXPECT_TRUE(bb->Build(layout, ion::gfx::BufferObject::kStreamDraw));
+  // Ensure the existing shader is used and a second has not been rebuilt.
+  EXPECT_EQ(1U, sm->GetShaderProgramNames().size());
+  // Ensure that the correct ShaderInputRegistry is used.
+  const auto& uniforms = bb->GetNode()->GetUniforms();
+  EXPECT_LT(0U, uniforms.size());
+  EXPECT_EQ(&uniforms[0].GetRegistry(), registry.Get());
+}
+
 TEST_F(BasicBuilderTest, SetFontImage) {
   // Build as usual.
   BasicBuilder* bb = GetBuilder();
@@ -347,7 +372,7 @@ TEST_F(BasicBuilderTest, ModifyUniforms) {
   Layout layout = BuildLayout("bg");
   BasicBuilder* bb = GetBuilder();
 
-  // Modifing uniforms should fail before Build() is called.
+  // Modifying uniforms should fail before Build() is called.
   EXPECT_FALSE(bb->SetSdfPadding(12.5f));
   EXPECT_FALSE(bb->SetTextColor(math::Point4f(.5f, 0.f, .5f, 1.f)));
 

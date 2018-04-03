@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -219,8 +219,9 @@ TEST(NinePatch, BadImage) {
   }
 
   // NULL data.
-  image->Set(Image::kRgba8888, 8, 8, base::DataContainer::Create<uint32>(
-                                         NULL, nullptr, false, AllocatorPtr()));
+  image->Set(Image::kRgba8888, 8, 8,
+             base::DataContainer::Create<uint32>(nullptr, nullptr, false,
+                                                 AllocatorPtr()));
   {
     NinePatchPtr empty_patch(new NinePatch(image));
     EXPECT_EQ(Vector2ui(0, 0), empty_patch->GetMinimumSize());

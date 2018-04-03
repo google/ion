@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ namespace {
 // A derived Allocator class used for testing. Implementation does not matter.
 class TestAllocator : public ion::base::Allocator {
  public:
-  void* Allocate(size_t /* size */) override { return NULL; }
+  void* Allocate(size_t /* size */) override { return nullptr; }
   void Deallocate(void* /* p */) override {}
 };
 
@@ -37,7 +37,7 @@ class TestAllocator : public ion::base::Allocator {
 class AllocationManagerTest : public ::testing::Test {
  protected:
   void TearDown() override {
-    // Use a NULL pointer to restore the defaults.
+    // Use a null pointer to restore the defaults.
     AllocatorPtr a;
     AllocationManager::SetDefaultAllocatorForLifetime(kShortTerm, a);
     AllocationManager::SetDefaultAllocatorForLifetime(kMediumTerm, a);
@@ -51,7 +51,7 @@ class AllocationManagerTest : public ::testing::Test {
 TEST_F(AllocationManagerTest, DefaultAllocators) {
   // The MallocAllocator should always be available.
   const AllocatorPtr& ma = AllocationManager::GetMallocAllocator();
-  EXPECT_FALSE(ma.Get() == NULL);
+  EXPECT_TRUE(ma);
 
   // The MallocAllocator should be used by default for all lifetimes.
   EXPECT_EQ(ma, AllocationManager::GetDefaultAllocatorForLifetime(kShortTerm));
@@ -84,9 +84,9 @@ TEST_F(AllocationManagerTest, DefaultAllocatorForLifetime) {
   EXPECT_EQ(a0, AllocationManager::GetDefaultAllocatorForLifetime(kMediumTerm));
   EXPECT_EQ(ma, AllocationManager::GetDefaultAllocatorForLifetime(kLongTerm));
 
-  // Setting the default allocator to NULL should restore the MallocAllocator.
+  // Setting the default allocator to null should restore the MallocAllocator.
   AllocationManager::SetDefaultAllocatorForLifetime(kShortTerm,
-                                                    AllocatorPtr(NULL));
+                                                    AllocatorPtr(nullptr));
   EXPECT_EQ(ma, AllocationManager::GetDefaultAllocatorForLifetime(kShortTerm));
 }
 

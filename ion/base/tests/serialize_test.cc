@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ limitations under the License.
 
 // Include some STL containers.
 #include <algorithm>
+#include <chrono> // NOLINT
 #include <deque>
 #include <list>
 #include <map>
@@ -508,6 +509,85 @@ TEST(Serialize, StringConvenience) {
   EXPECT_EQ(3, vec[0]);
   EXPECT_EQ(5, vec[1]);
   EXPECT_EQ(8, vec[2]);
+}
+
+TEST(Serialize, Chrono) {
+  using std::chrono::nanoseconds;
+  using std::chrono::microseconds;
+  using std::chrono::milliseconds;
+  using std::chrono::seconds;
+  using std::chrono::minutes;
+
+  nanoseconds nsdur;
+  microseconds usdur;
+  milliseconds msdur;
+  seconds sdur;
+  minutes mdur;
+
+  // False indicates a non-integral tick count or a missing unit.
+  EXPECT_FALSE(StringToValue(std::string("foo"), &nsdur));
+  EXPECT_FALSE(StringToValue(std::string("14"), &nsdur));
+  EXPECT_FALSE(StringToValue(std::string("14.5 ns"), &nsdur));
+
+  // Test simple cases that don't need ratio conversion.
+  EXPECT_TRUE(StringToValue(std::string("14 ns"), &nsdur));
+  EXPECT_EQ(nanoseconds(14), nsdur);
+  EXPECT_EQ("14 ns", ValueToString(nsdur));
+
+  EXPECT_TRUE(StringToValue(std::string("14 us"), &usdur));
+  EXPECT_EQ(microseconds(14), usdur);
+  EXPECT_EQ("14 us", ValueToString(usdur));
+
+  EXPECT_TRUE(StringToValue(std::string("14 ms"), &msdur));
+  EXPECT_EQ(milliseconds(14), msdur);
+  EXPECT_EQ("14 ms", ValueToString(msdur));
+
+  EXPECT_TRUE(StringToValue(std::string("14 s"), &sdur));
+  EXPECT_EQ(seconds(14), sdur);
+  EXPECT_EQ("14 s", ValueToString(sdur));
+
+  // The number of spaces (or omitting them altogether) between the tick count
+  // and the unit in the input string does not matter.
+  EXPECT_TRUE(StringToValue(std::string("14s"), &sdur));
+  EXPECT_EQ(seconds(14), sdur);
+  EXPECT_EQ("14 s", ValueToString(sdur));
+
+  EXPECT_TRUE(StringToValue(std::string("14   s"), &sdur));
+  EXPECT_EQ(seconds(14), sdur);
+  EXPECT_EQ("14 s", ValueToString(sdur));
+
+  // A zero duration causes us to print a value of zero seconds.
+  EXPECT_TRUE(StringToValue(std::string("0 s"), &sdur));
+  EXPECT_EQ(seconds(0), sdur);
+  EXPECT_EQ("0 s", ValueToString(seconds(0)));
+  EXPECT_EQ("0 s", ValueToString(seconds(-0)));
+
+  // Test cases that will cause ratio conversion.
+  EXPECT_TRUE(StringToValue(std::string("14000 ns"), &nsdur));
+  EXPECT_EQ(nanoseconds(14000), nsdur);
+  EXPECT_EQ("14 us", ValueToString(nsdur));
+
+  EXPECT_TRUE(StringToValue(std::string("14000000 ns"), &nsdur));
+  EXPECT_EQ(nanoseconds(14000000), nsdur);
+  EXPECT_EQ("14 ms", ValueToString(nsdur));
+
+  EXPECT_TRUE(StringToValue(std::string("14001000 ns"), &nsdur));
+  EXPECT_EQ(nanoseconds(14001000), nsdur);
+  EXPECT_EQ("14001 us", ValueToString(nsdur));
+
+  // Note that we don't convert to any units bigger than seconds.
+  EXPECT_TRUE(StringToValue(std::string("60 s"), &mdur));
+  EXPECT_EQ(minutes(1), mdur);
+  EXPECT_EQ("60 s", ValueToString(mdur));
+
+  // Negative values should be preserved.
+  EXPECT_TRUE(StringToValue(std::string("-14 ns"), &nsdur));
+  EXPECT_EQ(nanoseconds(-14), nsdur);
+  EXPECT_EQ("-14 ns", ValueToString(nsdur));
+
+  EXPECT_TRUE(StringToValue(std::string("-14000 ns"), &nsdur));
+  EXPECT_EQ(microseconds(-14), nsdur);
+  EXPECT_EQ("-14 us", ValueToString(nsdur));
 }
 
 }  // namespace base

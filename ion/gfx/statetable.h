@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -36,31 +36,47 @@ namespace gfx {
 // glDisable(). Values are all other global state items, arranged into
 // meaningful categories.
 //
-// Each item has an is-set flag indicating whether that item has been set in
-// this StateTable instance since construction or the last call to
-// ResetSetState(). There is a Reset() function for each item that returns the
-// item to its default value and clears the is-set flag. A default-constructed
-// StateTable has each item initialized to its OpenGL default state and its
-// is-set flag initialized to false. Setting any capability or value item causes
-// its is-set flag to be set to true. Only items for which is-set is true are
-// considered when applying changes to rendering state. Calling ResetSetState()
-// will reset the set flags for both values and capabilities.
+// Each item in the state table stores its value and an is-set flag. An unset
+// item is not applied, and when state tables are used in a Node tree, unset
+// items are interpreted as "inherit from parent". Calling any function that
+// sets an item causes that item's is-set flag to be set to true.
+//
+// Capabilities are set with Enable() and Disable() functions and unset with
+// ResetCapability(). Values are set with a dedicated function for each value
+// and reset with ResetValue().
+//
+// A default-constructed StateTable has each item initialized to its OpenGL
+// default state and its is-set flag initialized to false. Calling
+// ResetSetState() will clear the set flags for all items.
 class ION_API StateTable : public base::Referent {
  public:
   //---------------------------------------------------------------------------
   // Enumerated types for StateTable items.
 
+  // The number of independent user-defined clipping distances.
+  static const size_t kClipDistanceCount = 8;
+
   // OpenGL capability items. Each can be enabled or disabled.
   enum Capability {
     kBlend,                   // Corresponds to GL_BLEND.
+    kClipDistance0,           // Corresponds to GL_CLIP_DISTANCE0.
+    kClipDistance1,           // Corresponds to GL_CLIP_DISTANCE1.
+    kClipDistance2,           // Corresponds to GL_CLIP_DISTANCE2.
+    kClipDistance3,           // Corresponds to GL_CLIP_DISTANCE3.
+    kClipDistance4,           // Corresponds to GL_CLIP_DISTANCE4.
+    kClipDistance5,           // Corresponds to GL_CLIP_DISTANCE5.
+    kClipDistance6,           // Corresponds to GL_CLIP_DISTANCE6.
+    kClipDistance7,           // Corresponds to GL_CLIP_DISTANCE7.
     kCullFace,                // Corresponds to GL_CULL_FACE.
     kDebugOutputSynchronous,  // Corresponds to GL_DEBUG_OUTPUT_SYNCHRONOUS
     kDepthTest,               // Corresponds to GL_DEPTH_TEST.
     kDither,                  // Corresponds to GL_DITHER.
     kMultisample,             // Corresponds to GL_MULTISAMPLE.
     kPolygonOffsetFill,       // Corresponds to GL_POLYGON_OFFSET_FILL.
+    kRasterizerDiscard,       // Corresponds to GL_RASTERIZER_DISCARD.
     kSampleAlphaToCoverage,   // Corresponds to GL_SAMPLE_ALPHA_TO_COVERAGE.
     kSampleCoverage,          // Corresponds to GL_SAMPLE_COVERAGE.
+    kSampleShading,           // Corresponds to GL_SAMPLE_SHADING.
     kScissorTest,             // Corresponds to GL_SCISSOR_TEST.
     kStencilTest,             // Corresponds to GL_STENCIL_TEST.
     kNumCapabilities,         // The number of supported capabilities.
@@ -78,12 +94,14 @@ class ION_API StateTable : public base::Referent {
     kColorWriteMasksValue,
     kCullFaceModeValue,
     kFrontFaceModeValue,
+    kDefaultInnerTessellationLevelValue,
+    kDefaultOuterTessellationLevelValue,
     kDepthFunctionValue,
     kDepthRangeValue,
     kDepthWriteMaskValue,
-    kDrawBufferValue,
     kHintsValue,
     kLineWidthValue,
+    kMinSampleShadingValue,
     kPolygonOffsetValue,
     kSampleCoverageValue,
     kScissorBoxValue,
@@ -102,6 +120,8 @@ class ION_API StateTable : public base::Referent {
     kAdd,                    // Corresponds to GL_FUNC_ADD.
     kReverseSubtract,        // Corresponds to GL_FUNC_REVERSE_SUBTRACT.
     kSubtract,               // Corresponds to GL_FUNC_SUBTRACT
+    kMin,                    // Corresponds to GL_MIN
+    kMax,                    // Corresponds to GL_MAX
   };
 
   // OpenGL blend function factors.
@@ -148,20 +168,6 @@ class ION_API StateTable : public base::Referent {
     kDepthNever,             // Corresponds to GL_NEVER.
     kDepthNotEqual,          // Corresponds to GL_NOTEQUAL.
   };
-
-  // OpenGL draw buffers.
-  enum DrawBuffer {
-    kBack,          // Corresponds to GL_BACK.
-    kBackLeft,      // Corresponds to GL_BACK_LEFT.
-    kBackRight,     // Corresponds to GL_BACK_RIGHT.
-    kFront,         // Corresponds to GL_FRONT.
-    kFrontAndBack,  // Corresponds to GL_FRONT_AND_BACK.
-    kFrontLeft,     // Corresponds to GL_FRONT_LEFT.
-    kFrontRight,    // Corresponds to GL_FRONT_RIGHT.
-    kLeft,          // Corresponds to GL_LEFT.
-    kNone,          // Corresponds to GL_NONE.
-    kRight,         // Corresponds to GL_RIGHT.
-};
 
   // OpenGL front face modes.
   enum FrontFaceMode {
@@ -288,7 +294,7 @@ class ION_API StateTable : public base::Referent {
 
   // Resets a capability flag to its default state.
   void ResetCapability(Capability capability) {
-    if (capability == kDither)
+    if (capability == kDither || capability == kMultisample)
       data_.capabilities.set(capability);
     else
       data_.capabilities.reset(capability);
@@ -338,8 +344,9 @@ class ION_API StateTable : public base::Referent {
 
   //---------------------------------------------------------------------------
   // Sets/returns whether enforcement is enabled. When enforcement is enabled,
-  // the capabilities/values that are set in the statetable will be forced
-  // applied regardless of what the original settings are.
+  // GL calls that set the items will be made even if the item matches the
+  // state cache. (Normally, GL calls that don't change existing state are
+  // elided.)
   void SetEnforceSettings(bool enforced) { data_.is_enforced = enforced; }
   bool AreSettingsEnforced() const { return data_.is_enforced; }
 
@@ -416,6 +423,21 @@ class ION_API StateTable : public base::Referent {
   void SetFrontFaceMode(FrontFaceMode mode);
   FrontFaceMode GetFrontFaceMode() const { return data_.front_face_mode; }
 
+  void SetDefaultInnerTessellationLevel(const math::Vector2f& value) {
+    data_.default_inner_tess_level = value;
+    data_.values_set.set(kDefaultInnerTessellationLevelValue);
+  }
+  const math::Vector2f& GetDefaultInnerTessellationLevel() const {
+    return data_.default_inner_tess_level;
+  }
+  void SetDefaultOuterTessellationLevel(const math::Vector4f& value) {
+    data_.default_outer_tess_level = value;
+    data_.values_set.set(kDefaultOuterTessellationLevelValue);
+  }
+  const math::Vector4f& GetDefaultOuterTessellationLevel() const {
+    return data_.default_outer_tess_level;
+  }
+
   //---------------------------------------------------------------------------
   // Depth buffer state.
 
@@ -434,14 +456,6 @@ class ION_API StateTable : public base::Referent {
   bool GetDepthWriteMask() const { return data_.depth_write_mask; }
 
   //---------------------------------------------------------------------------
-  // Draw buffer state.
-
-  // Sets the target draw buffer. The default buffer is kBackBuffer.
-  void SetDrawBuffer(DrawBuffer draw_buffer);
-  // Returns the target draw buffer.
-  DrawBuffer GetDrawBuffer() const { return data_.draw_buffer; }
-
-  //---------------------------------------------------------------------------
   // Hint state.
 
   // Sets/returns a hint value. The default is kHintDontCare for all hints.
@@ -454,6 +468,16 @@ class ION_API StateTable : public base::Referent {
   // Sets/returns the width of rasterized lines, in pixels. The default is 1.
   void SetLineWidth(float width);
   float GetLineWidth() const { return data_.line_width; }
+
+  //---------------------------------------------------------------------------
+  // Mininum sample shading fraction state.
+
+  // Sets/returns the minimum fraction of samples for which the fragment
+  // program will be executed. 0.0 means the fragment program will be executed
+  // only once for each pixel, while 1.0 means the fragment program will be
+  // executed for every sample.
+  void SetMinSampleShading(float fraction);
+  float GetMinSampleShading() const { return data_.min_sample_shading; }
 
   //---------------------------------------------------------------------------
   // Polygon offset state.
@@ -566,9 +590,6 @@ class ION_API StateTable : public base::Referent {
   // The number of state values.
   static const int kNumStateValues = kViewportValue + 1;
 
-  // The number of supported clear mask bits.
-  static const int kNumClearMaskBits = kClearStencilBufferBit + 1;
-
   // The number of supported hints.
   static const int kNumHints = kGenerateMipmapHint + 1;
 
@@ -622,13 +643,14 @@ class ION_API StateTable : public base::Referent {
     CullFaceMode cull_face_mode;
     FrontFaceMode front_face_mode;
 
+    // Default tess levels state.
+    math::Vector2f default_inner_tess_level;
+    math::Vector4f default_outer_tess_level;
+
     // Depth buffer state.
     DepthFunction depth_function;
     math::Range1f depth_range;
     bool depth_write_mask;
-
-    // Draw buffer state.
-    DrawBuffer draw_buffer;
 
     // Hint state.
     HintMode hints[kNumHints];
@@ -643,6 +665,9 @@ class ION_API StateTable : public base::Referent {
     // Sample coverage state.
     float sample_coverage_value;
     bool sample_coverage_inverted;
+
+    // Sample shading state.
+    float min_sample_shading;
 
     // Scissoring state.
     math::Range2i scissor_box;
@@ -682,7 +707,7 @@ class ION_API StateTable : public base::Referent {
 };
 
 // Convenience typedef for shared pointer to a StateTable.
-typedef base::ReferentPtr<StateTable>::Type StateTablePtr;
+using StateTablePtr = base::SharedPtr<StateTable>;
 
 }  // namespace gfx
 }  // namespace ion

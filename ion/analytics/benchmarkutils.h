@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -87,12 +87,12 @@ ION_API void OutputAccumulatedVariableAsJson(
 //     ]
 //   }
 ION_API void OutputBenchmarkAsJson(const Benchmark& benchmark,
-                                   const std::string& indent,
+                                   const std::string& indent_in,
                                    std::ostream& out);  // NOLINT
 
 // Outputs benchmark results in a pretty format. Note that SampledVariables are
 // converted to AccumulatedVariables for pretty output.
-ION_API void OutputBenchmarkPretty(const std::string& header_string,
+ION_API void OutputBenchmarkPretty(const std::string& id_string,
                                    bool print_descriptions,
                                    const Benchmark& benchmark,
                                    std::ostream& out);  // NOLINT

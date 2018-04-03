@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -47,9 +47,10 @@ static const float kEpsilon = 1e-5f;
 
 class OutlineBuilderTest : public testing::BuilderTestBase<OutlineBuilder> {
  protected:
-  const std::string GetShaderIdString() const override {
-    return std::string("  Shader ID: \"Outline Text Shader\"\n");
+  const std::string GetShaderId() const override {
+    return std::string("Outline Text Shader");
   }
+
   const std::string GetUniformString() const override {
     return std::string(
         "  ION Uniform {\n"
@@ -126,7 +127,7 @@ TEST_F(OutlineBuilderTest, BuildSuccess) {
   OutlineBuilder* ob = GetBuilder();
   EXPECT_TRUE(ob->Build(layout, ion::gfx::BufferObject::kStreamDraw));
   gfx::NodePtr node = ob->GetNode();
-  EXPECT_FALSE(node.Get() == NULL);
+  EXPECT_TRUE(node);
   EXPECT_TRUE(
       math::RangesAlmostEqual(math::Range3f(math::Point3f(-7.f, -7.f, 0.f),
                                             math::Point3f(12.f, 13.f, 0.f)),
@@ -183,8 +184,8 @@ TEST_F(OutlineBuilderTest, BuildFailure) {
   gfxutils::ShaderManagerPtr sm;
 
   {
-    // NULL FontImagePtr, valid Layout.
-    OutlineBuilderPtr ob(new OutlineBuilder(FontImagePtr(NULL), sm,
+    // Null FontImagePtr, valid Layout.
+    OutlineBuilderPtr ob(new OutlineBuilder(FontImagePtr(nullptr), sm,
                                             base::AllocatorPtr()));
     EXPECT_FALSE(ob->Build(layout, ion::gfx::BufferObject::kStreamDraw));
   }

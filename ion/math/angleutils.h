@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -109,6 +109,42 @@ inline Angle<T> AngleBetween(const ion::math::Vector<Dimension, T>& a,
   // Clamp the dot product to [-1, 1] since the dot product could lead to values
   // slightly outside that set due to numerical inaccuracy.
   return ArcCosine(Clamp(Dot(a, b), -kOne, kOne));
+}
+
+// Wraps the angle around an interval of [0, 2PI).
+// E.g. 2PI gets wrapped to 0, and -2PI gets wrapped to 0.
+template <typename T>
+inline Angle<T> WrapTwoPi(const Angle<T>& a) {
+  static const T kTwoPi = static_cast<T>(2 * M_PI);
+  if (a.Radians() >= 0.0 && a.Radians() < kTwoPi) {
+    // Optimize the common case.
+    return a;
+  }
+  T radians = static_cast<T>(fmod(a.Radians(), kTwoPi));
+  // fmood returns (-2PI, 2PI) so we shift the negative results in
+  // (-2PI, 0) by +2PI.
+  if (radians < 0.0) {
+    radians += kTwoPi;
+  }
+  return Angle<T>::FromRadians(radians);
+}
+
+// Returns a Lerp between angles, taking the closest-path around the
+// range.
+//
+// The return value will always be in the range [0, 2PI).
+// Note: AngleLerp performs extrapolation for t outside [0, 1].
+template <typename T>
+inline Angle<T> AngleLerp(Angle<T> from_angle, Angle<T> to_angle, double t) {
+  T from = WrapTwoPi(from_angle).Radians();
+  T to = WrapTwoPi(to_angle).Radians();
+  T dist = Abs(to - from);
+  static const T kPi = static_cast<T>(M_PI);
+  static const T kTwoPi = static_cast<T>(2 * M_PI);
+  if (dist > kPi) {
+      to += to < from ? kTwoPi : -kTwoPi;
+  }
+  return WrapTwoPi(Angle<T>::FromRadians(Lerp(from, to, t)));
 }
 
 }  // namespace math

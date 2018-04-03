@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -85,7 +85,7 @@ GLuint GpuProfiler::TryAllocateGlQueryId() {
   return query_id;
 }
 
-void GpuProfiler::EnterGlScope(uint32 id) {
+void GpuProfiler::EnterGlScope(const char* name) {
   ion::gfx::GraphicsManager* gfx_mgr = GetGraphicsManagerOrNull();
   if (!gfx_mgr) {
     return;
@@ -93,6 +93,10 @@ void GpuProfiler::EnterGlScope(uint32 id) {
 
   GLuint query_id = TryAllocateGlQueryId();
   if (query_id != 0) {
+    const uint32 id = manager_
+                          ->GetNamedTraceRecorder(
+                              ion::profile::CallTraceManager::kRecorderGpu)
+                          ->GetScopeEvent(name);
     gfx_mgr->QueryCounter(query_id, GL_TIMESTAMP_EXT);
     pending_gpu_queries_.push_back(GpuTimerQuery(
         manager_->GetTimeInNs(), id, query_id,

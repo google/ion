@@ -1,5 +1,6 @@
+#!/bin/sh
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-#!/bin/sh
 
 # This shell script applies the replace_strings python script to provide simple
 # macro substitution for doxygen input files. The input file is named on the

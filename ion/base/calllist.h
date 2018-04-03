@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -81,15 +81,20 @@ class ION_API CallList : public Referent {
   // Clears the set of calls.
   void Clear();
 
-  // Returns the ith FunctionCall in this list. If the index is invalid or the
-  // template arguments for the function signature are incorrect, this returns
-  // NULL. This must be called with the function signature as the template
-  // argument, e.g., GetCall<void(int)>().
+  // Returns the ith FunctionCall in this list. Note that this is
+  // unsafe if the index is invalid or the template arguments for the
+  // function signature are incorrect, because we disallow
+  // dynamic_cast in ion. This must be called with the function
+  // signature as the template argument, e.g., GetCall<void(int)>().
   template <typename Func>
   FunctionCall<Func>* GetCall(size_t i) {
-    return i >= calls_.size()
-               ? NULL
-               : dynamic_cast<FunctionCall<Func>*>(calls_[i].get());
+    if (i >= calls_.size())
+        return nullptr;
+#if ION_NO_RTTI
+    return static_cast<FunctionCall<Func>*>(calls_[i].get());
+#else
+    return dynamic_cast<FunctionCall<Func>*>(calls_[i].get());
+#endif
   }
 
  private:
@@ -102,7 +107,7 @@ class ION_API CallList : public Referent {
   DISALLOW_COPY_AND_ASSIGN(CallList);
 };
 
-typedef ReferentPtr<CallList>::Type CallListPtr;
+using CallListPtr = SharedPtr<CallList>;
 
 }  // namespace base
 }  // namespace ion

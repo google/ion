@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ limitations under the License.
 
 #include "ion/gfxutils/shadersourcecomposer.h"
 
+#include <mutex>  // NOLINT(build/c++11)
 #include <set>
 #include <sstream>
 #include <stack>
@@ -25,6 +26,7 @@ limitations under the License.
 
 #include "ion/base/allocatable.h"
 #include "ion/base/invalid.h"
+#include "ion/base/staticsafedeclare.h"
 #include "ion/base/stlalloc/allocmap.h"
 #include "ion/base/stlalloc/allocset.h"
 #include "ion/base/stringutils.h"
@@ -35,6 +37,8 @@ namespace gfxutils {
 
 namespace {
 
+static const char* kUnknownShaderSentinel = "#error";
+
 static bool SetAndSaveZipAssetData(const std::string& filename,
                                    const std::string& source) {
   return base::ZipAssetManager::SetFileData(filename, source) &&
@@ -43,7 +47,7 @@ static bool SetAndSaveZipAssetData(const std::string& filename,
 
 static const std::string GetZipAssetFileData(const std::string& filename) {
   const std::string& data = base::ZipAssetManager::GetFileData(filename);
-  return base::IsInvalidReference(data) ? std::string() : data;
+  return base::IsInvalidReference(data) ? kUnknownShaderSentinel : data;
 }
 
 }  // anonymous namespace
@@ -54,14 +58,14 @@ static const std::string GetZipAssetFileData(const std::string& filename) {
 // directives.
 //
 //-----------------------------------------------------------------------------
-class IncludeComposer::IncludeComposerHelper : public base::Allocatable {
+class ShaderSourceComposer::IncludeDirectiveHelper : public base::Allocatable {
  public:
-  IncludeComposerHelper(const base::Allocatable& owner,
-                        const std::string& filename,
-                        const SourceLoader& source_loader,
-                        const SourceSaver& source_saver,
-                        const SourceModificationTime& source_time,
-                        bool insert_line_directives)
+  IncludeDirectiveHelper(const base::Allocatable& owner,
+                         const std::string& filename,
+                         const SourceLoader& source_loader,
+                         const SourceSaver& source_saver,
+                         const SourceModificationTime& source_time,
+                         bool insert_line_directives)
       : file_to_id_(owner),
         id_to_file_(owner),
         filename_(filename),
@@ -119,7 +123,7 @@ class IncludeComposer::IncludeComposerHelper : public base::Allocatable {
       InputInfo info = stack.top();
       stack.pop();
       // If the info has no lines then the file has not been loaded.
-      if (info.lines.size() == 0) {
+      if (info.lines.empty()) {
         // Check for a recursive $input.
         if (file_names.count(info.name) != 0) {
           LOG(WARNING) << stack.top().name << ":" << (stack.top().line - 1U)
@@ -130,9 +134,17 @@ class IncludeComposer::IncludeComposerHelper : public base::Allocatable {
 
         // Load the source of the shader.
         const std::string source = source_loader_(info.name);
+
         // If the source does not exist or is empty then there is nothing to do.
         if (source.empty())
           continue;
+
+        // If the identifier wasn't found, include a helpful error message.
+        if (source == kUnknownShaderSentinel) {
+          output_source.push_back(
+              "#error Invalid shader source identifier: " + info.name);
+          continue;
+        }
 
         // Lines are counted from 1, so prepend an empty line.
         info.lines.push_back("");
@@ -192,13 +204,7 @@ class IncludeComposer::IncludeComposerHelper : public base::Allocatable {
   // Sets the source of dependency if this depends on it.
   bool SetDependencySource(const std::string& dependency,
                            const std::string& source) {
-    if (DependsOn(dependency)) {
-      const bool ret = source_saver_(dependency, source);
-      source_time_(dependency, &used_files_[dependency].timestamp);
-      return ret;
-    } else {
-      return false;
-    }
+    return DependsOn(dependency) ? source_saver_(dependency, source) : false;
   }
 
   // Returns whether this composer depends on the passed filename.
@@ -342,62 +348,132 @@ class IncludeComposer::IncludeComposerHelper : public base::Allocatable {
   FileInfoMap used_files_;
 };
 
+// Helper for StringComposer that plays a role similar to base::ZipAssetManager
+// because it manages a globally-available set of id-string pairs.  This enables
+// proper handling of $input directives.
+class StringComposerRegistry {
+ public:
+  static const std::string GetStringContent(const std::string& label) {
+    StringComposerRegistry* reg = GetRegistry();
+    std::lock_guard<std::mutex> guard(reg->mutex_);
+    auto it = reg->strings_.find(label);
+    return it == reg->strings_.end() ? kUnknownShaderSentinel
+                                     : it->second.content;
+  }
+
+  static bool SetStringContent(const std::string& label,
+                               const std::string& source) {
+    StringComposerRegistry* reg = GetRegistry();
+    std::lock_guard<std::mutex> guard(reg->mutex_);
+    reg->strings_[label].content = source;
+    reg->strings_[label].last_modified = std::chrono::system_clock::now();
+    return true;
+  }
+
+  static bool GetModificationTime(
+      const std::string& label,
+      std::chrono::system_clock::time_point* timestamp) {
+    StringComposerRegistry* reg = GetRegistry();
+    std::lock_guard<std::mutex> guard(reg->mutex_);
+    auto it = reg->strings_.find(label);
+    if (it == reg->strings_.end()) {
+      return false;
+    }
+    *timestamp = it->second.last_modified;
+    return true;
+  }
+
+ private:
+  struct StringInfo {
+    std::string content;
+    std::chrono::system_clock::time_point last_modified;
+  };
+
+  typedef std::map<std::string, StringInfo> InfoMap;
+
+  // The constructor is private since this is a singleton class.
+  StringComposerRegistry() {}
+
+  // This ensures that the registry will be safely destroyed when the program
+  // exits.
+  static StringComposerRegistry* GetRegistry() {
+    ION_DECLARE_SAFE_STATIC_POINTER(StringComposerRegistry, s_registry);
+    return s_registry;
+  }
+
+  // Mutex to guard access to the singleton.
+  std::mutex mutex_;
+
+  InfoMap strings_;
+
+  DISALLOW_COPY_AND_ASSIGN(StringComposerRegistry);
+};
+
 //-----------------------------------------------------------------------------
 //
 // ShaderSourceComposer definition.
 //
 //-----------------------------------------------------------------------------
 ShaderSourceComposer::ShaderSourceComposer() {}
-
-ShaderSourceComposer::~ShaderSourceComposer() {}
-
-//-----------------------------------------------------------------------------
-//
-// IncludeComposer definition.
-//
-//-----------------------------------------------------------------------------
-IncludeComposer::IncludeComposer(
+ShaderSourceComposer::ShaderSourceComposer(
     const std::string& filename, const SourceLoader& source_loader,
     const SourceSaver& source_saver, const SourceModificationTime& source_time,
     bool insert_line_directives)
-    : helper_(new(GetAllocator()) IncludeComposerHelper(
+    : helper_(new (GetAllocator()) IncludeDirectiveHelper(
           *this, filename, source_loader, source_saver, source_time,
           insert_line_directives)) {}
-IncludeComposer::~IncludeComposer() {}
+ShaderSourceComposer::~ShaderSourceComposer() {}
 
-void IncludeComposer::SetBasePath(const std::string& path) {
+void ShaderSourceComposer::SetBasePath(const std::string& path) {
   helper_->SetBasePath(path);
 }
 
-const std::vector<std::string> IncludeComposer::GetChangedDependencies() {
+const std::vector<std::string> ShaderSourceComposer::GetChangedDependencies() {
   return helper_->GetChangedDependencies();
 }
 
-const std::string IncludeComposer::GetSource() {
+const std::string ShaderSourceComposer::GetSource() {
   return helper_->GetSource();
 }
 
-const std::string IncludeComposer::GetDependencySource(
+const std::string ShaderSourceComposer::GetDependencySource(
     const std::string& dependency) const {
   return helper_->GetDependencySource(dependency);
 }
 
-bool IncludeComposer::SetDependencySource(const std::string& dependency,
-                                          const std::string& source) {
+bool ShaderSourceComposer::SetDependencySource(const std::string& dependency,
+                                               const std::string& source) {
   return helper_->SetDependencySource(dependency, source);
 }
 
-bool IncludeComposer::DependsOn(const std::string& resource) const {
+bool ShaderSourceComposer::DependsOn(const std::string& resource) const {
   return helper_->DependsOn(resource);
 }
 
-const std::string IncludeComposer::GetDependencyName(unsigned int id) const {
+const std::string ShaderSourceComposer::GetDependencyName(
+    unsigned int id) const {
   return helper_->GetDependencyName(id);
 }
 
-const std::vector<std::string> IncludeComposer::GetDependencyNames() const {
+const std::vector<std::string> ShaderSourceComposer::GetDependencyNames()
+    const {
   return helper_->GetDependencyNames();
 }
+
+//-----------------------------------------------------------------------------
+//
+// StringComposer definition.
+//
+//-----------------------------------------------------------------------------
+StringComposer::StringComposer(const std::string& label,
+                               const std::string& source)
+    : ShaderSourceComposer(label, StringComposerRegistry::GetStringContent,
+                           StringComposerRegistry::SetStringContent,
+                           StringComposerRegistry::GetModificationTime, true) {
+  StringComposerRegistry::SetStringContent(label, source);
+}
+
+StringComposer::~StringComposer() {}
 
 //-----------------------------------------------------------------------------
 //
@@ -406,10 +482,9 @@ const std::vector<std::string> IncludeComposer::GetDependencyNames() const {
 //-----------------------------------------------------------------------------
 ZipAssetComposer::ZipAssetComposer(const std::string& filename,
                                    bool insert_line_directives)
-    : IncludeComposer(filename, GetZipAssetFileData,
-                      SetAndSaveZipAssetData,
-                      base::ZipAssetManager::UpdateFileIfChanged,
-                      insert_line_directives) {}
+    : ShaderSourceComposer(
+          filename, GetZipAssetFileData, SetAndSaveZipAssetData,
+          base::ZipAssetManager::UpdateFileIfChanged, insert_line_directives) {}
 
 ZipAssetComposer::~ZipAssetComposer() {}
 

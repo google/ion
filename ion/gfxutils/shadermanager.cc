@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,8 +17,10 @@ limitations under the License.
 
 #include "ion/gfxutils/shadermanager.h"
 
+#include <mutex>  // NOLINT(build/c++11)
+
 #include "ion/base/allocatable.h"
-#include "ion/base/lockguards.h"
+#include "ion/base/logging.h"
 #include "ion/base/stlalloc/allocmap.h"
 #include "ion/gfx/resourcemanager.h"
 #include "ion/gfx/shaderinputregistry.h"
@@ -31,13 +33,11 @@ namespace gfxutils {
 
 namespace {
 
-using base::LockGuard;
 using gfx::GraphicsManagerPtr;
-using gfx::ResourceManager;
 using gfx::Shader;
-using gfx::ShaderPtr;
 using gfx::ShaderProgram;
 using gfx::ShaderProgramPtr;
+using gfx::ShaderPtr;
 
 }  // anonymous namespace
 
@@ -55,6 +55,9 @@ class ShaderManager::ShaderManagerData : public base::Allocatable {
     gfx::ShaderProgramWeakPtr program;
     ShaderSourceComposerPtr vertex_source_composer;
     ShaderSourceComposerPtr fragment_source_composer;
+    ShaderSourceComposerPtr geometry_source_composer;
+    ShaderSourceComposerPtr tess_control_source_composer;
+    ShaderSourceComposerPtr tess_evaluation_source_composer;
   };
   typedef base::AllocMap<std::string, ProgramInfo> ProgramMap;
 
@@ -64,14 +67,18 @@ class ShaderManager::ShaderManagerData : public base::Allocatable {
 
   // Adds a ProgramInfo to the map of infos.
   void AddProgramInfo(const std::string& name, const ProgramInfo& info) {
-    LockGuard guard(&mutex_);
+    std::lock_guard<std::mutex> guard(mutex_);
+    if (FindProgramInfo(name) != programs_.end()) {
+      LOG(WARNING) << "ShaderManager: Overriding existing ShaderProgram named "
+                   << name;
+    }
     programs_[name] = info;
   }
 
   // This and the below functions follow the same interface as their
   // counterparts in ShaderManager. See shadermanager.h for detailed comments.
   const ShaderProgramPtr GetShaderProgram(const std::string& name) {
-    LockGuard guard(&mutex_);
+    std::lock_guard<std::mutex> guard(mutex_);
     ProgramMap::iterator it = FindProgramInfo(name);
     return GetProgramFromInfo(&it);
   }
@@ -88,27 +95,30 @@ class ShaderManager::ShaderManagerData : public base::Allocatable {
     return names;
   }
 
-  void GetShaderProgramComposers(
-      const std::string& name, ShaderSourceComposerPtr* vertex_source_composer,
-      ShaderSourceComposerPtr* fragment_source_composer) {
+  void GetShaderProgramComposers(const std::string& name,
+                                 ShaderSourceComposerSet* set) {
     ShaderProgramPtr program;
-    LockGuard guard(&mutex_);
+    std::lock_guard<std::mutex> guard(mutex_);
     ProgramMap::iterator it = FindProgramInfo(name);
     if (it != programs_.end()) {
-      if (vertex_source_composer)
-        *vertex_source_composer = it->second.vertex_source_composer;
-      if (fragment_source_composer)
-        *fragment_source_composer = it->second.fragment_source_composer;
+      set->vertex_source_composer = it->second.vertex_source_composer;
+      set->tess_control_source_composer =
+          it->second.tess_control_source_composer;
+      set->tess_evaluation_source_composer =
+          it->second.tess_evaluation_source_composer;
+      set->geometry_source_composer = it->second.geometry_source_composer;
+      set->fragment_source_composer = it->second.fragment_source_composer;
     } else {
-      if (vertex_source_composer)
-        *vertex_source_composer = NULL;
-      if (fragment_source_composer)
-        *fragment_source_composer = NULL;
+      set->vertex_source_composer = nullptr;
+      set->tess_control_source_composer = nullptr;
+      set->tess_evaluation_source_composer = nullptr;
+      set->geometry_source_composer = nullptr;
+      set->fragment_source_composer = nullptr;
     }
   }
 
   void RecreateAllShaderPrograms() {
-    LockGuard guard(&mutex_);
+    std::lock_guard<std::mutex> guard(mutex_);
     for (ProgramMap::iterator it = programs_.begin(); it != programs_.end();) {
       const ShaderProgramPtr& program = GetProgramFromInfo(&it);
       if (program.Get()) {
@@ -117,6 +127,12 @@ class ShaderManager::ShaderManagerData : public base::Allocatable {
 
         if (Shader* shader = program->GetVertexShader().Get())
           shader->SetSource(info.vertex_source_composer->GetSource());
+        if (Shader* shader = program->GetTessControlShader().Get())
+          shader->SetSource(info.tess_control_source_composer->GetSource());
+        if (Shader* shader = program->GetTessEvalShader().Get())
+          shader->SetSource(info.tess_evaluation_source_composer->GetSource());
+        if (Shader* shader = program->GetGeometryShader().Get())
+          shader->SetSource(info.geometry_source_composer->GetSource());
         if (Shader* shader = program->GetFragmentShader().Get())
           shader->SetSource(info.fragment_source_composer->GetSource());
         ++it;
@@ -125,17 +141,41 @@ class ShaderManager::ShaderManagerData : public base::Allocatable {
   }
 
   void RecreateShaderProgramsThatDependOn(const std::string& dependency) {
-    LockGuard guard(&mutex_);
+    std::lock_guard<std::mutex> guard(mutex_);
     for (ProgramMap::iterator it = programs_.begin(); it != programs_.end();) {
       const ShaderProgramPtr& program = GetProgramFromInfo(&it);
       if (program.Get()) {
         const ProgramInfo& info = it->second;
-        if (info.vertex_source_composer->DependsOn(dependency))
+        if (info.vertex_source_composer->DependsOn(dependency)) {
           if (Shader* shader = program->GetVertexShader().Get())
             shader->SetSource(info.vertex_source_composer->GetSource());
-        if (info.fragment_source_composer->DependsOn(dependency))
-          if (Shader* shader = program->GetFragmentShader().Get())
-            shader->SetSource(info.fragment_source_composer->GetSource());
+        }
+        if (info.tess_control_source_composer.Get() != nullptr) {
+          if (info.tess_control_source_composer->DependsOn(dependency)) {
+            if (Shader* shader = program->GetTessControlShader().Get())
+              shader->SetSource(info.tess_control_source_composer->GetSource());
+          }
+        }
+        if (info.tess_evaluation_source_composer.Get() != nullptr) {
+          if (info.tess_evaluation_source_composer->DependsOn(dependency)) {
+            if (Shader* shader = program->GetTessEvalShader().Get())
+              shader->SetSource(
+                info.tess_evaluation_source_composer->GetSource());
+          }
+        }
+        if (info.geometry_source_composer.Get() != nullptr) {
+          if (info.geometry_source_composer->DependsOn(dependency)) {
+            if (Shader* shader = program->GetGeometryShader().Get()) {
+              shader->SetSource(info.geometry_source_composer->GetSource());
+            }
+          }
+        }
+        if (info.fragment_source_composer.Get() != nullptr) {
+          if (info.fragment_source_composer->DependsOn(dependency)) {
+            if (Shader* shader = program->GetFragmentShader().Get())
+              shader->SetSource(info.fragment_source_composer->GetSource());
+          }
+        }
         ++it;
       }
     }
@@ -173,7 +213,7 @@ class ShaderManager::ShaderManagerData : public base::Allocatable {
   ProgramMap programs_;
 
   // For locking access to programs_.
-  port::Mutex mutex_;
+  std::mutex mutex_;
 };
 
 ShaderManager::ShaderManager()
@@ -183,8 +223,7 @@ ShaderManager::~ShaderManager() {}
 
 const ShaderProgramPtr ShaderManager::CreateShaderProgram(
     const std::string& name, const ion::gfx::ShaderInputRegistryPtr& registry,
-    const ShaderSourceComposerPtr& vertex_source_composer,
-    const ShaderSourceComposerPtr& fragment_source_composer) {
+    const ShaderSourceComposerSet& set) {
   // Create ProgramInfo and add it to the map.
   ShaderProgramPtr program(new(GetAllocatorForLifetime(base::kMediumTerm))
                            ion::gfx::ShaderProgram(registry));
@@ -192,17 +231,58 @@ const ShaderProgramPtr ShaderManager::CreateShaderProgram(
   program->SetLabel(name);
   program->SetVertexShader(
       ShaderPtr(new(GetAllocatorForLifetime(base::kMediumTerm))
-                Shader(vertex_source_composer->GetSource())));
+                Shader(set.vertex_source_composer->GetSource())));
   program->GetVertexShader()->SetLabel(name + " vertex shader");
-  program->SetFragmentShader(
-      ShaderPtr(new(GetAllocatorForLifetime(base::kMediumTerm))
-                Shader(fragment_source_composer->GetSource())));
-  program->GetFragmentShader()->SetLabel(name + " fragment shader");
-  info.vertex_source_composer = vertex_source_composer;
-  info.fragment_source_composer = fragment_source_composer;
+
+  if (set.tess_control_source_composer.Get() != nullptr) {
+    program->SetTessControlShader(
+        ShaderPtr(new(GetAllocatorForLifetime(base::kMediumTerm))
+                  Shader(set.tess_control_source_composer->GetSource())));
+    program->GetTessControlShader()->SetLabel(
+        name + " tessellation control shader");
+  }
+
+  if (set.tess_evaluation_source_composer.Get() != nullptr) {
+    program->SetTessEvalShader(
+        ShaderPtr(new(GetAllocatorForLifetime(base::kMediumTerm))
+                  Shader(set.tess_evaluation_source_composer->GetSource())));
+    program->GetTessEvalShader()->SetLabel(
+        name + " tessellation evaluation shader");
+  }
+
+  if (set.geometry_source_composer.Get() != nullptr) {
+    program->SetGeometryShader(
+        ShaderPtr(new(GetAllocatorForLifetime(base::kMediumTerm))
+                  Shader(set.geometry_source_composer->GetSource())));
+    program->GetGeometryShader()->SetLabel(name + " geometry shader");
+  }
+
+  if (set.fragment_source_composer.Get() != nullptr) {
+    program->SetFragmentShader(ShaderPtr(new (GetAllocatorForLifetime(
+        base::kMediumTerm)) Shader(set.fragment_source_composer->GetSource())));
+    program->GetFragmentShader()->SetLabel(name + " fragment shader");
+  }
+
+  info.vertex_source_composer = set.vertex_source_composer;
+  info.fragment_source_composer = set.fragment_source_composer;
+  info.geometry_source_composer = set.geometry_source_composer;
+  info.tess_control_source_composer = set.tess_control_source_composer;
+  info.tess_evaluation_source_composer = set.tess_evaluation_source_composer;
   data_->AddProgramInfo(name, info);
 
   return program;
+}
+
+const ShaderProgramPtr ShaderManager::CreateShaderProgram(
+    const std::string& name, const ion::gfx::ShaderInputRegistryPtr& registry,
+    const ShaderSourceComposerPtr& vertex_source_composer,
+    const ShaderSourceComposerPtr& fragment_source_composer,
+    const ShaderSourceComposerPtr& geometry_source_composer) {
+  ShaderSourceComposerSet set;
+  set.vertex_source_composer = vertex_source_composer;
+  set.fragment_source_composer = fragment_source_composer;
+  set.geometry_source_composer = geometry_source_composer;
+  return CreateShaderProgram(name, registry, set);
 }
 
 const ShaderProgramPtr ShaderManager::GetShaderProgram(
@@ -217,9 +297,25 @@ const std::vector<std::string> ShaderManager::GetShaderProgramNames() {
 void ShaderManager::GetShaderProgramComposers(
     const std::string& name,
     ShaderSourceComposerPtr* vertex_source_composer,
-    ShaderSourceComposerPtr* fragment_source_composer) {
-  data_->GetShaderProgramComposers(name, vertex_source_composer,
-                                   fragment_source_composer);
+    ShaderSourceComposerPtr* fragment_source_composer,
+    ShaderSourceComposerPtr* geometry_source_composer) {
+  ShaderSourceComposerSet set;
+  data_->GetShaderProgramComposers(name, &set);
+  if (vertex_source_composer) {
+    *vertex_source_composer = set.vertex_source_composer;
+  }
+  if (fragment_source_composer) {
+    *fragment_source_composer = set.fragment_source_composer;
+  }
+  if (geometry_source_composer) {
+    *geometry_source_composer = set.geometry_source_composer;
+  }
+}
+
+void ShaderManager::GetShaderProgramComposers(
+    const std::string& name,
+    ShaderManager::ShaderSourceComposerSet* set) {
+  data_->GetShaderProgramComposers(name, set);
 }
 
 void ShaderManager::RecreateAllShaderPrograms() {

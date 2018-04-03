@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -104,10 +104,22 @@ static bool GlyphQuadNear(const Layout::Glyph& glyph,
          PointXYNear(glyph.quad.points[3], Point2f(xmin, ymax));
 }
 
+// Checks that the layout's Position and Size are close to expectations.
+static void CheckPositionAndSize(const Layout& layout, const Point2f& position,
+                                 const Vector2f& size) {
+  // Quite a large error, as this is comparing two different font
+  // implementations.
+  static const float kError = 0.03f;
+  EXPECT_NEAR(position[0], layout.GetPosition()[0], kError);
+  EXPECT_NEAR(position[1], layout.GetPosition()[1], kError);
+  EXPECT_NEAR(size[0], layout.GetSize()[0], kError);
+  EXPECT_NEAR(size[1], layout.GetSize()[1], kError);
+}
+
 TEST(PlatformFontTest, ValidFont) {
   base::LogChecker logchecker;
   std::vector<FontPtr> fonts = SimpleTestFonts(4);
-  for (FontPtr font : fonts) {
+  for (const FontPtr& font : fonts) {
     EXPECT_EQ("Test", font->GetName());
     EXPECT_EQ(32U, font->GetSizeInPixels());
     EXPECT_EQ(4U, font->GetSdfPadding());
@@ -115,6 +127,7 @@ TEST(PlatformFontTest, ValidFont) {
     // FontMetrics.
     const Font::FontMetrics& fmet = font->GetFontMetrics();
     EXPECT_EQ(38.f, fmet.line_advance_height);
+    EXPECT_NEAR(25.4f, fmet.ascender, 0.2f);
   }
 }
 
@@ -122,7 +135,7 @@ TEST(PlatformFontTest, GlyphGrid) {
   // Tests basic properties of the GlyphGrid for a few characters.
   base::LogChecker logchecker;
   std::vector<FontPtr> fonts = SimpleTestFonts(4);
-  for (FontPtr font : fonts) {
+  for (const FontPtr& font : fonts) {
     {
       // Valid glyph for the letter 'A'.
       const Font::GlyphGrid& grid =
@@ -151,7 +164,7 @@ TEST(PlatformFontTest, SimpleLayout) {
   // sane values. The allowed error bounds reflect the differences between
   // CoreText and FreeType font rendering.
   std::vector<FontPtr> fonts = SimpleTestFonts(4);
-  for (FontPtr font : fonts) {
+  for (const FontPtr& font : fonts) {
     LayoutOptions options;
     Layout l = font->BuildLayout("Abcd", options);
 
@@ -162,6 +175,34 @@ TEST(PlatformFontTest, SimpleLayout) {
     EXPECT_TRUE(GlyphQuadNear(l.GetGlyph(2), 1.03f, 1.69f, -0.16f,  0.68f));
     EXPECT_TRUE(GlyphQuadNear(l.GetGlyph(3), 1.48f, 2.16f, -0.15f, 0.84f));
 
+    CheckPositionAndSize(l, Point2f(0.f, -0.03f), Vector2f(2.03f, 0.75f));
+
+    EXPECT_EQ(1.1875f, l.GetLineAdvanceHeight());
+  }
+}
+
+TEST(PlatformFontTest, MetricsBasedAlignment) {
+  // Lays out a simple line of text and checks position and size after using
+  // metrics_based_alignment. The allowed error bounds reflect the differences
+  // between CoreText and FreeType font rendering.
+  std::vector<FontPtr> fonts = SimpleTestFonts(4);
+  for (const FontPtr& font : fonts) {
+    LayoutOptions options;
+    options.metrics_based_alignment = true;
+    Layout l = font->BuildLayout("Abcd", options);
+
+    EXPECT_EQ(l.GetGlyphCount(), 4U);
+
+    // Glyphs didnt change size.
+    EXPECT_TRUE(GlyphQuadNear(l.GetGlyph(0), -0.09f, 0.75f, -0.12f, 0.84f));
+    EXPECT_TRUE(GlyphQuadNear(l.GetGlyph(1), 0.56f, 1.25f, -0.16f, 0.84f));
+    EXPECT_TRUE(GlyphQuadNear(l.GetGlyph(2), 1.03f, 1.69f, -0.16f,  0.68f));
+    EXPECT_TRUE(GlyphQuadNear(l.GetGlyph(3), 1.48f, 2.16f, -0.15f, 0.84f));
+
+    // Width uses advance instead of bitmap_offset + size;
+    // Height uses full ascender and descender that add up to font size.
+    CheckPositionAndSize(l, Point2f(0.f, -0.20f), Vector2f(2.08f, 1.00f));
+
     EXPECT_EQ(1.1875f, l.GetLineAdvanceHeight());
   }
 }
@@ -170,10 +211,17 @@ TEST(PlatformFontTest, TargetSize) {
   // This builds a Layout that uses the full height and width of each glyph and
   // checks the bounds of the resulting text rectangle to verify the scale.
   std::vector<FontPtr> fonts = SimpleTestFonts(4);
-  for (FontPtr font : fonts) {
+  for (const FontPtr& font : fonts) {
     LayoutOptions options;
     options.horizontal_alignment = kAlignLeft;
     options.vertical_alignment = kAlignBaseline;
+
+    // Any negative size should fail to layout.
+    LayoutOptions invalid_options = options;
+    invalid_options.target_size.Set(-200.f, 0.0f);
+    EXPECT_EQ(font->BuildLayout("####", invalid_options).GetGlyphCount(), 0u);
+    invalid_options.target_size.Set(0.f, -200.0f);
+    EXPECT_EQ(font->BuildLayout("####", invalid_options).GetGlyphCount(), 0u);
 
     // Scale specified as width only.
     options.target_size.Set(200.f, 0.0f);
@@ -209,7 +257,7 @@ TEST(PlatformFontTest, TargetSize) {
 TEST(PlatformFontTest, TargetPoint) {
   // Verify the behavior of LayoutOptions::target_point.
   std::vector<FontPtr> fonts = SimpleTestFonts(4);
-  for (FontPtr font : fonts) {
+  for (const FontPtr& font : fonts) {
     LayoutOptions options;
     options.horizontal_alignment = kAlignLeft;
     options.vertical_alignment = kAlignBaseline;
@@ -232,7 +280,7 @@ TEST(PlatformFontTest, TargetPoint) {
 TEST(PlatformFontTest, LineSpacing) {
   // Verify the behavior of LayoutOptions::line_spacing.
   std::vector<FontPtr> fonts = SimpleTestFonts(4);
-  for (FontPtr font : fonts) {
+  for (const FontPtr& font : fonts) {
     LayoutOptions options;
 
     // Create two multiline layouts, one with vanilla line_spacing (1) and the
@@ -265,7 +313,7 @@ TEST(PlatformFontTest, LineSpacing) {
 TEST(PlatformFontTest, Space) {
   // Test that the horizontal advance for a space is reasonable.
   std::vector<FontPtr> fonts = SimpleTestFonts(4);
-  for (FontPtr font : fonts) {
+  for (const FontPtr& font : fonts) {
     LayoutOptions options;
     options.horizontal_alignment = kAlignLeft;
     options.vertical_alignment = kAlignBaseline;
@@ -280,7 +328,7 @@ TEST(PlatformFontTest, Space) {
 
 TEST(PlatformFontTest, MultiLine) {
   std::vector<FontPtr> fonts = SimpleTestFonts(0);
-  for (FontPtr font : fonts) {
+  for (const FontPtr& font : fonts) {
     LayoutOptions options;
     options.target_size = Vector2f(0, 100);
 
@@ -353,12 +401,12 @@ TEST(PlatformFontTest, FontAdvancedLayout) {
   std::string no_reph_str = "मारग";
   std::string with_reph_str = "मार्ग";
   std::vector<FontPtr> fonts = ComplexTestFonts();
-  for (FontPtr font : fonts) {
+  for (const FontPtr& font : fonts) {
     LayoutOptions options;
     Layout no_reph = font->BuildLayout(no_reph_str, options);
     Layout with_reph = font->BuildLayout(with_reph_str, options);
-    GlyphSet no_reph_glyphs(base::AllocatorPtr(NULL));
-    GlyphSet with_reph_glyphs(base::AllocatorPtr(NULL));
+    GlyphSet no_reph_glyphs(base::AllocatorPtr(nullptr));
+    GlyphSet with_reph_glyphs(base::AllocatorPtr(nullptr));
     no_reph.GetGlyphSet(&no_reph_glyphs);
     with_reph.GetGlyphSet(&with_reph_glyphs);
     // Both layouts end up with 4 glyphs, but they are not the same glyphs!

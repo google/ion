@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ limitations under the License.
 #include <memory>
 
 #include "ion/gfx/tests/mockresource.h"
+#include "absl/memory/memory.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
 namespace ion {
@@ -30,7 +31,7 @@ typedef testing::MockResource<Shader::kNumChanges> MockShaderResource;
 class ShaderTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    resource_.reset(new MockShaderResource);
+    resource_ = absl::make_unique<MockShaderResource>();
     shader_.Reset(new Shader());
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());
     shader_->SetResource(0U, 0U, resource_.get());
@@ -41,7 +42,7 @@ class ShaderTest : public ::testing::Test {
   }
 
   // This is to ensure that the resource holder goes away before the resource.
-  void TearDown() override { shader_.Reset(NULL); }
+  void TearDown() override { shader_.Reset(nullptr); }
 
   std::unique_ptr<MockShaderResource> resource_;
   ShaderPtr shader_;

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -57,7 +57,7 @@ source tree.
 
 The files are zipped up using python's zip compression and saved in a memory
 array; they are not written to a zip file. Instead, the zip data is written to
-a .cc file that contins a single, namespace-wrapped static function called
+a .cc file that contains a single, namespace-wrapped static function called
 RegisterAssets(). This function registers the zip data with Ion's
 ZipAssetManager. The namespace containing the function is the name passed to
 the IAD's "name" tag. For example, a definition file with name "MyAssets"
@@ -106,6 +106,23 @@ def GetPathToAsset(asset, search_paths):
       if os.path.exists(asset_filename):
         return asset_filename
   return None
+
+
+#------------------------------------------------------------------------------
+def GetIdentifyingAssetPath(abs_path):
+  """Returns a path suitable for identifying an asset.
+
+  Args:
+    abs_path: string - an absolute path to a an asset file.
+
+  Returns:
+    A string that is either the absolute path or a source-tree relative path,
+    depending on the contents of the path. Some distributed build systems use
+    auto-generated paths which make the absolute path non-deterministic across
+    build machines. If this case is detected, a source-tree relative path is
+    returned instead.
+  """
+  return abs_path
 
 
 #------------------------------------------------------------------------------
@@ -191,17 +208,26 @@ def BuildAssetZip(asset_file, search_paths):
   zip_file = zipfile.ZipFile(in_memory_zip, 'w',
                              compression=zipfile.ZIP_DEFLATED)
 
+  # Use a dummy time so that the generated zip data is deterministic even if
+  # built across distributed machines.
+  dummy_date = (2017, 1, 1, 1, 0, 0)
   # Keep track of what the absolute path is for each file in the zip.
   manifest_file = StringIO.StringIO()
   # Write each file to the zip using the manifest name.
   original_size = 0
   for (local_name, zip_name) in manifest:
     original_size += os.path.getsize(local_name)
-    zip_file.write(local_name, zip_name)
-    manifest_file.write('%s|%s\n' % (zip_name, local_name))
+    internal_name = zip_name.lstrip('/')
+    info = zipfile.ZipInfo(internal_name, dummy_date)
+    with open(local_name, 'rb') as f:
+      data = f.read()
+      zip_file.writestr(info, data, zipfile.ZIP_DEFLATED)
+    manifest_file.write('%s|%s\n' % (zip_name,
+                                     GetIdentifyingAssetPath(local_name)))
 
   # Write the special manifest file.
-  zip_file.writestr('__asset_manifest__.txt', manifest_file.getvalue())
+  info = zipfile.ZipInfo('__asset_manifest__.txt', dummy_date)
+  zip_file.writestr(info, manifest_file.getvalue(), zipfile.ZIP_DEFLATED)
   zip_file.close()
 
   # Pad the zip if it is not 4-byte aligned since we will encode it as 32-bit
@@ -292,10 +318,10 @@ def GenerateZipAsset(asset_file, search_paths, source_name):
 
 #------------------------------------------------------------------------------
 def main():
-  if len(sys.argv) < 2 or len(sys.argv) > 4:
-    print (('Usage: %s <asset definition file> <search path> '
-            '[<generated source file>]' % sys.argv[0]) +
-           '  Both files are relative to the directory in which this is run.')
+  if len(sys.argv) < 2:
+    print(('Usage: %s <asset definition file> <search path> '
+           '[[<generated source file>] <constituent file ...>]' % sys.argv[0]) +
+          '  All files are relative to the directory in which this is run.')
   else:
     # Save the full absolute path to the input and output files.
     cur_dir = os.getcwd()
@@ -305,12 +331,20 @@ def main():
     # Assume that the 'ion' directory is top-level.
     root_path = os.path.join(os.path.dirname(__file__), '..', '..')
     root_path = os.path.abspath(root_path)
-    search_paths = [os.path.dirname(os.path.abspath(sys.argv[1])), root_path,
-                    os.path.abspath(sys.argv[2])]
+    source_basedirs = []
+    if len(sys.argv) > 4:
+      source_basedirs = [
+          os.path.dirname(os.path.abspath(source)) for source in sys.argv[4:]
+      ]
+    search_paths = [
+        os.path.dirname(os.path.abspath(sys.argv[1])), root_path,
+        os.path.abspath(sys.argv[2])
+    ] + list(set(source_basedirs))
 
     asset_file_path = os.path.join(cur_dir, sys.argv[1])
-    output_file_path = (os.path.join(cur_dir, sys.argv[3]) if len(sys.argv) == 4
-                        else asset_file_path + '.cc')
+    output_file_path = (
+        os.path.join(cur_dir, sys.argv[3])
+        if len(sys.argv) >= 4 else asset_file_path + '.cc')
     # Change to the directory containing the asset file so that relative paths
     # are correct.
     os.chdir(os.path.dirname(asset_file_path))

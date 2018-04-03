@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -58,6 +58,12 @@ struct FreeTypeFontTransformData {
   std::vector<math::Vector2f> line_translations;
   // How much to translate each successive line in y, in pixels.
   float line_y_offset_in_pixels;
+  // Additional horizontal distance between glyphs in physical pixels.
+  float glyph_spacing;
+  // Bottom-left position of the entire text rectangle in physical pixels.
+  math::Point2f position;
+  // Size of the entire text rectangle in physical pixels.
+  math::Vector2f size;
 };
 
 // Lines of text from a single string (usually split on '\n').
@@ -66,7 +72,7 @@ typedef std::vector<std::string> Lines;
 // Computes the size of text and returns it as a TextSize instance. Widths
 // include spaces at the ends of the text lines, if any.
 //
-// TODO(bug): ideally can combine this (computing ascent/descent) with
+// NOTE: could combine this (computing ascent/descent) with
 // the actual layout done by the layout engine to avoid double-work.
 const TextSize ComputeTextSize(const FreeTypeFont& font,
                                const LayoutOptions& options,

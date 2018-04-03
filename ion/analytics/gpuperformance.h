@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -53,9 +53,11 @@ namespace analytics {
 // --- Triangles
 // --- Lines
 // --- Points
+// --- Patches
 // --- Triangle percent (triangles/primitives)
 // --- Line percent (lines/primitives)
 // --- Point percent (points/primitives)
+// --- Patch percent (patches/primitives)
 // --- Vertices/shape
 // --- Primitives/shape
 // - Number of trials used to compute averages
@@ -123,7 +125,7 @@ class ION_API GpuPerformanceTester {
     double maximum;
   };
 
-  // TODO(user): Reorganize ConstantIndices and VariableIndices
+  // 
   // enums alphabetically for improved readability. Requires
   // additional changes to Benchmark interface
 
@@ -141,9 +143,11 @@ class ION_API GpuPerformanceTester {
     kTriangleCount,
     kLineCount,
     kPointCount,
+    kPatchesCount,
     kTrianglePercent,
     kLinePercent,
     kPointPercent,
+    kPatchesPercent,
     kVerticesPerShape,
     kPrimitivesPerShape,
     kTrialCount,
@@ -157,7 +161,7 @@ class ION_API GpuPerformanceTester {
     kTotalGpuMemory
   };
 
-  // TODO(user) possibly add triangle(primitive) area? a bit expensive...
+  // 
 
   enum VariableIndices {
     kFramesPerSecond,
@@ -241,7 +245,7 @@ class ION_API GpuPerformanceTester {
 
   // Measures performance of state changes, i.e. traverse scene without
   // actually rendering any geometry.
-  // TODO(user): test wether state changes are deferred on any of our test
+  // 
   // platforms, consider adding trivial geometry draw to insure a meaningful
   // measurement.
   virtual Measurement MeasureStateChanges(
@@ -260,31 +264,34 @@ class ION_API GpuPerformanceTester {
   // measurements.
   static gfx::NodePtr InstanceCopy(const gfx::NodePtr& scene);
 
-  uint32 number_of_trials_;
+  uint32 number_of_trials_ = 5;
   uint32 width_;
   uint32 height_;
 
   // Enable and disable measurement phases
-  Enables enables_;
+  Enables enables_ = static_cast<Enables>(kConstants | kBaseline | kNoDraw |
+                                          kMinimumViewport |kGpuMemory |
+                                          kGlTrace);
 
   // The finalized benchmark data.
   Benchmark benchmark_;
 
   // Benchmark data in progress.
-  int num_nodes_;
-  int num_shapes_;
-  int num_draws_;
-  int num_vertices_;
-  int num_triangles_;
-  int num_lines_;
-  int num_points_;
-  size_t num_bind_shader_;
-  size_t num_bind_texture_;
-  size_t num_set_uniform_;
-  size_t buffer_memory_;
-  size_t fbo_memory_;
-  size_t texture_memory_;
-  size_t framebuffer_memory_;
+  int num_nodes_ = 0;
+  int num_shapes_ = 0;
+  int num_draws_ = 0;
+  int num_vertices_ = 0;
+  int num_triangles_ = 0;
+  int num_lines_ = 0;
+  int num_points_ = 0;
+  int num_patches_ = 0;
+  size_t num_bind_shader_ = 0;
+  size_t num_bind_texture_ = 0;
+  size_t num_set_uniform_ = 0;
+  size_t buffer_memory_ = 0;
+  size_t fbo_memory_ = 0;
+  size_t texture_memory_ = 0;
+  size_t framebuffer_memory_ = 0;
   Benchmark::AccumulatedVariable baseline_;
   Benchmark::AccumulatedVariable baseline_inverse_;
   Benchmark::AccumulatedVariable resource_;

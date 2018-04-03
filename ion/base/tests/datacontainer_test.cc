@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -78,7 +78,7 @@ class MyNotifier : public Notifier {
   ~MyNotifier() override {}
   size_t notifications_;
 };
-typedef base::ReferentPtr<MyNotifier>::Type MyNotifierPtr;
+using MyNotifierPtr = base::SharedPtr<MyNotifier>;
 
 }  // anonymous namespace
 
@@ -92,8 +92,8 @@ TEST(DataContainerTest, Create) {
   // Check that DeleteData is not called if data is NULL.
   {
     DataContainerPtr container(
-        DataContainer::Create<Data>(NULL, deleter, false, AllocatorPtr()));
-    EXPECT_TRUE(container->GetData() == NULL);
+        DataContainer::Create<Data>(nullptr, deleter, false, AllocatorPtr()));
+    EXPECT_TRUE(container->GetData() == nullptr);
     EXPECT_FALSE(container->IsWipeable());
   }
   EXPECT_EQ(0U, s_num_destroys);
@@ -120,7 +120,7 @@ TEST(DataContainerTest, Create) {
 
     DataContainerPtr container2(
         DataContainer::Create<Data>(data, deleter, false, AllocatorPtr()));
-    EXPECT_TRUE(container2.Get() == NULL);
+    EXPECT_TRUE(container2.Get() == nullptr);
 
     EXPECT_TRUE(log_checker.HasMessage("ERROR",
                                        "Duplicate client-space pointer"));
@@ -167,12 +167,12 @@ TEST(DataContainerTest, Create) {
     EXPECT_EQ(data, container->GetData());
     EXPECT_EQ(0U, s_num_destroys);
     Data* ptr = container->GetMutableData<Data>();
-    EXPECT_TRUE(ptr != NULL);
+    EXPECT_TRUE(ptr != nullptr);
     EXPECT_FALSE(log_checker.HasAnyMessages());
     container->WipeData();
     EXPECT_EQ(1U, s_num_destroys);
     ptr = container->GetMutableData<Data>();
-    EXPECT_TRUE(ptr == NULL);
+    EXPECT_TRUE(ptr == nullptr);
     EXPECT_TRUE(log_checker.HasMessage(
         "ERROR", "GetMutableData() called on NULL (or wiped) DataContainer"));
   }
@@ -189,7 +189,7 @@ TEST(DataContainerTest, Create) {
     EXPECT_EQ(data, container->GetData());
     EXPECT_EQ(0U, s_num_destroys);
     Data* ptr = container->GetMutableData<Data>();
-    EXPECT_TRUE(ptr != NULL);
+    EXPECT_TRUE(ptr != nullptr);
     EXPECT_FALSE(log_checker.HasAnyMessages());
     container->WipeData();
     EXPECT_EQ(0U, s_num_destroys);
@@ -245,13 +245,13 @@ TEST(DataContainerTest, CreateAndCopy) {
         data, kDataCount, true, AllocatorPtr()));
     CheckData(data, container->GetData<Data>());
     Data* ptr = container->GetMutableData<Data>();
-    EXPECT_TRUE(ptr != NULL);
+    EXPECT_TRUE(ptr != nullptr);
     EXPECT_FALSE(log_checker.HasAnyMessages());
     container->WipeData();
-    EXPECT_TRUE(container->GetData<Data>() == NULL);
+    EXPECT_TRUE(container->GetData<Data>() == nullptr);
     delete [] data;
     ptr = container->GetMutableData<Data>();
-    EXPECT_TRUE(ptr == NULL);
+    EXPECT_TRUE(ptr == nullptr);
     EXPECT_TRUE(log_checker.HasMessage(
         "ERROR", "GetMutableData() called on NULL (or wiped) DataContainer"));
   }
@@ -267,7 +267,7 @@ TEST(DataContainerTest, CreateAndCopy) {
     CheckData(data, container->GetData<Data>());
     delete [] data;
     Data* ptr = container->GetMutableData<Data>();
-    EXPECT_TRUE(ptr != NULL);
+    EXPECT_TRUE(ptr != nullptr);
     // There should be no error since the data was not wiped.
   }
   EXPECT_FALSE(log_checker.HasAnyMessages());
@@ -278,7 +278,7 @@ TEST(DataContainerTest, CreateOverAllocated) {
   // Check that the container has data.
   {
     DataContainerPtr container(DataContainer::CreateOverAllocated<Data>(
-        kDataCount, NULL, AllocatorPtr()));
+        kDataCount, nullptr, AllocatorPtr()));
     EXPECT_GE(container->GetData(), container.Get() + 1);
     // Check that the data pointer is 16-byte aligned.
     EXPECT_EQ(0U, reinterpret_cast<size_t>(container->GetData<Data>()) % 16U);
@@ -286,7 +286,7 @@ TEST(DataContainerTest, CreateOverAllocated) {
     container->WipeData();
     EXPECT_GE(container->GetData(), container.Get() + 1);
     Data* ptr = container->GetMutableData<Data>();
-    EXPECT_TRUE(ptr != NULL);
+    EXPECT_TRUE(ptr != nullptr);
   }
 
   // Check that the data is copied correctly.
@@ -300,7 +300,7 @@ TEST(DataContainerTest, CreateOverAllocated) {
     CheckData(data, container->GetData<Data>());
     delete [] data;
     Data* ptr = container->GetMutableData<Data>();
-    EXPECT_TRUE(ptr != NULL);
+    EXPECT_TRUE(ptr != nullptr);
   }
   EXPECT_FALSE(log_checker.HasAnyMessages());
 }
@@ -331,7 +331,7 @@ TEST(DataContainerTest, Allocator) {
     // Check that the container has data.
     {
       DataContainerPtr container(DataContainer::CreateOverAllocated<Data>(
-          kDataCount, NULL, allocator));
+          kDataCount, nullptr, allocator));
       EXPECT_GE(container->GetData(), container.Get() + 1);
       // Check that the data pointer is 16-byte aligned.
       EXPECT_EQ(0U, reinterpret_cast<size_t>(container->GetData<Data>()) % 16U);
@@ -367,7 +367,7 @@ TEST(DataContainerTest, Notifications) {
   MyNotifierPtr n(new MyNotifier);
 
   DataContainerPtr container(DataContainer::CreateOverAllocated<Data>(
-      kDataCount, NULL, AllocatorPtr()));
+      kDataCount, nullptr, AllocatorPtr()));
   container->AddReceiver(n.Get());
 
   EXPECT_EQ(0U, n->GetNotificationCount());

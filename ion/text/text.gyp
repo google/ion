@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,7 +28,6 @@
     {
       'type': 'static_library',
       'target_name' : 'iontext',
-
       'sources': [
         'basicbuilder.cc',
         'basicbuilder.h',
@@ -43,6 +42,8 @@
         'fontmacros.h',
         'fontmanager.cc',
         'fontmanager.h',
+        'icuutils.cc',
+        'icuutils.h',
         'layout.cc',
         'layout.h',
         'outlinebuilder.cc',
@@ -54,7 +55,6 @@
         '../gfx/gfx.gyp:iongfx',
         '../gfxutils/gfxutils.gyp:iongfxutils',
         '<(ion_dir)/base/base.gyp:ionbase',
-        '<(ion_dir)/image/image.gyp:ionimage',
         '<(ion_dir)/port/port.gyp:ionport',
       ],
       'conditions': [
@@ -72,8 +72,16 @@
         }, {  # else
           'conditions': [
             ['use_icu', {
+              'include_dirs': [
+                '<(root_dir)/third_party/icu/icu4c/source/common', # For cmemory.h
+              ],
               'dependencies': [
                 '<(ion_dir)/external/iculx_hb.gyp:ioniculx_hb',
+              ],
+              'defines': [
+                'U_STATIC_IMPLEMENTATION',
+                'U_IMPORT=',
+                'U_EXPORT=',
               ],
             }],  # use_icu
           ],
@@ -113,6 +121,7 @@
         'tests/buildertestbase.h',
         'tests/mockfont.h',
         'tests/mockfontimage.h',
+        'tests/mockfontmanager.h',
         'tests/testfont.cc',
         'tests/testfont.h',
       ],
@@ -137,7 +146,6 @@
         '../base/base.gyp:ionbase_for_tests',
         '../gfx/gfx.gyp:iongfx',
         '../gfxutils/gfxutils.gyp:iongfxutils_for_tests',
-        '../image/image.gyp:ionimage_for_tests',
       ],
     },  # target: iontext_for_tests
   ],  # targets

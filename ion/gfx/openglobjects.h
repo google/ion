@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ struct ArrayInfo : T {
           stride(0U),
           type(GL_FLOAT),
           normalized(GL_FALSE),
-          pointer(NULL),
+          pointer(nullptr),
           value(0.f, 0.f, 0.f, 1.f),
           divisor(0U) {}
     // The OpenGL name of the array buffer when the attribute pointer was set.
@@ -86,13 +86,13 @@ struct BufferInfo : T {
   BufferInfo()
       : size(-1),
         usage(0),
-        mapped_data(NULL) {}
+        mapped_data(nullptr) {}
   // The number of bytes of buffer data.
   GLsizeiptr size;
   // The usage pattern, one of GL_STREAM_DRAW, GL_STATIC_DRAW, or
   // GL_DYNAMIC_DRAW.
   GLenum usage;
-  // The data pointer of the buffer if it is mapped, or NULL.
+  // The data pointer of the buffer if it is mapped, or nullptr.
   GLvoid* mapped_data;
 };
 
@@ -100,7 +100,14 @@ struct BufferInfo : T {
 template <typename T>
 struct FramebufferInfo : T {
   struct Attachment {
-    Attachment() : type(GL_NONE), value(0), level(0), cube_face(0) {}
+    Attachment()
+        : type(GL_NONE),
+          value(0),
+          level(0),
+          cube_face(0),
+          layer(0),
+          texture_samples(0),
+          num_views(0) {}
     // The type of the attachment, one of GL_RENDERBUFFER, GL_TEXTURE, or if no
     // image is attached, GL_NONE.
     GLenum type;
@@ -112,12 +119,35 @@ struct FramebufferInfo : T {
     // The cube map face of the texture if the attachment is a cube map texture
     // object.
     GLenum cube_face;
+    // Target texture layer of a layer attachment. For multiview attachments,
+    // this holds the base view index.
+    GLint layer;
+    // Number of samples for implicit texture multisampling (for the extension
+    // EXT_multisampled_render_to_texture).
+    GLsizei texture_samples;
+    // Number of views (for multiview extension).
+    GLsizei num_views;
+
+    bool operator==(const Attachment& other) const {
+      return type == other.type && value == other.value &&
+          level == other.level && cube_face == other.cube_face &&
+          layer == other.layer && texture_samples == other.texture_samples &&
+          num_views == other.num_views;
+    }
+    bool operator!=(const Attachment& other) const {
+      return !(*this == other);
+    }
   };
-  FramebufferInfo() {}
+  FramebufferInfo()
+      : color(1),
+        draw_buffers(1, GL_NONE),
+        read_buffer(GL_NONE) {}
   // Attachments.
-  Attachment color0;
+  std::vector<Attachment> color;
   Attachment depth;
   Attachment stencil;
+  std::vector<GLenum> draw_buffers;
+  GLenum read_buffer;
 };
 
 // A ProgramInfo corresponds to an OpenGL Program Object.
@@ -181,24 +211,29 @@ struct ProgramInfo : T {
     // The name of the varying in the program.
     std::string name;
   };
-  ProgramInfo()
-      : vertex_shader(0U),
-        fragment_shader(0U),
-        delete_status(GL_FALSE),
-        link_status(GL_FALSE),
-        validate_status(GL_FALSE) {}
+
   // The OpenGL id of the vertex shader of the program.
-  GLuint vertex_shader;
+  GLuint vertex_shader = 0U;
+  // The OpenGL id of the tessellation control shader of the program.
+  GLuint tess_ctrl_shader = 0U;
+  // The OpenGL id of the tessellation evaluation shader of the program.
+  GLuint tess_eval_shader = 0U;
+  // The OpenGL id of the geometry shader of the program.
+  GLuint geometry_shader = 0U;
+
   // The OpenGL id of the fragment shader of the program.
-  GLuint fragment_shader;
+  GLuint fragment_shader = 0U;
   // The attributes, uniforms and varyings used in the program.
   std::vector<Attribute> attributes;
   std::vector<Uniform> uniforms;
   std::vector<Varying> varyings;
+  // The state set by glTransformFeedbackVaryings.
+  std::vector<std::string> requested_tf_varyings;
+  GLenum transform_feedback_mode = GL_NONE;
   // The delete, link, and validate status.
-  GLboolean delete_status;
-  GLboolean link_status;
-  GLboolean validate_status;
+  GLboolean delete_status = GL_FALSE;
+  GLboolean link_status = GL_FALSE;
+  GLboolean validate_status = GL_FALSE;
   // The latest info log of the program.
   std::string info_log;
 };
@@ -302,21 +337,23 @@ struct SyncInfo : T {
 // A TransformFeedbackInfo corresponds to an OpenGL TransformFeedback Object.
 template <typename T>
 struct TransformFeedbackInfo : T {
-  TransformFeedbackInfo()
-      : target(GL_TRANSFORM_FEEDBACK_BUFFER),
-        varyings(nullptr),
-        status(static_cast<GLenum>(-1)),
-        primitive_count(0) {}
-  // The generic buffer binding target GL_TRANSFORM_FEEDBACK_BUFFER.
-  GLenum target;
-  // An array of count zero-terminated strings specifying the names of the
-  // varying variables to use for transform feedback.
-  const char** varyings;
-  // The status of transform feedback: Whether it is active or paused.
-  GLenum status;
-  // The count of primitives and so forth recorded by the current feedback
-  // operation, if available.
-  GLuint primitive_count;
+  // Each attribute stream specifies where a varying gets recorded.
+  // Multiple streams are useful only when SEPARATE_ATTRIBS mode is enabled.
+  struct AttributeStream {
+    GLuint buffer;
+    GLintptr start;
+    GLsizeiptr size;
+  };
+  std::vector<AttributeStream> streams;
+  // The vertex buffer that records interleaved varyings while transform
+  // feedback is active.
+  GLuint buffer = 0;
+  // This is true only when the user explicity pauses the transform feedback
+  // object (Ion does not support this feature yet).
+  GLboolean paused = GL_FALSE;
+  // This is true only when a transform feedback object is bound and actively
+  // recording varyings.
+  GLboolean active = GL_FALSE;
 };
 
 // A TextureInfo corresponds to an OpenGL Texture Object.
@@ -332,6 +369,7 @@ struct TextureInfo : T {
         max_lod(1000.f),
         min_filter(GL_NEAREST_MIPMAP_LINEAR),
         mag_filter(GL_LINEAR),
+        is_protected(GL_FALSE),
         samples(0),
         fixed_sample_locations(true),
         swizzle_r(GL_RED),
@@ -341,8 +379,9 @@ struct TextureInfo : T {
         wrap_r(GL_REPEAT),
         wrap_s(GL_REPEAT),
         wrap_t(GL_REPEAT),
-        target(static_cast<GLenum>(-1))
-  {}
+        target(static_cast<GLenum>(-1)),
+        foveated_bits(0),
+        foveated_min_pixel_density(0.0f) {}
   GLint base_level;
   GLint max_level;
   // The comparison function and mode of the texture.
@@ -356,6 +395,8 @@ struct TextureInfo : T {
   // The filter modes of the texture.
   GLenum min_filter;
   GLenum mag_filter;
+  // Whether the texture is protected.
+  GLboolean is_protected;
   // Texture samples.
   GLuint samples;
   GLboolean fixed_sample_locations;
@@ -370,6 +411,10 @@ struct TextureInfo : T {
   GLenum wrap_t;
   // The texture target.
   GLenum target;
+  // The Qualcomm hardware foveation parameter.
+  GLint foveated_bits;
+  // Minimum ratio of computed pixels over displayed pixels (downsampling).
+  GLfloat foveated_min_pixel_density;
 };
 
 // A TimerInfo corresponds to an OpenGL Timer Query Object.

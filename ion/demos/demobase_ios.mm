@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,8 +15,9 @@ limitations under the License.
 
 */
 
-#include "ion/demos/demobase.h"
 #include "ion/demos/demobase_ios.h"
+
+#include "ion/demos/demobase.h"
 
 #if !defined(__has_feature) || !__has_feature(objc_arc)
 #error "This file requires ARC support. Compile with -fobjc-arc"
@@ -30,7 +31,7 @@ limitations under the License.
 //-----------------------------------------------------------------------------
 
 @implementation IonDemo {
-  DemoBase* _demo;
+  std::unique_ptr<DemoBase> _demo;
   float _begin_scale;
   float _scale;
   CGPoint _rotate;
@@ -50,10 +51,6 @@ limitations under the License.
                        static_cast<int>(size.height));
   }
   return self;
-}
-
-- (void)dealloc {
-  delete _demo;
 }
 
 - (void)drawFrame {

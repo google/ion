@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -41,41 +41,41 @@ static bool FontImageHasGlyphForChar(const FontImage::ImageData& data,
 }
 
 TEST(FontImageTest, StaticFontImageEmpty) {
-  GlyphSet glyph_set(base::AllocatorPtr(NULL));
+  GlyphSet glyph_set(base::AllocatorPtr(nullptr));
   StaticFontImagePtr fi(new StaticFontImage(FontPtr(), 64U, glyph_set));
   EXPECT_EQ(FontImage::kStatic, fi->GetType());
-  EXPECT_TRUE(fi->GetFont().Get() == NULL);
+  EXPECT_FALSE(fi->GetFont());
   EXPECT_EQ(64U, fi->GetMaxImageSize());
   const FontImage::ImageData& data = fi->GetImageData();
   EXPECT_TRUE(data.texture->GetLabel().empty());
 }
 
 TEST(FontImageTest, StaticFontImageNullFont) {
-  // NULL Font results in an empty FontImage.
-  GlyphSet glyph_set(base::AllocatorPtr(NULL));
+  // Null Font results in an empty FontImage.
+  GlyphSet glyph_set(base::AllocatorPtr(nullptr));
   glyph_set.insert('A');
   FontPtr font;
   StaticFontImagePtr sfi(new StaticFontImage(font, 64U, glyph_set));
   const FontImage::ImageData& data = sfi->GetImageData();
   EXPECT_FALSE(base::IsInvalidReference(data));
-  EXPECT_FALSE(data.texture.Get() == NULL);
+  ASSERT_TRUE(data.texture);
   EXPECT_TRUE(data.texture->GetLabel().empty());
-  EXPECT_TRUE(data.texture->GetImage(0U).Get() == NULL);
+  EXPECT_FALSE(data.texture->GetImage(0U));
   EXPECT_EQ(0U, data.glyph_set.size());
   EXPECT_TRUE(data.texture_rectangle_map.empty());
 }
 
 TEST(FontImageTest, StaticFontImageNoChars) {
   // No characters results in an empty FontImage.
-  GlyphSet glyph_set(base::AllocatorPtr(NULL));
+  GlyphSet glyph_set(base::AllocatorPtr(nullptr));
   static const size_t kFontSize = 32U;
   static const size_t kSdfPadding = 16U;
   FontPtr font(new testing::MockFont(kFontSize, kSdfPadding));
   StaticFontImagePtr sfi(new StaticFontImage(font, 64U, glyph_set));
   const FontImage::ImageData& data = sfi->GetImageData();
-  EXPECT_FALSE(data.texture.Get() == NULL);
+  ASSERT_TRUE(data.texture);
   EXPECT_EQ("MockFont_32", data.texture->GetLabel());
-  EXPECT_TRUE(data.texture->GetImage(0U).Get() == NULL);
+  EXPECT_FALSE(data.texture->GetImage(0U));
   EXPECT_EQ(0U, data.glyph_set.size());
   EXPECT_TRUE(data.texture_rectangle_map.empty());
 }
@@ -89,14 +89,14 @@ TEST(FontImageTest, StaticFontImageFits) {
   const GlyphIndex glyph_A = font->GetDefaultGlyphForChar('A');
   const GlyphIndex glyph_b = font->GetDefaultGlyphForChar('b');
 
-  GlyphSet glyph_set(base::AllocatorPtr(NULL));
+  GlyphSet glyph_set(base::AllocatorPtr(nullptr));
   glyph_set.insert(glyph_A);
   glyph_set.insert(glyph_b);
   StaticFontImagePtr sfi(new StaticFontImage(font, 256U, glyph_set));
 
   const FontImage::ImageData& data = sfi->GetImageData();
-  EXPECT_FALSE(data.texture.Get() == NULL);
-  EXPECT_FALSE(data.texture->GetImage(0U).Get() == NULL);
+  ASSERT_TRUE(data.texture);
+  EXPECT_TRUE(data.texture->GetImage(0U));
   EXPECT_EQ("MockFont_32", data.texture->GetLabel());
 
   // Static font images do not use sub-images.
@@ -122,7 +122,7 @@ TEST(FontImageTest, StaticFontImageFits) {
   // Check the HasAllGlyphs() convenience function.
   EXPECT_TRUE(FontImage::HasAllGlyphs(data, glyph_set));
   {
-    GlyphSet glyph_set2(base::AllocatorPtr(NULL));
+    GlyphSet glyph_set2(base::AllocatorPtr(nullptr));
     glyph_set2 = glyph_set;
     glyph_set2.insert(font->GetDefaultGlyphForChar('B'));
     EXPECT_FALSE(FontImage::HasAllGlyphs(data, glyph_set2));
@@ -160,7 +160,7 @@ TEST(FontImageTest, StaticFontImageFitsWithDoubling) {
   static const size_t kFontSize = 32U;
   static const size_t kSdfPadding = 16U;
   testing::MockFontPtr font(new testing::MockFont(kFontSize, kSdfPadding));
-  GlyphSet glyph_set(base::AllocatorPtr(NULL));
+  GlyphSet glyph_set(base::AllocatorPtr(nullptr));
   const GlyphIndex glyph_A = font->GetDefaultGlyphForChar('A');
   const GlyphIndex glyph_b = font->GetDefaultGlyphForChar('b');
   const GlyphIndex glyph_hash = font->GetDefaultGlyphForChar('#');
@@ -169,9 +169,9 @@ TEST(FontImageTest, StaticFontImageFitsWithDoubling) {
   glyph_set.insert(glyph_hash);
   StaticFontImagePtr sfi(new StaticFontImage(font, 256U, glyph_set));
   const FontImage::ImageData& data = sfi->GetImageData();
-  EXPECT_FALSE(data.texture.Get() == NULL);
+  ASSERT_TRUE(data.texture);
   EXPECT_EQ("MockFont_32", data.texture->GetLabel());
-  EXPECT_FALSE(data.texture->GetImage(0U).Get() == NULL);
+  EXPECT_TRUE(data.texture->GetImage(0U));
   EXPECT_TRUE(data.texture->GetSubImages().empty());
 }
 
@@ -184,32 +184,32 @@ TEST(FontImageTest, StaticFontImageNoRoom) {
   const GlyphIndex glyph_b = font->GetDefaultGlyphForChar('b');
   const GlyphIndex glyph_hash = font->GetDefaultGlyphForChar('#');
   {
-    // This should result in a NULL image because the glyphs don't fit. In this
+    // This should result in a null image because the glyphs don't fit. In this
     // case the total glyph area is larger than the maximum area (128 squared).
-    GlyphSet glyph_set(base::AllocatorPtr(NULL));
+    GlyphSet glyph_set(base::AllocatorPtr(nullptr));
     glyph_set.insert(glyph_A);
     glyph_set.insert(glyph_b);
     glyph_set.insert(glyph_hash);
     StaticFontImagePtr sfi(new StaticFontImage(font, 128U, glyph_set));
     const FontImage::ImageData& data = sfi->GetImageData();
-    EXPECT_FALSE(data.texture.Get() == NULL);
+    EXPECT_TRUE(data.texture);
     EXPECT_EQ("MockFont_32", data.texture->GetLabel());
-    EXPECT_TRUE(data.texture->GetImage(0U).Get() == NULL);
+    EXPECT_FALSE(data.texture->GetImage(0U));
     EXPECT_TRUE(data.texture->GetSubImages().empty());
   }
 
   {
     // In this case the maximum area is large enough, but the glyphs can't be
     // arranged to fit.
-    GlyphSet glyph_set(base::AllocatorPtr(NULL));
+    GlyphSet glyph_set(base::AllocatorPtr(nullptr));
     glyph_set.insert(glyph_A);
     glyph_set.insert(glyph_b);
     glyph_set.insert(glyph_hash);
     StaticFontImagePtr sfi(new StaticFontImage(font, 200U, glyph_set));
     const FontImage::ImageData& data = sfi->GetImageData();
-    EXPECT_FALSE(data.texture.Get() == NULL);
+    ASSERT_TRUE(data.texture);
     EXPECT_EQ("MockFont_32", data.texture->GetLabel());
-    EXPECT_TRUE(data.texture->GetImage(0U).Get() == NULL);
+    EXPECT_FALSE(data.texture->GetImage(0U));
     EXPECT_TRUE(data.texture->GetSubImages().empty());
   }
 }
@@ -217,7 +217,7 @@ TEST(FontImageTest, StaticFontImageNoRoom) {
 TEST(FontImageTest, DynamicFontImageEmpty) {
   DynamicFontImagePtr dfi(new DynamicFontImage(FontPtr(), 64U));
   EXPECT_EQ(FontImage::kDynamic, dfi->GetType());
-  EXPECT_TRUE(dfi->GetFont().Get() == NULL);
+  EXPECT_FALSE(dfi->GetFont());
   EXPECT_EQ(64U, dfi->GetMaxImageSize());
   EXPECT_EQ(0U, dfi->GetImageDataCount());
   EXPECT_TRUE(base::IsInvalidReference(dfi->GetImageData(0)));
@@ -228,11 +228,11 @@ TEST(FontImageTest, DynamicFontImageEmpty) {
 }
 
 TEST(FontImageTest, DynamicFontImageNullFont) {
-  // NULL Font means that glyphs cannot be added.
+  // Null Font means that glyphs cannot be added.
   FontPtr font;
   DynamicFontImagePtr dfi(new DynamicFontImage(font, 64U));
-  GlyphSet glyph_set(base::AllocatorPtr(NULL));
-  glyph_set.insert(0x42);  // Arbitrary glyph index; font is NULL!
+  GlyphSet glyph_set(base::AllocatorPtr(nullptr));
+  glyph_set.insert(0x42);  // Arbitrary glyph index; font is null!
   EXPECT_TRUE(base::IsInvalidReference(dfi->FindImageData(glyph_set)));
   EXPECT_EQ(base::kInvalidIndex, dfi->FindImageDataIndex(glyph_set));
   EXPECT_EQ(base::kInvalidIndex, dfi->FindContainingImageDataIndex(glyph_set));
@@ -246,7 +246,7 @@ TEST(FontImageTest, DynamicFontImageNoChars) {
   DynamicFontImagePtr dfi(new DynamicFontImage(font, 64U));
 
   // Adding an empty GlyphSet to a DynamicFontImage should fail.
-  GlyphSet glyph_set(base::AllocatorPtr(NULL));
+  GlyphSet glyph_set(base::AllocatorPtr(nullptr));
   EXPECT_TRUE(base::IsInvalidReference(dfi->FindImageData(glyph_set)));
   EXPECT_EQ(base::kInvalidIndex, dfi->FindImageDataIndex(glyph_set));
   EXPECT_EQ(base::kInvalidIndex, dfi->FindContainingImageDataIndex(glyph_set));
@@ -274,7 +274,7 @@ TEST(FontImageTest, DynamicFontImageAdding) {
   math::Range2f rect;
 
   // Adding these characters should create a new ImageData.
-  GlyphSet glyph_set(base::AllocatorPtr(NULL));
+  GlyphSet glyph_set(base::AllocatorPtr(nullptr));
   AddCharacterRange('A', 'C', font, &glyph_set);
   const GlyphIndex glyph_A = font->GetDefaultGlyphForChar('A');
   const GlyphIndex glyph_B = font->GetDefaultGlyphForChar('B');
@@ -473,7 +473,7 @@ TEST(FontImageTest, DynamicFontImageDeferredUpdates) {
   math::Range2f rect;
 
   // Adding these characters should create a new ImageData.
-  GlyphSet glyph_set(base::AllocatorPtr(NULL));
+  GlyphSet glyph_set(base::AllocatorPtr(nullptr));
   AddCharacterRange('A', 'C', font, &glyph_set);
   const GlyphIndex glyph_D = font->GetDefaultGlyphForChar('D');
   const GlyphIndex glyph_E = font->GetDefaultGlyphForChar('E');

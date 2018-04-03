@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -96,19 +96,20 @@ class AllocVector : public std::vector<T, StlAllocator<T> > {
 // InlinedAllocVectoris a similar to AllocVector, but uses inlined storage for
 // its first N elements, then uses an Ion Allocator if that size is exceeded.
 template <typename T, int N>
-class InlinedAllocVector : public std::vector<T, StlInlinedAllocator<T, N> > {
+class InlinedAllocVector : public std::vector<T, StlInlinedAllocator<T, N>> {
  public:
   typedef StlInlinedAllocator<T, N> AllocType;
   typedef std::vector<T, AllocType> VectorType;
+  typedef std::vector<T, StlInlinedAllocator<T, N>> BaseType;
   explicit InlinedAllocVector(const AllocatorPtr& alloc)
       : VectorType(AllocType(AllocationManager::GetNonNullAllocator(alloc))) {}
   explicit InlinedAllocVector(const Allocatable& owner)
       : VectorType(AllocType(owner.GetNonNullAllocator())) {}
 
-  InlinedAllocVector(const AllocatorPtr& alloc, size_t n, const T& val)
+  InlinedAllocVector(const AllocatorPtr& alloc, size_t n, const T& val = T())
       : VectorType(n, val,
                    AllocType(AllocationManager::GetNonNullAllocator(alloc))) {}
-  InlinedAllocVector(const Allocatable& owner, size_t n, const T& val)
+  InlinedAllocVector(const Allocatable& owner, size_t n, const T& val = T())
       : VectorType(n, val, AllocType(owner.GetNonNullAllocator())) {}
 
   template <class IteratorT>
@@ -130,6 +131,19 @@ class InlinedAllocVector : public std::vector<T, StlInlinedAllocator<T, N> > {
   InlinedAllocVector(const Allocatable& owner, const ContainerT& from)
       : VectorType(from.begin(), from.end(),
                    AllocType(owner.GetNonNullAllocator())) {}
+
+  // Allow copying.
+  InlinedAllocVector(const InlinedAllocVector& other)
+      : BaseType(other) {}
+  InlinedAllocVector& operator=(const InlinedAllocVector& other) {
+    *(static_cast<BaseType*>(this)) = static_cast<const BaseType&>(other);
+    return *this;
+  }
+
+  // Do not allow moving. The inlined allocator's memory is inherently
+  // non-movable.
+  InlinedAllocVector(InlinedAllocVector&&) = delete;
+  InlinedAllocVector& operator=(InlinedAllocVector&&) = delete;
 };
 
 }  // namespace base

@@ -1,5 +1,5 @@
 /**
-Copyright 2007 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,6 +15,9 @@ limitations under the License.
 
 */
 
+// Copyright 2007 Google Inc.
+// Author: fbailly@google.com (Francois Bailly)
+// Author: quarup@google.com (Quarup Barreirinhas)
 
 #include <array>
 #include <chrono>  // NOLINT
@@ -25,6 +28,7 @@ limitations under the License.
 #include "base/integral_types.h"
 #include "ion/base/datetime.h"
 #include "ion/base/logchecker.h"
+#include "absl/base/macros.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
 namespace {
@@ -69,7 +73,7 @@ struct DateTimeTestInfo {
 
 // This function performs a series of equality tests needed repeatedly for
 // testing the ComputeDurationString function.
-static void COHelper(DateTime a, DateTime b) {
+static void COHelper(const DateTime& a, const DateTime& b) {
   EXPECT_FALSE(a == b);
   EXPECT_TRUE(a > b);
   EXPECT_TRUE(a >= b);
@@ -755,7 +759,7 @@ TEST(DateTime, InterpolatingTimes) {
 }
 
 TEST(DateTime, EndpointInterpolation) {
-  // This test case is ripped from http://bug.
+  // This test case is ripped from http://b/2930972.
   DateTime a, b, c;
   a.Set(2010, 9, 20, 23, 53, 35, 826902334, 0, 0);
   b.Set(1946, 7, 26, 0, 0, 0, 0, 0, 0);
@@ -849,7 +853,7 @@ TEST(DateTime, BCEDateWrittenProperly) {
       {-1000001, 12, 31, 17, 0, 1, -7, 0, "1.00 Million BCE", ""},
       {-1, 12, 31, 17, 0, 0, -7, 0, "1 BCE", ""},
       {998, 12, 31, 17, 0, 0, -7, 0, " 998", ""}};
-  static const int kNumTestInfo = arraysize(kTestInfo);
+  static const int kNumTestInfo = ABSL_ARRAYSIZE(kTestInfo);
 
   for (int i = 0; i < kNumTestInfo; ++i) {
     const DateTimeTestInfo& test_info = kTestInfo[i];
@@ -873,7 +877,7 @@ TEST(DateTime, CommonEraDateTimeWrittenProperly) {
       {2004, 7, 9, 14, 41, 2, -7, 0, "7/9/2004", " 2:41:02 pm"},
       {2004, 7, 8, 22, 41, 2, -7, 0, "7/8/2004", " 10:41:02 pm"},
       {2004, 7, 9, 6, 41, 2, -7, 0, "7/9/2004", " 6:41:02 am"}};
-  static const int kNumTestInfo = arraysize(kTestInfo);
+  static const int kNumTestInfo = ABSL_ARRAYSIZE(kTestInfo);
 
   for (int i = 0; i < kNumTestInfo; ++i) {
     const DateTimeTestInfo& test_info = kTestInfo[i];
@@ -947,7 +951,7 @@ TEST(DateTime, DurationWrittenProperly) {
 
       // Check 0 string.
       {0, 0, 0, 0, 0, 0, 0, 0, "0.0s", ""}};
-  static const int kNumTestInfo = arraysize(kTestInfo);
+  static const int kNumTestInfo = ABSL_ARRAYSIZE(kTestInfo);
 
   for (int i = 0; i < kNumTestInfo; ++i) {
     const DateTimeTestInfo& test_info = kTestInfo[i];

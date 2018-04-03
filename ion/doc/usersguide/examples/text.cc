@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ limitations under the License.
 #include "ion/text/freetypefont.h"
 #include "ion/text/layout.h"
 #include "ion/text/outlinebuilder.h"
+#include "absl/memory/memory.h"
 
 // This has to be included last or bad things happen on Windows.
 #include "GL/freeglut.h"
@@ -185,7 +186,7 @@ static void Resize(int w, int h) {
 }
 
 static void Render() {
-  if (s_global_state.get())
+  if (s_global_state)
     s_global_state->renderer->DrawScene(s_global_state->scene_root);
   glutSwapBuffers();
 }
@@ -201,7 +202,7 @@ static void Keyboard(unsigned char key, int x, int y) {
 static void KeyboardUp(unsigned char key, int x, int y) {
   switch (key) {
     case 27:  // Escape.
-      s_global_state.reset(NULL);
+      s_global_state.reset(nullptr);
       glutLeaveMainLoop();
       break;
   }
@@ -219,7 +220,7 @@ static void KeyboardUp(unsigned char key, int x, int y) {
 int main(int argc, char* argv[]) {
   glutInit(&argc, argv);
 
-  s_global_state.reset(new GlobalState);
+  s_global_state = absl::make_unique<GlobalState>();
   s_global_state->window_width = s_global_state->window_height = 800;
   s_global_state->scene_root = BuildGraph(s_global_state->window_width,
                                           s_global_state->window_height);

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -152,7 +152,7 @@ static int FromHexChar(const char c) {
 // FontImage::ImageData instance. It is equivalent to a newline when using a
 // StaticFontImage.
 //
-// TODO(user) Update this to use backslashes if SettingsManager is changed.
+// 
 static const std::vector<std::string> ParseInputStrings(const std::string& s) {
   std::vector<std::string> strings;
   std::string fixed;
@@ -219,7 +219,7 @@ static const ion::text::FontImagePtr CreateFontImage(
   if (type == ion::text::FontImage::kStatic) {
     static const size_t kMaxFontImageSize = 1024U;
     // Create a GlyphSet containing all ASCII characters.
-    ion::text::GlyphSet glyph_set(ion::base::AllocatorPtr(NULL));
+    ion::text::GlyphSet glyph_set(ion::base::AllocatorPtr(nullptr));
     font->AddGlyphsForAsciiCharacterRange(1, 127, &glyph_set);
     glyph_set.insert(font->GetDefaultGlyphForChar(0xf7));  // Division sign.
     ion::text::StaticFontImagePtr font_image(
@@ -559,7 +559,7 @@ IonTextDemo::IonTextDemo(int width, int height)
   UpdateViewUniforms();
 
   // Update the graph to display the correct text.
-  UpdateText(NULL);
+  UpdateText(nullptr);
 }
 
 IonTextDemo::~IonTextDemo() {}
@@ -740,6 +740,6 @@ void IonTextDemo::UpdateTextNodes() {
   }
 }
 
-DemoBase* CreateDemo(int w, int h) {
-  return new IonTextDemo(w, h);
+std::unique_ptr<DemoBase> CreateDemo(int width, int height) {
+  return std::unique_ptr<DemoBase>(new IonTextDemo(width, height));
 }

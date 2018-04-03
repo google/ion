@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ static std::string BuildUploadHeaders(const std::string& data) {
 static std::string BuildUri(const HttpClient::Url& url) {
   typedef std::map<std::string, std::string>::const_iterator iterator;
   std::string uri = url.path;
-  if (url.args.size()) {
+  if (!url.args.empty()) {
     uri.append("?");
     for (iterator it = url.args.begin(); it != url.args.end(); ++it) {
       if (it != url.args.begin())

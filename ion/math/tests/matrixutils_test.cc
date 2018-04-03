@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -52,6 +52,44 @@ TEST(MatrixUtils, MultiplyVectorAndPoint) {
 
   EXPECT_EQ(Point3d(140.0, 320.0, 500.0),
             m * Point3d(10.0, 20.0, 30.0));
+}
+
+TEST(MatrixUtils, DimensionUtils) {
+  Matrix4d m1(1.1, 1.2, 1.3, 1.4,
+              2.1, 2.2, 2.3, 2.4,
+              3.1, 3.2, 3.3, 3.4,
+              4.1, 4.2, 4.3, 4.4);
+  EXPECT_EQ(Matrix3d(2.2, 2.3, 2.4,
+                     3.2, 3.3, 3.4,
+                     4.2, 4.3, 4.4),
+            WithoutDimension(m1, 0));
+  EXPECT_EQ(Matrix3d(1.1, 1.2, 1.4,
+                     2.1, 2.2, 2.4,
+                     4.1, 4.2, 4.4),
+            WithoutDimension(m1, 2));
+  EXPECT_EQ(Matrix3d(1.1, 1.2, 1.3,
+                     2.1, 2.2, 2.3,
+                     3.1, 3.2, 3.3),
+            WithoutDimension(m1, 3));
+
+  Matrix3d m2(1.1, 1.2, 1.3,
+              2.1, 2.2, 2.3,
+              3.1, 3.2, 3.3);
+  EXPECT_EQ(Matrix4d(1.0, 0.0, 0.0, 0.0,
+                     0.0, 1.1, 1.2, 1.3,
+                     0.0, 2.1, 2.2, 2.3,
+                     0.0, 3.1, 3.2, 3.3),
+            WithIdentityDimension(m2, 0));
+  EXPECT_EQ(Matrix4d(1.1, 1.2, 0.0, 1.3,
+                     2.1, 2.2, 0.0, 2.3,
+                     0.0, 0.0, 1.0, 0.0,
+                     3.1, 3.2, 0.0, 3.3),
+            WithIdentityDimension(m2, 2));
+  EXPECT_EQ(Matrix4d(1.1, 1.2, 1.3, 0.0,
+                     2.1, 2.2, 2.3, 0.0,
+                     3.1, 3.2, 3.3, 0.0,
+                     0.0, 0.0, 0.0, 1.0),
+              WithIdentityDimension(m2, 3));
 }
 
 TEST(MatrixUtils, Determinant) {

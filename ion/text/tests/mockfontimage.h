@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@ class MockFontImage : public StaticFontImage {
 
   // Builds and returns an ImageData instance mocking the StaticFontImage.
   static const ImageData BuildImageData(const FontPtr& font) {
-    ImageData image_data(base::AllocatorPtr(NULL));
+    ImageData image_data(base::AllocatorPtr(nullptr));
     image_data.texture->SetImage(0U, BuildImage());
     for (GlyphIndex i = 'a'; i < 'z'; ++i) {
       image_data.glyph_set.insert(i);

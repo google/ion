@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,92 +18,73 @@ limitations under the License.
 #ifndef ION_PORT_ANDROID_TRACE_H_
 #define ION_PORT_ANDROID_TRACE_H_
 
-#include <errno.h>
-#include <fcntl.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include <atomic>
+#include <thread>  // NOLINT(build/c++11)
 
-#include <android/log.h>
+// This file originates from:
+// /platform/system/core/libcutils/include/cutils/trace.h
 
-// This file originates from /platform/frameworks/native/include/utils/Trace.h
-//
-// The ION_ATRACE_TAG macro can be defined before including this header to trace
-// using one of the tags defined below.  It must be defined to one of the
-// following ION_ATRACE_TAG_* macros.  The trace tag is used to filter tracing
-// in userland to avoid some of the runtime cost of tracing when it is not
-// desired.
-//
-// Defining ION_ATRACE_TAG to be ION_ATRACE_TAG_ALWAYS will result in the
-// tracing always being enabled - this should ONLY be done for debug code, as
-// userland tracing has a performance cost even when the trace is not being
-// recorded.  Defining ION_ATRACE_TAG to be ION_ATRACE_TAG_NEVER or leaving
-// ION_ATRACE_TAG undefined will result in the tracing always being disabled.
-//
-// These tags must be kept in sync with
-//   frameworks/base/core/java/android/os/Trace.java.
-#define ION_ATRACE_TAG_NEVER            0       // The "never" tag is never
-                                                // enabled.
-#define ION_ATRACE_TAG_ALWAYS           (1<<0)  // The "always" tag is always
-                                                // enabled.
-#define ION_ATRACE_TAG_GRAPHICS         (1<<1)
-#define ION_ATRACE_TAG_INPUT            (1<<2)
-#define ION_ATRACE_TAG_VIEW             (1<<3)
-#define ION_ATRACE_TAG_WEBVIEW          (1<<4)
-#define ION_ATRACE_TAG_WINDOW_MANAGER   (1<<5)
-#define ION_ATRACE_TAG_ACTIVITY_MANAGER (1<<6)
-#define ION_ATRACE_TAG_SYNC_MANAGER     (1<<7)
-#define ION_ATRACE_TAG_AUDIO            (1<<8)
-#define ION_ATRACE_TAG_VIDEO            (1<<9)
-#define ION_ATRACE_TAG_CAMERA           (1<<10)
-#define ION_ATRACE_TAG_HAL              (1<<11)
-#define ION_ATRACE_TAG_APP              (1<<12)
-#define ION_ATRACE_TAG_RESOURCES        (1<<13)
-#define ION_ATRACE_TAG_DALVIK           (1<<14)
-#define ION_ATRACE_TAG_RS               (1<<15)
-#define ION_ATRACE_TAG_BIONIC           (1<<16)
-#define ION_ATRACE_TAG_POWER            (1<<17)
-#define ION_ATRACE_TAG_PACKAGE_MANAGER  (1<<18)
-#define ION_ATRACE_TAG_SYSTEM_SERVER    (1<<19)
-#define ION_ATRACE_TAG_LAST             ION_ATRACE_TAG_SYSTEM_SERVER
+// ION_ATRACE_PROD_INIT readies the process for tracing by opening the
+// trace_marker file. Calling any trace function causes this to be run, so
+// calling it is optional. This can be explicitly run to avoid setup delay on
+// first trace function.
+#define ION_ATRACE_PROD_INIT() ion::port::android::Tracer::Init()
 
-#define ION_ATRACE_TAG_NOT_READY        (1LL << 63)  // Reserved for use during
-                                                     // init
-
-#define ION_ATRACE_TAG_VALID_MASK \
-  ((ION_ATRACE_TAG_LAST - 1) | ION_ATRACE_TAG_LAST)
-
-#ifndef ION_ATRACE_TAG
-#define ION_ATRACE_TAG ION_ATRACE_TAG_NEVER
-#elif ION_ATRACE_TAG > ION_ATRACE_TAG_LAST
-#error ION_ATRACE_TAG must be defined to be one of the tags defined in \
-  utils/Trace.h
-#endif
-
-// ION_ATRACE_CALL traces the beginning and end of the current function.  To
+// ION_ATRACE_PROD_CALL traces the beginning and end of the current function. To
 // trace the correct start and end times this macro should be the first line of
 // the function body.
-#define ION_ATRACE_CALL() \
+#define ION_ATRACE_PROD_CALL() \
   ion::port::android::ScopedTrace ___tracer(ION_ATRACE_TAG, __FUNCTION__)
 
-// ION_ATRACE_NAME traces the beginning and end of the current function.  To
+// ION_ATRACE_PROD_NAME traces the beginning and end of the current function. To
 // trace the correct start and end times this macro should be the first line of
 // the function body.
-#define ION_ATRACE_NAME(name) \
+#define ION_ATRACE_PROD_NAME(name) \
   ion::port::android::ScopedTrace ___tracer(ION_ATRACE_TAG, name)
 
-// ION_ATRACE_INT traces a named integer value.  This can be used to track how
-// the value changes over time in a trace.
-#define ION_ATRACE_INT(name, value) \
-  ion::port::android::Tracer::traceCounter(ION_ATRACE_TAG, name, value)
+// ION_ATRACE_PROD_INT traces a named integer value.  This can be used to track
+// how the value changes over time in a trace.
+#define ION_ATRACE_PROD_INT(name, value) \
+  ion::port::android::Tracer::Counter(ION_ATRACE_TAG, name, value)
 
-// ION_ATRACE_ENABLED returns true if the trace tag is enabled.  It can be used
-// as a guard condition around more expensive trace calculations.
-#define ION_ATRACE_ENABLED() \
-  ion::port::android::Tracer::isTagEnabled(ION_ATRACE_TAG)
+// ION_ATRACE_PROD_INT64 traces a named 64-bit integer counter value. This can
+// be used to track how a 64-bit value changes over time in a trace.
+#define ION_ATRACE_PROD_INT64(name, value) \
+  ion::port::android::Tracer::Counter64(ION_ATRACE_TAG, name, value)
+
+// Get the mask of all tags currently enabled.
+// It can be used as a guard condition around more expensive trace calculations.
+// Every trace function calls this, which ensures init is run.
+#define ION_ATRACE_PROD_GET_ENABLED_TAGS() \
+  ion::port::android::Tracer::GetEnabledTags()
+
+// ION_ATRACE_PROD_ENABLED returns true if the trace tag is enabled.  It can be
+// used as a guard condition around more expensive trace calculations.
+#define ION_ATRACE_PROD_ENABLED() \
+  ion::port::android::Tracer::IsTagEnabled(ION_ATRACE_TAG)
+
+// ION_ATRACE_PROD_BEGIN traces the beginning of a context.  The name is used to
+// identify the context. This is often used to time function execution.
+#define ION_ATRACE_PROD_BEGIN(name) \
+  ion::port::android::Tracer::Begin(ION_ATRACE_TAG, name)
+
+// ION_ATRACE_PROD_END traces the end of a context.  This should match up (and
+// occur after) a corresponding ION_ATRACE_PROD_BEGIN.
+#define ION_ATRACE_PROD_END() ion::port::android::Tracer::End(ION_ATRACE_TAG)
+
+// ION_ATRACE_PROD_ASYNC_BEGIN traces the beginning of an asynchronous event.
+// Asynchronous events do not need to be nested. The name describes the event,
+// and the cookie provides a unique identifier for distinguishing simultaneous
+// events. The name and cookie used to begin an event must be used to end it.
+#define ION_ATRACE_PROD_ASYNC_BEGIN(name, cookie) \
+  ion::port::android::Tracer::AsyncBegin(ION_ATRACE_TAG, name, cookie)
+
+// ION_ATRACE_PROD_ASYNC_END traces the end of an asynchronous event. This
+// should have a corresponding ION_ATRACE_PROD_ASYNC_BEGIN.
+#define ION_ATRACE_PROD_ASYNC_END(name, cookie) \
+  ion::port::android::Tracer::AsyncEnd(ION_ATRACE_TAG, name, cookie)
+
+struct prop_info;
 
 namespace ion {
 namespace port {
@@ -111,96 +92,87 @@ namespace android {
 
 class Tracer {
  public:
-  static uint64_t getEnabledTags() {
-    initIfNeeded();
-    return sEnabledTags;
+  // The below are the functions used in the above macros.
+  static inline void Init() {
+    // It is OK if multiple threads enter TraceSetup. It is also OK if it takes
+    // a while for all threads to see needs_setup_ change from true to false.
+    if (needs_setup_) TraceSetup();
   }
-
-  static inline bool isTagEnabled(uint64_t tag) {
-    initIfNeeded();
-    return true;  // sEnabledTags & tag;
+  static inline uint64_t GetEnabledTags() {
+    Init();
+    return enabled_tags_;
   }
-
-  static inline void traceCounter(uint64_t tag, const char* name,
-                                  int32_t value) {
-    if (isTagEnabled(tag)) {
-      char buf[1024];
-      snprintf(buf, 1024, "C|%d|%s|%d", getpid(), name, value);  // NOLINT
-      write(sTraceFD, buf, strlen(buf));
-    }
+  static inline bool IsTagEnabled(uint64_t tag) {
+    return static_cast<bool>(GetEnabledTags() & tag);
   }
-
-  static inline void traceBegin(uint64_t tag, const char* name) {
-    if (isTagEnabled(tag)) {
-      char buf[1024];
-      size_t len = snprintf(buf, 1024, "B|%d|%s", getpid(), name);  // NOLINT
-      write(sTraceFD, buf, len);
-    }
+  static inline void Begin(uint64_t tag, const char* name) {
+    if (IsTagEnabled(tag)) BeginImpl(name);
   }
-
-  static inline void traceEnd(uint64_t tag) {
-    if (isTagEnabled(tag)) {
-      char buf = 'E';
-      write(sTraceFD, &buf, 1);
-    }
+  static inline void End(uint64_t tag) {
+    if (IsTagEnabled(tag)) EndImpl();
+  }
+  static inline void AsyncBegin(uint64_t tag, const char* name,
+                                int32_t cookie) {
+    if (IsTagEnabled(tag)) AsyncBeginImpl(name, cookie);
+  }
+  static inline void AsyncEnd(uint64_t tag, const char* name, int32_t cookie) {
+    if (IsTagEnabled(tag)) AsyncEndImpl(name, cookie);
+  }
+  static inline void Counter(uint64_t tag, const char* name, int32_t value) {
+    if (IsTagEnabled(tag)) CounterImpl(name, value);
+  }
+  static inline void Counter64(uint64_t tag, const char* name,
+                                  int64_t value) {
+    if (IsTagEnabled(tag)) Counter64Impl(name, value);
   }
 
  private:
-  static inline void initIfNeeded() {
-    init();
-  }
+  // Opens the trace file for writing and reads the property for initial tags.
+  // The atrace.tags.enableflags property sets the tags to trace.
+  static void TraceSetup();
 
-  static void changeCallback();
+  // Reads the sysprop and return the value tags should be set to.
+  static uint64_t GetProperty();
 
-  // init opens the trace marker file for writing and reads these
-  // atrace.tags.enableflags system property.  It does this only the first
-  // time it is run, using sMutex for synchronization.
-  static void init();
+  // Updates the tags used for tracing.
+  static void UpdateTags();
 
-  // retrieve the current value of the system property.
-  static void loadSystemProperty();
+  // Initializes tracing.
+  static void InitOnce();
 
-  // sIsReady is a boolean value indicating whether a call to init() has
-  // completed in this process.  It is initialized to 0 and set to 1 when the
-  // first init() call completes.  It is set to 1 even if a failure occurred
-  // in init (e.g. the trace marker file couldn't be opened).
-  //
-  // This should be checked by all tracing functions using an atomic acquire
-  // load operation before calling init().  This check avoids the need to lock
-  // a mutex each time a trace function gets called.
-  static volatile int32_t sIsReady;
+  // Implementations of the above functions.
+  static void BeginImpl(const char* name);
+  static void EndImpl();
+  static void AsyncBeginImpl(const char* name, int32_t cookie);
+  static void AsyncEndImpl(const char* name, int32_t cookie);
+  static void CounterImpl(const char* name, int32_t value);
+  static void Counter64Impl(const char* name, int64_t value);
 
-  // sTraceFD is the file descriptor used to write to the kernel's trace
-  // buffer.  It is initialized to -1 and set to an open file descriptor in
-  // init() while a lock on sMutex is held.
-  //
-  // This should only be used by a trace function after init() has
-  // successfully completed.
-  static int sTraceFD;
+  // Flag indicating whether setup is needed, initialized to true. False
+  // indicates setup has completed. Note: This does NOT indicate whether or not
+  // setup was successful.
+  static bool needs_setup_;
 
-  // sEnabledTags is the set of tag bits for which tracing is currently
-  // enabled.  It is initialized to 0 and set based on the
-  // atrace.tags.enableflags system property in init() while a lock on sMutex
-  // is held.
-  //
-  // This should only be used by a trace function after init() has
-  // successfully completed.
-  //
-  // This value is only ever non-zero when tracing is initialized and sTraceFD
-  // is not -1.
-  static uint64_t sEnabledTags;
+  // Set of ION_ATRACE_TAG flags to trace for, initialized to
+  // ION_ATRACE_TAG_NOT_READY. A value of zero indicates setup has failed.
+  // Any other nonzero value indicates setup has succeeded, and tracing is on.
+  static uint64_t enabled_tags_;
+
+  // Handle to the kernel's trace buffer, initialized to -1. Any other value
+  // indicates setup has succeeded, and is a valid fd for tracing.
+  static int marker_fd_;
+
+  // System property holding enabled trace flags.
+  static const prop_info* enable_flags_property_;
 };
 
 class ScopedTrace {
  public:
-  inline ScopedTrace(uint64_t tag, const char* name)
-      : mTag(tag) {
-    Tracer::traceBegin(mTag, name);
+  inline ScopedTrace(uint64_t tag, const char* name) : mTag(tag) {
+    Tracer::Begin(mTag, name);
   }
 
-  inline virtual ~ScopedTrace() {
-    Tracer::traceEnd(mTag);
-  }
+  inline virtual ~ScopedTrace() { Tracer::End(mTag); }
 
  private:
   uint64_t mTag;

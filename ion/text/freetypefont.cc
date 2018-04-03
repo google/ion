@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,18 +27,16 @@ limitations under the License.
 #include <algorithm>
 #include <cstring>  // For memcpy().
 #include <memory>
-#include <mutex>  // NOLINT(build/c++11): only using std::call_once, not mutex.
+#include <mutex>  // NOLINT(build/c++11)
 #include <unordered_map>
 #include <vector>
 
 #include "ion/base/allocator.h"
 #include "ion/base/datacontainer.h"
-#include "ion/base/lockguards.h"
 #include "ion/base/logging.h"
 #include "ion/base/staticsafedeclare.h"
 #include "ion/port/fileutils.h"
 #include "ion/port/memorymappedfile.h"
-#include "ion/port/mutex.h"
 #include "ion/text/freetypefontutils.h"
 #include "ion/text/layout.h"
 #if defined(ION_USE_ICU)
@@ -58,11 +56,11 @@ using math::Vector2f;
 typedef std::vector<math::Point2f> ControlPoints;
 
 // Returns true if a target size passed to a layout function is valid. To be
-// valid, neither component can be negative and at least one must be positive.
+// valid, neither component can be negative.
 static bool IsSizeValid(const Vector2f& target_size) {
   const float width = target_size[0];
   const float height = target_size[1];
-  return width >= 0.0f && height >= 0.0f && (width > 0.0f || height > 0.0f);
+  return (width >= 0.0f && height >= 0.0f);
 }
 
 //-----------------------------------------------------------------------------
@@ -78,7 +76,7 @@ class FreeTypeManager {
   ~FreeTypeManager();
 
   // Returns the FreeTypeManager corresponding to |allocator| (or kLongTerm if
-  // allocator is NULL).  If the FreeTypeManager does not exist, one is created.
+  // allocator is null).  If the FreeTypeManager does not exist, one is created.
   static FreeTypeManager* GetManagerForAllocator(
       const base::AllocatorPtr& allocator) {
     // Declare FreeTypeManagerMap as a mapping from allocators to managers, and
@@ -87,7 +85,7 @@ class FreeTypeManager {
                                std::unique_ptr<FreeTypeManager>>
         FreeTypeManagerMap;
     ION_DECLARE_SAFE_STATIC_POINTER(FreeTypeManagerMap, map);
-    ION_DECLARE_SAFE_STATIC_POINTER(ion::port::Mutex, mutex);
+    ION_DECLARE_SAFE_STATIC_POINTER(std::mutex, mutex);
 
     // Determine the allocator that will actually be used to look up the
     // FreeTypeManager in the map.
@@ -97,7 +95,7 @@ class FreeTypeManager {
             : base::AllocationManager::GetDefaultAllocatorForLifetime(
                   base::kLongTerm);
 
-    ion::base::LockGuard lock(mutex);
+    std::lock_guard<std::mutex> lock(*mutex);
     auto it = map->find(allocator_to_use.Get());
     if (it == map->end()) {
       auto man = new FreeTypeManager(allocator);
@@ -109,7 +107,7 @@ class FreeTypeManager {
 
   // Initializes and returns an FT_Face for a font represented by FreeType
   // data. If simulate_library_failure is true, this simulates a failure to
-  // initialize the FreeType library. Returns NULL on error.
+  // initialize the FreeType library. Returns nullptr on error.
   FT_Face InitFont(const void* data, size_t data_size,
                    bool simulate_library_failure);
 
@@ -132,7 +130,7 @@ class FreeTypeManager {
     DCHECK(mem);
     DCHECK(mem->user);
     FreeTypeManager* mgr = static_cast<FreeTypeManager*>(mem->user);
-    DCHECK(mgr->mutex_.IsLocked());
+    DCHECK(!mgr->mutex_.try_lock());
     DCHECK(mgr->allocator_.Get());
     return mgr->allocator_;
   }
@@ -144,37 +142,37 @@ class FreeTypeManager {
   // The shared FT_Library instance.
   FT_Library ft_lib_;
   // Protects shared access to the Allocator and FT_Library.
-  port::Mutex mutex_;
+  std::mutex mutex_;
 };
 
 FreeTypeManager::FreeTypeManager(const base::AllocatorPtr& allocator)
-    : allocator_(allocator), ft_lib_(NULL) {
+    : allocator_(allocator), ft_lib_(nullptr) {
   ft_mem_.user = this;
   ft_mem_.alloc = Allocate;
   ft_mem_.free = Free;
   ft_mem_.realloc = Realloc;
 
-  base::LockGuard guard(&mutex_);
+  std::lock_guard<std::mutex> guard(mutex_);
   FT_New_Library(&ft_mem_, &ft_lib_);
   if (ft_lib_) FT_Add_Default_Modules(ft_lib_);
 }
 
 FreeTypeManager::~FreeTypeManager() {
-  base::LockGuard guard(&mutex_);
+  std::lock_guard<std::mutex> guard(mutex_);
   if (ft_lib_) FT_Done_Library(ft_lib_);
 }
 
 FT_Face FreeTypeManager::InitFont(const void* data, size_t data_size,
                                   bool simulate_library_failure) {
-  FT_Face face = NULL;
-  base::LockGuard guard(&mutex_);
-  if (FT_Library lib = simulate_library_failure ? NULL : ft_lib_) {
+  FT_Face face = nullptr;
+  std::lock_guard<std::mutex> guard(mutex_);
+  if (FT_Library lib = simulate_library_failure ? nullptr : ft_lib_) {
     if (!FT_New_Memory_Face(lib, reinterpret_cast<const FT_Byte*>(data),
                             static_cast<FT_Long>(data_size), 0, &face)) {
       DCHECK(face);
     } else {
       LOG(ERROR) << "Could not read the FreeType font data";
-      face = NULL;
+      face = nullptr;
     }
   } else {
     LOG(ERROR) << "Could not initialize the FreeType library";
@@ -184,13 +182,13 @@ FT_Face FreeTypeManager::InitFont(const void* data, size_t data_size,
 
 void FreeTypeManager::FreeFont(FT_Face face) {
   if (face) {
-    base::LockGuard guard(&mutex_);
+    std::lock_guard<std::mutex> guard(mutex_);
     FT_Done_Face(face);
   }
 }
 
 bool FreeTypeManager::LoadGlyph(FT_Face face, uint32 glyph_index) {
-  base::LockGuard guard(&mutex_);
+  std::lock_guard<std::mutex> guard(mutex_);
   const FT_Error result = FT_Load_Glyph(face, glyph_index, FT_LOAD_RENDER);
   return result == 0;
 }
@@ -323,7 +321,7 @@ class FreeTypeFont::Helper
 #if defined(ION_USE_ICU)
         font_tables_(allocator_),
 #endif  // ION_USE_ICU
-        ft_face_(NULL),
+        ft_face_(nullptr),
         manager_(FreeTypeManager::GetManagerForAllocator(allocator_)) {
   }
   ~Helper() { FreeFont(); }
@@ -334,7 +332,7 @@ class FreeTypeFont::Helper
   bool Init(const void* data, size_t data_size, bool simulate_library_failure);
 
   // Loads a glyph from FreeType and fills in either or both of glyph_data and
-  // glyph_grid, when not NULL.  size_in_pixels is used to scale the glyph.
+  // glyph_grid, when not null.  size_in_pixels is used to scale the glyph.
   // Returns true if a glyph was loaded; will resort to fallback faces if the
   // glyph is not found in the main face.
   bool LoadGlyph(GlyphIndex glyph_index, GlyphMetaData* glyph_meta,
@@ -358,8 +356,6 @@ class FreeTypeFont::Helper
   void FreeFont();
 
   // Adds a fallback face to this font.
-  // TODO(user): Update the rest of the functions in the helper to consider the
-  // fallbacks, not just glyph loading.
   void AddFallbackFace(const std::weak_ptr<Helper>& fallback);
 
 #if defined(ION_USE_ICU)
@@ -432,13 +428,13 @@ class FreeTypeFont::Helper
   FT_Face ft_face_;
   std::vector<std::weak_ptr<Helper>> fallback_helpers_;
   FreeTypeManager* manager_;
-  mutable port::Mutex mutex_;
+  mutable std::mutex mutex_;
 };
 
 bool FreeTypeFont::Helper::Init(const void* data, size_t data_size,
                                 bool simulate_library_failure) {
   DCHECK(!ft_face_);
-  base::LockGuard guard(&mutex_);
+  std::lock_guard<std::mutex> guard(mutex_);
   ft_face_ = manager_->InitFont(data, data_size, simulate_library_failure);
   if (!ft_face_) {
     LOG(ERROR) << "Could not read the FreeType font data.";
@@ -449,7 +445,7 @@ bool FreeTypeFont::Helper::Init(const void* data, size_t data_size,
 bool FreeTypeFont::Helper::LoadGlyph(GlyphIndex glyph_index,
                                      GlyphMetaData* glyph_meta,
                                      Font::GlyphGrid* glyph_grid) const {
-  base::LockGuard guard(&mutex_);
+  std::lock_guard<std::mutex> guard(mutex_);
   return LoadGlyphLocked(glyph_index, glyph_meta, glyph_grid);
 }
 
@@ -461,7 +457,7 @@ bool FreeTypeFont::Helper::LoadGlyphLocked(GlyphIndex glyph_index,
     return LoadGlyphLockedNoFallback(glyph_index, glyph_meta, glyph_grid);
   } else {
     if (auto helper = fallback_helpers_[face_id - 1].lock()) {
-      base::LockGuard guard(&helper->mutex_);
+      std::lock_guard<std::mutex> guard(helper->mutex_);
       return helper->LoadGlyphLockedNoFallback(glyph_index, glyph_meta,
                                                glyph_grid);
     } else {
@@ -520,11 +516,21 @@ void FreeTypeFont::Helper::SetFontSizeLocked() const {
 }
 
 const Font::FontMetrics FreeTypeFont::Helper::GetFontMetrics() const {
-  base::LockGuard guard(&mutex_);
+  std::lock_guard<std::mutex> guard(mutex_);
   FontMetrics metrics;
   SetFontSizeLocked();
+  const size_t size_in_pixels = owning_font_->GetSizeInPixels();
+  const float global_glyph_height = static_cast<float>(
+      ft_face_->size->metrics.ascender - ft_face_->size->metrics.descender);
   metrics.line_advance_height =
       static_cast<float>(ft_face_->size->metrics.height / 64);
+  // Some fonts do not contain the correct ascender or descender values, but
+  // instead only the maximum and minimum y values, which will exceed the size.
+  // To handle these cases, approximate the ascender with the ratio of ascender
+  // to (ascender + descender) and scale by size.
+  metrics.ascender = static_cast<float>(ft_face_->size->metrics.ascender *
+                                        size_in_pixels / global_glyph_height);
+
   return metrics;
 }
 
@@ -550,7 +556,7 @@ bool FreeTypeFont::Helper::GetKerningNoFallback(CharIndex char_index0,
                                                 math::Vector2f* kern) const {
   const uint32 idx0 = GetGlyphForChar(char_index0);
   const uint32 idx1 = GetGlyphForChar(char_index1);
-  base::LockGuard guard(&mutex_);
+  std::lock_guard<std::mutex> guard(mutex_);
   if (idx0 != 0 && idx1 != 0) {
     // Both will be rendered with this font.
     *kern = GetKerningLocked(char_index0, char_index1);
@@ -578,7 +584,7 @@ const math::Vector2f FreeTypeFont::Helper::GetKerningLocked(
 }
 
 uint32 FreeTypeFont::Helper::GetGlyphForChar(CharIndex char_index) const {
-  base::LockGuard guard(&mutex_);
+  std::lock_guard<std::mutex> guard(mutex_);
   return FT_Get_Char_Index(ft_face_, char_index);
 }
 
@@ -603,14 +609,14 @@ GlyphIndex FreeTypeFont::Helper::GetDefaultGlyphForChar(
 
 const FreeTypeFont::Helper::GlyphMetaData&
 FreeTypeFont::Helper::GetGlyphMetaData(GlyphIndex glyph_index) const {
-  base::LockGuard guard(&mutex_);
+  std::lock_guard<std::mutex> guard(mutex_);
   if (!glyph_index) {
     return base::InvalidReference<GlyphMetaData>();
   }
   const auto& it = glyph_metadata_map_.find(glyph_index);
   if (it == glyph_metadata_map_.end()) {
     GlyphMetaData glyph_meta;
-    if (LoadGlyphLocked(glyph_index, &glyph_meta, NULL)) {
+    if (LoadGlyphLocked(glyph_index, &glyph_meta, nullptr)) {
       return glyph_metadata_map_[glyph_index] = glyph_meta;
     }
     return base::InvalidReference<GlyphMetaData>();
@@ -619,10 +625,10 @@ FreeTypeFont::Helper::GetGlyphMetaData(GlyphIndex glyph_index) const {
 }
 
 void FreeTypeFont::Helper::FreeFont() {
-  base::LockGuard guard(&mutex_);
+  std::lock_guard<std::mutex> guard(mutex_);
   if (ft_face_) {
     manager_->FreeFont(ft_face_);
-    ft_face_ = NULL;
+    ft_face_ = nullptr;
   }
 }
 
@@ -632,7 +638,7 @@ void FreeTypeFont::Helper::AddFallbackFace(
   if (!locked_fallback || locked_fallback.get() == this) {
     return;
   }
-  base::LockGuard guard(&mutex_);
+  std::lock_guard<std::mutex> guard(mutex_);
   fallback_helpers_.push_back(fallback);
 }
 
@@ -643,11 +649,11 @@ const void* FreeTypeFont::Helper::getFontTable(LETag tableTag,
   if (it == font_tables_.end()) {
     FT_ULong table_size = 0;
     FT_Error error =
-        FT_Load_Sfnt_Table(ft_face_, tableTag, 0, NULL, &table_size);
+        FT_Load_Sfnt_Table(ft_face_, tableTag, 0, nullptr, &table_size);
     // It's legit for a font table to be missing.
     if (!error && error != FT_Err_Table_Missing) {
       base::DataContainerPtr table =
-          base::DataContainer::CreateOverAllocated<FT_Byte>(table_size, NULL,
+          base::DataContainer::CreateOverAllocated<FT_Byte>(table_size, nullptr,
                                                             allocator_);
       error = FT_Load_Sfnt_Table(ft_face_, tableTag, 0,
                                  table->GetMutableData<FT_Byte>(), &table_size);
@@ -660,7 +666,7 @@ const void* FreeTypeFont::Helper::getFontTable(LETag tableTag,
   }
   if (it == font_tables_.end()) {
     length = 0;
-    return NULL;
+    return nullptr;
   }
   length = it->second.second;
   return it->second.first->GetMutableData<uint8>();
@@ -788,14 +794,14 @@ FreeTypeFont::FreeTypeFont(const std::string& name, size_t size_in_pixels,
                            size_t sdf_padding)
     : Font(name, size_in_pixels, sdf_padding), helper_(new Helper(this)) {
   // Simulate library initialization failure.
-  helper_->Init(NULL, 0U, true);
+  helper_->Init(nullptr, 0U, true);
 }
 
 FreeTypeFont::~FreeTypeFont() {}
 
 bool FreeTypeFont::LoadGlyphGrid(GlyphIndex glyph_index,
                                  GlyphGrid* glyph_grid) const {
-  return helper_->LoadGlyph(glyph_index, NULL, glyph_grid);
+  return helper_->LoadGlyph(glyph_index, nullptr, glyph_grid);
 }
 
 const math::Vector2f FreeTypeFont::GetKerning(CharIndex char_index0,

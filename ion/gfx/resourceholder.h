@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ limitations under the License.
 #ifndef ION_GFX_RESOURCEHOLDER_H_
 #define ION_GFX_RESOURCEHOLDER_H_
 
-#include <cstring>  // For NULL.
+#include <array>
 #include <vector>
 
 #include "base/macros.h"
@@ -63,12 +63,12 @@ class ION_API ResourceHolder : public base::Notifier {
   // vector is automatically managed so that it has the smallest possible size.
   void SetResource(size_t index, ResourceKey key, ResourceBase* resource) const;
 
-  // Returns the Resource at the given index and key, or NULL if no resource
+  // Returns the Resource at the given index and key, or nullptr if no resource
   // was previously set at that location.
   ResourceBase* GetResource(size_t index, ResourceKey key) const;
 
   // Returns the number of resources that this holder holds. Note that this is
-  // not necessarily the number of indices that have non-NULL resources. This
+  // not necessarily the number of indices that have non-null resources. This
   // can be used as a fast trivial check to see if the holder has any resources.
   int GetResourceCount() const {
     return resource_count_;
@@ -76,18 +76,21 @@ class ION_API ResourceHolder : public base::Notifier {
 
   // Returns the total amount of GPU memory used by this Holder's resource.
   size_t GetGpuMemoryUsed() const {
-    base::ReadLock read_lock(&lock_);
+    base::ReadLock read_lock(&overflow_lock_);
     base::ReadGuard guard(&read_lock);
     size_t total = 0U;
-    for (const auto& group : resources_)
-      for (const auto& entry : group)
-        total += entry.second->GetGpuMemoryUsed();
+    IterateOverAllResources(
+        std::bind(&CountGpuMemoryUsed, std::placeholders::_1, &total));
     return total;
   }
 
   // Returns/sets the label of this.
   const std::string& GetLabel() const { return label_.Get(); }
   void SetLabel(const std::string& label) { label_.Set(label); }
+
+  // The number of resource indices for which resources are stored inline and
+  // don't require a mutex to access.
+  static const size_t kInlineResourceGroups = 4;
 
   // Allow other classes to trigger notifications.
   using Notifier::Notify;
@@ -106,7 +109,7 @@ class ION_API ResourceHolder : public base::Notifier {
     FieldBase(const int change_bit, ResourceHolder* holder)
         : change_bit_(change_bit),
           holder_(holder) {
-      if (holder != NULL)
+      if (holder != nullptr)
         holder->AddField(this);
     }
 
@@ -220,7 +223,7 @@ class ION_API ResourceHolder : public base::Notifier {
         : FieldBase(change_bit_start, holder),
           max_entries_(max_entries),
           entries_(*holder) {
-      DCHECK(holder != NULL);
+      DCHECK(holder != nullptr);
       holder->AddField(this);
     }
 
@@ -272,7 +275,7 @@ class ION_API ResourceHolder : public base::Notifier {
         return &entries_[i].value;
       } else {
         LogIndexError(i);
-        return NULL;
+        return nullptr;
       }
     }
 
@@ -292,7 +295,11 @@ class ION_API ResourceHolder : public base::Notifier {
       return false;
     }
 
+    // Returns the number of entries in this.
     size_t GetCount() const { return entries_.size(); }
+
+    // Removes all entries from this.
+    void Clear() { std::fill(entries_.begin(), entries_.end(), Entry()); }
 
    private:
     struct Entry {
@@ -326,12 +333,15 @@ class ION_API ResourceHolder : public base::Notifier {
   void OnChanged(int bit) const {
     // We use a read lock since Holders should not be modified from multiple
     // threads simultaneously.
-    base::ReadLock read_lock(&lock_);
+    base::ReadLock read_lock(&overflow_lock_);
     base::ReadGuard guard(&read_lock);
-    for (const auto& group : resources_)
-      for (const auto& entry : group)
-        entry.second->OnChanged(bit);
+    IterateOverAllResources(
+        std::bind(&InvokeOnChanged, std::placeholders::_1, bit));
   }
+
+  // Invokes func with all resources contained in resources_.
+  typedef std::function<void(ResourceBase*)> IterateFunc;
+  void IterateOverAllResources(const IterateFunc& func) const;
 
  private:
   // Allow FieldBase to call AddField().
@@ -342,15 +352,61 @@ class ION_API ResourceHolder : public base::Notifier {
   // Adds a field to the field list.
   void AddField(FieldBase* field) { fields_.push_back(field); }
 
-  typedef base::AllocUnorderedMap<ResourceKey, ResourceBase*> ResourceGroup;
+  typedef base::AllocUnorderedMap<ResourceKey, ResourceBase*> ResourceMap;
+
+  struct ResourceGroup {
+    // Default constructor only exists to allow default initialization
+    // of std::array. The default-constructed object is immediately replaced by
+    // std::fill.
+    ResourceGroup()
+        : map(base::AllocatorPtr()), cached_resource(nullptr),
+          cached_resource_key(~0) {}
+    explicit ResourceGroup(const base::AllocatorPtr& allocator)
+        : map(allocator), cached_resource(nullptr), cached_resource_key(~0) {}
+    bool IsEmpty() const {
+      return cached_resource == nullptr && map.empty();
+    }
+    // map is only used when we have > 1 resources so in the common case of
+    // a single resource we avoid the hash lookup.
+    ResourceMap map;
+    // Used in the common case when there is only a single resource or if we
+    // have multiple resources, acts as a cache to potentially bypass a hash
+    // lookup.
+    ResourceBase* cached_resource;
+    ResourceKey cached_resource_key;
+  };
+
+  ResourceGroup* GetResourceGroupLocked(size_t index,
+                                        bool create_if_absent) const;
+  void ShrinkResourceGroupsLocked() const;
+
+  static void CountGpuMemoryUsed(ResourceBase* resource, size_t* total) {
+    *total += resource->GetGpuMemoryUsed();
+  }
+
+  static void InvokeOnChanged(ResourceBase* resource, int bit) {
+    resource->OnChanged(bit);
+  }
+
+  static void NullHolder(ResourceBase* resource) {
+    resource->holder_ = nullptr;
+  }
+
+  static void OnDestroyed(ResourceBase* resource) {
+    resource->OnDestroyed();
+  }
 
   // The resource vector is declared as mutable because it is really a cache
   // of some external state. This allows SetResource() to be const, meaning
   // that a const ResourceHolder instance can have resources cached in it.
-  mutable base::InlinedAllocVector<ResourceGroup, 1> resources_;
-  // Protect access to resources_. The lock is mutable so that we can lock in
-  // const functions.
-  mutable base::ReadWriteLock lock_;
+  // Use fixed-sized array to avoid locking when growing resources.
+  mutable std::array<ResourceGroup, kInlineResourceGroups> resources_;
+  // When there are more than kInlineResourceGroups in the program, we use this
+  // vector for resources belonging to additional Renderers.
+  mutable base::AllocVector<ResourceGroup> overflow_resources_;
+  // Protect access to overflow_resources_. The lock is mutable so that we can
+  // lock in const functions.
+  mutable base::ReadWriteLock overflow_lock_;
   // Track the number of resources. It is mutable so that we update counts in
   // const functions.
   mutable std::atomic<int> resource_count_;
@@ -362,6 +418,50 @@ class ION_API ResourceHolder : public base::Notifier {
   // printouts of a scene.
   Field<std::string> label_;
 };
+
+// Explicitly inline since this is called often.
+inline ResourceBase*
+ResourceHolder::GetResource(size_t index, ResourceKey key) const {
+  base::ReadLock read_lock(&overflow_lock_);
+  base::ReadGuard guard(&read_lock, base::kDeferLock);
+  if (index >= kInlineResourceGroups) {
+    guard.Lock();
+  }
+  ResourceGroup* group = GetResourceGroupLocked(index,
+                                                /*create_if_absent=*/false);
+  if (!group) return nullptr;
+  // Short-circuit hash lookup if possible.
+  if (key == group->cached_resource_key)
+    return group->cached_resource;
+  ResourceBase* resource = nullptr;
+  auto found = group->map.find(key);
+  if (found != group->map.end()) {
+    resource = found->second;
+    // Update cache so we can possibly avoid hash lookup next time.
+    group->cached_resource = resource;
+    group->cached_resource_key = key;
+  }
+  return resource;
+}
+
+inline ResourceHolder::ResourceGroup*
+ResourceHolder::GetResourceGroupLocked(size_t index,
+                                       bool create_if_absent) const {
+  if (index < kInlineResourceGroups) {
+    return &resources_[index];
+  } else {
+    const size_t overflow_index = index - kInlineResourceGroups;
+    if (create_if_absent && overflow_index >= overflow_resources_.size()) {
+      overflow_resources_.resize(overflow_index + 1,
+                                 ResourceGroup(GetAllocator()));
+    }
+    if (overflow_index < overflow_resources_.size()) {
+      return &overflow_resources_[overflow_index];
+    } else {
+      return nullptr;
+    }
+  }
+}
 
 }  // namespace gfx
 }  // namespace ion

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -159,7 +159,7 @@ const Array2<Vector2d> DistanceComputer::ComputeGradients(const Grid& image) {
   // pixels, where it's mostly zero anyway.
 
   // The 3x3 kernel does not work at the edges, so skip those pixels.
-  // TODO(user): Use a subset of the filter kernels for edge pixels.
+  // 
   for (size_t y = 1; y < h - 1; ++y) {
     for (size_t x = 1; x < w - 1; ++x) {
       const double value = image.Get(x, y);

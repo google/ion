@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ namespace gfx {
 
 // Convenience typedef for shared pointer to an Image.
 class Image;
-typedef base::ReferentPtr<Image>::Type ImagePtr;
+using ImagePtr = base::SharedPtr<Image>;
 
 // An Image represents 2D image data that can be used in a texture supplied to
 // a shader. The image data is stored in a DataContainer to provide flexibility
@@ -115,15 +115,56 @@ class ION_API Image : public base::Notifier {
     // Depth textures.
     kTextureDepth16Int,        // Depth image, 16-bit depth, uint32 data.
     kTextureDepth16Short,      // Depth image, 16-bit depth, uint16 data.
+    kTextureDepth24,           // Depth image, 24-bit depth, uint32 data.
+    kTextureDepth24Stencil8,   // Depth stencil image, 24-bit depth, 8-bit
+                               //   stencil.
+    kTextureDepth32f,          // Depth image, 32-bit depth, float data.
+    kTextureDepth32fStencil8,  // Depth stencil rb, 32-bit float depth,
+                               //    8-bit stencil.
 
     // Stencil images.
     kStencil8,          // Stencil image, 8-bits
 
-    // Compressed images.
+    // Compressed images. Note the alphabetical order.
+    // N.B. Only the ASTC block size and sRGB option are fundamentally defined
+    // at the image level. The encoded blocks may be any ASTC encoding (e.g.
+    // LDR or HDR); this depends on the color mode of the block, not the GL
+    // texture format.
+    kAstc4x4Rgba,    // ASTC, 4x4 block, RGBA.
+    kAstc5x4Rgba,    // ASTC, 5x4 block, RGBA.
+    kAstc5x5Rgba,    // ASTC, 5x5 block, RGBA.
+    kAstc6x5Rgba,    // ASTC, 6x5 block, RGBA.
+    kAstc6x6Rgba,    // ASTC, 6x6 block, RGBA.
+    kAstc8x5Rgba,    // ASTC, 8x5 block, RGBA.
+    kAstc8x6Rgba,    // ASTC, 8x6 block, RGBA.
+    kAstc8x8Rgba,    // ASTC, 8x8 block, RGBA.
+    kAstc10x5Rgba,   // ASTC, 10x5 block, RGBA.
+    kAstc10x6Rgba,   // ASTC, 10x6 block, RGBA.
+    kAstc10x8Rgba,   // ASTC, 10x8 block, RGBA.
+    kAstc10x10Rgba,  // ASTC, 10x10 block, RGBA.
+    kAstc12x10Rgba,  // ASTC, 12x10 block, RGBA.
+    kAstc12x12Rgba,  // ASTC, 12x12 block, RGBA.
+    kAstc4x4Srgba,    // ASTC, 4x4 block, sRGBA.
+    kAstc5x4Srgba,    // ASTC, 5x4 block, sRGBA.
+    kAstc5x5Srgba,    // ASTC, 5x5 block, sRGBA.
+    kAstc6x5Srgba,    // ASTC, 6x5 block, sRGBA.
+    kAstc6x6Srgba,    // ASTC, 6x6 block, sRGBA.
+    kAstc8x5Srgba,    // ASTC, 8x5 block, sRGBA.
+    kAstc8x6Srgba,    // ASTC, 8x6 block, sRGBA.
+    kAstc8x8Srgba,    // ASTC, 8x8 block, sRGBA.
+    kAstc10x5Srgba,   // ASTC, 10x5 block, sRGBA.
+    kAstc10x6Srgba,   // ASTC, 10x6 block, sRGBA.
+    kAstc10x8Srgba,   // ASTC, 10x8 block, sRGBA.
+    kAstc10x10Srgba,  // ASTC, 10x10 block, sRGBA.
+    kAstc12x10Srgba,  // ASTC, 12x10 block, sRGBA.
+    kAstc12x12Srgba,  // ASTC, 12x12 block, sRGBA.
     kDxt1,              // DXT1-compressed image (no alpha).
     kDxt1Rgba,          // DXT1-compressed image (1 bit alpha).
     kDxt5,              // DXT5-compressed image (with alpha).
     kEtc1,              // ETC1-compressed image (no alpha).
+    kEtc2Rgb,           // ETC2-compressed image (no alpha).
+    kEtc2Rgba,          // ETC2-compressed image (with full alpha).
+    kEtc2Rgba1,         // ETC2-compressed image (with 1-bit alpha).
     kPvrtc1Rgb2,        // PVRTC1-compressed image (2 bits per pixel, no alpha).
     kPvrtc1Rgb4,        // PVRTC1-compressed image (4 bits per pixel, no alpha).
     kPvrtc1Rgba2,       // PVRTC1-compressed image (2 bits per pixel, with
@@ -223,6 +264,10 @@ class ION_API Image : public base::Notifier {
   // from a Renderer.
   void SetEglImage(const base::DataContainerPtr& image);
 
+  // Similar to SetEglImage, but sets the GL target type to GL_TEXTURE_ARRAY
+  // rather than GL_TEXTURE_2D.
+  void SetEglImageArray(const base::DataContainerPtr& image);
+
   // Sets the image to be of external EGLImage type. The width, height, format,
   // and image data are all determined opaquely based on the passed external
   // image. The passed data container may just wrap a void pointer. If the
@@ -296,8 +341,11 @@ class ION_API Image : public base::Notifier {
 
 inline bool Image::IsCompressedFormat(Image::Format format) {
   return format == kDxt1 || format == kDxt1Rgba || format == kDxt5 ||
-         format == kEtc1 || format == kPvrtc1Rgb2 || format == kPvrtc1Rgb4 ||
-         format == kPvrtc1Rgba2 || format == kPvrtc1Rgba4;
+         format == kEtc1 || format == kEtc2Rgb || format == kEtc2Rgba ||
+         format == kEtc2Rgba1 || format == kPvrtc1Rgb2 ||
+         format == kPvrtc1Rgb4 || format == kPvrtc1Rgba2 ||
+         format == kPvrtc1Rgba4 ||
+         (format >= kAstc4x4Rgba && format <= kAstc12x12Srgba);
 }
 
 inline bool Image::Is8BitPerChannelFormat(Image::Format format) {
@@ -312,7 +360,8 @@ inline bool Image::Is8BitPerChannelFormat(Image::Format format) {
     return false;
   }
   size_t bytes_per_pixel = Image::ComputeDataSize(format, 1, 1);
-  size_t channels = Image::GetNumComponentsForFormat(format);
+  size_t channels =
+      static_cast<size_t>(Image::GetNumComponentsForFormat(format));
   return channels == bytes_per_pixel;
 }
 

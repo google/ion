@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ limitations under the License.
 #include "ion/base/zipassetmanagermacros.h"
 #include "ion/remote/tests/httpservertest.h"
 
+#include "absl/memory/memory.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
 // Resources for tests.
@@ -48,7 +49,7 @@ class HeaderFooterHandler : public HttpServer::RequestHandler {
   const std::string HandleRequest(const std::string& path,
                                   const HttpServer::QueryMap& args,
                                   std::string* content_type) override {
-    if (path == "") {
+    if (path.empty()) {
       static const char text[] = "<!--HEADER--><!--FOOTER-->";
       *content_type = "text/html";
       return text;
@@ -66,7 +67,7 @@ class IndexHandler : public HttpServer::RequestHandler {
   const std::string HandleRequest(const std::string& path,
                                   const HttpServer::QueryMap& args,
                                   std::string* content_type) override {
-    if (path == "" || path == "index.html") {
+    if (path.empty() || path == "index.html") {
       *content_type = "text/html";
       return base::ZipAssetManager::GetFileData("index.html");
     } else {
@@ -85,7 +86,7 @@ class TextHandler : public HttpServer::RequestHandler {
                                   std::string* content_type) override {
     // Since the handler is for only a single file, the relative path to the
     // file is empty.
-    if (path == "") {
+    if (path.empty()) {
       static const char text[] = "text";
       return text;
     } else {
@@ -182,7 +183,7 @@ TEST_F(HttpServerTest, FailedServer) {
   EXPECT_FALSE(server->IsRunning());
   EXPECT_TRUE(log_checker.HasMessage("ERROR", "invalid port spec"));
 
-  server.reset(new HttpServer(0, 1));
+  server = absl::make_unique<HttpServer>(0, 1);
   EXPECT_FALSE(server->IsRunning());
   EXPECT_FALSE(log_checker.HasAnyMessages());
 }
@@ -205,6 +206,17 @@ TEST_F(HttpServerTest, ServerResponds) {
   // The authenticate request will have a random nonce value.
   EXPECT_TRUE(base::StartsWith(response_.headers["WWW-Authenticate"],
                                "Digest"));
+#endif
+}
+
+TEST_F(HttpServerTest, PauseAndUnpause) {
+  // Test that pausing and resuming the server works.
+#if !defined(ION_PLATFORM_ASMJS) && !defined(ION_PLATFORM_NACL)
+  server_->Pause();
+  EXPECT_FALSE(server_->IsRunning());
+
+  server_->Resume();
+  EXPECT_TRUE(server_->IsRunning());
 #endif
 }
 
@@ -249,6 +261,7 @@ TEST_F(HttpServerTest, RequestHandlers) {
             server_->GetUriData("index.html"));
 
 #if !defined(ION_PLATFORM_ASMJS) && !defined(ION_PLATFORM_NACL)
+  const size_t instance_length = response_.data.size();
   // Get part of a file. The length should be 9 bytes since the range is
   // inclusive.
   response_ = client_.GetRange(localhost_ + "/index.html", 5, 80);
@@ -257,7 +270,9 @@ TEST_F(HttpServerTest, RequestHandlers) {
   EXPECT_EQ(206, response_.status);
   EXPECT_FALSE(response_.data.empty());
   EXPECT_EQ("text/html", response_.headers["Content-Type"]);
-  EXPECT_EQ("bytes 5-80/694", response_.headers["Content-Range"]);
+  std::stringstream content_range;
+  content_range << "bytes 5-80/" << instance_length;
+  EXPECT_EQ(content_range.str(), response_.headers["Content-Range"]);
   EXPECT_EQ(index_range, response_.data);
 #endif
 

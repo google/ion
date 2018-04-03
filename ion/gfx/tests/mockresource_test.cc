@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ limitations under the License.
 
 #include "ion/gfx/resourceholder.h"
 
+#include "absl/memory/memory.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
 namespace ion {
@@ -55,15 +56,15 @@ class MyHolder : public ResourceHolder {
   Field<int> field6;
 };
 
-typedef base::ReferentPtr<MyHolder>::Type MyHolderPtr;
+using MyHolderPtr = base::SharedPtr<MyHolder>;
 
 class MockResourceTest : public ::testing::Test {
  protected:
   void SetUp() override {
     holder_.Reset(new MyHolder);
-    resource_.reset(new MyMockResource(0));
-    resource2_.reset(new MyMockResource(2));
-    resource3_.reset(new MyMockResource(3));
+    resource_ = absl::make_unique<MyMockResource>(0);
+    resource2_ = absl::make_unique<MyMockResource>(2);
+    resource3_ = absl::make_unique<MyMockResource>(3);
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());
     holder_->SetResource(0U, 0U, resource_.get());
     EXPECT_EQ(resource_.get(), holder_->GetResource(0U, 0U));
@@ -168,14 +169,35 @@ TEST_F(MockResourceTest, SetResource) {
   EXPECT_EQ(resource_.get(), holder_->GetResource(1U, 0));
   EXPECT_EQ(2, holder_->GetResourceCount());
 
+  // Adding another resource with different key should increase the count.
+  holder_->SetResource(1U, 2, resource2_.get());
+  EXPECT_EQ(resource_.get(), holder_->GetResource(1U, 0));
+  EXPECT_EQ(resource2_.get(), holder_->GetResource(1U, 2));
+  EXPECT_EQ(3, holder_->GetResourceCount());
+
+  // Nulling resource should decrease the count.
+  holder_->SetResource(1U, 0, nullptr);
+  EXPECT_EQ(nullptr, holder_->GetResource(1U, 0));
+  EXPECT_EQ(resource2_.get(), holder_->GetResource(1U, 2));
+  EXPECT_EQ(2, holder_->GetResourceCount());
+
   // Setting a new index to nullptr shouldn't increase or decrease the count.
   holder_->SetResource(2U, 0, nullptr);
   EXPECT_TRUE(holder_->GetResource(2U, 0) == nullptr);
   EXPECT_EQ(2, holder_->GetResourceCount());
 
+  // Setting an index larger than the inline group count should work.
+  const size_t kLargeIndex = ResourceHolder::kInlineResourceGroups + 3U;
+  holder_->SetResource(kLargeIndex, 3, resource3_.get());
+  EXPECT_EQ(resource3_.get(), holder_->GetResource(kLargeIndex, 3));
+  EXPECT_EQ(3, holder_->GetResourceCount());
+  holder_->SetResource(kLargeIndex, 3, nullptr);
+  EXPECT_TRUE(holder_->GetResource(kLargeIndex, 3) == nullptr);
+  EXPECT_EQ(2, holder_->GetResourceCount());
+
   // Should decrease the count.
-  holder_->SetResource(1U, 0, nullptr);
-  EXPECT_TRUE(holder_->GetResource(1U, 0) == nullptr);
+  holder_->SetResource(1U, 2, nullptr);
+  EXPECT_TRUE(holder_->GetResource(1U, 2) == nullptr);
   EXPECT_EQ(1, holder_->GetResourceCount());
 
   // Should increase it again.

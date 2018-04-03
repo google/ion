@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -74,16 +74,32 @@ class AndroidLogEntryWriter : public ion::port::LogEntryWriter {
     // Split message at line breaks to avoid truncated output.
     const std::vector<std::string> lines = SplitStringOnLineBreaks(message);
     for (auto it = lines.begin(); it < lines.end(); ++it)
-      __android_log_write(priority, "Ion", it->c_str());
+      __android_log_write(priority, tag_, it->c_str());
     // Also write to stderr for terminal applications. Note: use stderr instead
     // of std::cerr here to avoid potential problems with static initialization
     // order when called before main().
     fprintf(stderr, "%s %s\n", GetSeverityName(severity), message.c_str());
   }
+
+  // Sets the logging tag.  Android supports a maximum of 23 characters.
+  static void SetTag(const char* tag) {
+    strncpy(tag_, tag, 23U);
+  }
+
+ private:
+  static char tag_[24];
 };
+
+char AndroidLogEntryWriter::tag_[24] = "Ion";
 
 }  // namespace
 
 ion::port::LogEntryWriter* ion::port::CreateDefaultLogEntryWriter() {
   return new AndroidLogEntryWriter();
 }
+
+void ion::port::SetLoggingTag(const char* tag) {
+  // Do not allow nullptr tags.
+  if (tag) AndroidLogEntryWriter::SetTag(tag);
+}
+

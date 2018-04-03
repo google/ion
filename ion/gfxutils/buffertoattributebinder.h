@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -109,7 +109,7 @@ class BufferToAttributeBinder {
 
   void Apply(const gfx::ShaderInputRegistryPtr& reg,
              const gfx::AttributeArrayPtr& aa,
-             const gfx::BufferObjectPtr& bo) {
+             const gfx::BufferObjectPtr& bo) const {
     const size_t num_bindings = bindings_.size();
     for (size_t i = 0; i < num_bindings; ++i) {
       const size_t element_index = bo->AddSpec(
@@ -234,7 +234,7 @@ class BufferToAttributeBinder {
 
   // This is private to prevent default initialization.
   BufferToAttributeBinder()
-      :  base_address_(NULL) {}
+      :  base_address_(nullptr) {}
 
   template <typename FieldType>
   BufferToAttributeBinder& BindInternal(const FieldType& field,
@@ -245,7 +245,7 @@ class BufferToAttributeBinder {
     ION_STATIC_ASSERT((!base::IsSameType<void, ResolvedFieldType>::value),
                       "Cannot resolve attribute type to bind");
     const char* field_address = reinterpret_cast<const char*>(&field);
-    const ssize_t offset = field_address - base_address_;
+    const size_t offset = field_address - base_address_;
     bindings_.push_back(Binding(offset, GetComponentCount<ResolvedFieldType>(),
                                 sizeof(FieldType), attribute_name,
                                 GetComponentType<ResolvedFieldType>(),

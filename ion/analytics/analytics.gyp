@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,18 +26,12 @@
         '../dev/target_visibility.gypi',
       ],
       'sources': [
-        'benchmark.cc',
-        'benchmark.h',
-        'benchmarkutils.cc',
-        'benchmarkutils.h',
-        'discrepancy.h',
         'gpuperformance.cc',
         'gpuperformance.h',
       ],
       'dependencies': [
-        '../base/base.gyp:ionbase',
+        './analytics_nogfx.gyp:ionanalytics_nogfx',
         '../gfx/gfx.gyp:iongfx',
-        '<(ion_dir)/port/port.gyp:ionport',
       ],
     },
   ],

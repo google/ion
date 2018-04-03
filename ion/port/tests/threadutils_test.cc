@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ namespace port {
 
 // This ThreadId is set by SpawnedFunc to allow the main thread to verify that
 // it received the correct ThreadId.
-static ThreadId s_spawned_id = kInvalidThreadId;
+static std::thread::id s_spawned_id;
 
 //-----------------------------------------------------------------------------
 //
@@ -32,32 +32,14 @@ static ThreadId s_spawned_id = kInvalidThreadId;
 //
 //-----------------------------------------------------------------------------
 
-// Does nothing but return true.
-static bool EmptyFunc() {
-  EXPECT_FALSE(IsMainThread());
-  s_spawned_id = GetCurrentThreadId();
-  return true;
-}
-
 // Tests thread naming.
 static bool NamingFunc() {
   EXPECT_TRUE(IsThreadNamingSupported());
-  EXPECT_FALSE(IsMainThread());
 
   const std::string name("Some Name");
   EXPECT_TRUE(SetThreadName(name));
 
-  s_spawned_id = GetCurrentThreadId();
-  return true;
-}
-
-// Tests passing an argument to a function.
-static bool FuncWithIntArg(int arg) {
-  EXPECT_FALSE(IsMainThread());
-  const ThreadId my_id = GetCurrentThreadId();
-  EXPECT_EQ(42, arg);
-
-  s_spawned_id = my_id;
+  s_spawned_id = std::this_thread::get_id();
   return true;
 }
 
@@ -65,7 +47,7 @@ static bool FuncWithIntArg(int arg) {
 // thread-local storage of the calling thread.
 static bool LocalStorageFunc(const ThreadLocalStorageKey& key) {
   // Storage for this thread should start as NULL.
-  EXPECT_TRUE(GetThreadLocalStorage(key) == NULL);
+  EXPECT_TRUE(GetThreadLocalStorage(key) == nullptr);
 
   // Create storage for this thread.
   int my_storage;
@@ -73,10 +55,10 @@ static bool LocalStorageFunc(const ThreadLocalStorageKey& key) {
   EXPECT_EQ(&my_storage, GetThreadLocalStorage(key));
 
   // Reset to NULL.
-  EXPECT_TRUE(SetThreadLocalStorage(key, NULL));
-  EXPECT_TRUE(GetThreadLocalStorage(key) == NULL);
+  EXPECT_TRUE(SetThreadLocalStorage(key, nullptr));
+  EXPECT_TRUE(GetThreadLocalStorage(key) == nullptr);
 
-  s_spawned_id = GetCurrentThreadId();
+  s_spawned_id = std::this_thread::get_id();
   return true;
 }
 
@@ -86,46 +68,12 @@ static bool LocalStorageFunc(const ThreadLocalStorageKey& key) {
 //
 //-----------------------------------------------------------------------------
 
-TEST(ThreadUtils, MainThread) {
-  // For coverage. There is no way to guarantee that the test is run in a main
-  // thread, so this may or may not return true.
-  IsMainThread();
-
-  // Force the current thread to be the main thread.
-  SetMainThreadId(GetCurrentThreadId());
-  EXPECT_TRUE(IsMainThread());
-
-  // This should have no effect.
-  SetMainThreadId(kInvalidThreadId);
-  EXPECT_TRUE(IsMainThread());
-}
-
-#if !defined(ION_PLATFORM_ASMJS)
-TEST(ThreadUtils, SpawnAndJoin) {
-  ThreadId my_id = GetCurrentThreadId();
-
-  EXPECT_TRUE(IsMainThread());
-  ThreadId id = SpawnThread(EmptyFunc);
-  EXPECT_NE(kInvalidThreadId, id);
-  EXPECT_EQ(my_id, GetCurrentThreadId());
-
-  YieldThread();  // For coverage.
-  bool join_succeeded = JoinThread(id);
-  EXPECT_TRUE(join_succeeded);
-
-  // Now that the spawned thread is finished, make sure the ID's match.
-  EXPECT_EQ(id, s_spawned_id);
-
-  EXPECT_EQ(my_id, GetCurrentThreadId());
-  s_spawned_id = kInvalidThreadId;
-}
-
 TEST(ThreadUtils, Naming) {
   if (IsThreadNamingSupported()) {
     // Spawn a thread that names itself and tests the name.
-    ThreadId id = SpawnThread(NamingFunc);
-    EXPECT_NE(kInvalidThreadId, id);
-    JoinThread(id);
+    std::thread naming_thread(NamingFunc);
+    EXPECT_NE(std::thread::id(), naming_thread.get_id());
+    naming_thread.join();
   } else {
     EXPECT_FALSE(SetThreadName("Does not matter"));
 
@@ -133,15 +81,7 @@ TEST(ThreadUtils, Naming) {
     EXPECT_EQ(0U, GetMaxThreadNameLength());
   }
 
-  s_spawned_id = kInvalidThreadId;
-}
-
-TEST(ThreadUtils, StdFunc) {
-  // Spawn a thread with a function that takes an integer.
-  ThreadStdFunc func(std::bind(FuncWithIntArg, 42));
-  ThreadId id = SpawnThreadStd(&func);
-  JoinThread(id);
-  s_spawned_id = kInvalidThreadId;
+  s_spawned_id = std::thread::id();
 }
 
 TEST(ThreadUtils, LocalStorage) {
@@ -154,42 +94,23 @@ TEST(ThreadUtils, LocalStorage) {
   EXPECT_EQ(&storage, GetThreadLocalStorage(key));
 
   // Test another thread.
-  ThreadStdFunc func(std::bind(LocalStorageFunc, key));
-  ThreadId id = SpawnThreadStd(&func);
-  JoinThread(id);
+  std::thread thread(LocalStorageFunc, key);
+  thread.join();
 
   // Local storage for this thread should not have changed.
   EXPECT_EQ(&storage, GetThreadLocalStorage(key));
 
   // Reset to NULL.
-  EXPECT_TRUE(SetThreadLocalStorage(key, NULL));
-  EXPECT_TRUE(GetThreadLocalStorage(key) == NULL);
+  EXPECT_TRUE(SetThreadLocalStorage(key, nullptr));
+  EXPECT_TRUE(GetThreadLocalStorage(key) == nullptr);
 
   // Delete the key.
   EXPECT_TRUE(DeleteThreadLocalStorageKey(key));
 
   // These should fail.
   EXPECT_FALSE(DeleteThreadLocalStorageKey(kInvalidThreadLocalStorageKey));
-  EXPECT_FALSE(SetThreadLocalStorage(kInvalidThreadLocalStorageKey, NULL));
+  EXPECT_FALSE(SetThreadLocalStorage(kInvalidThreadLocalStorageKey, nullptr));
 }
-#endif  // !ION_PLATFORM_ASMJS
-
-TEST(ThreadUtils, JoinWithInvalid) {
-  EXPECT_TRUE(IsMainThread());
-
-  bool join_succeeded = JoinThread(kInvalidThreadId);
-  EXPECT_FALSE(join_succeeded);
-}
-
-#if !defined(ION_PLATFORM_WINDOWS)
-TEST(ThreadUtils, JoinWithSelf) {
-  ThreadId my_id = GetCurrentThreadId();
-  EXPECT_TRUE(IsMainThread());
-
-  bool join_succeeded = JoinThread(my_id);
-  EXPECT_FALSE(join_succeeded);
-}
-#endif  // !ION_PLATFORM_WINDOWS
 
 }  // namespace port
 }  // namespace ion
