@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -151,7 +151,7 @@ TEST(ShaderInputRegistryTest, AddToRegistry) {
       ShaderInputRegistry::UniformSpec("myIntArray[2", kIntUniform, "doc10")));
   EXPECT_TRUE(log_checker.HasMessage("WARNING", "invalid input name"));
   // None of the above should have successfully parsed the name.
-  EXPECT_TRUE(reg->Find<Uniform>("myIntArray") == NULL);
+  EXPECT_TRUE(reg->Find<Uniform>("myIntArray") == nullptr);
   EXPECT_TRUE(reg->Add(
       ShaderInputRegistry::UniformSpec("myIntArray[2]", kIntUniform, "doc10")));
 
@@ -214,19 +214,19 @@ TEST(ShaderInputRegistryTest, AddToRegistry) {
   EXPECT_TRUE(!attribute_specs[3].combine_function);
   EXPECT_EQ(3U, attribute_specs[3].index);
 
-  EXPECT_TRUE(reg->Find<Uniform>("myInt") != NULL);
-  EXPECT_TRUE(reg->Find<Uniform>("myFloat") != NULL);
-  EXPECT_TRUE(reg->Find<Uniform>("myVec2f") != NULL);
-  EXPECT_TRUE(reg->Find<Attribute>("myVec4f") != NULL);
-  EXPECT_TRUE(reg->Find<Attribute>("myBufferElement") != NULL);
-  EXPECT_TRUE(reg->Find<Attribute>("myFloatAttrib") != NULL);
-  EXPECT_TRUE(reg->Find<Attribute>("myVec3f") != NULL);
+  EXPECT_TRUE(reg->Find<Uniform>("myInt") != nullptr);
+  EXPECT_TRUE(reg->Find<Uniform>("myFloat") != nullptr);
+  EXPECT_TRUE(reg->Find<Uniform>("myVec2f") != nullptr);
+  EXPECT_TRUE(reg->Find<Attribute>("myVec4f") != nullptr);
+  EXPECT_TRUE(reg->Find<Attribute>("myBufferElement") != nullptr);
+  EXPECT_TRUE(reg->Find<Attribute>("myFloatAttrib") != nullptr);
+  EXPECT_TRUE(reg->Find<Attribute>("myVec3f") != nullptr);
 
   // Check that the namespace isn't polluted across types.
-  EXPECT_TRUE(reg->Find<Attribute>("myInt") == NULL);
-  EXPECT_TRUE(reg->Find<Uniform>("myVec3f") == NULL);
-  EXPECT_TRUE(reg->Find<Uniform>("noSuchUniform") == NULL);
-  EXPECT_TRUE(reg->Find<Attribute>("noSuchAttribute") == NULL);
+  EXPECT_TRUE(reg->Find<Attribute>("myInt") == nullptr);
+  EXPECT_TRUE(reg->Find<Uniform>("myVec3f") == nullptr);
+  EXPECT_TRUE(reg->Find<Uniform>("noSuchUniform") == nullptr);
+  EXPECT_TRUE(reg->Find<Attribute>("noSuchAttribute") == nullptr);
 }
 
 TEST(ShaderInputRegistryTest, ConstCreateFailsWhenSpecNotAdded) {
@@ -294,30 +294,30 @@ TEST(ShaderInputRegistryTest, IncludeGlobalRegistry) {
 
   // Check that the global registry can be included.
   EXPECT_TRUE(reg1->IncludeGlobalRegistry());
-  EXPECT_TRUE(reg1->Find<Uniform>("uViewportSize") != NULL);
-  EXPECT_TRUE(reg1->Find<Uniform>("uProjectionMatrix") != NULL);
-  EXPECT_TRUE(reg1->Find<Uniform>("uModelviewMatrix") != NULL);
-  EXPECT_TRUE(reg1->Find<Uniform>("uBaseColor") != NULL);
-  EXPECT_TRUE(reg1->Find<Attribute>("aVertex") != NULL);
-  EXPECT_TRUE(reg1->Find<Attribute>("aColor") != NULL);
-  EXPECT_TRUE(reg1->Find<Attribute>("aTexCoords") != NULL);
-  EXPECT_TRUE(reg1->Find<Attribute>("aNormal") != NULL);
+  EXPECT_TRUE(reg1->Find<Uniform>("uViewportSize") != nullptr);
+  EXPECT_TRUE(reg1->Find<Uniform>("uProjectionMatrix") != nullptr);
+  EXPECT_TRUE(reg1->Find<Uniform>("uModelviewMatrix") != nullptr);
+  EXPECT_TRUE(reg1->Find<Uniform>("uBaseColor") != nullptr);
+  EXPECT_TRUE(reg1->Find<Attribute>("aVertex") != nullptr);
+  EXPECT_TRUE(reg1->Find<Attribute>("aColor") != nullptr);
+  EXPECT_TRUE(reg1->Find<Attribute>("aTexCoords") != nullptr);
+  EXPECT_TRUE(reg1->Find<Attribute>("aNormal") != nullptr);
   // These should not exist.
-  EXPECT_TRUE(reg1->Find<Uniform>("myVec3f") == NULL);
-  EXPECT_TRUE(reg1->Find<Attribute>("myFloat") == NULL);
+  EXPECT_TRUE(reg1->Find<Uniform>("myVec3f") == nullptr);
+  EXPECT_TRUE(reg1->Find<Attribute>("myFloat") == nullptr);
 
   EXPECT_TRUE(reg2->IncludeGlobalRegistry());
-  EXPECT_TRUE(reg2->Find<Uniform>("uViewportSize") != NULL);
-  EXPECT_TRUE(reg2->Find<Uniform>("uProjectionMatrix") != NULL);
-  EXPECT_TRUE(reg2->Find<Uniform>("uModelviewMatrix") != NULL);
-  EXPECT_TRUE(reg2->Find<Uniform>("uBaseColor") != NULL);
-  EXPECT_TRUE(reg2->Find<Attribute>("aVertex") != NULL);
-  EXPECT_TRUE(reg2->Find<Attribute>("aColor") != NULL);
-  EXPECT_TRUE(reg2->Find<Attribute>("aTexCoords") != NULL);
-  EXPECT_TRUE(reg2->Find<Attribute>("aNormal") != NULL);
+  EXPECT_TRUE(reg2->Find<Uniform>("uViewportSize") != nullptr);
+  EXPECT_TRUE(reg2->Find<Uniform>("uProjectionMatrix") != nullptr);
+  EXPECT_TRUE(reg2->Find<Uniform>("uModelviewMatrix") != nullptr);
+  EXPECT_TRUE(reg2->Find<Uniform>("uBaseColor") != nullptr);
+  EXPECT_TRUE(reg2->Find<Attribute>("aVertex") != nullptr);
+  EXPECT_TRUE(reg2->Find<Attribute>("aColor") != nullptr);
+  EXPECT_TRUE(reg2->Find<Attribute>("aTexCoords") != nullptr);
+  EXPECT_TRUE(reg2->Find<Attribute>("aNormal") != nullptr);
   // These should not exist.
-  EXPECT_TRUE(reg2->Find<Uniform>("myVec3f") == NULL);
-  EXPECT_TRUE(reg2->Find<Attribute>("myFloat") == NULL);
+  EXPECT_TRUE(reg2->Find<Uniform>("myVec3f") == nullptr);
+  EXPECT_TRUE(reg2->Find<Attribute>("myFloat") == nullptr);
 
   // Now reg1 cannot include reg2, or vice versa.
   EXPECT_FALSE(reg1->Include(reg2));
@@ -335,10 +335,10 @@ TEST(ShaderInputRegistryTest, CombineFunction) {
   const ShaderInputRegistryPtr& global_reg =
       ShaderInputRegistry::GetGlobalRegistry();
 
-  EXPECT_TRUE(global_reg->Find<Uniform>("uViewportSize") != NULL);
-  EXPECT_TRUE(global_reg->Find<Uniform>("uModelviewMatrix") != NULL);
-  EXPECT_TRUE(global_reg->Find<Uniform>("uProjectionMatrix") != NULL);
-  EXPECT_TRUE(global_reg->Find<Uniform>("uBaseColor") != NULL);
+  EXPECT_TRUE(global_reg->Find<Uniform>("uViewportSize") != nullptr);
+  EXPECT_TRUE(global_reg->Find<Uniform>("uModelviewMatrix") != nullptr);
+  EXPECT_TRUE(global_reg->Find<Uniform>("uProjectionMatrix") != nullptr);
+  EXPECT_TRUE(global_reg->Find<Uniform>("uBaseColor") != nullptr);
 
   // Check that uModelviewMatrix has a combine function.
   ShaderInputRegistry::CombineFunction<Uniform>::Type combiner =
@@ -491,15 +491,15 @@ TEST(ShaderInputRegistryTest, Include) {
   EXPECT_EQ(reg3, reg2->GetIncludes()[0]);
 
   // Check that registries can find specs from includes.
-  EXPECT_TRUE(reg1->Find<Uniform>("myInt") != NULL);
-  EXPECT_TRUE(reg1->Find<Uniform>("myFloat") != NULL);
-  EXPECT_TRUE(reg1->Find<Uniform>("myVec2f") != NULL);
-  EXPECT_TRUE(reg1->Find<Attribute>("myVec4f") != NULL);
-  EXPECT_TRUE(reg1->Find<Attribute>("myBufferElement") != NULL);
-  EXPECT_TRUE(reg1->Find<Attribute>("myFloatAttrib") != NULL);
+  EXPECT_TRUE(reg1->Find<Uniform>("myInt") != nullptr);
+  EXPECT_TRUE(reg1->Find<Uniform>("myFloat") != nullptr);
+  EXPECT_TRUE(reg1->Find<Uniform>("myVec2f") != nullptr);
+  EXPECT_TRUE(reg1->Find<Attribute>("myVec4f") != nullptr);
+  EXPECT_TRUE(reg1->Find<Attribute>("myBufferElement") != nullptr);
+  EXPECT_TRUE(reg1->Find<Attribute>("myFloatAttrib") != nullptr);
   // These should not exist.
-  EXPECT_TRUE(reg1->Find<Uniform>("myVec3f") == NULL);
-  EXPECT_TRUE(reg1->Find<Attribute>("myFloat") == NULL);
+  EXPECT_TRUE(reg1->Find<Uniform>("myVec3f") == nullptr);
+  EXPECT_TRUE(reg1->Find<Attribute>("myFloat") == nullptr);
 
   // Check that specs from included registries have the right registry and
   // registry id.

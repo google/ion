@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -44,6 +44,50 @@ char* IonRemoteGet(const char* page) {
 
 DemoBase::~DemoBase() {
 #if !ION_PRODUCTION
-  remote_.reset(NULL);
+  remote_.reset(nullptr);
 #endif
+}
+
+// Rewrite the shader to be compatible with the given GL version.
+// 
+const std::string RewriteShader(const std::string& source,
+                                ion::gfx::GraphicsManager::GlFlavor gl_flavor,
+                                unsigned int version, bool is_fragment_shader) {
+  std::string body = source;
+  std::string preamble;
+  const std::string es_fragment_boilerplate =
+      "#ifdef GL_FRAGMENT_PRECISION_HIGH\n"
+      "precision highp float;\n"
+      "#else\n"
+      "precision mediump float;\n"
+      "#endif\n";
+  bool modernize = false;
+  if (gl_flavor == ion::gfx::GraphicsManager::kDesktop) {
+    preamble = "#version 140\n";
+    modernize = true;
+  } else {
+    if (gl_flavor == ion::gfx::GraphicsManager::kEs && version >= 30) {
+      preamble = "#version 300 es\n";
+      modernize = true;
+    } else {
+      preamble =
+          "#version 100 es\n"
+          "#extension EXT_draw_instanced : enable\n";
+      if (is_fragment_shader) preamble += es_fragment_boilerplate;
+      body =
+          ion::base::ReplaceString(body, "gl_InstanceID", "gl_InstanceIDEXT");
+      modernize = false;
+    }
+  }
+  if (modernize) {
+    if (is_fragment_shader) {
+      preamble += es_fragment_boilerplate + "out vec4 FragColor;\n";
+      body = ion::base::ReplaceString(body, "gl_FragColor", "FragColor");
+    }
+    // Replace deprecated storage qualifiers with modern equivalents.
+    body = ion::base::ReplaceString(body, "attribute", "in");
+    body = ion::base::ReplaceString(body, "varying",
+                                    is_fragment_shader ? "in" : "out");
+  }
+  return preamble + body;
 }

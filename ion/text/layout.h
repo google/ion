@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -80,8 +80,12 @@ enum VerticalAlignment {
 //   component of the size is positive and the other is zero, the text
 //   rectangle will be scaled uniformly to match that component (width or
 //   height). If both are positive, the rectangle will be scaled non-uniformly
-//   to match both. If either is negative or both are zero, the returned Layout
-//   will be empty.
+//   to match both. If both are zero, then the text rectangle will not be scaled
+//   and the output will be in pixels. If either is negative, the returned
+//   Layout will be empty.
+//   Caveat: For Freetype fonts, height is scaled relative to only the font's
+//   SizeInPixels, excluding any space in-between lines. So, for multi-line
+//   texts, the actual rectangle will end up slightly larger than target_size.
 //
 // Scaling:
 //   If the SDF padding in the Font is positive, each Quad of the resulting
@@ -102,7 +106,9 @@ struct LayoutOptions {
         target_size(0.0f, 1.0f),
         horizontal_alignment(kAlignLeft),
         vertical_alignment(kAlignBaseline),
-        line_spacing(1.0f) {}
+        line_spacing(1.0f),
+        glyph_spacing(0.0f),
+        metrics_based_alignment(false) {}
 
   // Location of the text rectangle. (Default: origin)
   math::Point2f target_point;
@@ -115,6 +121,17 @@ struct LayoutOptions {
   // Spacing between baselines of lines of multi-line text, expressed as a
   // fraction of the font's FontMetrics::line_advance_height. (Default: 1.0)
   float line_spacing;
+  // Horizontal spacing between two glyphs. The distance is in physical pixels,
+  // scaled according to font scaling factor.
+  float glyph_spacing;
+  // When set to true, the size of the text for alignment purposes will be
+  // computed from the reported font metrics rather than from the size of the
+  // glyphs. This ensures that adding a letter with a descender or ascender to
+  // a text that doesn't contain them will not change the placement of the
+  // baseline; for example, changing a top-aligned "sea" to "seat" will not move
+  // the letters down, and changing a bottom-aligned "snow" to "snowy" will not
+  // move the letters up. (Default: false)
+  bool metrics_based_alignment;
 };
 
 //-----------------------------------------------------------------------------
@@ -208,9 +225,23 @@ class ION_API Layout {
   // Sets the vertical distance between successive baselines.
   void SetLineAdvanceHeight(float line_advance);
 
+  // Returns the bottom-left point of the text rectangle, scaled to the same
+  // units as the glyph's Quads.
+  const math::Point2f& GetPosition() const;
+  // Sets the bottom-left point of the text rectangle.
+  void SetPosition(const math::Point2f& position);
+
+  // Returns the width and height of the text rectangle, scaled to the same
+  // units as the glyph's Quads.
+  const math::Vector2f& GetSize() const;
+  // Sets the width and height of the text rectangle.
+  void SetSize(const math::Vector2f& size);
+
  private:
   std::vector<Glyph> glyphs_;
   float line_advance_height_;
+  math::Point2f position_;
+  math::Vector2f size_;
 };
 
 // Debugging aids.

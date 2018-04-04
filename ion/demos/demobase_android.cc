@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,35 +32,39 @@ limitations under the License.
 
 #define JNI_EXPORT extern "C" __attribute__((visibility("default")))
 
-static DemoBase* demo = NULL;
+static DemoBase* GetDemo(jlong jni_pointer) {
+  return reinterpret_cast<DemoBase*>(jni_pointer);
+}
 
-JNI_EXPORT void Java___jni_name___IonRenderer_nativeInit(
-    JNIEnv* env, jobject thiz, jint w, jint h) {
-  demo = CreateDemo(w, h);
+JNI_EXPORT jlong Java___jni_name___IonRenderer_nativeInit(
+    JNIEnv* env, jobject thiz, jlong demo, jint w, jint h) {
+  // The lifetime of the native demo object is managed in Java.
+  return reinterpret_cast<jlong>(CreateDemo(w, h).release());
 }
 
 JNI_EXPORT void Java___jni_name___IonRenderer_nativeResize(
-    JNIEnv* env, jobject thiz, jint w, jint h) {
-  demo->Resize(w, h);
+    JNIEnv* env, jobject thiz, jlong demo, jint w, jint h) {
+  GetDemo(demo)->Resize(w, h);
 }
 
 JNI_EXPORT void Java___jni_name___IonRenderer_nativeRender(
-    JNIEnv* env, jobject thiz) {
-  demo->Update();
-  demo->Render();
+    JNIEnv* env, jobject thiz, jlong demo) {
+  GetDemo(demo)->Update();
+  GetDemo(demo)->Render();
 }
 
 JNI_EXPORT void Java___jni_name___IonRenderer_nativeMotion(
-    JNIEnv* env, jobject thiz, jfloat x, jfloat y, jboolean is_press) {
-  demo->ProcessMotion(x, y, is_press);
+    JNIEnv* env, jobject thiz, jlong demo, jfloat x, jfloat y,
+    jboolean is_press) {
+  GetDemo(demo)->ProcessMotion(x, y, is_press);
 }
 
 JNI_EXPORT void Java___jni_name___IonRenderer_nativeScale(
-    JNIEnv* env, jobject thiz, jfloat scale) {
-  demo->ProcessScale(scale);
+    JNIEnv* env, jobject thiz, jlong demo, jfloat scale) {
+  GetDemo(demo)->ProcessScale(scale);
 }
 
 JNI_EXPORT void Java___jni_name___IonRenderer_nativeDone(
-    JNIEnv* env, jobject thiz) {
-  delete demo;
+    JNIEnv* env, jobject thiz, jlong demo) {
+  delete GetDemo(demo);
 }

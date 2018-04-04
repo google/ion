@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ limitations under the License.
 
 #include "ion/portgfx/setswapinterval.h"
 
-#include "ion/portgfx/getglprocaddress.h"
+#include "ion/portgfx/glcontext.h"
 #include "ion/portgfx/glheaders.h"
 
 namespace ion {
@@ -41,16 +41,25 @@ namespace portgfx {
 // There are also numerous reports that eglSwapInterval does nothing on many
 // Android devices.
 bool SetSwapInterval(int interval) {
-  if (interval < 0)
+  GlContextPtr gl_context = GlContext::GetCurrent();
+  if (!gl_context) {
     return false;
+  }
+  if (interval < 0) {
+    return false;
+  }
 #if defined(ION_PLATFORM_IOS) || defined(ION_PLATFORM_ANDROID) || \
     defined(ION_PLATFORM_ASMJS) || defined(ION_PLATFORM_NACL) || \
-    defined(ION_PLATFORM_GENERIC_ARM)
+    defined(ION_GOOGLE_INTERNAL)
   return true;
+#elif defined(ION_GFX_OGLES20) || defined(ION_ANGLE)
+  EGLDisplay display = eglGetCurrentDisplay();
+  return display != EGL_NO_DISPLAY &&
+      eglSwapInterval(display, interval) == EGL_TRUE;
 #elif defined(ION_PLATFORM_LINUX)
   typedef int (ION_APIENTRY *SwapIntervalProc)(int interval);
   SwapIntervalProc vsync_func = reinterpret_cast<SwapIntervalProc>(
-      GetGlProcAddress("glXSwapIntervalSGI", false));
+      gl_context->GetProcAddress("glXSwapIntervalSGI", 0));
   return vsync_func && vsync_func(interval) == 0;
 #elif defined(ION_PLATFORM_MAC)
   if (CGLContextObj context = CGLGetCurrentContext()) {
@@ -60,23 +69,19 @@ bool SetSwapInterval(int interval) {
     return interval == new_interval;
   }
   return false;
-#elif defined(ION_PLATFORM_WINDOWS) && !defined(ION_ANGLE)
+#elif defined(ION_PLATFORM_WINDOWS)
   typedef BOOL (ION_APIENTRY *SwapIntervalProc)(int interval);
   typedef int (ION_APIENTRY *GetSwapIntervalProc)();
   SwapIntervalProc vsync_set_func = reinterpret_cast<SwapIntervalProc>(
-      GetGlProcAddress("wglSwapIntervalEXT", false));
+      gl_context->GetProcAddress("wglSwapIntervalEXT", 0));
   GetSwapIntervalProc vsync_get_func = reinterpret_cast<GetSwapIntervalProc>(
-      GetGlProcAddress("wglGetSwapIntervalEXT", false));
+      gl_context->GetProcAddress("wglGetSwapIntervalEXT", 0));
   if (vsync_get_func && vsync_set_func) {
     BOOL set_val = vsync_set_func(interval);
     int get_val = vsync_get_func();
     return set_val == TRUE && get_val == interval;
   }
   return false;
-#elif defined(ION_GFX_OGLES20) || defined(ION_ANGLE)
-  EGLDisplay display = eglGetCurrentDisplay();
-  return display != EGL_NO_DISPLAY &&
-      eglSwapInterval(display, interval) == EGL_TRUE;
 #endif
 }
 

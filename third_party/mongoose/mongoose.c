@@ -1,3 +1,20 @@
+/**
+Copyright 2017 Google Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS-IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+*/
+
 // Copyright (c) 2004-2013 Sergey Lyubka
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -69,8 +86,11 @@
 #include <stdio.h>
 
 #if defined(_WIN32) && !defined(__SYMBIAN32__) // Windows specific
-#undef _WIN32_WINNT
-#define _WIN32_WINNT 0x0400 // To make it link in VS2005
+// BEGIN_GOOGLE_MODIFICATION
+#include <WinSock2.h>
+#include <ws2ipdef.h>
+#include <WS2tcpip.h>
+// END_GOOGLE_MODIFICATION
 #include <windows.h>
 
 #ifndef PATH_MAX
@@ -187,7 +207,9 @@ typedef struct DIR {
   struct dirent  result;
 } DIR;
 
-#ifndef HAVE_POLL
+// BEGIN_GOOGLE_MODIFICATION
+#if !defined(HAVE_POLL) && !defined(_WIN32)
+// END_GOOGLE_MODIFICATION
 struct pollfd {
   int fd;
   short events;
@@ -199,7 +221,9 @@ struct pollfd {
 
 // Mark required libraries
 #ifdef _MSC_VER
-#pragma comment(lib, "Ws2_32.lib")
+// BEGIN_GOOGLE_MODIFICATION Ws2_32.lib -> ws2_32.lib
+#pragma comment(lib, "ws2_32.lib")
+// END_GOOGLE_MODIFICATION
 #endif
 
 #else    // UNIX  specific
@@ -246,7 +270,7 @@ typedef int SOCKET;
 
 // The implementation of sscanf in the Android NDK < 20 is horribly broken. Add
 // a working implementation as a workaround.
-// TODO(user): Remove when android native builds use API >= 20.
+// 
 #ifdef ANDROID
 
 static int scan_digit(const char* str, int* value, int width) {
@@ -552,7 +576,7 @@ struct socket {
   unsigned ssl_redir:1; // Is port supposed to redirect everything to SSL port
 };
 
-// NOTE(user): this enum shoulds be in sync with the config_options below.
+// NOTE: this enum shoulds be in sync with the config_options below.
 enum {
   CGI_EXTENSIONS, CGI_ENVIRONMENT, PUT_DELETE_PASSWORDS_FILE, CGI_INTERPRETER,
   PROTECT_URI, AUTHENTICATION_DOMAIN, SSI_EXTENSIONS, THROTTLE,
@@ -730,9 +754,6 @@ static void sockaddr_to_string(char *buf, size_t len,
   inet_ntop(usa->sa.sa_family, usa->sa.sa_family == AF_INET ?
             (void *) &usa->sin.sin_addr :
             (void *) &usa->sin6.sin6_addr, buf, len);
-#elif defined(_WIN32)
-  // Only Windoze Vista (and newer) have inet_ntop()
-  strncpy(buf, inet_ntoa(usa->sin.sin_addr), len);
 #else
   inet_ntop(usa->sa.sa_family, (void *) &usa->sin.sin_addr, buf, len);
 #endif
@@ -1225,7 +1246,7 @@ static struct tm *localtime(const time_t *ptime, struct tm *ptm) {
 }
 
 static struct tm *gmtime(const time_t *ptime, struct tm *ptm) {
-  // FIXME(lsm): fix this.
+  // 
   return localtime(ptime, ptm);
 }
 
@@ -1432,7 +1453,7 @@ static pid_t spawn_process(struct mg_connection *conn, const char *prog,
   memset(&si, 0, sizeof(si));
   si.cb = sizeof(si);
 
-  // TODO(user): redirect CGI errors to the error log file
+  // 
   si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
   si.wShowWindow = SW_HIDE;
 
@@ -1525,7 +1546,7 @@ int mg_start_thread(mg_thread_func_t func, void *param) {
 
   (void) pthread_attr_init(&attr);
   (void) pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-  // TODO(user): figure out why mongoose dies on Linux if next line is enabled
+  // 
   // (void) pthread_attr_setstacksize(&attr, sizeof(struct mg_connection) * 5);
 
   result = pthread_create(&thread_id, &attr, func, param);
@@ -2451,8 +2472,8 @@ static int check_password(const char *method, const char *ha1, const char *uri,
     return 0;
   }
 
-  // NOTE(user): due to a bug in MSIE, we do not compare the URI
-  // TODO(user): check for authentication timeout
+  // NOTE: due to a bug in MSIE, we do not compare the URI
+  // 
   if (// strcmp(dig->uri, c->ouri) != 0 ||
       strlen(response) != 32
       // || now - strtoul(dig->nonce, NULL, 10) > 3600
@@ -2730,34 +2751,46 @@ int mg_modify_passwords_file(const char *fname, const char *domain,
 
 static int conn2(const char *host, int port, int use_ssl,
                  char *ebuf, size_t ebuf_len) {
-  struct sockaddr_in sin;
-  struct hostent *he;
+  // BEGIN_GOOGLE_MODIFICATION
+  struct addrinfo *addr;
+  struct addrinfo *info = NULL;
+  struct addrinfo hints;
   SOCKET sock = INVALID_SOCKET;
+  int ret = 0;
+  char port_string[16];
+  sprintf(port_string, "%d", port);
+
+  memset(&hints, 0, sizeof(hints));
+  // Allow both IPv4 and IPv6 addresses.
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
 
   if (host == NULL) {
     snprintf(ebuf, ebuf_len, "%s", "NULL host");
   } else if (use_ssl && SSLv23_client_method == NULL) {
     snprintf(ebuf, ebuf_len, "%s", "SSL is not initialized");
-    // TODO(user): use something threadsafe instead of gethostbyname()
-  } else if ((he = gethostbyname(host)) == NULL) {
-    snprintf(ebuf, ebuf_len, "gethostbyname(%s): %s", host, strerror(ERRNO));
-  } else if ((sock = socket(PF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET) {
-    snprintf(ebuf, ebuf_len, "socket(): %s", strerror(ERRNO));
+  } else if ((ret = getaddrinfo(host, port_string, &hints, &info)) != 0) {
+    snprintf(ebuf, ebuf_len, "getaddrinfo(%s, %s, %p, %p): %s", host,
+             port_string, &hints, &info, strerror(ERRNO));
   } else {
-    sin.sin_family = AF_INET;
-    sin.sin_port = htons((uint16_t) port);
-    sin.sin_addr = * (struct in_addr *) he->h_addr_list[0];
-    if (connect(sock, (struct sockaddr *) &sin, sizeof(sin)) != 0) {
-      snprintf(ebuf, ebuf_len, "connect(%s:%d): %s",
-               host, port, strerror(ERRNO));
-      closesocket(sock);
-      sock = INVALID_SOCKET;
+    for (addr = info;
+         sock == INVALID_SOCKET && addr != NULL; addr = addr->ai_next) {
+      sock = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
+      if (sock != INVALID_SOCKET) {
+        // Connect the client socket to the server socket.
+        if (connect(sock, addr->ai_addr, addr->ai_addrlen) != 0) {
+          snprintf(ebuf, ebuf_len, "connect(%s:%d): %s",
+                   host, port, strerror(ERRNO));
+          closesocket(sock);
+          sock = -1;
+        }
+      }
     }
+    freeaddrinfo(info);
   }
   return sock;
+  // END_GOOGLE_MODIFICATION
 }
-
-
 
 void mg_url_encode(const char *src, char *dst, size_t dst_len) {
   static const char *dont_escape = "._-$,;~()";
@@ -2909,7 +2942,7 @@ static void dir_scan_callback(struct de *de, void *data) {
                                           sizeof(dsd->entries[0]));
   }
   if (dsd->entries == NULL) {
-    // TODO(user): propagate an error to the caller
+    // 
     dsd->num_entries = 0;
   } else {
     dsd->entries[dsd->num_entries].file_name = mg_strdup(de->file_name);
@@ -3384,7 +3417,7 @@ static void prepare_cgi_environment(struct mg_connection *conn,
   addenv(blk, "%s", "SERVER_PROTOCOL=HTTP/1.1");
   addenv(blk, "%s", "REDIRECT_STATUS=200"); // For PHP
 
-  // TODO(user): fix this for IPv6 case
+  // 
   addenv(blk, "SERVER_PORT=%d", ntohs(conn->client.lsa.sin.sin_port));
 
   addenv(blk, "REQUEST_METHOD=%s", conn->request_info.request_method);
@@ -4117,7 +4150,7 @@ static void read_websocket(struct mg_connection *conn) {
       data = mem;
       if (data_len > sizeof(mem) && (data = malloc(data_len)) == NULL) {
         // Allocation failed, exit the loop and then close the connection
-        // TODO: notify user about the failure
+        // 
         break;
       }
 
@@ -4130,7 +4163,7 @@ static void read_websocket(struct mg_connection *conn) {
       if (data_len + header_len > body_len) {
         len = body_len - header_len;
         memcpy(data, buf + header_len, len);
-        // TODO: handle pull error
+        // 
         pull_all(NULL, conn, data + len, data_len - len);
         conn->data_len = conn->request_len;
       } else {
@@ -4306,7 +4339,7 @@ int mg_upload(struct mg_connection *conn, const char *destination_dir) {
     for (i = j = 0; i < headers_len; i++) {
       if (buf[i] == '\r' && buf[i + 1] == '\n') {
         buf[i] = buf[i + 1] = '\0';
-        // TODO(user): don't expect filename to be the 3rd field,
+        // 
         // parse the header properly instead.
         sscanf(&buf[j], "Content-Disposition: %*s %*s filename=\"%1023[^\"]",
                fname);
@@ -4331,7 +4364,7 @@ int mg_upload(struct mg_connection *conn, const char *destination_dir) {
     if ((s = strrchr(fname, '/')) == NULL) {
       s = fname;
     }
-    // Open file in binary mode. TODO: set an exclusive lock.
+    // Open file in binary mode. 
     snprintf(path, sizeof(path), "%s/%s", destination_dir, s);
     if ((fp = fopen(path, "wb")) == NULL) {
       break;
@@ -4505,7 +4538,7 @@ static void close_all_listening_sockets(struct mg_context *ctx) {
 
 // Valid listening port specification is: [ip_address:]port[s]
 // Examples: 80, 443s, 127.0.0.1:3128, 1.2.3.4:8080s
-// TODO(user): add parsing of the IPv6 address
+// 
 static int parse_port_string(const struct vec *vec, struct socket *so) {
   int a, b, c, d, port, len;
 
@@ -4543,9 +4576,6 @@ static int parse_port_string(const struct vec *vec, struct socket *so) {
 static int set_ports_option(struct mg_context *ctx) {
   const char *list = ctx->config[LISTENING_PORTS];
   int on = 1, success = 1;
-#if defined(USE_IPV6)
-  int off = 0;
-#endif
   struct vec vec;
   struct socket so, *ptr;
 
@@ -4563,10 +4593,6 @@ static int set_ports_option(struct mg_context *ctx) {
                // broadcast UDP sockets
                setsockopt(so.sock, SOL_SOCKET, SO_REUSEADDR,
                           (void *) &on, sizeof(on)) != 0 ||
-#if defined(USE_IPV6)
-               setsockopt(so.sock, IPPROTO_IPV6, IPV6_V6ONLY, (void *) &off,
-                          sizeof(off)) != 0 ||
-#endif
                bind(so.sock, &so.lsa.sa, sizeof(so.lsa)) != 0 ||
                listen(so.sock, SOMAXCONN) != 0) {
       cry(fc(ctx), "%s: cannot bind to %.*s: %s", __func__,
@@ -5061,7 +5087,7 @@ static void process_new_connection(struct mg_connection *conn) {
       ri->remote_user = NULL; // when having connections with and without auth would cause double free and then crash
     }
 
-    // NOTE(user): order is important here. should_keep_alive() call
+    // NOTE: order is important here. should_keep_alive() call
     // is using parsed request, which will be invalid after memmove's below.
     // Therefore, memorize should_keep_alive() result now for later use
     // in loop exit condition.
@@ -5099,7 +5125,9 @@ static int consume_socket(struct mg_context *ctx, struct socket *sp) {
     // Copy socket from the queue and increment tail
     *sp = ctx->queue[ctx->sq_tail % ARRAY_SIZE(ctx->queue)];
     ctx->sq_tail++;
-    DEBUG_TRACE(("grabbed socket %d, going busy", sp->sock));
+// BEGIN_GOOGLE_MODIFICATION sp->sock -> (int) sp->sock
+    DEBUG_TRACE(("grabbed socket %d, going busy", (int) sp->sock));
+// END_GOOGLE_MODIFICATION
 
     // Wrap pointers if needed
     while (ctx->sq_tail > (int) ARRAY_SIZE(ctx->queue)) {
@@ -5137,7 +5165,7 @@ static void *worker_thread(void *thread_func_param) {
       // Fill in IP, port info early so even if SSL setup below fails,
       // error handler would have the corresponding info.
       // Thanks to Johannes Winkelmann for the patch.
-      // TODO(user): Fix IPv6 case
+      // 
       conn->request_info.remote_port = ntohs(conn->client.rsa.sin.sin_port);
       memcpy(&conn->request_info.remote_ip,
              &conn->client.rsa.sin.sin_addr.s_addr, 4);
@@ -5184,7 +5212,9 @@ static void produce_socket(struct mg_context *ctx, const struct socket *sp) {
     // Copy socket to the queue and increment head
     ctx->queue[ctx->sq_head % ARRAY_SIZE(ctx->queue)] = *sp;
     ctx->sq_head++;
-    DEBUG_TRACE(("queued socket %d", sp->sock));
+// BEGIN_GOOGLE_MODIFICATION sp->sock -> (int) sp->sock
+    DEBUG_TRACE(("queued socket %d", (int) sp->sock));
+// END_GOOGLE_MODIFICATION
   }
 
   (void) pthread_cond_signal(&ctx->sq_full);
@@ -5260,7 +5290,7 @@ static void *master_thread(void *thread_func_param) {
 
     if (poll(pfd, ctx->num_listening_sockets, 200) > 0) {
       for (i = 0; i < ctx->num_listening_sockets; i++) {
-        // NOTE(user): on QNX, poll() returns POLLRDNORM after the
+        // NOTE: on QNX, poll() returns POLLRDNORM after the
         // successfull poll, and POLLIN is defined as (POLLRDNORM | POLLRDBAND)
         // Therefore, we're checking pfd[i].revents & POLLIN, not
         // pfd[i].revents == POLLIN.
@@ -5371,7 +5401,7 @@ struct mg_context *mg_start(const struct mg_callbacks *callbacks,
 #endif // _WIN32
 
   // Allocate context and initialize reasonable general case defaults.
-  // TODO(user): do proper error handling here.
+  // 
   if ((ctx = (struct mg_context *) calloc(1, sizeof(*ctx))) == NULL) {
     return NULL;
   }
@@ -5404,7 +5434,7 @@ struct mg_context *mg_start(const struct mg_callbacks *callbacks,
     }
   }
 
-  // NOTE(user): order is important here. SSL certificates must
+  // NOTE: order is important here. SSL certificates must
   // be initialized before listening ports. UID must be set last.
   if (!set_gpass_option(ctx) ||
 #if !defined(NO_SSL)

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@ limitations under the License.
 
 */
 
-
 #ifndef ION_BASE_LOGGING_H_
 #define ION_BASE_LOGGING_H_
 
@@ -23,6 +22,8 @@ limitations under the License.
 #include <memory>
 #include <sstream>
 #include <string>
+#include <type_traits>
+#include <utility>
 
 #include "ion/port/logging.h"
 
@@ -53,15 +54,6 @@ ION_API port::LogEntryWriter* GetLogEntryWriter();
 // if another is not explicitly specified via SetLogEntryWriter().
 ION_API port::LogEntryWriter* GetDefaultLogEntryWriter();
 
-// Sets a custom break handler that gets invoked by Logger::CheckMessage.
-// If break_handler is an empty function (e.g. a std::function<void()>
-// without any function assigned to it), fatal errors will not invoke any
-// break handler and will not abort program execution.
-ION_API void SetBreakHandler(const std::function<void()>& break_handler);
-
-// Restores the default break handler (port::BreakAndAbort).
-ION_API void RestoreDefaultBreakHandler();
-
 // Internal logging implementation.  Should not be used by client code.  Classes
 // and variables are in an internal namespace to avoid polluting the Ion
 // namespace.
@@ -72,7 +64,7 @@ namespace logging_internal {
 // override.
 class ION_API Logger {
  public:
-  Logger(const char* file_name, int line_number, port::LogSeverity severity);
+  Logger(const char* filename, int line_number, port::LogSeverity severity);
   ~Logger();
 
   // Return the stream to which output is sent (or accumulated).
@@ -143,6 +135,9 @@ class ION_API ThrottledLogger {
   std::unique_ptr<Logger> logger_;
 };
 
+// Initializes internal static variables used by loggers.
+ION_API void InitializeLogging();
+
 }  // namespace logging_internal
 }  // namespace base
 }  // namespace ion
@@ -153,8 +148,9 @@ class ION_API ThrottledLogger {
 // in your code instead.
 // @{
 
-// Completely disable logging in production builds.
-#if ION_PRODUCTION
+// Completely disable logging in production builds, except for ION_LOG_PROD. If
+// ION_ALWAYS_LOG is defined, then do not disable logging.
+#if ION_PRODUCTION && !ION_ALWAYS_LOG
 
 // Macro that actually causes logging to happen.
 #define ION_LOG(severity) \
@@ -195,8 +191,12 @@ class ION_API ThrottledLogger {
 
 #endif
 
-// @}
+// Similar to ION_LOG but is not stripped out in prod builds.
+#define ION_LOG_PROD(severity) \
+  ::ion::base::logging_internal::Logger(__FILE__, __LINE__, \
+                                        ::ion::port::severity).GetStream()
 
+// @}
 // @name Main logging macros
 //
 // These macros log a message to the console in a platform-specific way.  The
@@ -215,13 +215,18 @@ class ION_API ThrottledLogger {
 // Logs the streamed message unconditionally with a severity of |severity|.
 #define LOG(severity) ION_LOG(severity)
 
+// Same as LOG above but kept in production builds.
+// Warning: this macro is an ion-specific extension and is not compatible with
+// base/logging.h.
+#define LOG_PROD(severity) ION_LOG_PROD(severity)
+
 // Logs the streamed message once per process run with a severity of |severity|.
 #define LOG_ONCE(severity) ION_LOG_ONCE(severity)
 
 // Logs the streamed message at most once every |time| seconds with a severity
 // of |severity|.
 #define LOG_EVERY_N_SEC(severity, time) ION_LOG_EVERY_N_SEC(severity, time)
-#if ION_DEBUG
+#if !ION_PRODUCTION
 #define DLOG(severity) ION_LOG(severity)
 #define DLOG_ONCE(severity) ION_LOG_ONCE(severity)
 #define DLOG_EVERY_N_SEC(severity, time) ION_LOG_EVERY_N_SEC(severity, time)
@@ -242,9 +247,18 @@ class ION_API ThrottledLogger {
 // These macros implement Ion's CHECK and DCHECK statements.  Use the non-
 // prefixed CHECK and DCHECK macros in your code instead.
 // @{
-#define ION_LOG_CHECK_MESSAGE(severity, check_type, expr)               \
-  LOG(severity) << ::ion::base::logging_internal::Logger::CheckMessage( \
-                       check_type, #expr)
+#if STRIP_LOG
+// Strip out CHECK messages even in prod builds if STRIP_LOG is defined and not
+// zero, to match the behavior of Google's internal CHECK.
+#define ION_LOG_CHECK_MESSAGE(severity, check_type, expr)                   \
+  ION_LOG(severity) << ::ion::base::logging_internal::Logger::CheckMessage( \
+      check_type, #expr)
+#else
+#define ION_LOG_CHECK_MESSAGE(severity, check_type, expr)                \
+  ION_LOG_PROD(severity)                                                 \
+      << ::ion::base::logging_internal::Logger::CheckMessage(check_type, \
+                                                             #expr)
+#endif
 
 #define ION_CHECK(expr) \
   if (expr)             \
@@ -253,7 +267,7 @@ class ION_API ThrottledLogger {
   ION_LOG_CHECK_MESSAGE(FATAL, "CHECK", #expr)
 
 // ION_DCHECK is defined normally in debug builds.
-#if ION_DEBUG
+#if !ION_PRODUCTION
 #define ION_DCHECK(expr) \
   if (expr)              \
     ;                    \
@@ -287,8 +301,9 @@ class ION_API ThrottledLogger {
 // the second and third operand to be of the same type. Hence by default we use
 // an if/else clause instead. Visual Studio seems to have a higher likelihood of
 // inlining for small functions that use ION_DCHECKs if they expand to the
-// ternary operator, so we use the ternary operator on Windows.
-#if defined(ION_PLATFORM_WINDOWS)
+// ternary operator, so we use the ternary operator on Windows (unless we
+// compile with clang).
+#if defined(ION_PLATFORM_WINDOWS) && !defined(__clang__)
 #define ION_DCHECK(expr)                                                    \
   (true) ?                                                                  \
   (void)(expr) :                                                            \
@@ -300,14 +315,15 @@ class ION_API ThrottledLogger {
   else                                                                      \
     ::ion::base::logging_internal::NullLogger().GetStream()
 #endif  // defined(ION_PLATFORM_WINDOWS)
-#endif  // ION_DEBUG
+#endif  // !ION_PRODUCTION
 
-#define ION_CHECK_OP(op, val1, val2)                                        \
-  ION_CHECK((val1) op (val2)) << "(" << (val1) << " " << #op  /* NOLINT */  \
-                              << " " << (val2) << ")\n"
-#define ION_DCHECK_OP(op, val1, val2)                                       \
-  ION_DCHECK((val1) op (val2)) << "(" << (val1) << " " << #op  /* NOLINT */ \
-                               << " " << (val2) << ")\n"
+#define ION_CHECK_OP(op, val1, val2)       \
+  ION_CHECK((val1) op (val2)) /* NOLINT */ \
+      << ::ion::base::logging_internal::BuildCheckString((val1), #op, (val2))
+#define ION_DCHECK_OP(op, val1, val2)       \
+  ION_DCHECK((val1) op (val2)) /* NOLINT */ \
+      << ::ion::base::logging_internal::BuildCheckString((val1), #op, (val2))
+
 // @}
 
 // @name CHECK and DCHECK macros
@@ -328,6 +344,19 @@ class ION_API ThrottledLogger {
 #define CHECK_GE(val1, val2) ION_CHECK_OP(>=, val1, val2)  // NOLINT
 #define CHECK_GT(val1, val2) ION_CHECK_OP(>, val1, val2)   // NOLINT
 
+// QCHECK is a quiet version of CHECK. It has all of the same properties,
+// except that when it dies it simply prints out this message and doesn't
+// dump a giant stack trace, etc. This is good for tests like sanity-checking
+// user inputs, where your own failure message is really the only thing you
+// need or want to display.
+#define QCHECK(expr) ION_CHECK(expr)
+#define QCHECK_EQ(val1, val2) ION_CHECK_OP(==, val1, val2)  // NOLINT
+#define QCHECK_NE(val1, val2) ION_CHECK_OP(!=, val1, val2)  // NOLINT
+#define QCHECK_LE(val1, val2) ION_CHECK_OP(<=, val1, val2)  // NOLINT
+#define QCHECK_LT(val1, val2) ION_CHECK_OP(<, val1, val2)   // NOLINT
+#define QCHECK_GE(val1, val2) ION_CHECK_OP(>=, val1, val2)  // NOLINT
+#define QCHECK_GT(val1, val2) ION_CHECK_OP(>, val1, val2)   // NOLINT
+
 #define DCHECK(expr) ION_DCHECK(expr)
 #define DCHECK_EQ(val1, val2) ION_DCHECK_OP(==, val1, val2)  // NOLINT
 #define DCHECK_NE(val1, val2) ION_DCHECK_OP(!=, val1, val2)  // NOLINT
@@ -340,37 +369,48 @@ namespace ion {
 namespace base {
 namespace logging_internal {
 
-// Helpers for CHECK_NOTNULL(). Two are necessary to support both raw pointers
-// and smart pointers.
+// Helper for CHECK_NOTNULL(), using C++11 perfect forwarding.
 template <typename T>
-T& CheckNotNullCommon(const char* expr_string, T& t) {  // NOLINT
-  if (t == NULL) {
+T CheckNotNull(const char* expr_string, T&& t) {
+  if (t == nullptr) {
     ION_LOG(FATAL) << Logger::CheckMessage("CHECK_NOTNULL", expr_string);
   }
-  return t;
+  return std::forward<T>(t);
 }
 
+// This formats a value for a failing (D)CHECK_XX statement. It uses operator
+// << for the most part with a specialization for nullptr_t.
 template <typename T>
-T* CheckNotNull(const char* expr_string, T* t) {  // NOLINT
-  return CheckNotNullCommon(expr_string, t);
+inline void OutputCheckOpString(std::ostream* os, const T& v) {
+  (*os) << v;
+}
+template <>
+inline void OutputCheckOpString(std::ostream* os, const std::nullptr_t& p) {
+  (*os) << "nullptr";
 }
 
-template <typename T>
-T& CheckNotNull(const char* expr_string, T& t) {  // NOLINT
-  return CheckNotNullCommon(expr_string, t);
-}
+#define DECLARE_BUILD_CHECK_STRING(A, B, type1, type2)                         \
+  template <typename T1, typename T2,                                          \
+            typename std::enable_if<A std::is_fundamental<T1>::value &&        \
+                                    B std::is_fundamental<T2>::value>::type* = \
+                nullptr>                                                       \
+  inline std::string BuildCheckString(type1 v1, const char* op, type2 v2) {    \
+    std::ostringstream str;                                                    \
+    str << "(";                                                                \
+    OutputCheckOpString(&str, v1);                                             \
+    str << " " << op << " ";                                                   \
+    OutputCheckOpString(&str, v2);                                             \
+    str << ")\n";                                                              \
+    return str.str();                                                          \
+  }
 
-// This extra overload is needed to support non-const rvalues of non-pointer
-// type.
-//
-// For example, it enables the following use-case:
-//   CHECK_NOTNULL(make_scoped_ptr<T>(MakeT()));
-//
-// Without this overload, the above code wouldn't compile.
-template <typename T>
-const T& CheckNotNull(const char* expr_string, const T& t) {  // NOLINT
-  return CheckNotNullCommon(expr_string, t);
-}
+// Pass by value if the type is a literal type.
+DECLARE_BUILD_CHECK_STRING(,, T1, T2);
+DECLARE_BUILD_CHECK_STRING(, !, T1, const T2&);
+DECLARE_BUILD_CHECK_STRING(!,, const T1&, T2);
+DECLARE_BUILD_CHECK_STRING(!, !, const T1&, const T2&);
+
+#undef DECLARE_BUILD_CHECK_STRING
 
 }  // namespace logging_internal
 }  // namespace base
@@ -384,5 +424,4 @@ const T& CheckNotNull(const char* expr_string, const T& t) {  // NOLINT
       "'" #val "' Must be non NULL", (val))
 
 // @}
-
 #endif  // ION_BASE_LOGGING_H_

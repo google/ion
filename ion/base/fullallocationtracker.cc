@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,16 +19,15 @@ limitations under the License.
 
 #include <algorithm>
 #include <map>
+#include <mutex>  // NOLINT(build/c++11)
 #include <vector>
 
 #include "ion/base/allocatable.h"
 #include "ion/base/allocationmanager.h"
 #include "ion/base/invalid.h"
-#include "ion/base/lockguards.h"
 #include "ion/base/logging.h"
 #include "ion/base/stlalloc/allocmap.h"
 #include "ion/base/stlalloc/allocvector.h"
-#include "ion/port/mutex.h"
 
 namespace ion {
 namespace base {
@@ -54,7 +53,7 @@ class FullAllocationTracker::Helper : public Allocatable {
   // Adds an allocation to the vector and the active allocation map. Returns
   // the index into the vector.
   size_t AddAllocation(const void* memory, size_t size) {
-    LockGuard lock(&mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     const size_t index = allocations_.size();
     allocations_.push_back(Allocation(memory, size));
     DCHECK(active_map_.find(memory) == active_map_.end());
@@ -67,7 +66,7 @@ class FullAllocationTracker::Helper : public Allocatable {
   // Removes an allocation as active. Returns its index in the vector or
   // kInvalidIndex if it is not found.
   size_t RemoveAllocation(const void* memory) {
-    LockGuard lock(&mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     ActiveMap::iterator it = active_map_.find(memory);
     if (it == active_map_.end()) {
       return kInvalidIndex;
@@ -86,42 +85,42 @@ class FullAllocationTracker::Helper : public Allocatable {
 
   // Returns the total number of allocations ever made with this allocator.
   size_t GetAllocationCount() const {
-    LockGuard lock(&mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     return allocations_.size();
   }
 
   // Returns the total number of deallocations ever made with this allocator.
   size_t GetDeallocationCount() const {
-    LockGuard lock(&mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     return deallocation_count_;
   }
 
   // Returns the total number of bytes ever allocated.
   size_t GetAllocatedBytesCount() const {
-    LockGuard lock(&mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     return allocated_bytes_count_;
   }
 
   size_t GetDeallocatedBytesCount() const {
-    LockGuard lock(&mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     return deallocated_bytes_count_;
   }
 
   // Returns the number of active allocations.
   size_t GetActiveAllocationCount() const {
-    LockGuard lock(&mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     return active_map_.size();
   }
 
   // Returns the total amount of memory in bytes used by active allocations.
   size_t GetActiveAllocationBytesCount() const {
-    LockGuard lock(&mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     return active_memory_bytes_count_;
   }
 
   // Returns the number of bytes in the indexed allocation.
   size_t GetAllocationBytesCount(size_t index) const {
-    LockGuard lock(&mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     DCHECK_LT(index, allocations_.size());
     return allocations_[index].size;
   }
@@ -137,7 +136,7 @@ class FullAllocationTracker::Helper : public Allocatable {
 
   // Returns a vector containing all active allocations, sorted by pointer.
   const AllocVector<Allocation> GetActiveAllocations() const {
-    LockGuard lock(&mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     // Copy all current allocations into a vector. We have to loop over the map
     // because the allocations_ vector typically contains inactive allocations
     // in addition to the active ones.
@@ -178,7 +177,7 @@ class FullAllocationTracker::Helper : public Allocatable {
   size_t active_memory_bytes_count_;
 
   // Mutex protecting the vector and map;
-  mutable port::Mutex mutex_;
+  mutable std::mutex mutex_;
 };
 
 FullAllocationTracker::Helper::~Helper() {
@@ -202,11 +201,11 @@ FullAllocationTracker::Helper::~Helper() {
 
 FullAllocationTracker::FullAllocationTracker()
     : helper_(new(AllocationManager::GetMallocAllocator()) Helper),
-      tracing_ostream_(NULL) {}
+      tracing_ostream_(nullptr) {}
 
 FullAllocationTracker::~FullAllocationTracker() {
   // Destroying the helper should check for remaining active allocations.
-  helper_.reset(NULL);
+  helper_.reset(nullptr);
 }
 
 void FullAllocationTracker::TrackAllocation(

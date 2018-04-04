@@ -1,20 +1,3 @@
-/**
-Copyright 2016 Google Inc. All Rights Reserved.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS-IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-*/
-
 jQuery(document).ready(function() {
   $('#address_printing').click(function() {
     var button = $('#address_printing');
@@ -49,6 +32,32 @@ jQuery(document).ready(function() {
       success: function(text) {
         var nodes = $('#nodes');
         nodes.html(text);
+
+        // Query all the node toggle checkboxes (those under root, of checkbox
+        // type, but not the tree_expandbox class) and give them a click
+        // behavior to send the toggle query to the embedded server.
+        var checkboxes = $("#nodes :checkbox:not(.tree_expandbox)");
+        for (var i = 0; i < checkboxes.length; i++) {
+          var checkbox_i = checkboxes[i];
+
+          // This IIFE closure exists to capture `checkbox_i` in a new variable, to
+          // generate a family of click functions with different queries.
+          (function (checkbox) {
+            $(checkbox).click(function() {
+              getUri({
+                url: '/ion/nodegraph/set_node_enable',
+                data: {
+                  node_label: checkbox.id,
+                },
+                success: function(text) {
+                  // Display the error on any non-successful query.
+                  if (text != "Success") {
+                    window.alert(text);
+                  }
+                }});
+            });
+          })(checkbox_i);
+        }
       }});
   });
 });

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ limitations under the License.
 #include <vector>
 
 #include "ion/base/invalid.h"
-#include "ion/base/lockguards.h"
 #include "ion/base/logging.h"
 #include "ion/base/scopedallocation.h"
 #include "ion/base/staticsafedeclare.h"
@@ -57,7 +56,7 @@ bool ZipAssetManager::RegisterAssetData(const void* data, size_t data_size) {
     FileInfo file_info;
     file_info.zip_handle = zipfile;
     ZipAssetManager* manager = GetManager();
-    LockGuard guard(&manager->mutex_);
+    std::lock_guard<std::mutex> guard(manager->mutex_);
     manager->zipfiles_.insert(zipfile);
 
     bool contains_manifest = false;
@@ -67,9 +66,9 @@ bool ZipAssetManager::RegisterAssetData(const void* data, size_t data_size) {
       base::ScopedAllocation<char> buf(base::kShortTerm, kBufSize);
       unz_file_info info;
       do {
-        if (unzGetCurrentFileInfo(
-                zipfile, &info, buf.Get(), kBufSize, 0, 0, 0, 0) == UNZ_OK) {
-#if ION_DEBUG
+        if (unzGetCurrentFileInfo(zipfile, &info, buf.Get(), kBufSize, nullptr,
+                                  0, nullptr, 0) == UNZ_OK) {
+#if !ION_PRODUCTION
           if (manager->file_cache_.find(buf.Get()) !=
               manager->file_cache_.end()) {
             DLOG(WARNING)
@@ -92,7 +91,7 @@ bool ZipAssetManager::RegisterAssetData(const void* data, size_t data_size) {
       // registration may replace it while it is being read.
       const std::vector<std::string> mappings =
           base::SplitString(
-              manager->GetFileDataLocked(kManifestFilename, NULL), "\n");
+              manager->GetFileDataLocked(kManifestFilename, nullptr), "\n");
       const size_t count = mappings.size();
       for (size_t i = 0; i < count; ++i) {
         std::vector<std::string> mapping =
@@ -119,7 +118,7 @@ bool ZipAssetManager::RegisterAssetData(const void* data, size_t data_size) {
 
 bool ZipAssetManager::ContainsFile(const std::string& filename) {
   ZipAssetManager* manager = GetManager();
-  LockGuard guard(&manager->mutex_);
+  std::lock_guard<std::mutex> guard(manager->mutex_);
   return manager->ContainsFileLocked(filename);
 }
 
@@ -129,7 +128,7 @@ bool ZipAssetManager::ContainsFileLocked(const std::string& filename) {
 
 bool ZipAssetManager::IsFileCached(const std::string& filename) {
   ZipAssetManager* manager = GetManager();
-  LockGuard guard(&manager->mutex_);
+  std::lock_guard<std::mutex> guard(manager->mutex_);
   FileCache::const_iterator it = manager->file_cache_.find(filename);
   return it != manager->file_cache_.end() &&
       manager->FileIsCached(it->second);
@@ -137,7 +136,7 @@ bool ZipAssetManager::IsFileCached(const std::string& filename) {
 
 std::vector<std::string> ZipAssetManager::GetRegisteredFileNames() {
   ZipAssetManager* manager = GetManager();
-  LockGuard guard(&manager->mutex_);
+  std::lock_guard<std::mutex> guard(manager->mutex_);
   std::vector<std::string> filenames;
   for (const auto& file : manager->file_cache_)
     filenames.push_back(file.first);
@@ -147,8 +146,8 @@ std::vector<std::string> ZipAssetManager::GetRegisteredFileNames() {
 std::shared_ptr<const std::string> ZipAssetManager::GetFileDataPtr(
     const std::string& filename) {
   ZipAssetManager* manager = GetManager();
-  LockGuard guard(&manager->mutex_);
-  if (!IsInvalidReference(manager->GetFileDataLocked(filename, NULL))) {
+  std::lock_guard<std::mutex> guard(manager->mutex_);
+  if (!IsInvalidReference(manager->GetFileDataLocked(filename, nullptr))) {
     FileCache::iterator it = manager->file_cache_.find(filename);
     return it->second.data_ptr;
   }
@@ -157,14 +156,14 @@ std::shared_ptr<const std::string> ZipAssetManager::GetFileDataPtr(
 
 const std::string& ZipAssetManager::GetFileData(const std::string& filename) {
   ZipAssetManager* manager = GetManager();
-  LockGuard guard(&manager->mutex_);
-  return manager->GetFileDataLocked(filename, NULL);
+  std::lock_guard<std::mutex> guard(manager->mutex_);
+  return manager->GetFileDataLocked(filename, nullptr);
 }
 
 bool ZipAssetManager::GetFileDataNoCache(const std::string& filename,
                                          std::string* out) {
   ZipAssetManager* manager = GetManager();
-  LockGuard guard(&manager->mutex_);
+  std::lock_guard<std::mutex> guard(manager->mutex_);
   return !IsInvalidReference(manager->GetFileDataLocked(filename, out));
 }
 
@@ -185,9 +184,8 @@ const std::string& ZipAssetManager::GetFileDataLocked(
       unz_file_info info;
       if (unzLocateFile(it->second.zip_handle, filename.c_str(), 0) == UNZ_OK &&
           unzOpenCurrentFile(it->second.zip_handle) == UNZ_OK &&
-          unzGetCurrentFileInfo(
-              it->second.zip_handle, &info, 0, 0, 0, 0, 0, 0) ==
-              UNZ_OK) {
+          unzGetCurrentFileInfo(it->second.zip_handle, &info, nullptr, 0,
+                                nullptr, 0, nullptr, 0) == UNZ_OK) {
         // Resize the string to accommodate the data.
         out->resize(info.uncompressed_size);
         // Decompress the file.
@@ -209,7 +207,7 @@ const std::string& ZipAssetManager::GetFileDataLocked(
 bool ZipAssetManager::SetFileData(const std::string& filename,
                                   const std::string& source) {
   ZipAssetManager* manager = GetManager();
-  LockGuard guard(&manager->mutex_);
+  std::lock_guard<std::mutex> guard(manager->mutex_);
   if (!manager->ContainsFileLocked(filename)) {
     return false;
   } else {
@@ -222,8 +220,8 @@ bool ZipAssetManager::SetFileData(const std::string& filename,
 
 bool ZipAssetManager::SaveFileData(const std::string& filename) {
   ZipAssetManager* manager = GetManager();
-  LockGuard guard(&manager->mutex_);
-  const std::string& data = manager->GetFileDataLocked(filename, NULL);
+  std::lock_guard<std::mutex> guard(manager->mutex_);
+  const std::string& data = manager->GetFileDataLocked(filename, nullptr);
   // Find the filename in the cache.
   FileCache::const_iterator it = manager->file_cache_.find(filename);
   if (it != manager->file_cache_.end() &&
@@ -241,7 +239,7 @@ bool ZipAssetManager::SaveFileData(const std::string& filename) {
 
 void ZipAssetManager::Reset() {
   ZipAssetManager* manager = GetManager();
-  LockGuard guard(&manager->mutex_);
+  std::lock_guard<std::mutex> guard(manager->mutex_);
   for (std::set<void*>::iterator it = manager->zipfiles_.begin();
        it != manager->zipfiles_.end(); it++)
     unzClose(*it);
@@ -253,7 +251,7 @@ bool ZipAssetManager::UpdateFileIfChanged(
     const std::string& filename,
     std::chrono::system_clock::time_point* timestamp) {
   ZipAssetManager* manager = GetManager();
-  LockGuard guard(&manager->mutex_);
+  std::lock_guard<std::mutex> guard(manager->mutex_);
   std::chrono::system_clock::time_point new_timestamp;
   FileCache::iterator it = manager->file_cache_.find(filename);
   if (it != manager->file_cache_.end() && !it->second.original_name.empty()) {

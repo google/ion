@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -74,6 +74,10 @@ class ION_API Utf8Iterator {
   // characters in the string by iterating over it. This returns 0 if there are
   // any encoding errors in the string.
   size_t ComputeCharCount() const;
+
+  // Returns the byte index of the character to be returned by the next call
+  // to Next.
+  size_t GetCurrentByteIndex() const;
 
  private:
   // Returns the next byte in the string, incrementing cur_index_ and setting

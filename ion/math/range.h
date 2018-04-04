@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ template <typename T, int N> struct Range1TWrapper {
     return t;
   }
 
-  static const T Zero() { return T(0); }
+  static T Zero() { return T(0); }
 
   // Allows reading wrapped value from a stream.
   template <typename U> friend std::istream& operator>>(
@@ -113,11 +113,15 @@ class Range : public RangeBase<Dimension, T> {
     Set(min_point, max_point);
   }
 
+  // Copy constructor from an instance of the same Dimension and any value type
+  // that is compatible (via static_cast) with this instance's type.
+  template <typename U>
+  explicit Range(const Range<Dimension, U>& range);
+
   // Convenience function that returns a Range from a minimum point and the
   // Range size. This does not check that the values form a valid Range, so the
   // resulting instance might be considered empty.
-  static const Range BuildWithSize(const Endpoint& min_point,
-                                   const Size& size) {
+  static Range BuildWithSize(const Endpoint& min_point, const Size& size) {
     Range r;
     r.SetWithSize(min_point, size);
     return r;
@@ -256,6 +260,11 @@ void Range<Dimension, T>::MakeEmpty() {
     max_point_[i] = static_cast<T>(0);
   }
 }
+
+template <int Dimension, typename T>
+template <typename U>
+Range<Dimension, T>::Range(const Range<Dimension, U>& range)
+    : min_point_(range.GetMinPoint()), max_point_(range.GetMaxPoint()) {}
 
 // Default implementation; faster specialized versions are found below.
 template <int Dimension, typename T>

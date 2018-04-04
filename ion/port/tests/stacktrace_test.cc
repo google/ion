@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,10 +19,16 @@ limitations under the License.
 
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
-#if defined(ION_PLATFORM_LINUX) || defined(ION_PLATFORM_MAC) || \
-    defined(ION_PLATFORM_IOS) ||                                \
-    (defined(ION_PLATFORM_WINDOWS) && !defined(ION_GOOGLE_INTERNAL))
+#if defined(ION_PLATFORM_LINUX) || defined(ION_PLATFORM_MAC) ||   \
+    defined(ION_PLATFORM_ANDROID) || defined(ION_PLATFORM_IOS) || \
+    defined(ION_PLATFORM_WINDOWS)
 #  define ION_TEST_STACKTRACE
+#endif
+
+// The sanitizers seem to inline methods in a way that makes these tests fail.
+#if !defined(ADDRESS_SANITIZER) && !defined(THREAD_SANITIZER) && \
+    !defined(MEMORY_SANITIZER)
+#  define ION_TEST_STACKTRACE_NAMES
 #endif
 
 #if ION_DEBUG
@@ -36,6 +42,7 @@ void Recursive(size_t caller_stack_depth, size_t recursion_depth) {
 #if defined(ION_TEST_STACKTRACE)
 
   EXPECT_EQ(caller_stack_depth + 1, stack.size());
+#if defined(ION_TEST_STACKTRACE_NAMES)
   for (size_t i = 0, pos = 0; i <= recursion_depth + 1; ++i, ++pos) {
     pos = stack_string.find(std::string("Recursive"), pos);
     if (i <= recursion_depth)
@@ -43,6 +50,7 @@ void Recursive(size_t caller_stack_depth, size_t recursion_depth) {
     else
       EXPECT_TRUE(pos == std::string::npos);
   }
+#endif
 #else
   // StackTrace not implemented.
   EXPECT_EQ(0U, stack.size());
@@ -61,18 +69,16 @@ void Inner() {
 #if defined(ION_TEST_STACKTRACE)
 
   EXPECT_GT(stack.size(), 3U);
+#if defined(ION_TEST_STACKTRACE_NAMES)
   size_t inner = stack_string.find(std::string("Inner"));
   EXPECT_TRUE(inner != std::string::npos);
-#if !defined(ADDRESS_SANITIZER) && !defined(THREAD_SANITIZER) && \
-    !defined(MEMORY_SANITIZER)
-  // The sanitizers seem to inline methods in a way that makes these tests fail.
   size_t nested = stack_string.find(std::string("Nested"));
   size_t outer = stack_string.find(std::string("Outer"));
   EXPECT_TRUE(nested != std::string::npos);
   EXPECT_TRUE(outer != std::string::npos);
   EXPECT_TRUE(nested > outer);
   EXPECT_TRUE(outer > inner);
-#endif  // Sanitizer
+#endif
 #else
   // StackTrace not implemented.
   EXPECT_EQ(0U, stack.size());
@@ -92,8 +98,10 @@ TEST(StackTrace, Basic) {
 #if defined(ION_TEST_STACKTRACE)
 
   EXPECT_GT(stack.size(), 1U);
+#if defined(ION_TEST_STACKTRACE_NAMES)
   EXPECT_TRUE(
       stack_string.find(std::string("Basic")) != std::string::npos);
+#endif
 #else
   // StackTrace not implemented.
   EXPECT_EQ(0U, stack.size());
@@ -113,8 +121,10 @@ TEST(StackTrace, Recursion) {
 #if defined(ION_TEST_STACKTRACE)
 
   EXPECT_GT(stack.size(), 1U);
+#if defined(ION_TEST_STACKTRACE_NAMES)
   EXPECT_TRUE(
       stack_string.find(std::string("Recursion")) != std::string::npos);
+#endif
 #else
   // StackTrace not implemented.
   EXPECT_EQ(0U, stack.size());

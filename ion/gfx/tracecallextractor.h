@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ limitations under the License.
 #ifndef ION_GFX_TRACECALLEXTRACTOR_H_
 #define ION_GFX_TRACECALLEXTRACTOR_H_
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -32,6 +33,7 @@ namespace gfx {
 // matches, to allow for differences in trace formatting on different platforms.
 class TraceCallExtractor {
  public:
+  using ArgSpec = std::vector<std::pair<int, std::string>>;
   TraceCallExtractor();
   // Utility constructor also sets trace string and extracts vector of calls.
   explicit TraceCallExtractor(const std::string& trace);
@@ -48,11 +50,17 @@ class TraceCallExtractor {
   // Returns the number of times the passed call start occurs in the trace
   // stream.
   size_t GetCountOf(const std::string& call_prefix) const;
+  // Returns the number of calls with the specified name and/or arguments.
+  // Key 0 in the map specifies the call name.
+  size_t GetCountOf(const ArgSpec& name_and_args) const;
 
   // Returns the index of the nth call in the trace stream beginning with
   // start, if it exists, otherwise returns base::kInvalidIndex. Note that
   // n == 0 returns the first index, n == 1 returns the second index, and so on.
   size_t GetNthIndexOf(size_t n, const std::string& call_prefix) const;
+  // Returns the index of the nth call that matches the specified name and/or
+  // arguments. Key 0 in the map specifies the name.
+  size_t GetNthIndexOf(size_t n, const ArgSpec& name_and_args) const;
 
  private:
   // Parses the trace stream and returns a vector of calls, removing leading
@@ -64,6 +72,7 @@ class TraceCallExtractor {
 
   // Calls extracted from current trace stream
   std::vector<std::string> calls_;
+  std::vector<std::vector<std::string>> args_;
 };
 
 }  // namespace gfx

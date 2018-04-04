@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ namespace gfx {
 // a _copy_ of the instance; to modify a uniform value use ReplaceUniform() or
 // SetUniformValue[At]().
 //
-// TODO(user): Actually support the following text in Ion. In OpenGL
+// 
 // 3.1+/ES3+, UniformBlocks also share the same storage buffer object, even
 // across multiple shader programs; simplifying the sending of uniform values to
 // GL for multiple programs. This can vastly increase the speed of switching
@@ -43,7 +43,7 @@ class ION_API UniformBlock : public ResourceHolder, public UniformHolder {
     kNumChanges = kNumBaseChanges,
   };
 
-  // TODO(user): Support interface blocks and buffer-backed UniformBlocks;
+  // 
   // make UniformBlocks require a block name and possibly require a BufferObject
   // in the constructor.
   UniformBlock();
@@ -55,7 +55,7 @@ class ION_API UniformBlock : public ResourceHolder, public UniformHolder {
 };
 
 // Convenience typedef for shared pointer to a UniformBlock.
-typedef base::ReferentPtr<UniformBlock>::Type UniformBlockPtr;
+using UniformBlockPtr = base::SharedPtr<UniformBlock>;
 
 }  // namespace gfx
 }  // namespace ion

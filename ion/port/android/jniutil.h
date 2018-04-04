@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -66,6 +66,16 @@ jbyteArray JavaByteArray(JNIEnv* env, const jbyte* data, jsize size);
 
 void JavaGetByteArray(JNIEnv* env, jbyteArray array,
                       jsize first, jsize size, char* out);
+
+// Returns the stack trace for the current pending exception and clears any
+// exceptions present.
+// Output is similar to JNI's ExceptionDescribe(), except that this function
+// returns a string while ExceptionDescribe() directly prints to logcat.
+//
+// If any exception occurs while retrieving the stack trace, then a short
+// message is returned explaining at what stage the failure occured, and all
+// exceptions are cleared.
+std::string GetExceptionStackTrace(JNIEnv* env);
 
 // Pushes and pops a JNI local reference frame.
 class LocalFrame {

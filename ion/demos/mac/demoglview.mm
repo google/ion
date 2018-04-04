@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,14 +19,10 @@ limitations under the License.
 #include "ion/demos/mac/demoglview.h"
 #include "ion/math/utils.h"
 
-static DemoBase* demo = NULL;
 static NSTimer* timer = nil;
 
-@implementation DemoGLView
-
-- (void)dealloc {
-  delete demo;
-    demo = NULL;
+@implementation DemoGLView {
+  std::unique_ptr<DemoBase> _demo;
 }
 
 - (void)prepareOpenGL {
@@ -39,8 +35,8 @@ static NSTimer* timer = nil;
   [self setWantsBestResolutionOpenGLSurface:YES];
 
   NSSize pixelSize = [self backingPixelSize];
-  demo = CreateDemo(static_cast<int>(pixelSize.width),
-                    static_cast<int>(pixelSize.height));
+  _demo = CreateDemo(static_cast<int>(pixelSize.width),
+                     static_cast<int>(pixelSize.height));
   timer = [NSTimer scheduledTimerWithTimeInterval:1.0/60.0
                                            target:self
                                          selector:@selector(timedUpdate)
@@ -49,15 +45,15 @@ static NSTimer* timer = nil;
 }
 
 - (void)drawRect:(NSRect)dirtyRect {
-  if (!demo) return;
-  demo->Render();
+  if (!_demo) return;
+  _demo->Render();
   [[self openGLContext] flushBuffer];
 }
 
 - (void)reshape {
-  if (!demo) return;
+  if (!_demo) return;
   NSSize pixelSize = [self backingPixelSize];
-  demo->Resize(static_cast<int>(pixelSize.width),
+  _demo->Resize(static_cast<int>(pixelSize.width),
                static_cast<int>(pixelSize.height));
   [self setNeedsDisplay:YES];
 }
@@ -67,61 +63,60 @@ static NSTimer* timer = nil;
 }
 
 - (void)scrollWheel:(NSEvent *)theEvent {
-  if (!demo) return;
+  if (!_demo) return;
   static const float kScaleFactor = 0.01f;
   static float scale = 1.f;
   scale -= kScaleFactor * [theEvent deltaY];
   scale = ion::math::Clamp(scale, 0.05f, 5.0f);
-  demo->ProcessScale(scale);
+  _demo->ProcessScale(scale);
   [self setNeedsDisplay:YES];
 }
 
 - (void)mouseDown:(NSEvent *)theEvent {
-  if (!demo) return;
+  if (!_demo) return;
   NSEventType type = [theEvent type];
   NSPoint point = [self localPointOfEvent:theEvent];
   if (type == NSLeftMouseDown) {
-    demo->ProcessMotion(static_cast<float>(point.x),
-                        static_cast<float>(point.y), true);
+    _demo->ProcessMotion(static_cast<float>(point.x),
+                         static_cast<float>(point.y), true);
   }
   [self setNeedsDisplay:YES];
 }
 
 - (void)mouseDragged:(NSEvent *)theEvent {
-  if (!demo) return;
+  if (!_demo) return;
   NSEventType type = [theEvent type];
   NSPoint point = [self localPointOfEvent:theEvent];
   if (type == NSLeftMouseDragged) {
-    demo->ProcessMotion(static_cast<float>(point.x),
-                        static_cast<float>(point.y), false);
+    _demo->ProcessMotion(static_cast<float>(point.x),
+                         static_cast<float>(point.y), false);
   }
   [self setNeedsDisplay:YES];
 }
 
 - (void)keyDown:(NSEvent *)theEvent {
-  if (!demo) return;
+  if (!_demo) return;
   if ([theEvent isARepeat]) return;
 
   // If this was the escape key, then quit
   if ([theEvent keyCode] == 53) {
-    delete demo;
-    demo = NULL;
+    _demo.reset();
     [NSApp terminate:self];
   }
 
   NSString *str = [theEvent charactersIgnoringModifiers];
   unsigned char c = static_cast<unsigned char>([str characterAtIndex:0]);
   NSPoint point = [self localPointOfEvent:theEvent];
-  demo->Keyboard(c, static_cast<int>(point.x), static_cast<int>(point.y), true);
+  _demo->Keyboard(c, static_cast<int>(point.x), static_cast<int>(point.y), true);
 }
 
 - (void)keyUp:(NSEvent *)theEvent {
-  if (!demo) return;
+  if (!_demo) return;
   NSString *str = [theEvent charactersIgnoringModifiers];
   unsigned char c = static_cast<unsigned char>([str characterAtIndex:0]);
   NSPoint point = [self localPointOfEvent:theEvent];
-  demo->Keyboard(c, static_cast<int>(point.x), static_cast<int>(point.y),
-                 false);
+  _demo->Keyboard(c, static_cast<int>(point.x), static_cast<int>(point.y),
+                  false);
 }
 
 #pragma mark Private Methods
@@ -139,7 +134,7 @@ static NSTimer* timer = nil;
 }
 
 - (void)timedUpdate {
-  demo->Update();
+  _demo->Update();
   [self setNeedsDisplay:YES];
 }
 

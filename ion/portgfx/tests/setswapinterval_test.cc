@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,44 +19,30 @@ limitations under the License.
 
 #include "ion/base/logging.h"
 #define GLCOREARB_PROTOTYPES  // For glGetString() to be defined.
+#include "ion/portgfx/glcontext.h"
 #include "ion/portgfx/glheaders.h"
 #include "ion/portgfx/isextensionsupported.h"
-#include "ion/portgfx/visual.h"
 
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
 TEST(SetSwapInterval, SetSwapInterval) {
   using ion::portgfx::SetSwapInterval;
 
-  // Setting the swap interval only requires a valid visual on non-Angle
+  // Setting the swap interval only requires a valid GL context on non-Angle
   // Windows, but always creating one is fine.
-  std::unique_ptr<ion::portgfx::Visual> visual(
-      ion::portgfx::Visual::CreateVisual());
-  ion::portgfx::Visual::MakeCurrent(visual.get());
-
-  // On Windows and Mac SetSwapInterval() will fail without an OpenGL context.
-  // The same is true of headless Linux machines. On other platforms OpenGL is
-  // not required.
-#if (defined(ION_PLATFORM_LINUX) && !defined(ION_GOOGLE_INTERNAL)) || \
-    defined(ION_PLATFORM_NACL) || defined(ION_PLATFORM_WINDOWS) || \
-    defined(ION_PLATFORM_ASMJS) || defined(ION_PLATFORM_MAC)
-  if (!visual->IsValid()) {
+  ion::portgfx::GlContextPtr gl_context =
+      ion::portgfx::GlContext::CreateGlContext();
+  if (!gl_context || !gl_context->IsValid()) {
     LOG(INFO) << "Unable to create an OpenGL context. This test "
               << "cannot run and will now exit.";
     return;
   }
+  ion::portgfx::GlContext::MakeCurrent(gl_context);
 
-  // Check that the local OpenGL is at least version 2.0, and if not, print a
-  // notification and exit gracefully.
-  const int version = visual->GetGlVersion();
-  const int major = version / 10;
-  const int minor = version % 10;
-  if (version < 20) {
-    LOG(INFO) << "This system reports having OpenGL version " << major
-              << "." << minor << ", but Ion requires OpenGL >= 2.0.  This test "
-              << "cannot run and will now exit.";
-    return;
-  }
+  // Unit tests on Windows seem to be restricted to pre-OpenGL 2.0
+  // functionality, so return early.
+#if defined(ION_PLATFORM_WINDOWS)
+  return;
 #endif
 
   // Some Mesa implementations do not support changing the swap interval to 0

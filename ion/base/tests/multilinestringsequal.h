@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -45,6 +45,20 @@ static inline ::testing::AssertionResult MultiLineStringsEqual(
            << "    Actual Context  :\n" << context1 << "\n";
   }
 }
+
+// Remove carriage returns to appease Windows.  The alternative would be
+// a #if to define a different set of expected strings, but we can't
+// reliably detect if the current environment includes carriage returns.
+static inline std::string SanitizeLineEndings(std::string str) {
+  str.erase(std::remove(str.begin(), str.end(), '\r'), str.end());
+  return str;
+}
+
+// Multi-Line equivalence tests that ignore \r characters in the actual output.
+#define EXPECT_EQ_ML(a, b) \
+  EXPECT_EQ(a, ion::base::testing::SanitizeLineEndings(b))
+#define EXPECT_NEQ_ML(a, b) \
+  EXPECT_NE(a, ion::base::testing::SanitizeLineEndings(b))
 
 }  // namespace testing
 }  // namespace base

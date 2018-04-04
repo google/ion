@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ limitations under the License.
 package __package_name__;
 
 import android.app.Activity;
+import android.content.Context;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import javax.microedition.khronos.egl.EGLConfig;
@@ -26,6 +27,7 @@ import javax.microedition.khronos.opengles.GL10;
 /**
  * Main activity for running ion gtest binaries that require OpenGL.
  *
+ * @author cdonner@google.com (Craig Donner)
  */
 public class __app_name__ extends Activity {
   @Override

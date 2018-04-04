@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ limitations under the License.
 #include "ion/base/stringutils.h"
 #include "ion/gfx/graphicsmanager.h"
 #include "ion/gfx/tracecallextractor.h"
+#include "absl/memory/memory.h"
 
 namespace ion {
 namespace gfx {
@@ -65,7 +66,7 @@ TraceVerifier::Call::Call(const Call& other)
 TraceVerifier::Call& TraceVerifier::Call::HasArg(
     size_t index, const std::string& arg_start) {
   if (index >= args_.size()) {
-    result_.reset(new ::testing::AssertionResult(false));
+    result_ = absl::make_unique<::testing::AssertionResult>(false);
     *result_ << "Expected call \"" << base::JoinStrings(args_, ", ")
              << "\" to have arg " << index << ", but it only has "
              << args_.size() << "; call was " << call_;
@@ -74,7 +75,7 @@ TraceVerifier::Call& TraceVerifier::Call::HasArg(
     const std::string stripped_arg = StripAddressFieldFromArg(args_[index]);
     const std::string stripped_arg_start = StripAddressFieldFromArg(arg_start);
     if (!base::StartsWith(stripped_arg, stripped_arg_start)) {
-      result_.reset(new ::testing::AssertionResult(false));
+      result_ = absl::make_unique<::testing::AssertionResult>(false);
       *result_ << "Expected arg " << index << " to be " << arg_start << " ("
                << stripped_arg_start << "), but it is " << args_[index] << " ("
                << stripped_arg << "); call was " << call_;
@@ -84,14 +85,14 @@ TraceVerifier::Call& TraceVerifier::Call::HasArg(
 }
 
 TraceVerifier::TraceVerifier(GraphicsManager* graphics_manager)
-    : graphics_manager_(graphics_manager) {
-  DCHECK(graphics_manager_);
-  prev_stream_ = graphics_manager_->GetTracingStream();
-  graphics_manager_->SetTracingStream(&trace_stream_);
+    : tracing_stream_(graphics_manager->GetTracingStream()) {
+  tracing_stream_.SetForwardedStream(&trace_stream_);
+  tracing_stream_.StartTracing();
 }
 
 TraceVerifier::~TraceVerifier() {
-  graphics_manager_->SetTracingStream(prev_stream_);
+  tracing_stream_.StopTracing();
+  tracing_stream_.SetForwardedStream(nullptr);
 }
 
 size_t TraceVerifier::GetCallCount() const {
@@ -102,8 +103,16 @@ size_t TraceVerifier::GetCountOf(const std::string& start) const {
   return TraceCallExtractor(trace_stream_.str()).GetCountOf(start);
 }
 
+size_t TraceVerifier::GetCountOf(const ArgSpec& arg_spec) const {
+  return TraceCallExtractor(trace_stream_.str()).GetCountOf(arg_spec);
+}
+
 size_t TraceVerifier::GetNthIndexOf(size_t n, const std::string& start) const {
   return TraceCallExtractor(trace_stream_.str()).GetNthIndexOf(n, start);
+}
+
+size_t TraceVerifier::GetNthIndexOf(size_t n, const ArgSpec& arg_spec) const {
+  return TraceCallExtractor(trace_stream_.str()).GetNthIndexOf(n, arg_spec);
 }
 
 ::testing::AssertionResult TraceVerifier::VerifySortedCalls(

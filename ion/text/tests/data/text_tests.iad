@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <IAD name="IonTextTests">
   <assets>
-    <file name="NotoColorEmoji.ttf">third_party/noto_fonts/other/NotoColorEmoji.ttf</file>
+    <file name="NotoColorEmoji.ttf">third_party/noto_fonts/emoji/NotoColorEmoji.ttf</file>
     <file name="NotoSansCJK-Regular.ttc">third_party/noto_cjk/NotoSansCJK-Regular.ttc</file>
     <file name="NotoSansDevanagari-Regular.ttf">third_party/noto_fonts/other/NotoSansDevanagari-Regular.ttf</file>
     <file>Tuffy.ttf</file>

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ limitations under the License.
 #include "ion/base/indexmap.h"
 
 #include "ion/base/invalid.h"
-#include "ion/base/logchecker.h"
 #include "ion/base/logging.h"
 #include "ion/port/nullptr.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
@@ -52,12 +51,9 @@ TEST(IndexMap, Invalid) {
   static const UnorderedIndex u[] = { kCat, kDog, kPig, kWolf };
   ion::base::IndexMap<OrderedIndex, UnorderedIndex> m(u, 4);
 
-  ion::base::LogChecker logchecker;
-  ion::base::SetBreakHandler(kNullFunction);
-  EXPECT_EQ(-1,
-            m.GetOrderedIndex(ion::base::InvalidEnumValue<UnorderedIndex>()));
-  ion::base::RestoreDefaultBreakHandler();
-#if ION_DEBUG
-  EXPECT_TRUE(logchecker.HasMessage("DFATAL", "Invalid unordered index"));
+#if !ION_PRODUCTION
+  EXPECT_DEATH_IF_SUPPORTED(
+      m.GetOrderedIndex(ion::base::InvalidEnumValue<UnorderedIndex>()),
+      "Invalid unordered index");
 #endif
 }

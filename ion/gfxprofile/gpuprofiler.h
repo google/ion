@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,7 +26,6 @@ limitations under the License.
 #include <vector>
 
 #include "base/integral_types.h"
-#include "ion/base/staticsafedeclare.h"
 #include "ion/gfx/graphicsmanager.h"
 #include "ion/profile/calltracemanager.h"
 #include "ion/profile/profiling.h"
@@ -81,7 +80,7 @@ class GpuProfiler {
     if (enable_gpu_tracing_) {
       return graphics_manager_.Get();
     } else {
-      return NULL;
+      return nullptr;
     }
   }
 
@@ -90,7 +89,7 @@ class GpuProfiler {
   void PollGlTimerQueries();
 
   // Records the beginning of a scoped GL trace event.
-  void EnterGlScope(uint32 id);
+  void EnterGlScope(const char* name);
 
   // Records the end of a scoped GL trace event.
   void LeaveGlScope();
@@ -160,8 +159,9 @@ class GpuProfiler {
 // same scope. Typically used via the ION_PROFILE_GPU macro.
 class ScopedGlTracer {
  public:
-  ScopedGlTracer(GpuProfiler* profiler, int id) : profiler_(profiler) {
-    profiler_->EnterGlScope(id);
+  ScopedGlTracer(GpuProfiler* profiler, const char* name)
+      : profiler_(profiler) {
+    profiler_->EnterGlScope(name);
   }
 
   ~ScopedGlTracer() {
@@ -179,18 +179,11 @@ class ScopedGlTracer {
 #define ION_PROFILE_GPU(group_name)
 #else
 // This macro can be used in any GL operation scope to trace the resulting
-// GPU work. The argument must be a literal string.
-#define ION_PROFILE_GPU(group_name)                                            \
-    /* Force compilation to fail if group_name is not a literal string */      \
-    (void) group_name " must be a literal string.";                            \
-    ION_PROFILE_FUNCTION(group_name);                                          \
-    ION_DECLARE_SAFE_STATIC_POINTER_WITH_CONSTRUCTOR(                          \
-        int, ION_PROFILING_PASTE3(gpu_scope_event_id_),                        \
-        new int(::ion::profile::GetCallTraceManager()->                        \
-            GetScopeEnterEvent("GPU_" group_name)));                           \
-    ::ion::gfxprofile::ScopedGlTracer ION_PROFILING_PASTE3(gpu_scope_tracer_)( \
-        ::ion::gfxprofile::GpuProfiler::Get(),                                 \
-        *ION_PROFILING_PASTE3(gpu_scope_event_id_))
+// GPU work.
+#define ION_PROFILE_GPU(group_name)                                    \
+  ION_PROFILE_FUNCTION(group_name);                                    \
+  ::ion::gfxprofile::ScopedGlTracer ION_PROFILING_PASTE3(group_name_)( \
+      ::ion::gfxprofile::GpuProfiler::Get(), group_name)
 #endif  // ION_PRODUCTION
 
 #endif  // ION_GFXPROFILE_GPUPROFILER_H_

@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@
         'vectorutils_test.cc',
       ],
       'dependencies' : [
+        '<(ion_dir)/external/gtest.gyp:iongmock',
         '<(ion_dir)/external/gtest.gyp:iongtest_safeallocs',
         '<(ion_dir)/math/math.gyp:ionmath_for_tests',
       ],

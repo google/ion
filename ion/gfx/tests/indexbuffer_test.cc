@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ namespace gfx {
 TEST(IndexBufferTest, Defaults) {
   IndexBufferPtr ib(new IndexBuffer);
   EXPECT_EQ(0U, ib->GetCount());
-  EXPECT_EQ(BufferObject::kElementBuffer, ib->GetTarget());
+  EXPECT_EQ(BufferObject::kElementBuffer, ib->GetInitialTarget());
 }
 
 }  // namespace gfx

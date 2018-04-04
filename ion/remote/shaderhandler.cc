@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,10 +19,12 @@ limitations under the License.
 
 #include "ion/remote/shaderhandler.h"
 
+#include <regex>  // NOLINT(build/c++11)
 #include <sstream>
 
 #include "base/integral_types.h"
 #include "ion/base/invalid.h"
+#include "ion/base/staticsafedeclare.h"
 #include "ion/base/stringutils.h"
 #include "ion/base/zipassetmanager.h"
 #include "ion/base/zipassetmanagermacros.h"
@@ -35,7 +37,6 @@ ION_REGISTER_ASSETS(IonRemoteShadersRoot);
 namespace ion {
 namespace remote {
 
-using gfxutils::ShaderManager;
 using gfxutils::ShaderManagerPtr;
 using gfxutils::ShaderSourceComposerPtr;
 
@@ -144,29 +145,59 @@ static const std::string GetDependenciesString(
 static const std::string FormatInfoLog(
     const std::string& log,
     const ShaderSourceComposerPtr& composer) {
+  enum class InfoLogStyle { kNvidia = 0, kMacIOS, kCount };
+  constexpr size_t kInfoLogStyleCount =
+      static_cast<size_t>(InfoLogStyle::kCount);
+
+  enum class InfoLogField { kInputID = 0, kLine, kMessage, kCount };
+  constexpr size_t kInfoLogFieldCount =
+      static_cast<size_t>(InfoLogField::kCount);
+
+  // Known info log regex patterns.  OpenGL information log messages are not
+  // stable and may vary between both implementors and versions.
+  // When adding a new pattern to infolog_patterns, be sure to add the indices
+  // to field_indices;  These direct the matcher to use these specific match
+  // indices to extract data.
+  ION_DECLARE_SAFE_STATIC_ARRAY_WITH_INITIALIZERS(
+      std::regex, infolog_patterns, kInfoLogStyleCount,
+      std::regex(R"pattern(\s*(\d+)\((\d+)\).*:(.*))pattern"),  // kNvidia
+      std::regex(R"pattern(^.*:\s*(\d+):(\d+):(.*))pattern"));  // kMacIOS
+  static constexpr size_t
+      field_indices[kInfoLogStyleCount][kInfoLogFieldCount] = {
+          {1 /* input id */, 2 /* line number */, 3 /* message */},  // KNvidia
+          {1 /* input id */, 2 /* line number */, 3 /* message */},  // kMacIOS
+      };
+
   const StringVector lines = base::SplitString(log, "\n");
-  const size_t count = lines.size();
   std::stringstream str;
-  for (size_t i = 0; i < count; ++i) {
-    const StringVector tokens = base::SplitString(lines[i], ":");
-    // Different platforms have different log message formats:
-    //   Android/Linux/Windows (NVIDIA) format:
-    //     <input id>(<line number): <severity> <id>: <message>
-    //   Mac/iOS format:
-    //     <severity>: <input id>:<line number: <message>
-    if (tokens[0].find('(') != std::string::npos) {
-      // First format.
-      const StringVector numbers = base::SplitString(tokens[0], "()");
-      const uint32 input_id = base::StringToInt32(numbers[0]);
-      str << composer->GetDependencyName(input_id) << ":" << numbers[1] << ":"
-          << base::JoinStrings(
-              StringVector(tokens.begin() + 2, tokens.end()), ":");
-    } else {
-      // Second format.
-      const uint32 input_id = base::StringToInt32(tokens[1]);
-      str << composer->GetDependencyName(input_id) << ":" << tokens[2] << ":"
-          << base::JoinStrings(
-              StringVector(tokens.begin() + 3, tokens.end()), ":");
+  for (const auto& line : lines) {
+    std::smatch match;
+    bool found = false;
+    for (size_t match_index = 0; match_index < kInfoLogStyleCount;
+         ++match_index) {
+      if (std::regex_match(line, match, infolog_patterns[match_index])) {
+        const size_t input_id_index =
+            field_indices[match_index]
+                         [static_cast<size_t>(InfoLogField::kInputID)];
+        const size_t line_number_index =
+            field_indices[match_index]
+                         [static_cast<size_t>(InfoLogField::kLine)];
+        const size_t message_index =
+            field_indices[match_index]
+                         [static_cast<size_t>(InfoLogField::kMessage)];
+
+        const uint32 input_id = base::StringToInt32(match[input_id_index]);
+
+        str << composer->GetDependencyName(input_id) << ":"
+            << match[line_number_index] << ":" << match[message_index];
+        found = true;
+        break;
+      }
+    }
+
+    // Unknown error string format; Use verbatim.
+    if (!found) {
+      str << line;
     }
     str << "<br>\n";
   }
@@ -203,7 +234,7 @@ static const std::string GetShadersRootString(const ShaderManagerPtr& sm,
                                               const HttpServer::QueryMap& args,
                                               std::string* content_type) {
   const bool serve_raw = args.find("raw") != args.end();
-  if (path == "") {
+  if (path.empty()) {
     return GetProgramNamesString(sm, serve_raw, content_type);
   } else {
     const StringVector names = base::SplitString(path, "/");
@@ -216,9 +247,9 @@ static const std::string GetShadersRootString(const ShaderManagerPtr& sm,
         // Get the composer for the requested stage.
         ShaderSourceComposerPtr composer;
         if (names[1] == "vertex")
-          sm->GetShaderProgramComposers(names[0], &composer, NULL);
+          sm->GetShaderProgramComposers(names[0], &composer, nullptr);
         else if (names[1] == "fragment")
-          sm->GetShaderProgramComposers(names[0], NULL, &composer);
+          sm->GetShaderProgramComposers(names[0], nullptr, &composer);
         else if (names[1] == kInfoLogString)
           return GetShaderProgramInfoLog(program, composer, "link");
 
@@ -241,7 +272,7 @@ static const std::string GetShadersRootString(const ShaderManagerPtr& sm,
               // Serve either the info log or the dependency, restoring any '/'
               // in its name. Note that GetShaderProgramInfoLog() cannot be
               // called with an invalid stage since that would mean composer
-              // is NULL.
+              // is nullptr.
               if (names[2] == kInfoLogString)
                 return GetShaderProgramInfoLog(program, composer, names[1]);
               else
@@ -257,17 +288,15 @@ static const std::string GetShadersRootString(const ShaderManagerPtr& sm,
             sm->RecreateShaderProgramsThatDependOn(dep_name);
             // Now we have to wait for the programs to be recreated.
             if (renderer.Get()) {
-              const bool wait_for_completion =
-                  (args.find("nonblocking") == args.end());
               gfxutils::ProgramCallback::RefPtr callback(
-                  new(renderer->GetAllocatorForLifetime(base::kShortTerm))
-                      gfxutils::ProgramCallback(wait_for_completion));
+                  new (renderer->GetAllocatorForLifetime(base::kShortTerm))
+                      gfxutils::ProgramCallback());
               gfx::ResourceManager* rm = renderer->GetResourceManager();
               rm->RequestAllResourceInfos<gfx::ShaderProgram,
                   gfx::ResourceManager::ProgramInfo>(
                       std::bind(&gfxutils::ProgramCallback::Callback,
                           callback.Get(), std::placeholders::_1));
-              callback->WaitForCompletion(NULL);
+              callback->WaitForCompletion(nullptr);
             }
             return "Shader source changed.";
           }

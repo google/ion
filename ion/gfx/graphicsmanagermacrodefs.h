@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,25 +22,36 @@ limitations under the License.
 // OpenGL functions easily in the GraphicsManager class.
 
 #if defined(ION_ANALYTICS_ENABLED)
-#  define ION_PROFILE_GL_FUNC(name) \
-  ION_PROFILE_FUNCTION("ion::gfx::GraphicsManager::" #name)
+#  include "ion/profile/profiling.h"
+#  include "third_party/jsoncpp/include/json/json.h"
+#  define ION_PROFILE_GL_FUNC(name, trace)                            \
+  std::ostringstream trace_ss;                                        \
+  trace_ss << trace;                                                  \
+  std::string trace_string = trace_ss.str();                          \
+  if (trace_string.empty())                                           \
+    trace_string = std::string("(none)");                             \
+  if (trace_string.length() > 1024)                                   \
+    trace_string = trace_string.substr(0, 1024) + "\n(truncated)";    \
+  ION_PROFILE_FUNCTION_ANNOTATED(                                     \
+    "ion::gfx::GraphicsManager::" #name,                              \
+    "args", Json::valueToQuotedString(trace_string.c_str()))
 #else
-#  define ION_PROFILE_GL_FUNC(name)
+#  define ION_PROFILE_GL_FUNC(name, trace)
 #endif
 
 #define ION_WRAP_NON_PROD_GL_FUNC(name, return_type, typed_args, args, trace) \
  public:                                                                      \
   /* Invokes the wrapped function. */                                         \
   return_type name typed_args {                                               \
-    ION_PROFILE_GL_FUNC(name);                                                \
+    ION_PROFILE_GL_FUNC(name, trace);                                         \
     DCHECK(name##_wrapper_.Get());                                            \
-    /* Don't trace calls to glGetError(). */                                  \
-    static const bool do_trace = strcmp(#name, "GetError") &&                 \
-                                 strcmp(#name, "PushGroupMarker") &&          \
-                                 strcmp(#name, "PopGroupMarker");             \
-    if (tracing_ostream_ && do_trace) {                                       \
-      *tracing_ostream_ << tracing_prefix_ << name##_wrapper_.GetFuncName()   \
-                        << "(" << trace << ")\n";                             \
+    /* Don't trace calls to group marker functions. */                        \
+    static const bool do_trace = strcmp(#name, "PushGroupMarker") &&          \
+                                 strcmp(#name, "PopGroupMarker") &&           \
+                                 strcmp(#name, "InsertEventMarker");          \
+    if (do_trace && tracing_stream_.IsTracing()) {                            \
+      tracing_stream_ << name##_wrapper_.GetFuncName() << "(" << trace        \
+                      << ")\n";                                               \
     }                                                                         \
     if (is_error_checking_enabled_) {                                         \
       /* See ErrorChecker class doc for why it is needed here. */             \
@@ -60,7 +71,7 @@ limitations under the License.
  public:                                                                  \
   /* Invokes the wrapped function. */                                     \
   return_type name typed_args {                                           \
-    ION_PROFILE_GL_FUNC(name);                                            \
+    ION_PROFILE_GL_FUNC(name, trace);                                     \
     return (*name ## _wrapper_.Get())args;                                \
   }
 
@@ -92,5 +103,8 @@ limitations under the License.
 // Logs an argument to the TracingHelper.
 #define ION_TRACE_ARG(name, type, arg) \
   #arg << " = " << tracing_helper_.ToString(#type, arg)
+
+// Do not wrap glGetError, since it needs special handling.
+#define ION_WRAP_SKIP_GetError
 
 #endif  // ION_GFX_GRAPHICSMANAGERMACRODEFS_H_

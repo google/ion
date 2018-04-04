@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,12 +33,12 @@ limitations under the License.
 #include "ion/math/matrixutils.h"
 #include "ion/math/range.h"
 #include "ion/math/vectorutils.h"
-#include "third_party/openctm/files/tools/3ds.h"
-#include "third_party/openctm/files/tools/dae.h"
-#include "third_party/openctm/files/tools/lwo.h"
-#include "third_party/openctm/files/tools/mesh.h"
-#include "third_party/openctm/files/tools/obj.h"
-#include "third_party/openctm/files/tools/off.h"
+#include "third_party/openctm/tools/3ds.h"
+#include "third_party/openctm/tools/dae.h"
+#include "third_party/openctm/tools/lwo.h"
+#include "third_party/openctm/tools/mesh.h"
+#include "third_party/openctm/tools/obj.h"
+#include "third_party/openctm/tools/off.h"
 
 namespace ion {
 namespace gfxutils {
@@ -1310,6 +1310,16 @@ const gfx::ShapePtr BuildCylinderShape(const CylinderSpec& spec) {
   shape->SetAttributeArray(
       BuildAttributeArray(spec, BuildCylinderBufferObject(spec)));
   shape->SetIndexBuffer(BuildCylinderIndexBuffer(spec));
+  return shape;
+}
+
+const gfx::ShapePtr BuildPrimitivesList(
+      const gfx::Shape::PrimitiveType primitive_type,
+      const int num_vertices) {
+  gfx::ShapePtr shape(new gfx::Shape());
+  shape->SetPrimitiveType(primitive_type);
+  shape->SetAttributeArray(gfx::AttributeArrayPtr(new gfx::AttributeArray()));
+  shape->AddVertexRange(math::Range1i(0, num_vertices));
   return shape;
 }
 

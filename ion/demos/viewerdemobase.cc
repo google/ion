@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,10 +24,13 @@ limitations under the License.
 #include "ion/math/matrixutils.h"
 #include "ion/math/transformutils.h"
 #include "ion/math/utils.h"
+#include "absl/memory/memory.h"
 
 // Production builds will typically not need the Remote library, as it is mostly
 // intended for on-the-fly debugging and development.
-#if !ION_PRODUCTION
+#define ION_ENABLE_REMOTE (!ION_PRODUCTION && !ION_SCUBA)
+
+#if ION_ENABLE_REMOTE
 #include "ion/remote/calltracehandler.h"
 #include "ion/remote/nodegraphhandler.h"
 #include "ion/remote/remoteserver.h"
@@ -117,13 +120,13 @@ void ViewerDemoBase::Render() {
 
 void ViewerDemoBase::InitRemoteHandlers(
     const std::vector<ion::gfx::NodePtr>& nodes_to_track) {
-#if !ION_PRODUCTION
+#if ION_ENABLE_REMOTE
 
 #if defined(ION_PLATFORM_ASMJS) || defined(ION_PLATFORM_NACL)
-  remote_.reset(new ion::remote::RemoteServer(0));
+  remote_ = absl::make_unique<ion::remote::RemoteServer>(0);
   remote_->SetEmbedLocalSourcedFiles(true);
 #else
-  remote_.reset(new ion::remote::RemoteServer(1234));
+  remote_ = absl::make_unique<ion::remote::RemoteServer>(1234);
 #endif
   ion::remote::NodeGraphHandlerPtr ngh(new ion::remote::NodeGraphHandler);
   ngh->SetFrame(frame_);
@@ -203,7 +206,7 @@ void ViewerDemoBase::UpdateViewUniforms() {
   // twice the radius from the origin. The default field-of-view angle is 60
   // degrees, which works well for this configuration (30-60-90 triangle). The
   // near and far planes are positioned at the edges of the sphere.
-  // TODO(user): Allow scene center to be other than origin.
+  // 
   //
 
   // Projection matrix.
@@ -215,7 +218,7 @@ void ViewerDemoBase::UpdateViewUniforms() {
       view_info_->field_of_view_angle, aspect_ratio,
       near_distance, far_distance);
   // Translate the center of the viewport to the origin.
-  // TODO(user): Implement panning.
+  // 
   const Point2f pan_location(0.5f, 0.5f);
   const Matrix4f trans = ion::math::TranslationMatrix(
       Vector3f(pan_location[0] - 0.5f, pan_location[1] - 0.5f, 0.0f));

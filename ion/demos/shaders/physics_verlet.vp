@@ -1,0 +1,50 @@
+/**
+Copyright 2017 Google Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS-IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+*/
+
+attribute vec4 aPositions;
+attribute vec4 aProperties;
+varying vec4 vPositions;
+uniform float uDeltasqr; // timestep * timestep
+
+vec2 gravity_sources[4] = vec2[4](
+  vec2(-5.0, -5.0),
+  vec2( 5.0, -5.0),
+  vec2(-5.0,  5.0),
+  vec2( 5.0,  5.0)
+);
+
+const float Gm = 0.1;
+const int nsteps = 5;
+
+void main() {
+  vec2 current_position = aPositions.rg;
+  vec2 previous_position = aPositions.ba;
+  vec2 gravity_position = gravity_sources[int(aProperties[3])];
+  for (int i = 0; i < nsteps; i++) {
+    float d = distance(gravity_position, current_position);
+    d = max(d, 0.5); // Stability hack.
+    vec2 force_direction = (gravity_position - current_position) / d;
+    vec2 acceleration = Gm * force_direction / (d * d);
+    vec2 velocity = current_position - previous_position;
+    vec2 new_position = current_position + velocity + acceleration * uDeltasqr;
+    previous_position = current_position;
+    current_position = new_position;
+  }
+
+  vPositions.rg = current_position;
+  vPositions.ba = previous_position;
+}

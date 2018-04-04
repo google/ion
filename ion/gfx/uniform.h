@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -97,7 +97,7 @@ class ION_API Uniform : public ShaderInput<UniformValueType, UniformType> {
   // Merges the value of this with replacement if both have the same type.
   // This is useful for merging partial array uniforms. replacement will replace
   // values in this if the array ranges overlap.
-  void MergeValuesFrom(const Uniform& replacement);
+  void MergeValuesFrom(const Uniform& other);
 
   bool operator==(const Uniform& other) const;
   bool operator!=(const Uniform& other) const {
@@ -110,7 +110,8 @@ class ION_API Uniform : public ShaderInput<UniformValueType, UniformType> {
       const Uniform& base, const Uniform& replacement, Uniform* merged);
 
  private:
-  template <typename T> void MergeValuesInternal(const Uniform& other);
+  template <typename T>
+  void MergeValuesInternal(const Uniform& replacement);
 };
 
 }  // namespace gfx

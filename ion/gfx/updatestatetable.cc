@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -70,8 +70,7 @@ static void ClearBuffers(const StateTable& st, StateTable* save_state,
 }
 
 // Makes GraphicsManager calls to update capability settings that differ
-// between two StateTable instances, but only for capabilities that are set in
-// state_to_test.
+// between two StateTable instances.
 static void UpdateAndSetCapability(StateTable::Capability cap,
                                    const StateTable& new_state,
                                    StateTable* save_state,
@@ -198,6 +197,30 @@ static void UpdateFrontFaceMode(
     gm->FrontFace(base::EnumHelper::GetConstant(mode));
 }
 
+static void UpdateDefaultInnerTessLevelFunction(const StateTable& st0,
+                                                const StateTable& st1,
+                                                GraphicsManager* gm) {
+  if (gm->IsFeatureAvailable(GraphicsManager::kDefaultTessellationLevels)) {
+    math::Vector2f levels = st1.GetDefaultInnerTessellationLevel();
+    if (st1.AreSettingsEnforced() ||
+        levels != st0.GetDefaultInnerTessellationLevel()) {
+      gm->PatchParameterfv(GL_PATCH_DEFAULT_INNER_LEVEL, levels.Data());
+    }
+  }
+}
+
+static void UpdateDefaultOuterTessLevelFunction(const StateTable& st0,
+                                                const StateTable& st1,
+                                                GraphicsManager* gm) {
+  if (gm->IsFeatureAvailable(GraphicsManager::kDefaultTessellationLevels)) {
+    math::Vector4f levels = st1.GetDefaultOuterTessellationLevel();
+    if (st1.AreSettingsEnforced() ||
+        levels != st0.GetDefaultOuterTessellationLevel()) {
+      gm->PatchParameterfv(GL_PATCH_DEFAULT_OUTER_LEVEL, levels.Data());
+    }
+  }
+}
+
 static void UpdateDepthFunction(
     const StateTable& st0, const StateTable& st1, GraphicsManager* gm) {
   const StateTable::DepthFunction func = st1.GetDepthFunction();
@@ -221,15 +244,6 @@ static void UpdateDepthWriteMask(
   }
 }
 
-static void UpdateDrawBuffer(const StateTable& st0, const StateTable& st1,
-                             GraphicsManager* gm) {
-  const StateTable::DrawBuffer buf = st1.GetDrawBuffer();
-  if (gm->IsFunctionGroupAvailable(GraphicsManager::kChooseBuffer) &&
-      (st1.AreSettingsEnforced() || buf != st0.GetDrawBuffer())) {
-    gm->DrawBuffer(base::EnumHelper::GetConstant(buf));
-  }
-}
-
 static void UpdateHints(
     const StateTable& st0, const StateTable& st1, GraphicsManager* gm) {
   const StateTable::HintMode mipmap_hint =
@@ -245,6 +259,15 @@ static void UpdateLineWidth(
   const float width = st1.GetLineWidth();
   if (st1.AreSettingsEnforced() || width != st0.GetLineWidth())
     gm->LineWidth(width);
+}
+
+static void UpdateMinSampleShading(
+    const StateTable& st0, const StateTable& st1, GraphicsManager* gm) {
+  if (gm->IsFeatureAvailable(GraphicsManager::kSampleShading)) {
+    const float fraction = st1.GetMinSampleShading();
+    if (st1.AreSettingsEnforced() || fraction != st0.GetMinSampleShading())
+      gm->MinSampleShading(fraction);
+  }
 }
 
 static void UpdatePolygonOffset(
@@ -378,6 +401,18 @@ static GLint GetInt(GraphicsManager* gm, GLenum what) {
   return i;
 }
 
+static math::Vector2f GetFloat2(GraphicsManager* gm, GLenum what) {
+  math::Vector2f v;
+  gm->GetFloatv(what, v.Data());
+  return v;
+}
+
+static math::Vector4f GetFloat4(GraphicsManager* gm, GLenum what) {
+  math::Vector4f v;
+  gm->GetFloatv(what, v.Data());
+  return v;
+}
+
 static GLfloat GetFloat(GraphicsManager* gm, GLenum what) {
   GLfloat f;
   gm->GetFloatv(what, &f);
@@ -390,13 +425,23 @@ static bool GetBool(GraphicsManager* gm, GLenum what) {
 
 template <typename EnumType>
 static EnumType GetEnum(GraphicsManager* gm, GLenum what) {
-  return base::EnumHelper::GetEnum<EnumType>(GetInt(gm, what));
-}
-
-static const math::Vector4f GetColor(GraphicsManager* gm, GLenum what) {
-  math::Vector4f color;
-  gm->GetFloatv(what, color.Data());
-  return color;
+  // Typically, -1 is not an invalid value for glGetIntegerv to find. In this
+  // case, however, we are only ever checking for values that should never be
+  // -1.  That is, when querying the value of a capability or another enum,
+  // the value should always be another valid GL enum.
+  static const GLint kInvalidValue = -1;
+  GLint value = GetInt(gm, what);
+  if (value == kInvalidValue) {
+    LOG(ERROR)
+        << "GL returned an invalid value (" << value << ") while glGet*()ing 0x"
+        << std::hex << what
+        << ". This may indicate a GPU driver bug or an unsupported GL enum"
+           " value being used on this platform. Unexpected results may occur.";
+    // Return the "default" value for this enum, which may be wrong, but we have
+    // no other information to go by.
+    return EnumType{};
+  }
+  return base::EnumHelper::GetEnum<EnumType>(value);
 }
 
 //-----------------------------------------------------------------------------
@@ -451,14 +496,14 @@ static void CopySetCapabilities(GraphicsManager* gm, StateTable* st) {
 
 // Copies all current values from the GraphicsManager into the StateTable.
 static void CopyValues(GraphicsManager* gm, StateTable* st) {
-  st->SetBlendColor(GetColor(gm, GL_BLEND_COLOR));
+  st->SetBlendColor(GetFloat4(gm, GL_BLEND_COLOR));
   st->SetBlendEquations(ION_GET_ENUM(BlendEquation, GL_BLEND_EQUATION_RGB),
                         ION_GET_ENUM(BlendEquation, GL_BLEND_EQUATION_ALPHA));
   st->SetBlendFunctions(ION_GET_ENUM(BlendFunctionFactor, GL_BLEND_SRC_RGB),
                         ION_GET_ENUM(BlendFunctionFactor, GL_BLEND_DST_RGB),
                         ION_GET_ENUM(BlendFunctionFactor, GL_BLEND_SRC_ALPHA),
                         ION_GET_ENUM(BlendFunctionFactor, GL_BLEND_DST_ALPHA));
-  st->SetClearColor(GetColor(gm, GL_COLOR_CLEAR_VALUE));
+  st->SetClearColor(GetFloat4(gm, GL_COLOR_CLEAR_VALUE));
   {
     GLint mask[4];
     gm->GetIntegerv(GL_COLOR_WRITEMASK, mask);
@@ -474,8 +519,6 @@ static void CopyValues(GraphicsManager* gm, StateTable* st) {
     st->SetDepthRange(math::Range1f(range[0], range[1]));
   }
   st->SetDepthWriteMask(GetBool(gm, GL_DEPTH_WRITEMASK));
-  if (gm->IsFunctionGroupAvailable(GraphicsManager::kChooseBuffer))
-    st->SetDrawBuffer(ION_GET_ENUM(DrawBuffer, GL_DRAW_BUFFER));
   st->SetHint(StateTable::kGenerateMipmapHint,
               ION_GET_ENUM(HintMode, GL_GENERATE_MIPMAP_HINT));
   st->SetLineWidth(GetFloat(gm, GL_LINE_WIDTH));
@@ -518,64 +561,82 @@ static void CopyValues(GraphicsManager* gm, StateTable* st) {
 // Copies the set of values already set in the StateTable from the
 // GraphicsManager into the StateTable.
 static void CopySetValues(GraphicsManager* gm, StateTable* st) {
-  if (st->IsValueSet(StateTable::kBlendColorValue))
-    st->SetBlendColor(GetColor(gm, GL_BLEND_COLOR));
-  if (st->IsValueSet(StateTable::kBlendEquationsValue))
+  if (st->IsValueSet(StateTable::kBlendColorValue)) {
+    st->SetBlendColor(GetFloat4(gm, GL_BLEND_COLOR));
+  }
+  if (st->IsValueSet(StateTable::kBlendEquationsValue)) {
     st->SetBlendEquations(ION_GET_ENUM(BlendEquation, GL_BLEND_EQUATION_RGB),
                           ION_GET_ENUM(BlendEquation, GL_BLEND_EQUATION_ALPHA));
-  if (st->IsValueSet(StateTable::kBlendFunctionsValue))
+  }
+  if (st->IsValueSet(StateTable::kBlendFunctionsValue)) {
     st->SetBlendFunctions(
         ION_GET_ENUM(BlendFunctionFactor, GL_BLEND_SRC_RGB),
         ION_GET_ENUM(BlendFunctionFactor, GL_BLEND_DST_RGB),
         ION_GET_ENUM(BlendFunctionFactor, GL_BLEND_SRC_ALPHA),
         ION_GET_ENUM(BlendFunctionFactor, GL_BLEND_DST_ALPHA));
-  if (st->IsValueSet(StateTable::kClearColorValue))
-    st->SetClearColor(GetColor(gm, GL_COLOR_CLEAR_VALUE));
+  }
+  if (st->IsValueSet(StateTable::kClearColorValue)) {
+    st->SetClearColor(GetFloat4(gm, GL_COLOR_CLEAR_VALUE));
+  }
   if (st->IsValueSet(StateTable::kColorWriteMasksValue)) {
     GLint mask[4];
     gm->GetIntegerv(GL_COLOR_WRITEMASK, mask);
     st->SetColorWriteMasks(mask[0], mask[1], mask[2], mask[3]);
   }
-  if (st->IsValueSet(StateTable::kCullFaceModeValue))
+  if (st->IsValueSet(StateTable::kCullFaceModeValue)) {
     st->SetCullFaceMode(ION_GET_ENUM(CullFaceMode, GL_CULL_FACE_MODE));
-  if (st->IsValueSet(StateTable::kFrontFaceModeValue))
+  }
+  if (st->IsValueSet(StateTable::kFrontFaceModeValue)) {
     st->SetFrontFaceMode(ION_GET_ENUM(FrontFaceMode, GL_FRONT_FACE));
-  if (st->IsValueSet(StateTable::kClearDepthValue))
+  }
+  if (st->IsValueSet(StateTable::kClearDepthValue)) {
     st->SetClearDepthValue(GetFloat(gm, GL_DEPTH_CLEAR_VALUE));
-  if (st->IsValueSet(StateTable::kDepthFunctionValue))
+  }
+  if (st->IsValueSet(StateTable::kDefaultInnerTessellationLevelValue)) {
+    st->SetDefaultInnerTessellationLevel(
+        GetFloat2(gm, GL_PATCH_DEFAULT_INNER_LEVEL));
+  }
+  if (st->IsValueSet(StateTable::kDefaultOuterTessellationLevelValue)) {
+    st->SetDefaultOuterTessellationLevel(
+        GetFloat4(gm, GL_PATCH_DEFAULT_OUTER_LEVEL));
+  }
+  if (st->IsValueSet(StateTable::kDepthFunctionValue)) {
     st->SetDepthFunction(ION_GET_ENUM(DepthFunction, GL_DEPTH_FUNC));
+  }
   if (st->IsValueSet(StateTable::kDepthRangeValue)) {
     GLfloat range[2];
     gm->GetFloatv(GL_DEPTH_RANGE, range);
     st->SetDepthRange(math::Range1f(range[0], range[1]));
   }
-  if (st->IsValueSet(StateTable::kDepthWriteMaskValue))
+  if (st->IsValueSet(StateTable::kDepthWriteMaskValue)) {
     st->SetDepthWriteMask(GetBool(gm, GL_DEPTH_WRITEMASK));
-  if (st->IsValueSet(StateTable::kDrawBufferValue) &&
-      gm->IsFunctionGroupAvailable(GraphicsManager::kChooseBuffer))
-    st->SetDrawBuffer(ION_GET_ENUM(DrawBuffer, GL_DRAW_BUFFER));
-  if (st->IsValueSet(StateTable::kLineWidthValue))
+  }
+  if (st->IsValueSet(StateTable::kLineWidthValue)) {
     st->SetLineWidth(GetFloat(gm, GL_LINE_WIDTH));
-  if (st->IsValueSet(StateTable::kPolygonOffsetValue))
+  }
+  if (st->IsValueSet(StateTable::kPolygonOffsetValue)) {
     st->SetPolygonOffset(GetFloat(gm, GL_POLYGON_OFFSET_FACTOR),
                          GetFloat(gm, GL_POLYGON_OFFSET_UNITS));
-  if (st->IsValueSet(StateTable::kSampleCoverageValue))
+  }
+  if (st->IsValueSet(StateTable::kSampleCoverageValue)) {
     st->SetSampleCoverage(GetFloat(gm, GL_SAMPLE_COVERAGE_VALUE),
                           GetBool(gm, GL_SAMPLE_COVERAGE_INVERT));
+  }
   if (st->IsValueSet(StateTable::kScissorBoxValue)) {
     GLint box[4];
     gm->GetIntegerv(GL_SCISSOR_BOX, box);
     st->SetScissorBox(math::Range2i::BuildWithSize(
         math::Point2i(box[0], box[1]), math::Vector2i(box[2], box[3])));
   }
-  if (st->IsValueSet(StateTable::kStencilFunctionsValue))
+  if (st->IsValueSet(StateTable::kStencilFunctionsValue)) {
     st->SetStencilFunctions(ION_GET_ENUM(StencilFunction, GL_STENCIL_FUNC),
                             GetInt(gm, GL_STENCIL_REF),
                             GetInt(gm, GL_STENCIL_VALUE_MASK),
                             ION_GET_ENUM(StencilFunction, GL_STENCIL_BACK_FUNC),
                             GetInt(gm, GL_STENCIL_BACK_REF),
                             GetInt(gm, GL_STENCIL_BACK_VALUE_MASK));
-  if (st->IsValueSet(StateTable::kStencilOperationsValue))
+  }
+  if (st->IsValueSet(StateTable::kStencilOperationsValue)) {
     st->SetStencilOperations(
         ION_GET_ENUM(StencilOperation, GL_STENCIL_FAIL),
         ION_GET_ENUM(StencilOperation, GL_STENCIL_PASS_DEPTH_FAIL),
@@ -583,11 +644,14 @@ static void CopySetValues(GraphicsManager* gm, StateTable* st) {
         ION_GET_ENUM(StencilOperation, GL_STENCIL_BACK_FAIL),
         ION_GET_ENUM(StencilOperation, GL_STENCIL_BACK_PASS_DEPTH_FAIL),
         ION_GET_ENUM(StencilOperation, GL_STENCIL_BACK_PASS_DEPTH_PASS));
-  if (st->IsValueSet(StateTable::kClearStencilValue))
+  }
+  if (st->IsValueSet(StateTable::kClearStencilValue)) {
     st->SetClearStencilValue(GetInt(gm, GL_STENCIL_CLEAR_VALUE));
-  if (st->IsValueSet(StateTable::kStencilWriteMasksValue))
+  }
+  if (st->IsValueSet(StateTable::kStencilWriteMasksValue)) {
     st->SetStencilWriteMasks(GetInt(gm, GL_STENCIL_WRITEMASK),
                              GetInt(gm, GL_STENCIL_BACK_WRITEMASK));
+  }
   if (st->IsValueSet(StateTable::kViewportValue)) {
     GLint viewport[4];
     gm->GetIntegerv(GL_VIEWPORT, viewport);
@@ -632,12 +696,16 @@ static void ResetValues(const StateTable& default_st, StateTable* st) {
   ION_RESET1(kFrontFaceModeValue, GetFrontFaceMode());
   ION_RESET1(kFrontFaceModeValue, GetFrontFaceMode());
   ION_RESET1(kClearDepthValue, GetClearDepthValue());
+  ION_RESET1(kDefaultInnerTessellationLevelValue,
+             GetDefaultInnerTessellationLevel());
+  ION_RESET1(kDefaultOuterTessellationLevelValue,
+             GetDefaultOuterTessellationLevel());
   ION_RESET1(kDepthFunctionValue, GetDepthFunction());
   ION_RESET1(kDepthRangeValue, GetDepthRange());
   ION_RESET1(kDepthWriteMaskValue, GetDepthWriteMask());
-  ION_RESET1(kDrawBufferValue, GetDrawBuffer());
   ION_RESET1(kHintsValue, GetHint(StateTable::kGenerateMipmapHint));
   ION_RESET1(kLineWidthValue, GetLineWidth());
+  ION_RESET1(kMinSampleShadingValue, GetMinSampleShading());
   ION_RESET2(kPolygonOffsetValue,
              GetPolygonOffsetFactor(), GetPolygonOffsetUnits());
   ION_RESET2(kSampleCoverageValue,
@@ -708,9 +776,11 @@ void ClearFromStateTable(const StateTable& new_state,
                          GraphicsManager* gm) {
   UpdateAndSetCapability(StateTable::kDither, new_state, save_state, gm);
   UpdateAndSetCapability(StateTable::kScissorTest, new_state, save_state, gm);
+  UpdateAndSetCapability(StateTable::kRasterizerDiscard, new_state, save_state,
+                         gm);
   if (new_state.GetSetValueCount()) {
-    // Write masks, the scissor box, and dithering affect Clear()ing. Dithering
-    // and the scissor test are handled above.
+    // Write masks, the scissor box, rasterizer discard, and dithering affect
+    // Clear(). Everything but the write masks are handled above.
     ION_UPDATE_CLEAR_VALUE(kScissorBoxValue, UpdateScissorBox);
     // Only send the write mask values if we are actually going to do a clear.
     // Otherwise, they will be sent via UpdateFromStateTable before drawing
@@ -752,13 +822,17 @@ void UpdateFromStateTable(const StateTable& new_state,
     ION_UPDATE_VALUE(kBlendFunctionsValue, UpdateBlendFunctions);
     ION_UPDATE_CLEAR_VALUE(kColorWriteMasksValue, UpdateColorWriteMasks);
     ION_UPDATE_VALUE(kCullFaceModeValue, UpdateCullFaceMode);
+    ION_UPDATE_VALUE(kDefaultInnerTessellationLevelValue,
+                     UpdateDefaultInnerTessLevelFunction);
+    ION_UPDATE_VALUE(kDefaultInnerTessellationLevelValue,
+                     UpdateDefaultOuterTessLevelFunction);
     ION_UPDATE_VALUE(kDepthFunctionValue, UpdateDepthFunction);
     ION_UPDATE_VALUE(kDepthRangeValue, UpdateDepthRange);
     ION_UPDATE_CLEAR_VALUE(kDepthWriteMaskValue, UpdateDepthWriteMask);
-    ION_UPDATE_VALUE(kDrawBufferValue, UpdateDrawBuffer);
     ION_UPDATE_VALUE(kFrontFaceModeValue, UpdateFrontFaceMode);
     ION_UPDATE_VALUE(kHintsValue, UpdateHints);
     ION_UPDATE_VALUE(kLineWidthValue, UpdateLineWidth);
+    ION_UPDATE_VALUE(kMinSampleShadingValue, UpdateMinSampleShading);
     ION_UPDATE_VALUE(kPolygonOffsetValue, UpdatePolygonOffset);
     ION_UPDATE_VALUE(kSampleCoverageValue, UpdateSampleCoverage);
     ION_UPDATE_CLEAR_VALUE(kScissorBoxValue, UpdateScissorBox);

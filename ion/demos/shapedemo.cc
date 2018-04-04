@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -44,7 +44,6 @@ limitations under the License.
 
 ION_REGISTER_ASSETS(IonShapeDemoResources);
 
-using ion::base::ZipAssetManager;
 using ion::gfx::Node;
 using ion::gfx::NodePtr;
 using ion::gfx::ShaderInputRegistry;
@@ -100,7 +99,7 @@ class Grid {
   Grid();
 
   // Returns the center of the specified shape.
-  const Point3f GetCenter(ShapeType shape_type) const;
+  const Point3f GetCenter(ShapeType type) const;
 
   // Returns the radius of the grid, useful for setting up the view.
   float GetRadius() const;
@@ -483,15 +482,15 @@ IonShapeDemo::IonShapeDemo(int width, int height)
                      tri_node_, line_node_, normal_node_);
 
   // Add the shapes.
-  UpdateRectangle(NULL);
-  UpdateBox(NULL);
-  UpdateEllipsoid(NULL);
-  UpdateCylinder(NULL);
+  UpdateRectangle(nullptr);
+  UpdateBox(nullptr);
+  UpdateEllipsoid(nullptr);
+  UpdateCylinder(nullptr);
 
   // Initialize other state.
-  EnableBackFaceCulling(NULL);
-  EnableNormals(NULL);
-  EnableWireframe(NULL);
+  EnableBackFaceCulling(nullptr);
+  EnableNormals(nullptr);
+  EnableWireframe(nullptr);
 
   // Set up viewing.
   SetTrackballRadius(s_grid.GetRadius());
@@ -628,6 +627,6 @@ void IonShapeDemo::UpdateCylinder(ion::base::SettingBase*) {
   UpdateShape(kCylinderShape, ion::gfxutils::BuildCylinderShape(cylinder_spec));
 }
 
-DemoBase* CreateDemo(int w, int h) {
-  return new IonShapeDemo(w, h);
+std::unique_ptr<DemoBase> CreateDemo(int width, int height) {
+  return std::unique_ptr<DemoBase>(new IonShapeDemo(width, height));
 }

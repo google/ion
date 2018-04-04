@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -56,7 +56,7 @@ class ShaderInput : public ShaderInputBase {
 
   // Returns true if this is a valid instance created by a ShaderInputRegistry.
   // If this returns false, most of the other methods should not be called.
-  bool IsValid() const { return registry_ != NULL; }
+  bool IsValid() const { return registry_ != nullptr; }
 
   // Returns the ShaderInputRegistry the shader input is defined in.
   // This will crash if called on an invalid instance.
@@ -150,7 +150,7 @@ class ShaderInput : public ShaderInputBase {
   // instance.
   ShaderInput()
       : ShaderInputBase(),
-        registry_(NULL),
+        registry_(nullptr),
         index_in_registry_(0),
         registry_id_(0),
         type_(static_cast<ValueType>(0)),

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -85,14 +85,18 @@ extern "C" {
 
 #define GLU_TESS_MAX_COORD 1.0e150
 
+#ifdef __cplusplus
+class GLUtesselator;
+#else
 typedef struct GLUtesselator GLUtesselator;
+#endif
 
 #if !defined(_GLUfuncptr)
 typedef GLvoid (*_GLUfuncptr)();
 #endif
 
 #if defined(ION_PLATFORM_ANDROID) || defined(ION_PLATFORM_IOS) || \
-    defined(ION_PLATFORM_GENERIC_ARM)
+    defined(ION_GOOGLE_INTERNAL)
 typedef double GLdouble;
 #endif
 

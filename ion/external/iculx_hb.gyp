@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,9 +26,21 @@
       'type': 'static_library',
       'include_dirs': [
         '<(root_dir)/',
+        '<(root_dir)/third_party/icu/icu4c/source/common', # For cmemory.h
       ],
       'cflags_cc': [
         '-w',
+      ],
+      'defines': [
+        'U_COMMON_IMPLEMENTATION',
+        'U_STATIC_IMPLEMENTATION',
+        'U_IMPORT=',
+        'U_EXPORT=',
+      ],
+      'msvs_disabled_warnings': [
+        '4005', # Macro redefinition. NO_GOOGLE_STRING_PIECE_IN_ICU is defined
+                # in all_dependent_settings in icu.gyp, but also gets explicitly
+                # defined in icu/include/unicode/stringpiece.h.
       ],
       'sources': [
         # To generate this list cd into third_party/iculx_hb and run:
@@ -48,6 +60,6 @@
         'iculehb.gyp:ioniculehb',
         'icu.gyp:ionicu',
       ],
-    },  # target: ionicu
+    },  # target: ioniculx_hb
   ],  # targets
 }

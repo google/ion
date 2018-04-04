@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -360,16 +360,16 @@ TEST(StringUtils, AreMultiLineStringsEqual) {
   // Equal strings.
   EXPECT_TRUE(AreMultiLineStringsEqual("A\nBC  \nDEF\n\n\nGHI\n",
                                        "A\nBC  \nDEF\n\n\nGHI\n",
-                                       NULL, NULL, NULL, NULL,
-                                       NULL));
+                                       nullptr, nullptr, nullptr, nullptr,
+                                       nullptr));
   size_t index;
   std::string line0, line1, context0, context1;
 
   // Strings differ, NULL out-pointers.
   EXPECT_FALSE(AreMultiLineStringsEqual("A\nBC  \nDEF\n\n\nGHX\nIJ",
                                         "A\nBC  \nDEF\n\n\nGHY\nIJ",
-                                        NULL, NULL, NULL, NULL,
-                                        NULL));
+                                        nullptr, nullptr, nullptr, nullptr,
+                                        nullptr));
 
   // Strings differ, non-NULL out-pointers.
   EXPECT_FALSE(AreMultiLineStringsEqual("A\nBC  \nDEF\n\n\nGHX\nIJ",
@@ -416,8 +416,8 @@ TEST(StringUtils, AreMultiLineStringsEqual) {
   // other differences.
   EXPECT_TRUE(AreMultiLineStringsEqual("A\nBC  \nDEF\n\n\nGHI\n\n\n",
                                                   "A\nBC  \nDEF\n\n\nGHI\n",
-                                                  NULL, NULL, NULL, NULL,
-                                                  NULL));
+                                                  nullptr, nullptr, nullptr,
+                                                  nullptr, nullptr));
 }
 
 TEST(StringUtils, GetExpectedChar) {
@@ -507,44 +507,6 @@ TEST(StringUtils, StringToInt32) {
   EXPECT_EQ(14, StringToInt32(" 14"));
   EXPECT_EQ(1, StringToInt32("1 14"));
   EXPECT_EQ(0, StringToInt32("q1 14"));
-}
-
-TEST(StringUtils, AppendBytes) {
-  std::string test = "test";
-  const char nums[] = {1, 2, 3, 4};
-  AppendBytes(&test, nums);
-
-  // Note: assumes bytes stored in little-endian format.
-  const int32 temp = -123;
-  AppendBytes(&test, temp);
-
-  const std::string temp2 = "temp";
-  test.append(temp2);
-
-  const float temp3 = 0.1234f;  // 0x3dfcb924
-  AppendBytes(&test, temp3);
-
-  EXPECT_EQ(20U, test.length());
-  EXPECT_EQ('t', test.at(0));
-  EXPECT_EQ('e', test.at(1));
-  EXPECT_EQ('s', test.at(2));
-  EXPECT_EQ('t', test.at(3));
-  EXPECT_EQ('\x01', test.at(4));
-  EXPECT_EQ('\x02', test.at(5));
-  EXPECT_EQ('\x03', test.at(6));
-  EXPECT_EQ('\x04', test.at(7));
-  EXPECT_EQ('\x85', test.at(8));
-  EXPECT_EQ('\xFF', test.at(9));
-  EXPECT_EQ('\xFF', test.at(10));
-  EXPECT_EQ('\xFF', test.at(11));
-  EXPECT_EQ('t', test.at(12));
-  EXPECT_EQ('e', test.at(13));
-  EXPECT_EQ('m', test.at(14));
-  EXPECT_EQ('p', test.at(15));
-  EXPECT_EQ('\x24', test.at(16));
-  EXPECT_EQ('\xB9', test.at(17));
-  EXPECT_EQ('\xFC', test.at(18));
-  EXPECT_EQ('\x3D', test.at(19));
 }
 
 TEST(StringUtils, CompareCaseInsensitive) {

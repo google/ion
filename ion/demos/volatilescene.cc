@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -137,6 +137,6 @@ class IonVolatileScene : public DemoBase {
   int height_;
 };
 
-DemoBase* CreateDemo(int w, int h) {
-  return new IonVolatileScene(w, h);
+std::unique_ptr<DemoBase> CreateDemo(int width, int height) {
+  return std::unique_ptr<DemoBase>(new IonVolatileScene(width, height));
 }

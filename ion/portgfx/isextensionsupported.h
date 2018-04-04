@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -35,15 +35,6 @@ ION_API bool IsExtensionSupported(const std::string& unprefixed_extension,
 // directly as a C string.
 // Note that to call this function a valid OpenGL context must be bound.
 ION_API bool IsExtensionSupported(const char* unprefixed_extension);
-
-// Returns whether the passed extension is known to be incomplete for the
-// current platform. For example, vertex array objects are known to be broken
-// for many Android devices, and support for them is not always good.
-// Note that a true return value does not mean the extension is fully supported,
-// only that it is not known to be broken.
-//
-// This function does not require an OpenGL context to be bound.
-ION_API bool IsExtensionIncomplete(const char* unprefixed_extension);
 
 }  // namespace portgfx
 }  // namespace ion

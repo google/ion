@@ -1,3 +1,20 @@
+/**
+Copyright 2017 Google Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS-IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+*/
+
 /*
   Copyright 2015 Google Inc. All Rights Reserved.
 
@@ -50,7 +67,8 @@ zlib_filefunc_def* pzlib_filefunc_def;
 {
   unz64_s us;
   unz64_s* s;
-  uLong central_pos, uL;
+  ZPOS64_T central_pos;
+  uLong uL;
 
   uLong number_disk;         /* number of the current dist, used for
                                 spaning ZIP, unsupported, always 0*/
@@ -92,9 +110,10 @@ zlib_filefunc_def* pzlib_filefunc_def;
     err = UNZ_ERRNO;
 
   /* total number of entries in the central dir on this disk */
-  if (unz64local_getShort(&us.z_filefunc, us.filestream, &us.gi.number_entry) !=
+  if (unz64local_getShort(&us.z_filefunc, us.filestream, &uL) !=
       UNZ_OK)
     err = UNZ_ERRNO;
+  us.gi.number_entry = uL;
 
   /* total number of entries in the central dir */
   if (unz64local_getShort(&us.z_filefunc, us.filestream, &number_entry_CD) !=
@@ -106,15 +125,17 @@ zlib_filefunc_def* pzlib_filefunc_def;
     err = UNZ_BADZIPFILE;
 
   /* size of the central directory */
-  if (unz64local_getLong(&us.z_filefunc, us.filestream, &us.size_central_dir) !=
+  if (unz64local_getLong(&us.z_filefunc, us.filestream, &uL) !=
       UNZ_OK)
     err = UNZ_ERRNO;
+  us.size_central_dir = uL;
 
   /* offset of start of central directory with respect to the
         starting disk number */
-  if (unz64local_getLong(&us.z_filefunc, us.filestream,
-                         &us.offset_central_dir) != UNZ_OK)
+  if (unz64local_getLong(&us.z_filefunc, us.filestream, &uL) !=
+      UNZ_OK)
     err = UNZ_ERRNO;
+  us.offset_central_dir = uL;
 
   /* zipfile comment length */
   if (unz64local_getShort(&us.z_filefunc, us.filestream, &us.gi.size_comment) !=

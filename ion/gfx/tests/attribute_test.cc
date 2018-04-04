@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@ TEST(AttributeTest, CreateAttribute) {
 
   Attribute a;
   EXPECT_FALSE(a.IsValid());
-  EXPECT_TRUE(ShaderInputRegistry::GetSpec(a) == NULL);
+  EXPECT_TRUE(ShaderInputRegistry::GetSpec(a) == nullptr);
 
   // Create.
   a = reg->Create<Attribute>("myFloat", 17.2f);
@@ -66,7 +66,7 @@ TEST(AttributeTest, CreateAttribute) {
   ASSERT_FALSE(base::IsInvalidReference(a.GetValue<float>()));
   EXPECT_EQ(17.2f, a.GetValue<float>());
   EXPECT_TRUE(base::IsInvalidReference(a.GetValue<math::VectorBase4f>()));
-  EXPECT_TRUE(ShaderInputRegistry::GetSpec(a) != NULL);
+  EXPECT_TRUE(ShaderInputRegistry::GetSpec(a) != nullptr);
   EXPECT_FALSE(a.IsFixedPointNormalized());
   EXPECT_EQ(0U, a.GetDivisor());
 
@@ -79,7 +79,7 @@ TEST(AttributeTest, CreateAttribute) {
   ASSERT_FALSE(base::IsInvalidReference(a2.GetValue<float>()));
   EXPECT_EQ(17.2f, a2.GetValue<float>());
   EXPECT_TRUE(base::IsInvalidReference(a2.GetValue<math::VectorBase4f>()));
-  EXPECT_TRUE(ShaderInputRegistry::GetSpec(a2) != NULL);
+  EXPECT_TRUE(ShaderInputRegistry::GetSpec(a2) != nullptr);
   EXPECT_FALSE(a2.IsFixedPointNormalized());
   EXPECT_EQ(0U, a.GetDivisor());
 
@@ -156,7 +156,7 @@ TEST(AttributeTest, CreateAttribute) {
   ASSERT_FALSE(base::IsInvalidReference(a.GetValue<float>()));
   EXPECT_EQ(48.1f, a.GetValue<float>());
   EXPECT_TRUE(base::IsInvalidReference(a.GetValue<math::VectorBase4f>()));
-  EXPECT_TRUE(ShaderInputRegistry::GetSpec(a) != NULL);
+  EXPECT_NE(nullptr, ShaderInputRegistry::GetSpec(a));
   EXPECT_FALSE(a.IsFixedPointNormalized());
 
   // Test == and != again.
@@ -178,13 +178,13 @@ TEST(AttributeTest, CreateAttribute) {
   ASSERT_FALSE(base::IsInvalidReference(a.GetValue<float>()));
   EXPECT_EQ(48.1f, a.GetValue<float>());
   EXPECT_TRUE(base::IsInvalidReference(a.GetValue<math::VectorBase4f>()));
-  EXPECT_TRUE(ShaderInputRegistry::GetSpec(a) != NULL);
+  EXPECT_NE(nullptr, ShaderInputRegistry::GetSpec(a));
   EXPECT_FALSE(a.IsFixedPointNormalized());
 
   // Create with bad value type.
   a = reg->Create<Attribute>("myFloat", kVec2);
   EXPECT_FALSE(a.IsValid());
-  EXPECT_TRUE(ShaderInputRegistry::GetSpec(a) == NULL);
+  EXPECT_TRUE(ShaderInputRegistry::GetSpec(a) == nullptr);
   EXPECT_TRUE(log_checker.HasMessage("ERROR", "wrong value_type"));
 
   // Create with an unknown name; it should be automatically added.
@@ -192,20 +192,20 @@ TEST(AttributeTest, CreateAttribute) {
   EXPECT_TRUE(a.IsValid());
   EXPECT_EQ(kFloatAttribute, a.GetType());
   EXPECT_EQ(52.4f, a.GetValue<float>());
-  EXPECT_TRUE(ShaderInputRegistry::GetSpec(a) != NULL);
+  EXPECT_TRUE(ShaderInputRegistry::GetSpec(a) != nullptr);
 
   // Copy of an invalid Attribute should also be invalid.
   a = Attribute();
   a2 = a;
   EXPECT_FALSE(a2.IsValid());
-  EXPECT_TRUE(ShaderInputRegistry::GetSpec(a2) == NULL);
+  EXPECT_TRUE(ShaderInputRegistry::GetSpec(a2) == nullptr);
 
   BufferObjectPtr vb(new BufferObject);
   BufferObjectElement element;
   Attribute a_buffer = reg->Create<Attribute>("myBuffer",
                                               BufferObjectElement(vb, 0));
   EXPECT_TRUE(a_buffer.IsValid());
-  EXPECT_FALSE(ShaderInputRegistry::GetSpec(a_buffer) == NULL);
+  EXPECT_FALSE(ShaderInputRegistry::GetSpec(a_buffer) == nullptr);
   EXPECT_FALSE(a_buffer.IsFixedPointNormalized());
   // Check that the normalization of an attribute can bet set.
   a_buffer.SetFixedPointNormalized(true);

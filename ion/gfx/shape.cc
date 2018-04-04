@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,12 +21,25 @@ limitations under the License.
 #include "ion/base/invalid.h"
 #include "ion/base/static_assert.h"
 #include "ion/portgfx/glheaders.h"
+#include "absl/base/macros.h"
 
 namespace ion {
 namespace gfx {
 
 Shape::Shape()
-    : primitive_type_(kTriangles), vertex_ranges_(*this), instance_count_(0) {}
+    : primitive_type_(kTriangles),
+      vertex_ranges_(*this),
+      instance_count_(0),
+      patch_vertices_(3) {}
+
+Shape::Shape(const Shape& from)
+    : primitive_type_(from.primitive_type_),
+      attribute_array_(from.attribute_array_),
+      index_buffer_(from.index_buffer_),
+      vertex_ranges_(*this, from.vertex_ranges_.begin(),
+                     from.vertex_ranges_.end()),
+      instance_count_(from.instance_count_),
+      label_(from.label_) {}
 
 Shape::~Shape() {
 }
@@ -80,7 +93,7 @@ int Shape::GetVertexRangeInstanceCount(size_t i) const {
 }
 
 bool Shape::CheckRangeIndex(size_t i, const char* name) const {
-  // TODO(user): Disable this code in prod builds; figure out how to avoid test
+  // 
   // crashes and failures there.
   if (i < vertex_ranges_.size()) {
     return true;
@@ -103,16 +116,17 @@ template <> ION_API const EnumHelper::EnumData<Shape::PrimitiveType>
 EnumHelper::GetEnumData() {
   static const GLenum kValues[] = {
     GL_LINES, GL_LINE_LOOP, GL_LINE_STRIP, GL_POINTS, GL_TRIANGLES,
-    GL_TRIANGLE_FAN, GL_TRIANGLE_STRIP
+    GL_TRIANGLE_FAN, GL_TRIANGLE_STRIP, GL_PATCHES
   };
   static const char* kStrings[] = {
     "Lines", "Line Loop", "Line Strip", "Points", "Triangles", "Triangle Fan",
-    "Triangle Strip",
+    "Triangle Strip", "Patches"
   };
-  ION_STATIC_ASSERT(ARRAYSIZE(kValues) == ARRAYSIZE(kStrings),
+  ION_STATIC_ASSERT(ABSL_ARRAYSIZE(kValues) == ABSL_ARRAYSIZE(kStrings),
                     "EnumHelper size mismatch");
   return EnumData<Shape::PrimitiveType>(
-      base::IndexMap<Shape::PrimitiveType, GLenum>(kValues, ARRAYSIZE(kValues)),
+      base::IndexMap<Shape::PrimitiveType, GLenum>(kValues,
+                                                   ABSL_ARRAYSIZE(kValues)),
       kStrings);
 }
 

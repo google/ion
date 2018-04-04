@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 {
   'type': 'executable',
   'conditions' : [
-    # TODO(user): The Xcode generator correctly can place the output in /tests,
+
     # but Xcode will then not find the app, looking for it in PRODUCT_DIR
     # itself. Investigate in Xcode generator.
     ['GENERATOR != "xcode" and OS != "ios"', {
@@ -58,7 +58,7 @@
       },
     }],
 
-    ['OS == "windows"', {
+    ['OS == "win"', {
       'msvs_settings': {
         'VCLinkerTool': {
           'SubSystem': '1',  # console, since gtest binaries are console.

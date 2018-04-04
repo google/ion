@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -59,13 +59,13 @@ class NodeGraphHandlerTest : public HttpServerTest {
 
 TEST(NodeGraphHandler, Frame) {
   NodeGraphHandlerPtr ngh(new NodeGraphHandler);
-  EXPECT_TRUE(ngh->GetFrame().Get() == NULL);
+  EXPECT_FALSE(ngh->GetFrame());
   gfxutils::FramePtr frame(new gfxutils::Frame);
   ngh->SetFrame(frame);
   EXPECT_EQ(frame, ngh->GetFrame());
-  frame = NULL;
+  frame = nullptr;
   ngh->SetFrame(frame);
-  EXPECT_TRUE(ngh->GetFrame().Get() == NULL);
+  EXPECT_FALSE(ngh->GetFrame());
 }
 
 TEST(NodeGraphHandler, Nodes) {

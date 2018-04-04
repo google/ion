@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ limitations under the License.
 #include <sstream>
 #include <string>
 
+#include "absl/base/macros.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
 namespace ion {
@@ -41,7 +42,7 @@ TEST(Matrix, MatricDefaultConstructorZeroInitializes) {
 
   // For a pointer type, zero-intialization means nullptr.
   Matrix<1, void*> m1p;
-  EXPECT_EQ(NULL, m1p(0, 0));
+  EXPECT_EQ(nullptr, m1p(0, 0));
 
   // Test a matrix with several elements and ensure that they're all zeroed.
   Matrix4d m4d;
@@ -119,7 +120,7 @@ TEST(Matrix, MatrixConstructor) {
   EXPECT_EQ(36.6, m_from_array(3, 3));
 
   // Unaligned data.
-  double buffer[arraysize(elements) + 1];
+  double buffer[ABSL_ARRAYSIZE(elements) + 1];
   double* unaligned_elements =
       reinterpret_cast<double*>(reinterpret_cast<char*>(buffer) + 1);
   memcpy(unaligned_elements, elements, sizeof(elements));

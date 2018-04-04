@@ -1,5 +1,5 @@
 /**
-Copyright 2007 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@ limitations under the License.
 
 */
 
+// Copyright 2007 Google Inc. All Rights Reserved.
 //
 #include "ion/base/datetime.h"
 
@@ -148,14 +149,20 @@ static inline int64 CumulativeEpochDaysToYear(int64 year) {
   if (year > 0) {
     int64 prev_years = year - 1;
     // Note +1 for leap year zero.
-    int64 num_leap_years =
-        (prev_years / 4 - prev_years / 100) + prev_years / 400 + 1;
-    days_since_year_0 = num_leap_years * 366 + (year - num_leap_years) * 365;
+    // Perform multiplications in uint64 domain to avoid undefined overflow
+    // behavior.
+    uint64 num_leap_years = static_cast<uint64>(
+        (prev_years / 4 - prev_years / 100) + prev_years / 400 + 1);
+    days_since_year_0 = static_cast<int64>(num_leap_years * 366 +
+                                           (year - num_leap_years) * 365);
   } else if (year < 0) {
     int64 pos_years = -year;
-    int64 num_leap_years = (pos_years / 4 - pos_years / 100) + pos_years / 400;
-    days_since_year_0 =
-        -(num_leap_years * 366 + (pos_years - num_leap_years) * 365);
+    // Perform multiplications in uint64 domain to avoid undefined overflow
+    // behavior.
+    uint64 num_leap_years = static_cast<uint64>(
+        (pos_years / 4 - pos_years / 100) + pos_years / 400);
+    days_since_year_0 = -static_cast<int64>(num_leap_years * 366 +
+                                            (pos_years - num_leap_years) * 365);
   } else {
     days_since_year_0 = 0;
   }
@@ -208,7 +215,7 @@ void DateTime::SetYear(int64 year) {
 
 void DateTime::SetMonth(uint8 month) {
   // Zero is allowed for duration values.
-  if (month < 0 || month > 12)
+  if (month > 12)
     LOG(ERROR) << "Invalid month " << month << " provided. Skipping set.";
   else
     month_ = month;
@@ -216,7 +223,7 @@ void DateTime::SetMonth(uint8 month) {
 
 void DateTime::SetDay(uint8 day) {
   // Zero is allowed for duration values.
-  if (day < 0 || day > MaximumDayInMonthFor(year_, month_))
+  if (day > MaximumDayInMonthFor(year_, month_))
     LOG(ERROR) << "Invalid day " << day << " provided for year/month "
         << year_ << "/" << month_ << ". Skipping set.";
   else
@@ -224,7 +231,7 @@ void DateTime::SetDay(uint8 day) {
 }
 
 void DateTime::SetHour(uint8 hour) {
-  if (hour < 0 || hour > 23)
+  if (hour > 23)
     LOG(ERROR) << "Invalid hour " << hour
         << " for 24-hour time representation. Skipping set.";
   else
@@ -232,14 +239,14 @@ void DateTime::SetHour(uint8 hour) {
 }
 
 void DateTime::SetMinute(uint8 minute) {
-  if (minute < 0 || minute > 59)
+  if (minute > 59)
     LOG(ERROR) << "Invalid minute " << minute << " provided. Skipping set.";
   else
     minute_ = minute;
 }
 
 void DateTime::SetSecond(uint8 second) {
-  if (second < 0 || second > 59)
+  if (second > 59)
     LOG(ERROR) << "Invalid second " << second << " provided. Skipping set.";
   else
     second_ = second;
@@ -406,7 +413,7 @@ bool DateTime::FromString(const std::string& str) {
   }
 
   // Months.
-  if (date_regex_match.str(2) == "") {
+  if (date_regex_match.str(2).empty()) {
     this->Set(result);
     return true;
   } else {
@@ -417,7 +424,7 @@ bool DateTime::FromString(const std::string& str) {
   }
 
   // Days.
-  if (date_regex_match.str(3) == "") {
+  if (date_regex_match.str(3).empty()) {
     this->Set(result);
     return true;
   } else {
@@ -430,7 +437,7 @@ bool DateTime::FromString(const std::string& str) {
   // Process zone-hours and zone-minutes here in case time isn't
   // specified. Zone Hours and Zone Minutes are still legal at this
   // point in XML date.
-  if (date_regex_match.str(8) != "") {  // "+" or "-".
+  if (!date_regex_match.str(8).empty()) {  // "+" or "-".
     // Zone Hours.
     std::stringstream ss(date_regex_match.str(9));
     int16 short_val = 0;
@@ -439,7 +446,7 @@ bool DateTime::FromString(const std::string& str) {
 
     // Zone Minutes.
     int8 zone_minutes = 0;
-    if (date_regex_match.str(10) != "") {
+    if (!date_regex_match.str(10).empty()) {
       std::stringstream ss(date_regex_match.str(10));
       int16 short_val = 0;
       ss >> short_val;
@@ -459,7 +466,7 @@ bool DateTime::FromString(const std::string& str) {
   }
 
   // Hours.
-  if (date_regex_match.str(4) == "") {
+  if (date_regex_match.str(4).empty()) {
     this->Set(result);
     return true;
   } else {
@@ -470,7 +477,7 @@ bool DateTime::FromString(const std::string& str) {
   }
 
   // Minutes.
-  if (date_regex_match.str(5) == "") {
+  if (date_regex_match.str(5).empty()) {
     this->Set(result);
     return true;
   } else {
@@ -481,7 +488,7 @@ bool DateTime::FromString(const std::string& str) {
   }
 
   // Seconds.
-  if (date_regex_match.str(6) == "") {
+  if (date_regex_match.str(6).empty()) {
     this->Set(result);
     return true;
   } else {
@@ -492,7 +499,7 @@ bool DateTime::FromString(const std::string& str) {
   }
 
   // Fractional Seconds.
-  if (date_regex_match.str(7) == "") {
+  if (date_regex_match.str(7).empty()) {
     this->Set(result);
     return true;
   } else {
@@ -700,35 +707,35 @@ bool DateTime::operator>(const DateTime& dtime) const {
   DateTime norm_other(dtime);
   norm_other.Normalize();
   if (norm_this.year_ > norm_other.year_)
-    return 1;
+    return true;
   else if (norm_this.year_ < norm_other.year_)
-    return 0;
+    return false;
   else if (norm_this.month_ > norm_other.month_)
-    return 1;
+    return true;
   else if (norm_this.month_ < norm_other.month_)
-    return 0;
+    return false;
   else if (norm_this.day_ > norm_other.day_)
-    return 1;
+    return true;
   else if (norm_this.day_ < norm_other.day_)
-    return 0;
+    return false;
   else if (norm_this.hour_ > norm_other.hour_)
-    return 1;
+    return true;
   else if (norm_this.hour_ < norm_other.hour_)
-    return 0;
+    return false;
   else if (norm_this.minute_ > norm_other.minute_)
-    return 1;
+    return true;
   else if (norm_this.minute_ < norm_other.minute_)
-    return 0;
+    return false;
   else if (norm_this.second_ > norm_other.second_)
-    return 1;
+    return true;
   else if (norm_this.second_ < norm_other.second_)
-    return 0;
+    return false;
   else if (norm_this.nanosecond_ > norm_other.nanosecond_)
-    return 1;
+    return true;
   else if (norm_this.nanosecond_ < norm_other.nanosecond_)
-    return 0;
+    return false;
 
-  return 0;
+  return false;
 }
 
 bool DateTime::operator==(const DateTime& dtime) const {
@@ -778,7 +785,7 @@ double DateTime::GetJulianDate() const {
   // Convert the hours to a fractional day.
   double time = GetTimeAsDecimal();
 
-  // NOTE(user): This block of code is magic, as presented on page 61 of the
+  // NOTE: This block of code is magic, as presented on page 61 of the
   // book. I am confident it works only because I've unit-tested it.
   double a = floor(year / 100.0);
   double b = 2.0 - a + floor(a / 4.0);
@@ -1021,7 +1028,11 @@ int64 DateTime::GetPosixSecondsOnly() const {
 
   int64 secs_big = second_;
 
-  return ((((days_big * 24) + hours_big) * 60) + mins_big) * 60 + secs_big;
+  // Perform arithmetic in uint64 domain to avoid undefined overflow behavior
+  return static_cast<int64>(
+      ((((static_cast<uint64>(days_big) * 24) + hours_big) * 60) + mins_big) *
+          60 +
+      secs_big);
 }
 
 }  // namespace base

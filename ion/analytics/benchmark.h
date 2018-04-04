@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -36,18 +36,39 @@ class ION_API Benchmark {
   // This struct stores information about a measurement computed by
   // benchmarking. It is used to describe the value in benchmark reports.
   struct Descriptor {
-    Descriptor(const std::string& id_in,
-               const std::string& group_in,
-               const std::string& description_in,
-               const std::string& units_in)
-        : id(id_in),
-          group(group_in),
-          description(description_in),
-          units(units_in) {}
+    Descriptor(std::string id_in,
+               std::string group_in,
+               std::string description_in,
+               std::string units_in)
+        : id(std::move(id_in)),
+          group(std::move(group_in)),
+          description(std::move(description_in)),
+          units(std::move(units_in)) {}
     std::string id;            // (Unique) identifying name.
     std::string group;         // Group the measurement belongs to.
     std::string description;   // Readable description.
     std::string units;         // Description of units.
+  };
+
+  // A variant of the above structure that can be trivially destructed. Only use
+  // this when all parameters are string constants.
+  struct StaticDescriptor {
+    StaticDescriptor(const char* id_in,
+               const char* group_in,
+               const char* description_in,
+               const char* units_in)
+        : id(id_in),
+          group(group_in),
+          description(description_in),
+          units(units_in) {}
+    // Silence ClangTidy, since we actually want this conversion to be implicit.
+    operator Descriptor() const {  // NOLINT
+      return Descriptor(id, group, description, units);
+    }
+    const char* id;
+    const char* group;
+    const char* description;
+    const char* units;
   };
 
   // This struct represents a number that is constant over all samples.

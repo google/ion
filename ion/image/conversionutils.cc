@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,6 +15,11 @@ limitations under the License.
 
 */
 
+// Prevent Visual Studio from complaining about std::copy.
+#if defined(ION_PLATFORM_WINDOWS)
+#define _SCL_SECURE_NO_WARNINGS
+#endif
+
 #include "ion/image/conversionutils.h"
 
 #include "ion/base/logging.h"  // Ensures Ion logging code is used.
@@ -23,21 +28,12 @@ limitations under the License.
 #include "ion/base/allocationmanager.h"
 #include "ion/base/datacontainer.h"
 #include "ion/math/range.h"
+#include "ion/math/utils.h"
 #include "third_party/image_compression/image_compression/public/compressed_image.h"
 #include "third_party/image_compression/image_compression/public/dxtc_compressor.h"
 #include "third_party/image_compression/image_compression/public/etc_compressor.h"
 #include "third_party/image_compression/image_compression/public/pvrtc_compressor.h"
-#define LODEPNG_NO_COMPILE_ENCODER
-#define LODEPNG_NO_COMPILE_DISK
-#define LODEPNG_NO_COMPILE_ANCILLARY_CHUNKS
-#define LODEPNG_NO_COMPILE_ERROR_TEXT
-#define LODEPNG_NO_COMPILE_CPP
 #include "third_party/lodepng/lodepng.h"
-#undef LODEPNG_NO_COMPILE_ENCODER
-#undef LODEPNG_NO_COMPILE_DISK
-#undef LODEPNG_NO_COMPILE_ANCILLARY_CHUNKS
-#undef LODEPNG_NO_COMPILE_ERROR_TEXT
-#undef LODEPNG_NO_COMPILE_CPP
 
 #include "third_party/stblib/stb_image.h"
 #include "third_party/stblib/stb_image_write.h"
@@ -66,17 +62,87 @@ const size_t kIonRawImageHeaderSizeInBytes = 16;
 //
 //-----------------------------------------------------------------------------
 
-// Returns true if an Image is not NULL and has non-NULL data.
+// Returns true if an Image is non-null and has non-null data.
 static bool ImageHasData(const ImagePtr& image) {
-  if (!image.Get())
-    return false;
+  if (!image) return false;
   const base::DataContainerPtr& data = image->GetData();
-  return data.Get() != NULL && data->GetData() != NULL;
+  return data && data->GetData() != nullptr;
 }
 
 // Returns true if an image contains alpha information (RGBA as opposed to RGB).
 static bool ImageHasAlpha(const Image& image) {
   return Image::GetNumComponentsForFormat(image.GetFormat()) == 4;
+}
+
+// Returns the 'canonical' format for |format|.  This is the sized, typed format
+// used to store |format| internally.  If |format| has no canonical type, it is
+// returned changed.
+static Image::Format GetCanonicalFormat(Image::Format format) {
+  if (format == Image::Format::kRgb888) {
+    format = Image::Format::kRgb8;
+  } else if (format == Image::Format::kRgba8888) {
+    format = Image::Format::kRgba8;
+  } else if (format == Image::Format::kRgbaFloat) {
+    format = Image::Format::kRgba32f;
+  }
+  return format;
+}
+
+// Allocate a new image.
+static const ImagePtr AllocImage(Image::Format format, uint32 width,
+                                 uint32 height, bool is_wipeable,
+                                 const base::AllocatorPtr& allocator) {
+  ImagePtr result(new (allocator) Image);
+  // This may be different from the allocator passed in if what was passed in
+  // was a null pointer.
+  const base::AllocatorPtr& use_allocator = result->GetAllocator();
+  const size_t size = Image::ComputeDataSize(format, width, height);
+  uint8* new_buffer =
+      reinterpret_cast<uint8*>(use_allocator->AllocateMemory(size));
+  result->Set(format, width, height,
+              base::DataContainer::Create<uint8>(
+                  new_buffer, std::bind(base::DataContainer::AllocatorDeleter,
+                                        use_allocator, std::placeholders::_1),
+                  is_wipeable, use_allocator));
+  return result;
+}
+
+// Returns a copy of |image|, in a possibly different format |format|.  Storage
+// for the returned image is newly allocated, and data is copied without
+// conversion.
+static ImagePtr MakeImageCopy(const ImagePtr& image, Image::Format format,
+                              bool is_wipeable,
+                              const base::AllocatorPtr& allocator) {
+  // Copy image to data container with expected wipeable flag.
+  ImagePtr result;
+  result.Reset(new (allocator) Image);
+  if (image->GetDimensions() == Image::k2d) {
+    result->Set(format, image->GetWidth(), image->GetHeight(),
+                base::DataContainer::CreateAndCopy<uint8>(
+                    reinterpret_cast<const uint8*>(image->GetData()->GetData()),
+                    image->GetDataSize(), is_wipeable, result->GetAllocator()));
+  } else {
+    result->Set(
+        format, image->GetWidth(), image->GetHeight(), image->GetDepth(),
+        base::DataContainer::CreateAndCopy<uint8>(
+            reinterpret_cast<const uint8*>(image->GetData()->GetData()),
+            image->GetDataSize(), is_wipeable, result->GetAllocator()));
+  }
+  return result;
+}
+
+// Returns an alias of |image|, in a possibly different format |format|.
+// Storage for the returned image is shared with |image|.
+static ImagePtr MakeImageAlias(const ImagePtr& image, Image::Format format) {
+  ImagePtr result(new Image());
+  if (image->GetDimensions() == Image::k2d) {
+    result->Set(format, image->GetWidth(), image->GetHeight(),
+                image->GetData());
+  } else {
+    result->Set(format, image->GetWidth(), image->GetHeight(),
+                image->GetDepth(), image->GetData());
+  }
+  return result;
 }
 
 //-----------------------------------------------------------------------------
@@ -85,7 +151,7 @@ static bool ImageHasAlpha(const Image& image) {
 //
 //-----------------------------------------------------------------------------
 
-// Compresses an image using the provided Compressor. Returns a NULL Image if
+// Compresses an image using the provided Compressor. Returns a null Image if
 // there are any problems.
 static const ImagePtr CompressWithCompressor(
     const Image& image, Image::Format compressed_format,
@@ -113,7 +179,7 @@ static const ImagePtr CompressWithCompressor(
   return result;
 }
 
-// Decompresses an image using the provided Compressor. Returns a NULL Image if
+// Decompresses an image using the provided Compressor. Returns a null Image if
 // there are any problems.
 static const ImagePtr DecompressWithCompressor(
     const Image& image, image_codec_compression::Compressor* compressor,
@@ -155,7 +221,8 @@ static const ImagePtr DecompressWithCompressor(
                           &decompressed_data[0], decompressed_data.size(),
                           is_wipeable, result_image->GetAllocator()));
   }
-  return result_image;
+  return MakeImageAlias(result_image,
+                        GetCanonicalFormat(result_image->GetFormat()));
 }
 
 // Compresses an image to the target_format.
@@ -202,7 +269,10 @@ static bool PngHasTransparencyChunk(const uint8* png_data, size_t data_size) {
   const uint8* end_ptr = png_data + data_size;
 
   bool has_trns_chunk = false;
-  while (chunk < end_ptr) {
+  // lodepng_chunk_type_equals reads chunk[4..7], which still have to be
+  // within the bounds of png_data to avoid a potential access violation,
+  // hence the + 8.
+  while (chunk + 8 < end_ptr) {
     if (lodepng_chunk_type_equals(chunk, "IEND")) {
       // We got to end with no tRNS chunk.
       break;
@@ -215,8 +285,17 @@ static bool PngHasTransparencyChunk(const uint8* png_data, size_t data_size) {
   return has_trns_chunk;
 }
 
+#if defined(IS_LITTLE_ENDIAN)
+static const void SwapBytes(uint16* data, uint32 count) {
+  while (count--) {
+    *data = bswap_16(*data);
+    data++;
+  }
+}
+#endif
+
 // Decodes |data| to an Image using lodepng. Supported formats: PNG. |data_size|
-// is the number of bytes in |data|. Returns NULL on failure.
+// is the number of bytes in |data|. Returns nullptr on failure.
 static const ImagePtr DataToImageLodePng(const void* data,
                                          size_t data_size,
                                          bool flip_vertically,
@@ -234,7 +313,6 @@ static const ImagePtr DataToImageLodePng(const void* data,
     lodepng_state_cleanup(&state);
     return image;
   }
-  uint8* data_out = NULL;
 
   LodePNGColorType colortype = state.info_png.color.colortype;
   if (colortype == LCT_PALETTE) {
@@ -247,49 +325,97 @@ static const ImagePtr DataToImageLodePng(const void* data,
       colortype = (colortype == LCT_GREY) ? LCT_GREY_ALPHA : LCT_RGBA;
     }
   }
-  lodepng_error_code = lodepng_decode_memory(&data_out, &width, &height,
-                                             data_in, data_size, colortype, 8U);
-  lodepng_state_cleanup(&state);
-  if (lodepng_error_code == kLodePngSuccess) {
-    Image::Format format = Image::kRgba8888;
-    uint32 num_channels = 4U;
-    switch (colortype) {
-      case LCT_RGBA:
-        format = Image::kRgba8888;
-        num_channels = 4;
-        break;
-      case LCT_RGB:
-        format = Image::kRgb888;
-        num_channels = 3;
-        break;
-      case LCT_GREY_ALPHA:
-        format = Image::kLuminanceAlpha;
-        num_channels = 2;
-        break;
-      case LCT_GREY:
-        format = Image::kLuminance;
-        num_channels = 1;
-        break;
-      default:
-        DCHECK(false) << "Unexpected PNG color type";
-    }
-    image.Reset(new(allocator) Image);
-    image->Set(format, width, height,
-               base::DataContainer::CreateAndCopy<uint8>(
-                   data_out, width * height * num_channels, is_wipeable,
-                   image->GetAllocator()));
-    free(data_out);
 
-    if (flip_vertically) {
-      FlipImage(image);
+  if (state.info_png.color.bitdepth == 16) {
+    // 16-bit images are read & retained as 16-bit.
+    uint16* data_out = nullptr;
+    lodepng_error_code = lodepng_decode_memory(
+        reinterpret_cast<uint8**>(&data_out), &width, &height, data_in,
+        data_size, colortype, 16U);
+    lodepng_state_cleanup(&state);
+    if (lodepng_error_code == kLodePngSuccess) {
+      Image::Format format = Image::kRgba16ui;
+      uint32 num_channels = 4U;
+      switch (colortype) {
+        case LCT_RGBA:
+          format = Image::kRgba16ui;
+          num_channels = 4;
+          break;
+        case LCT_RGB:
+          format = Image::kRgb16ui;
+          num_channels = 3;
+          break;
+        case LCT_GREY_ALPHA:
+          format = Image::kRg16ui;
+          num_channels = 2;
+          break;
+        case LCT_GREY:
+          format = Image::kR16ui;
+          num_channels = 1;
+          break;
+        default:
+          DCHECK(false) << "Unexpected PNG color type";
+      }
+#if defined(IS_LITTLE_ENDIAN)
+      // lodepng always returns big endian, so we need to swap it.
+      SwapBytes(data_out, width * height * num_channels);
+#endif
+      image.Reset(new(allocator) Image);
+      image->Set(format, width, height,
+                 base::DataContainer::CreateAndCopy<uint16>(
+                     data_out, width * height * num_channels, is_wipeable,
+                     image->GetAllocator()));
+      free(data_out);
+    }
+  } else {
+    // All other images are forced to 8-bit.
+    uint8* data_out = nullptr;
+    lodepng_error_code = lodepng_decode_memory(&data_out, &width, &height,
+                                               data_in, data_size, colortype,
+                                               8U);
+    lodepng_state_cleanup(&state);
+    if (lodepng_error_code == kLodePngSuccess) {
+      Image::Format format = Image::kRgba8888;
+      uint32 num_channels = 4U;
+      switch (colortype) {
+        case LCT_RGBA:
+          format = Image::kRgba8888;
+          num_channels = 4;
+          break;
+        case LCT_RGB:
+          format = Image::kRgb888;
+          num_channels = 3;
+          break;
+        case LCT_GREY_ALPHA:
+          format = Image::kLuminanceAlpha;
+          num_channels = 2;
+          break;
+        case LCT_GREY:
+          format = Image::kLuminance;
+          num_channels = 1;
+          break;
+        default:
+          DCHECK(false) << "Unexpected PNG color type";
+      }
+      image.Reset(new(allocator) Image);
+      image->Set(format, width, height,
+                 base::DataContainer::CreateAndCopy<uint8>(
+                     data_out, width * height * num_channels, is_wipeable,
+                     image->GetAllocator()));
+      free(data_out);
     }
   }
+
+  if (flip_vertically) {
+    FlipImage(image);
+  }
+
   return image;
 }
 
 // Decodes |data| to an Image using stblib. Supported formats: JPEG, PNG, TGA,
 // BMP, PSD, GIF, HDR, PIC. |data_size| is the number of bytes in |data|.
-// Returns NULL on failure.
+// Returns nullptr on failure.
 static const ImagePtr DataToImageStb(const void* data,
                                      size_t data_size,
                                      bool flip_vertically,
@@ -311,10 +437,9 @@ static const ImagePtr DataToImageStb(const void* data,
     DCHECK_LE(num_components, 4) << "Unsupported component count in image.";
     image.Reset(new(allocator) Image);
     image->Set(formats[num_components - 1], width, height,
-               base::DataContainer::CreateAndCopy<uint8>(
-                   result_data, width * height * num_components, is_wipeable,
+               base::DataContainer::Create<uint8>(
+                   result_data, stbi_image_free, is_wipeable,
                    image->GetAllocator()));
-    stbi_image_free(result_data);
   }
 
   if (flip_vertically) {
@@ -324,14 +449,14 @@ static const ImagePtr DataToImageStb(const void* data,
 }
 
 // Decodes "ION raw" |data| to an Image (see conversionutils.h for format specs)
-// |data_size| is the number of bytes in |data|. Returns NULL on failure.
+// |data_size| is the number of bytes in |data|. Returns nullptr on failure.
 static const ImagePtr DataToImageIonRaw(const void* data,
                                         size_t data_size,
                                         bool flip_vertically,
                                         bool is_wipeable,
                                         const base::AllocatorPtr& allocator) {
   if (!IsIonRawImageFormat(data, data_size)) {
-    return ImagePtr();  // NULL
+    return ImagePtr();  // nullptr
   }
 
   const uint16* header_ui16 = static_cast<const uint16*>(data);
@@ -352,14 +477,14 @@ static const ImagePtr DataToImageIonRaw(const void* data,
     case 1:  format = Image::kRgb565;   break;
     case 2:  format = Image::kRgba4444; break;
     case 3:  format = Image::kAlpha;    break;
-    default: return ImagePtr();  // NULL
+    default: return ImagePtr();  // nullptr
   }
 
   size_t num_bytes_per_pixel = Image::ComputeDataSize(format, 1, 1);
   size_t payload_size_bytes = num_pixels * num_bytes_per_pixel;
   if (payload_size_bytes == 0 ||
       data_size - kIonRawImageHeaderSizeInBytes != payload_size_bytes) {
-    return ImagePtr();  // NULL
+    return ImagePtr();  // nullptr
   }
 
   ImagePtr image;
@@ -399,188 +524,475 @@ static const ImagePtr DataToImageIonRaw(const void* data,
 //
 //-----------------------------------------------------------------------------
 
-static uint8 MultiplyUint8ByFloat(const uint8 int_value,
-                                  const float float_value) {
-  return static_cast<uint8>(static_cast<float>(int_value) * float_value);
-}
-
-static const ImagePtr AllocImage(
-    Image::Format format, uint32 width, uint32 height, bool is_wipeable,
-    const base::AllocatorPtr& allocator) {
-  ImagePtr result(new(allocator) Image);
-  // This may be different from the allocator passed in if what was passed in
-  // was a null pointer.
-  const base::AllocatorPtr& use_allocator = result->GetAllocator();
-  const size_t size = Image::ComputeDataSize(format, width, height);
-  uint8* new_buffer = reinterpret_cast<uint8*>(
-      use_allocator->AllocateMemory(size));
-  result->Set(format, width, height,
-      base::DataContainer::Create<uint8>(
-          new_buffer,
-          std::bind(base::DataContainer::AllocatorDeleter, use_allocator,
-              std::placeholders::_1),
-          is_wipeable,
-          use_allocator));
-  return result;
-}
-
-// Create a single channel image from the red channel of an RGB(A) image.
-static const ImagePtr ExtractRedChannel(const Image& image,
-                                        bool is_wipeable,
-                                        const base::AllocatorPtr& allocator) {
-  DCHECK(image.GetFormat() == Image::kRgb888 ||
-         image.GetFormat() == Image::kRgba8888);
-  const uint32 width = image.GetWidth();
-  const uint32 height = image.GetHeight();
-  ImagePtr result = AllocImage(
-      Image::kR8, width, height, is_wipeable, allocator);
-  const uint8* src_data = image.GetData()->GetData<uint8>();
-  uint8* dst_data = result->GetData()->GetMutableData<uint8>();
-  const size_t src_stride = Image::GetNumComponentsForFormat(image.GetFormat());
-  const uint8* src_end = src_data + image.GetDataSize();
-  while (src_data < src_end) {
-    *dst_data = src_data[0];
-    src_data += src_stride;
-    dst_data++;
+// Template function which returns a converted copy of |image|.  Elements in the
+// image are converted 1:1 from |FromType| to |ToType| into the result; the
+// conversion functor is specified in |converter|.  The number of channels in
+// the image is specified in |N|, and must be the same for the input |image| and
+// the output |format|.
+template <typename FromType, typename ToType, int N, typename Converter>
+static ImagePtr ConvertImageType(const ImagePtr& image, Image::Format format,
+                                 Converter converter, bool is_wipeable,
+                                 const base::AllocatorPtr& allocator) {
+  DCHECK_EQ(N, Image::GetNumComponentsForFormat(image->GetFormat()));
+  DCHECK_EQ(N, Image::GetNumComponentsForFormat(format));
+  ImagePtr result;
+  result.Reset(new (allocator) Image);
+  result->Set(format, image->GetWidth(), image->GetHeight(),
+              base::DataContainer::CreateAndCopy<ToType>(
+                  nullptr, Image::ComputeDataSize(format, image->GetWidth(),
+                                                  image->GetHeight()),
+                  is_wipeable, allocator));
+  const FromType* from_data = image->GetData()->GetData<FromType>();
+  ToType* to_data = result->GetData()->GetMutableData<ToType>();
+  for (uint32 i = 0; i < image->GetWidth() * image->GetHeight() * N; ++i) {
+    *to_data++ = converter(*from_data++);
   }
   return result;
 }
 
-// Create an RGB(A) image from a Luminance(Alpha) image.
-static const ImagePtr LuminanceToRgb(const Image& image,
+// Conversion functor mapping float -> uint8, for use with ConvertImageType().
+static uint8 IntFromFloat(float value) {
+  if (!math::IsFinite(value)) return 0;
+  return static_cast<uint8>(255.0f * ion::math::Clamp(value, 0.0f, 1.0f));
+}
+
+// Conversion functor mapping uint8 -> float, for use with ConvertImageType().
+static float FloatFromInt(uint8 value) {
+  static const double kScale = 1.0 / 255.0;
+  return static_cast<float>(value * kScale);
+}
+
+// Convert an image in one direction: float -> uint8 -> compressed.  The input
+// image may be float or uint8, and target format may be uint8 or compressed; at
+// the point in the conversion chain when the target format is achieved, it is
+// returned.
+static ImagePtr FloatToUint8ToCompressed(const ImagePtr& image,
+                                         Image::Format canonical_image_format,
+                                         Image::Format target_format,
+                                         Image::Format canonical_target_format,
+                                         bool is_wipeable,
+                                         const base::AllocatorPtr& allocator) {
+  const bool target_supported_compressed_format =
+      (canonical_target_format == Image::Format::kEtc1 ||
+       canonical_target_format == Image::Format::kDxt1 ||
+       canonical_target_format == Image::Format::kDxt5 ||
+       canonical_target_format == Image::Format::kPvrtc1Rgba2);
+
+  // Convert from a floating to a uint8 image, if applicable.
+  ImagePtr uint8_image = image;
+  switch (canonical_image_format) {
+    case Image::Format::kR32f:
+      if (canonical_target_format == Image::Format::kR8) {
+        uint8_image = ConvertImageType<float, uint8, 1>(
+            image, Image::Format::kR8, IntFromFloat, is_wipeable, allocator);
+      }
+      break;
+    case Image::Format::kRg32f:
+      if (canonical_target_format == Image::Format::kRg8) {
+        uint8_image = ConvertImageType<float, uint8, 2>(
+            image, Image::Format::kRg8, IntFromFloat, is_wipeable, allocator);
+      }
+      break;
+    case Image::Format::kRgb32f:
+      if (canonical_target_format == Image::Format::kRgb8 ||
+          target_supported_compressed_format) {
+        uint8_image = ConvertImageType<float, uint8, 3>(
+            image, Image::Format::kRgb8, IntFromFloat, is_wipeable, allocator);
+      }
+      break;
+    case Image::Format::kRgba32f:
+      if (canonical_target_format == Image::Format::kRgba8 ||
+          target_supported_compressed_format) {
+        uint8_image = ConvertImageType<float, uint8, 4>(
+            image, Image::Format::kRgba8, IntFromFloat, is_wipeable, allocator);
+      }
+      break;
+    default:
+      break;
+  }
+  if (uint8_image->GetFormat() == target_format) {
+    return uint8_image;
+  } else if (uint8_image->GetFormat() == canonical_target_format) {
+    return MakeImageAlias(uint8_image, target_format);
+  }
+
+  // Compress the image, if the target format is compressed.
+  ImagePtr compressed_image = uint8_image;
+  const Image::Format canonical_uint8_format =
+      GetCanonicalFormat(uint8_image->GetFormat());
+  switch (canonical_target_format) {
+    case Image::Format::kEtc1:
+      if (canonical_uint8_format == Image::Format::kRgb8) {
+        compressed_image =
+            CompressImage(*uint8_image, target_format, is_wipeable, allocator);
+      }
+      break;
+    case Image::Format::kDxt1:
+      if (canonical_uint8_format == Image::Format::kRgb8) {
+        compressed_image =
+            CompressImage(*uint8_image, target_format, is_wipeable, allocator);
+      }
+      break;
+    case Image::Format::kDxt5:
+      if (canonical_uint8_format == Image::Format::kRgba8) {
+        compressed_image =
+            CompressImage(*uint8_image, target_format, is_wipeable, allocator);
+      }
+      break;
+    case Image::Format::kPvrtc1Rgba2:
+      if (canonical_uint8_format == Image::Format::kRgba8) {
+        compressed_image =
+            CompressImage(*uint8_image, target_format, is_wipeable, allocator);
+      }
+      break;
+    default:
+      break;
+  }
+
+  return compressed_image;
+}
+
+// Convert an image in one direction: compressed -> uint8 -> float.  The input
+// image may be float or uint8, and the target format may be uint8 or
+// compressed; at the point in the conversion chain when the target format is
+// achieved, it is returned.
+static ImagePtr CompressedToUint8ToFloat(const ImagePtr& image,
+                                         Image::Format canonical_image_format,
+                                         Image::Format target_format,
+                                         Image::Format canonical_target_format,
+                                         bool is_wipeable,
+                                         const base::AllocatorPtr& allocator) {
+  // Decompress the image, if the source format is compressed.
+  ImagePtr uint8_image = image;
+  switch (canonical_image_format) {
+    case Image::Format::kEtc1:
+    case Image::Format::kDxt1:
+    case Image::Format::kDxt5:
+      uint8_image = DecompressImage(*image, is_wipeable, allocator);
+      break;
+    default:
+      break;
+  }
+  if (uint8_image->GetFormat() == target_format) {
+    return uint8_image;
+  } else if (uint8_image->GetFormat() == canonical_target_format) {
+    return MakeImageAlias(uint8_image, target_format);
+  }
+
+  // Convert from an integer to a floating-point component format, if
+  // applicable.
+  ImagePtr float_image = uint8_image;
+  const Image::Format canonical_uint8_format =
+      GetCanonicalFormat(uint8_image->GetFormat());
+  switch (canonical_target_format) {
+    case Image::Format::kR32f:
+      if (canonical_uint8_format == Image::Format::kR8) {
+        float_image = ConvertImageType<uint8, float, 1>(
+            uint8_image, target_format, FloatFromInt, is_wipeable, allocator);
+      }
+      break;
+    case Image::Format::kRg32f:
+      if (canonical_uint8_format == Image::Format::kRg8) {
+        float_image = ConvertImageType<uint8, float, 2>(
+            uint8_image, target_format, FloatFromInt, is_wipeable, allocator);
+      }
+      break;
+    case Image::Format::kRgb32f:
+      if (canonical_uint8_format == Image::Format::kRgb8) {
+        float_image = ConvertImageType<uint8, float, 3>(
+            uint8_image, target_format, FloatFromInt, is_wipeable, allocator);
+      }
+      break;
+    case Image::Format::kRgba32f:
+      if (canonical_uint8_format == Image::Format::kRgba8) {
+        float_image = ConvertImageType<uint8, float, 4>(
+            uint8_image, target_format, FloatFromInt, is_wipeable, allocator);
+      }
+      break;
+    default:
+      break;
+  }
+
+  if (float_image->GetFormat() == canonical_target_format) {
+    return MakeImageAlias(float_image, target_format);
+  }
+  return float_image;
+}
+
+// Extracts a uint8 RGB(A) image from a Luminance(Alpha) image.  The alpha
+// channel in the result (if it exists) is filled with the alpha channel from
+// the source, if it exists, otherwise 255.
+static const ImagePtr LuminanceToRgb(const ImagePtr& image,
+                                     Image::Format canonical_image_format,
                                      Image::Format target_format,
+                                     Image::Format canonical_target_format,
                                      bool is_wipeable,
                                      const base::AllocatorPtr& allocator) {
-  DCHECK(image.GetFormat() == Image::kLuminance ||
-         image.GetFormat() == Image::kLuminanceAlpha);
-  DCHECK(target_format == Image::kRgb888 ||
-         target_format == Image::kRgba8888);
+  bool src_alpha = false;
+  switch (canonical_image_format) {
+    case Image::Format::kLuminance:
+      src_alpha = false;
+      break;
+    case Image::Format::kLuminanceAlpha:
+      src_alpha = true;
+      break;
+    default:
+      return image;
+  }
 
-  const uint32 width = image.GetWidth();
-  const uint32 height = image.GetHeight();
-  ImagePtr result = AllocImage(
-      target_format, width, height, is_wipeable, allocator);
-  const uint8* src_data = image.GetData()->GetData<uint8>();
+  bool dst_alpha = false;
+  switch (canonical_target_format) {
+    case Image::Format::kR8:
+    case Image::Format::kRg8:
+    case Image::Format::kRgb8:
+      dst_alpha = false;
+      break;
+    case Image::Format::kRgba8:
+      dst_alpha = true;
+      break;
+    default:
+      return image;
+  }
+
+  const uint32 width = image->GetWidth();
+  const uint32 height = image->GetHeight();
+  ImagePtr result =
+      AllocImage(target_format, width, height, is_wipeable, allocator);
+  const uint8* src_data = image->GetData()->GetData<uint8>();
   uint8* dst_data = result->GetData()->GetMutableData<uint8>();
-  const uint8* src_end = src_data + image.GetDataSize();
-  bool src_alpha = image.GetFormat() == Image::kLuminanceAlpha;
-  bool dst_alpha = target_format == Image::kRgba8888;
+  const uint8* src_end = src_data + image->GetDataSize();
+  const int target_color_components =
+      Image::GetNumComponentsForFormat(canonical_target_format) -
+      (dst_alpha ? 1 : 0);
   while (src_data < src_end) {
     // Copy luminance to RGB.
-    *dst_data++ = *src_data;
-    *dst_data++ = *src_data;
-    *dst_data++ = *src_data;
+    for (int i = 0; i < target_color_components; ++i) {
+      *dst_data++ = *src_data;
+    }
     src_data++;
+    uint8 alpha = 255;
+    if (src_alpha) {
+      alpha = *src_data++;
+    }
     // Copy alpha channel if present.
-    if (dst_alpha && src_alpha) {
-      *dst_data++ = *src_data++;
-    } else if (dst_alpha && !src_alpha) {
-      *dst_data++ = 255;
-    } else if (!dst_alpha && src_alpha) {
-      src_data++;
+    if (dst_alpha) {
+      *dst_data++ = alpha;
+    }
+  }
+  return result;
+}
+
+// Extracts a single channel image from the red channel of an RGB(A) image.
+static const ImagePtr RgbToRed(const ImagePtr& image,
+                               Image::Format canonical_image_format,
+                               Image::Format target_format,
+                               Image::Format canonical_target_format,
+                               bool is_wipeable,
+                               const base::AllocatorPtr& allocator) {
+  const uint32 width = image->GetWidth();
+  const uint32 height = image->GetHeight();
+  if (canonical_target_format == Image::Format::kR8) {
+    ImagePtr result;
+    switch (canonical_image_format) {
+      case Image::Format::kRg8:
+      case Image::Format::kRgb8:
+      case Image::Format::kRgba8:
+        result =
+            AllocImage(target_format, width, height, is_wipeable, allocator);
+        break;
+      default:
+        return image;
+    }
+    const uint8* src_data = image->GetData()->GetData<uint8>();
+    uint8* dst_data = result->GetData()->GetMutableData<uint8>();
+    const uint8* src_end = src_data + image->GetDataSize();
+    const int source_color_components =
+        Image::GetNumComponentsForFormat(canonical_image_format);
+    while (src_data < src_end) {
+      *dst_data++ = *src_data;
+      src_data += source_color_components;
+    }
+    return result;
+  } else if (canonical_target_format == Image::Format::kR32f) {
+    ImagePtr result;
+    switch (canonical_image_format) {
+      case Image::Format::kRg32f:
+      case Image::Format::kRgb32f:
+      case Image::Format::kRgba32f:
+        result =
+            AllocImage(target_format, width, height, is_wipeable, allocator);
+        break;
+      default:
+        return image;
+    }
+    const float* src_data = image->GetData()->GetData<float>();
+    float* dst_data = result->GetData()->GetMutableData<float>();
+    const float* src_end = src_data + (image->GetDataSize() / sizeof(float));
+    const int source_color_components =
+        Image::GetNumComponentsForFormat(canonical_image_format);
+    while (src_data < src_end) {
+      *dst_data++ = *src_data;
+      src_data += source_color_components;
+    }
+    return result;
+  }
+
+  // No conversion succeeded.
+  return image;
+}
+
+// Adds alpha channel to the source image and returns new image. Returns
+// nullptr if the source image has different format than |kRgb888|.
+static const ImagePtr RgbToRgba(const ImagePtr& image, uint8 alpha,
+                                bool is_wipeable,
+                                const base::AllocatorPtr& allocator) {
+  const uint32 width = image->GetWidth();
+  const uint32 height = image->GetHeight();
+  if (image->GetFormat() != Image::kRgb888)
+    return ImagePtr();
+  ImagePtr result = AllocImage(Image::kRgba8888, width, height,
+                               is_wipeable, allocator);
+  const uint8* src_data = image->GetData()->GetData<uint8>();
+  uint8* dst_data = result->GetData()->GetMutableData<uint8>();
+  uint32 src_index = 0;
+  uint32 dst_index = 0;
+  for (uint32 y = 0; y < height; ++y) {
+    for (uint32 x = 0; x < width; ++x) {
+      dst_data[dst_index]     = src_data[src_index];
+      dst_data[dst_index + 1] = src_data[src_index + 1];
+      dst_data[dst_index + 2] = src_data[src_index + 2];
+      dst_data[dst_index + 3] = alpha;
+      src_index += 3;
+      dst_index += 4;
     }
   }
   return result;
 }
 
 // Converts an Image to the target_format, returning a new ImagePtr. Returns a
-// NULL ImagePtr if anything goes wrong.
-static const ImagePtr ImageToImage(const Image& image,
-                                   Image::Format target_format,
-                                   bool is_wipeable,
-                                   const base::AllocatorPtr& allocator,
-                                   const base::AllocatorPtr& temp_allocator) {
-  const Image::Format source_format = image.GetFormat();
+// null ImagePtr if anything goes wrong.
+static const ImagePtr ImageToImage(
+    const ImagePtr& image, Image::Format target_format, bool is_wipeable,
+    const base::AllocatorPtr& allocator,
+    const base::AllocatorPtr& temporary_allocator) {
+  const Image::Format canonical_target_format =
+      GetCanonicalFormat(target_format);
 
-  // TODO(user): Implement other conversions as required.
+  // The outline of conversions in this function is:
+  //
+  // 1.  LuminanceToRgb(): convert from luminance formats to uint8, if
+  //     applicable.
+  // 2.  CompressedToUint8ToFloat():
+  //  a. Decompress from compressed formats to uint8, if applicable.
+  //  b. Convert from uint8 to float, if applicable.
+  // 3.  FloatToUint8ToCompressed():
+  //  a. Convert from float to uint8, if applicable.
+  //  b. Compressed to compressed formats, if applicable.
+  // 4.  RgbToRed(): convert to single-channel format by extracting the red
+  //     channel, if applicable.
+  // 5.  RgbToRgba(): if applicable (the source format must be kRgb888), it
+  //     adds alpha channel to the source image.
+  //
+  // During intermediate stages, we use the "canonical format" as returned by
+  // GetCanonicalFormat() for format decisions, and return the image in the
+  // actual target format only at the end.
 
-  ImagePtr result;
-  switch (source_format) {
-    case Image::kDxt1:
-    case Image::kEtc1:
-      if (target_format == Image::kRgb888)
-        result = DecompressImage(image, is_wipeable, allocator);
-      break;
-
-    case Image::kDxt5:
-      if (target_format == Image::kRgba8888)
-        result = DecompressImage(image, is_wipeable, allocator);
-      break;
-
-    case Image::kRgb888:
-      if (target_format == Image::kDxt1 || target_format == Image::kEtc1) {
-        result = CompressImage(image, target_format, is_wipeable, allocator);
-      } else if (target_format == Image::kR8) {
-        result = ExtractRedChannel(image, is_wipeable, allocator);
-      }
-      break;
-
-    case Image::kRgba8888:
-      if (target_format == Image::kDxt5 ||
-          target_format == Image::kPvrtc1Rgba2) {
-        result = CompressImage(image, target_format, is_wipeable, allocator);
-      } else if (target_format == Image::kR8) {
-        result = ExtractRedChannel(image, is_wipeable, allocator);
-      }
-      break;
-
-    case Image::kLuminance:
-    case Image::kLuminanceAlpha:
-      if (target_format == Image::kRgba8888 ||
-          target_format == Image::kRgb888) {
-        result = LuminanceToRgb(image, target_format, is_wipeable, allocator);
-      }
-      break;
-
-    // These are all unsupported for now.
-    case Image::kAlpha:
-    case Image::kPvrtc1Rgb2:
-    case Image::kPvrtc1Rgb4:
-    case Image::kPvrtc1Rgba2:
-    case Image::kPvrtc1Rgba4:
-    case Image::kRgb565:
-    case Image::kRgba4444:
-    case Image::kRgba5551:
-    default:
-      break;
+  ImagePtr intermediate_image = image;
+  Image::Format canonical_intermediate_format =
+      GetCanonicalFormat(intermediate_image->GetFormat());
+  if (canonical_intermediate_format == canonical_target_format) {
+    return MakeImageCopy(image, target_format, is_wipeable, allocator);
   }
 
-  // If the above failed, try converting first to the canonical format with the
-  // correct component count and then to the target format.
-  if (!result.Get()) {
-    Image::Format canonical_format = target_format;
-    switch (Image::GetNumComponentsForFormat(source_format)) {
+  // If the input image is a luminance format, return it in a uint8 format.
+  if (canonical_intermediate_format == Image::Format::kLuminance ||
+      canonical_intermediate_format == Image::Format::kLuminanceAlpha) {
+    ImagePtr uint8_image;
+    Image::Format uint8_format = Image::Format::kInvalid;
+    switch (Image::GetNumComponentsForFormat(canonical_target_format)) {
       case 1:
-        canonical_format = Image::kLuminance;
+        uint8_format = Image::Format::kR8;
         break;
       case 2:
-        canonical_format = Image::kLuminanceAlpha;
+        uint8_format = Image::Format::kRg8;
         break;
       case 3:
-        canonical_format = Image::kRgb888;
+        uint8_format = Image::Format::kRgb8;
         break;
       case 4:
-        canonical_format = Image::kRgba8888;
+        uint8_format = Image::Format::kRgba8;
         break;
       default:
         break;
     }
-    if (source_format != canonical_format && canonical_format != target_format)
-      result = ConvertImage(
-          ImageToImage(image, canonical_format, is_wipeable,
-                       temp_allocator, temp_allocator),
-          target_format, is_wipeable, allocator, temp_allocator);
+    base::AllocatorPtr uint8_allocator = temporary_allocator;
+    if (canonical_target_format == Image::Format::kR8 ||
+        canonical_target_format == Image::Format::kRg8 ||
+        canonical_target_format == Image::Format::kRgb8 ||
+        canonical_target_format == Image::Format::kRgba8) {
+      uint8_format = target_format;
+      uint8_allocator = allocator;
+    }
+    uint8_image = LuminanceToRgb(
+        intermediate_image, canonical_intermediate_format, uint8_format,
+        GetCanonicalFormat(uint8_format), is_wipeable, uint8_allocator);
+    if (uint8_image->GetFormat() == target_format) {
+      return uint8_image;
+    }
+    intermediate_image = uint8_image;
+    canonical_intermediate_format =
+        GetCanonicalFormat(uint8_image->GetFormat());
   }
 
-  return result;
+  // Convert the intermediate image to the destination image long the compressed
+  // -> uint8 -> float path, if applicable.
+  intermediate_image = CompressedToUint8ToFloat(
+      intermediate_image, canonical_intermediate_format, target_format,
+      canonical_target_format, is_wipeable, allocator);
+  if (intermediate_image->GetFormat() == target_format) {
+    return intermediate_image;
+  } else {
+    canonical_intermediate_format =
+        GetCanonicalFormat(intermediate_image->GetFormat());
+  }
+
+  // Convert the intermediate image to the destination image along the float ->
+  // uint8 -> compressed path, if applicable.
+  intermediate_image = FloatToUint8ToCompressed(
+      intermediate_image, canonical_intermediate_format, target_format,
+      canonical_target_format, is_wipeable, allocator);
+  if (intermediate_image->GetFormat() == target_format) {
+    return intermediate_image;
+  } else {
+    canonical_intermediate_format =
+        GetCanonicalFormat(intermediate_image->GetFormat());
+  }
+
+  // Extract the red channel from the intermediate image, if applicable.
+  intermediate_image =
+      RgbToRed(intermediate_image, canonical_intermediate_format, target_format,
+               canonical_target_format, is_wipeable, allocator);
+
+  if (intermediate_image->GetFormat() == target_format) {
+    return intermediate_image;
+  }
+
+  // Convert to RGBA if the caller requested adding an alpha channel to an
+  // kRgb888 image.
+  if (intermediate_image->GetFormat() == Image::kRgb888 &&
+      target_format == Image::kRgba8888)
+    return RgbToRgba(intermediate_image, 255, is_wipeable, allocator);
+
+  // No conversion succeeded.
+  return ImagePtr();
 }
 
 // Converts |data| encoded in a buffer to an Image. Supported formats: PNG
 // (using lodepng), JPEG, PNG, TGA, BMP, PSD, GIF, HDR, PIC (using stblib) and
 // "ION raw" format (see conversionutils.h for specs of "ION raw" format). This
 // method attempts to interpret the given raw data as the above formats, one
-// after another until success, otherwise returns NULL |data_size| is the number
-// of bytes in |data|.
+// after another until success, otherwise returns null. |data_size| is the
+// number of bytes in |data|.
 static const ImagePtr DataToImage(const void* data, size_t data_size,
                                   bool flip_vertically, bool is_wipeable,
                                   const base::AllocatorPtr& allocator) {
@@ -588,18 +1000,46 @@ static const ImagePtr DataToImage(const void* data, size_t data_size,
   // we try decoding with Lodepng first.
   ImagePtr image = DataToImageLodePng(
       data, data_size, flip_vertically, is_wipeable, allocator);
-  if (image.Get() != NULL) {
-    return image;
-  }
+  if (image) return image;
 
   image = DataToImageStb(
       data, data_size, flip_vertically, is_wipeable, allocator);
-  if (image.Get() != NULL) {
-    return image;
-  }
+  if (image) return image;
 
   return DataToImageIonRaw(
       data, data_size, flip_vertically, is_wipeable, allocator);
+}
+
+static const std::vector<uint8> ImageToPng(
+    const Image& image, bool flip_vertically) {
+  std::vector<uint8> result;
+  uint8* image_data = nullptr;
+  ImagePtr flipped_image;
+
+  if (flip_vertically) {
+    flipped_image.Reset(new Image);
+    flipped_image->Set(image.GetFormat(), image.GetWidth(), image.GetHeight(),
+                       base::DataContainer::CreateAndCopy<uint8>(
+                           image.GetData()->GetData<uint8>(),
+                           image.GetDataSize(),
+                           false,
+                           image.GetAllocator()));
+    FlipImage(flipped_image);
+    image_data = const_cast<uint8*>(
+        flipped_image->GetData()->GetData<uint8>());
+  } else {
+    image_data = const_cast<uint8*>(image.GetData()->GetData<uint8>());
+  }
+
+  int num_bytes;
+  if (unsigned char* result_data = stbi_write_png_to_mem(
+          image_data, 0, image.GetWidth(), image.GetHeight(),
+          Image::GetNumComponentsForFormat(image.GetFormat()),
+          &num_bytes)) {
+    result = std::vector<uint8>(result_data, result_data + num_bytes);
+    stbi_image_free(result_data);
+  }
+  return result;
 }
 
 // Converts an Image to the external_format, returning a byte vector. Returns
@@ -607,38 +1047,13 @@ static const ImagePtr DataToImage(const void* data, size_t data_size,
 static const std::vector<uint8> ImageToData(
     const Image& image, ExternalImageFormat external_format,
     bool flip_vertically) {
-  std::vector<uint8> result;
-
-  // STBLIB supports writing to PNG, but not JPEG.
-  if (external_format == kPng) {
-    uint8* image_data = nullptr;
-    ImagePtr flipped_image;
-
-    if (flip_vertically) {
-      flipped_image.Reset(new Image);
-      flipped_image->Set(image.GetFormat(), image.GetWidth(), image.GetHeight(),
-                         base::DataContainer::CreateAndCopy<uint8>(
-                              image.GetData()->GetData<uint8>(),
-                              image.GetDataSize(),
-                              false,
-                              image.GetAllocator()));
-      FlipImage(flipped_image);
-      image_data = const_cast<uint8*>(
-          flipped_image->GetData()->GetData<uint8>());
-    } else {
-      image_data = const_cast<uint8*>(image.GetData()->GetData<uint8>());
-    }
-
-    int num_bytes;
-    if (unsigned char* result_data = stbi_write_png_to_mem(
-            image_data, 0, image.GetWidth(), image.GetHeight(),
-            Image::GetNumComponentsForFormat(image.GetFormat()),
-            &num_bytes)) {
-      result = std::vector<uint8>(result_data, result_data + num_bytes);
-      stbi_image_free(result_data);
-    }
+  std::vector<uint8> data;
+  switch (external_format) {
+    case kPng:
+      data = ImageToPng(image, flip_vertically);
+      break;
   }
-  return result;
+  return data;
 }
 
 // Returns an Image of the same format as |image|, but with half the width and
@@ -886,6 +1301,46 @@ static const gfx::ImagePtr ResizeBoxFilter8bpc(
   return result;
 }
 
+// Rotates the image counter-clockwise by 90 degrees.
+// The data in the image is replaced by a new buffer, so it behaves as if it
+// is in-place, even if in reality it is not.
+// It is expected that the image is non-empty and non-compressed.
+static void RotateImageCounterClockwise90(const gfx::ImagePtr& image) {
+  const uint32 width = image->GetWidth();
+  const uint32 height = image->GetHeight();
+  ion::base::DataContainerPtr data = image->GetData();
+  const uint8* image_bytes = data->GetMutableData<uint8>();
+  const size_t data_size = image->GetDataSize();
+  const size_t row_size_bytes = data_size / height;
+  const size_t new_row_size_bytes = data_size / width;
+  const size_t pixel_size_bytes = row_size_bytes / width;
+
+  ion::base::DataContainerPtr out_data =
+      ion::base::DataContainer::CreateAndCopy<uint8>(nullptr, data_size, false,
+                                                     image->GetAllocator());
+  uint8* write_bytes = out_data->GetMutableData<uint8>();
+
+  for (size_t row = 0; row < height; ++row) {
+    const size_t read_row_start = row * row_size_bytes;
+    const size_t write_col_start = row * pixel_size_bytes;
+    for (size_t col = 0; col < width; ++col) {
+      const uint8* read_start =
+          image_bytes + read_row_start + (col * pixel_size_bytes);
+      size_t write_row = (width - col - 1);
+      uint8* write_start =
+          write_bytes + (write_row * new_row_size_bytes) + write_col_start;
+      std::copy(read_start, read_start + pixel_size_bytes, write_start);
+    }
+  }
+
+  image->Set(image->GetFormat(), height, width, out_data);
+}
+
+static void RotateImage180(const gfx::ImagePtr& image) {
+  FlipImage(image);
+  FlipImageHorizontally(image);
+}
+
 }  // anonymous namespace
 
 //-----------------------------------------------------------------------------
@@ -921,7 +1376,7 @@ const ImagePtr ION_API ConvertImage(
       base::AllocationManager::GetNonNullAllocator(allocator);
   const base::AllocatorPtr& temp_al =
       base::AllocationManager::GetNonNullAllocator(temporary_allocator);
-  return ImageToImage(*image, target_format, is_wipeable, al, temp_al);
+  return ImageToImage(image, target_format, is_wipeable, al, temp_al);
 }
 
 const ImagePtr ION_API ConvertFromExternalImageData(
@@ -952,7 +1407,6 @@ const std::vector<uint8> ION_API ConvertToExternalImageData(
     bool flip_vertically) {
   if (!ImageHasData(image))
     return std::vector<uint8>();
-
   return ImageToData(*image, external_format, flip_vertically);
 }
 
@@ -1071,6 +1525,33 @@ ION_API void FlipImageHorizontally(const gfx::ImagePtr& image) {
   }
 }
 
+ION_API void RotateImage(const gfx::ImagePtr& image, ImageRotation rotation) {
+  if (!ImageHasData(image)) {
+    return;
+  }
+  if (image->IsCompressed()) {
+    LOG(WARNING) << "Rotating compressed images is not supported.";
+    return;
+  }
+  int rotation_int = static_cast<int>(rotation);
+  // Normalize the rotation value into the range [0,3]
+  if (rotation_int < 0) {
+    rotation_int = -std::abs(rotation_int % 4) + 4;
+  }
+  rotation = static_cast<ImageRotation>(rotation_int % 4);
+  // Perform the equivalent CCW rotation
+  if (rotation == kNoRotation) {
+    return;
+  } else if (rotation == kRotateCCW90) {
+    RotateImageCounterClockwise90(image);
+  } else if (rotation == kRotate180) {
+    RotateImage180(image);
+  } else if (rotation == kRotateCCW270) {
+    RotateImage180(image);
+    RotateImageCounterClockwise90(image);
+  }
+}
+
 ION_API void StraightAlphaFromPremultipliedAlpha(const gfx::ImagePtr& image) {
   if (!ImageHasData(image) || image->GetWidth() <= 1U) {
     return;
@@ -1087,11 +1568,12 @@ ION_API void StraightAlphaFromPremultipliedAlpha(const gfx::ImagePtr& image) {
         if (alpha_byte == 0)
           continue;
         const float inverse_alpha = 255.f / static_cast<float>(alpha_byte);
-        image_bytes[i] = MultiplyUint8ByFloat(image_bytes[i], inverse_alpha);
+        image_bytes[i + 0] =
+            static_cast<uint8>(image_bytes[i + 0] * inverse_alpha);
         image_bytes[i + 1] =
-            MultiplyUint8ByFloat(image_bytes[i + 1], inverse_alpha);
+            static_cast<uint8>(image_bytes[i + 1] * inverse_alpha);
         image_bytes[i + 2] =
-            MultiplyUint8ByFloat(image_bytes[i + 2], inverse_alpha);
+            static_cast<uint8>(image_bytes[i + 2] * inverse_alpha);
       }
       break;
     default:

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -139,7 +139,7 @@ static void CopyRegion(const Range2ui& source_rect, const Range2f& dest_rect,
   // The start of the source range, in floating-point.
   const Point2f source_start(static_cast<float>(source_rect.GetMinPoint()[0]),
                              static_cast<float>(source_rect.GetMinPoint()[1]));
-  // The end of of the source range.
+  // The end of the source range.
   const Point2ui& source_end = source_rect.GetMaxPoint();
   // Floating-point size of the source
   const Vector2f source_size(
@@ -243,7 +243,7 @@ const ImagePtr NinePatch::BuildImage(uint32 width, uint32 height,
 }
 
 const Vector2ui NinePatch::GetMinimumSize() const {
-  // TODO(bug): This is different from how Android determines minimum
+  // 
   // size.  On Android, the minimum size is the same as the natural size.
   // Stretch regions are never shrunk.
   Vector2ui min_size(2U, 2U);
@@ -269,7 +269,7 @@ const Range2ui NinePatch::GetPaddingBox(uint32 width, uint32 height) const {
   if (padding_.IsEmpty() || !image_.Get()) {
     // No padding box was specified in the source image (or the image is empty),
     // so return the full requested size.
-    // TODO(bug): When there's no padding_ should use stretch region as
+    // 
     // the padding instead.
     return Range2ui(Point2ui::Zero(), Point2ui(width, height));
   }
@@ -300,7 +300,7 @@ const Vector2ui NinePatch::GetSizeToFitContent(
   if (padding_.IsEmpty() || !image_.Get()) {
     // No padding box was specified in the source image (or the image is empty),
     // so return the full requested size.
-    // TODO(bug): When there's no padding_ should use stretch region as
+    // 
     // the padding instead.
     return Vector2ui(content_width, content_height);
   }

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,17 +25,22 @@ namespace base {
 StaticDeleterDeleter::StaticDeleterDeleter() {
   // The logging system uses StaticDeleterDeleter so to allow classes registered
   // with StaticDeleterDeleter to treat logging as an always-available facility,
-  // we have to ensure that the LogEntryWriter is registered first (so it is
-  // deleted last).  Force this via the call below.
-  ion::base::GetDefaultLogEntryWriter();
+  // we have to ensure that the static variables used in logging are registered
+  // first (so they are deleted last).  Force this via the call below.
+  ion::base::logging_internal::InitializeLogging();
 }
 
 StaticDeleterDeleter::~StaticDeleterDeleter() {
   // Delete all pointers in reverse order of construction.
-  LockGuard locker(&mutex_);
-  // Static cast the vector size to int to catch empty vectors.
-  for (int i = static_cast<int>(deleters_.size()) - 1; i >= 0; --i)
-    delete deleters_[i];
+  // Items may be added to the deleters_ vector while this destructor is running
+  // (for instance, when there is a safe static in a destructor of an object
+  // that is itself a safe static), so we can't cache the size. Furthermore, do
+  // not acquire the mutex here, since that would deadlock in the above case.
+  while (!deleters_.empty()) {
+    StaticDeleterBase* deleter = deleters_.back();
+    deleters_.pop_back();
+    delete deleter;
+  }
 }
 
 void StaticDeleterDeleter::SetInstancePtr(
@@ -59,7 +64,7 @@ StaticDeleterDeleter* StaticDeleterDeleter::GetInstance() {
 }
 
 void StaticDeleterDeleter::DestroyInstance() {
-  SetInstancePtr("StaticDeleterDeleter", NULL);
+  SetInstancePtr("StaticDeleterDeleter", nullptr);
 }
 
 }  // namespace base

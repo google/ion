@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ limitations under the License.
 
 #include "ion/math/angle.h"
 #include "ion/math/matrixutils.h"
+#include "ion/math/range.h"
 #include "ion/math/transformutils.h"
 #include "ion/math/vector.h"
 
@@ -45,12 +46,28 @@ class FieldOfView {
 
   // Constructs a FieldOfView by extracting the four frustum planes from the
   // projection matrix.
-  static FieldOfView<T> FromProjectionMatrix(const Matrix<4, T>& matrix);
+  static FieldOfView<T> FromProjectionMatrix(const Matrix<4, T>& m);
 
   // Constructs a FieldOfView from four values tan(alpha) for each half-angle
-  // alpha.
+  // alpha.  Note that these are tangents of signed angles, so to construct
+  // a field of view that is 45 degrees from in each direction, you would pass
+  // -1, 1, -1, 1.
   static FieldOfView<T> FromTangents(const T& left, const T& right,
                                      const T& bottom, const T& top);
+
+  // Constructs a FieldOfView from four values tan(alpha) for each half-angle
+  // alpha, represented as a range.  Note that these are tangents of signed
+  // angles, so to construct a field of view that is 45 degrees from in each
+  // direction, you would pass Range2f(Point2f(-1, -1), Point2f(1, 1)).
+  static FieldOfView<T> FromTangents(const Range<2, T>& tangents);
+
+  // Shorthand for constructing a field of view from four angles in radians.
+  static FieldOfView<T> FromRadians(const T& left, const T& right,
+                                    const T& bottom, const T& top);
+
+  // Shorthand for constructing a field of view from four angles in degrees.
+  static FieldOfView<T> FromDegrees(const T& left, const T& right,
+                                    const T& bottom, const T& top);
 
   // Copy constructor from an instance of the same Dimension and any value type
   // that is compatible (via static_cast) with this instance's type.
@@ -70,8 +87,8 @@ class FieldOfView {
   //
   // Note that the aspect ratio implied by the requested fov_x and fov_y will
   // not necessarily be preserved.
-  bool SetFromTotalFovAndOpticalCenter(const Angle<T> fov_x,
-                                       const Angle<T> fov_y,
+  bool SetFromTotalFovAndOpticalCenter(const Angle<T>& fov_x,
+                                       const Angle<T>& fov_y,
                                        const Point<2, T>& optical_center_ndc);
 
   // Constructs a FieldOfView based on a centered field of view and an optical
@@ -99,7 +116,7 @@ class FieldOfView {
   // In the diagram above, the centered_fov is the angle at eye_centered.
   // The centered FOV allows us to maintain the size of objects on the map.
   static FieldOfView<T> FromCenteredFovAndOpticalCenter(
-      const Angle<T> centered_fov_x, const Angle<T> centered_fov_y,
+      const Angle<T>& fov_x, const Angle<T>& fov_y,
       const Point<2, T>& optical_center_ndc);
 
   // Returns the optical center of a projection that is created using this
@@ -108,8 +125,21 @@ class FieldOfView {
 
   // Computes the projection matrix corresponding to the frustum defined by
   // the four half angles and the two planes |near_p| and |far_p|.
-  // TODO(user): Cache this.
+  // 
   Matrix<4, T> GetProjectionMatrix(T near_p, T far_p) const;
+
+  // Computes the projection matrix corresponding to the infinite frustum
+  // defined by the four half angles, the near plane |near_p| and the far
+  // clip plane at infinity. The optional epsilon |far_epsilon| assists
+  // with clipping artifacts when using the matrix with GPU clipping; see
+  // PerspectiveMatrixFromInfiniteFrustum.
+  Matrix<4, T> GetInfiniteFarProjectionMatrix(T near_p, T far_epsilon) const;
+
+  // Gets the tangents of field of view angles as a range. For the purposes of
+  // this method, the left and bottom angles are negated before taking the
+  // tangent. For example, a field of view with all angles equal to 45 degrees
+  // will return a range from -1 to 1 in both dimensions.
+  Range<2, T> GetTangents() const;
 
   // Accessors for all four half-angles.
   Angle<T> GetLeft() const { return left_; }
@@ -155,7 +185,7 @@ class FieldOfView {
   // the optical center on the near plane, and |total_fov| specifies the sum of
   // the half-angles along that dimension.
   static bool ComputeHalfAnglesForTotalFovAndOpticalCenter1d(
-      const Angle<T> total_fov, const T optical_center_ndc,
+      const Angle<T>& total_fov, const T optical_center_ndc,
       Angle<T>* angle1_out, Angle<T>* angle2_out);
 
   // Computes the two half-angles between the optical axis and the two frustum
@@ -165,7 +195,7 @@ class FieldOfView {
   // the same perpendicular distance from the viewing plane but the optical
   // center were the center of the screen).
   static void ComputeHalfAnglesForCenteredFovAndOpticalCenter1d(
-      const Angle<T> centered_fov, const T optical_center_ndc,
+      const Angle<T>& centered_fov, const T optical_center_ndc,
       Angle<T>* angle1_out, Angle<T>* angle2_out);
 
   static bool AreEqual(const FieldOfView& fov0, const FieldOfView& fov1);
@@ -198,14 +228,64 @@ inline Matrix<4, T> FieldOfView<T>::GetProjectionMatrix(T near_p,
 }
 
 template <typename T>
+inline Matrix<4, T> FieldOfView<T>::GetInfiniteFarProjectionMatrix(T near_p,
+                                                        T far_epsilon) const {
+  const T l = -std::tan(left_.Radians()) * near_p;
+  const T r = std::tan(right_.Radians()) * near_p;
+  const T b = -std::tan(bottom_.Radians()) * near_p;
+  const T t = std::tan(top_.Radians()) * near_p;
+  return ion::math::PerspectiveMatrixFromInfiniteFrustum(l, r, b, t, near_p,
+                                                         far_epsilon);
+}
+
+template <typename T>
+inline Range<2, T> FieldOfView<T>::GetTangents() const {
+  return Range<2, T>(
+      Point<2, T>(-std::tan(left_.Radians()), -std::tan(bottom_.Radians())),
+      Point<2, T>(std::tan(right_.Radians()), std::tan(top_.Radians())));
+}
+
+template <typename T>
 inline FieldOfView<T> FieldOfView<T>::FromTangents(const T& left,
                                                    const T& right,
                                                    const T& bottom,
                                                    const T& top) {
-  return FieldOfView<T>(Angle<T>::FromRadians(std::atan(left)),
+  return FieldOfView<T>(Angle<T>::FromRadians(std::atan(-left)),
                         Angle<T>::FromRadians(std::atan(right)),
-                        Angle<T>::FromRadians(std::atan(bottom)),
+                        Angle<T>::FromRadians(std::atan(-bottom)),
                         Angle<T>::FromRadians(std::atan(top)));
+}
+
+template <typename T>
+inline FieldOfView<T> FieldOfView<T>::FromTangents(
+    const Range<2, T>& tangents) {
+  return FieldOfView<T>(
+      Angle<T>::FromRadians(std::atan(-tangents.GetMinPoint()[0])),
+      Angle<T>::FromRadians(std::atan(tangents.GetMaxPoint()[0])),
+      Angle<T>::FromRadians(std::atan(-tangents.GetMinPoint()[1])),
+      Angle<T>::FromRadians(std::atan(tangents.GetMaxPoint()[1])));
+}
+
+template <typename T>
+inline FieldOfView<T> FieldOfView<T>::FromRadians(const T& left,
+                                                  const T& right,
+                                                  const T& bottom,
+                                                  const T& top) {
+  return FieldOfView<T>(Angle<T>::FromRadians(left),
+                        Angle<T>::FromRadians(right),
+                        Angle<T>::FromRadians(bottom),
+                        Angle<T>::FromRadians(top));
+}
+
+template <typename T>
+inline FieldOfView<T> FieldOfView<T>::FromDegrees(const T& left,
+                                                  const T& right,
+                                                  const T& bottom,
+                                                  const T& top) {
+  return FieldOfView<T>(Angle<T>::FromDegrees(left),
+                        Angle<T>::FromDegrees(right),
+                        Angle<T>::FromDegrees(bottom),
+                        Angle<T>::FromDegrees(top));
 }
 
 template <typename T>
@@ -221,7 +301,7 @@ inline FieldOfView<T> FieldOfView<T>::FromProjectionMatrix(
   const T l = (m(0, 2) - kOne) * kTanHorzFov;
   const T r = (m(0, 2) + kOne) * kTanHorzFov;
 
-  return FromTangents(-l, r, -b, t);
+  return FromTangents(l, r, b, t);
 }
 
 template <typename T>
@@ -247,7 +327,7 @@ inline Point<2, T> FieldOfView<T>::GetOpticalCenter() const {
 
 template <typename T>
 inline bool FieldOfView<T>::SetFromTotalFovAndOpticalCenter(
-    const Angle<T> fov_x, const Angle<T> fov_y,
+    const Angle<T>& fov_x, const Angle<T>& fov_y,
     const Point<2, T>& optical_center_ndc) {
   Angle<T> bottom, top, left, right;
   if (!ComputeHalfAnglesForTotalFovAndOpticalCenter1d(
@@ -268,7 +348,7 @@ inline bool FieldOfView<T>::SetFromTotalFovAndOpticalCenter(
 
 template <typename T>
 inline bool FieldOfView<T>::ComputeHalfAnglesForTotalFovAndOpticalCenter1d(
-    const Angle<T> total_fov, const T optical_center_ndc, Angle<T>* angle1_out,
+    const Angle<T>& total_fov, const T optical_center_ndc, Angle<T>* angle1_out,
     Angle<T>* angle2_out) {
   const T kOne = static_cast<T>(1.0);
   T p = optical_center_ndc;
@@ -350,7 +430,7 @@ inline bool FieldOfView<T>::ComputeHalfAnglesForTotalFovAndOpticalCenter1d(
 
 template <typename T>
 inline FieldOfView<T> FieldOfView<T>::FromCenteredFovAndOpticalCenter(
-    const Angle<T> fov_x, const Angle<T> fov_y,
+    const Angle<T>& fov_x, const Angle<T>& fov_y,
     const Point<2, T>& optical_center_ndc) {
   Angle<T> bottom, top, left, right;
   ComputeHalfAnglesForCenteredFovAndOpticalCenter1d(
@@ -363,7 +443,7 @@ inline FieldOfView<T> FieldOfView<T>::FromCenteredFovAndOpticalCenter(
 
 template <typename T>
 inline void FieldOfView<T>::ComputeHalfAnglesForCenteredFovAndOpticalCenter1d(
-    const Angle<T> centered_fov, const T optical_center_ndc,
+    const Angle<T>& centered_fov, const T optical_center_ndc,
     Angle<T>* angle1_out, Angle<T>* angle2_out) {
   const T kOne = static_cast<T>(1.0);
   const T kTwo = static_cast<T>(2.0);
@@ -489,6 +569,17 @@ bool FieldOfView<T>::AreEqual(const FieldOfView& fov0,
       fov0.GetBottom() != fov1.GetBottom() || fov0.GetTop() != fov1.GetTop())
     return false;
   return true;
+}
+
+// Tests whether two fields of view are close enough, with tolerance specified
+// as an angle.
+template <typename T>
+bool AlmostEqual(const FieldOfView<T>& a, const FieldOfView<T>& b,
+                 const Angle<T>& tolerance) {
+  return AlmostEqual(a.GetLeft(), b.GetLeft(), tolerance) &&
+         AlmostEqual(a.GetRight(), b.GetRight(), tolerance) &&
+         AlmostEqual(a.GetBottom(), b.GetBottom(), tolerance) &&
+         AlmostEqual(a.GetTop(), b.GetTop(), tolerance);
 }
 
 }  // namespace math
