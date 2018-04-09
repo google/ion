@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,8 +29,10 @@
       'target_name' : 'ionprofile',
       'type': 'static_library',
       'dependencies': [
-        '../analytics/analytics.gyp:ionanalytics',
-        '../external/external.gyp:ionjsoncpp',
+        '<(ion_dir)/analytics/analytics_nogfx.gyp:ionanalytics_nogfx',
+        '<(ion_dir)/base/base.gyp:ionbase',
+        '<(ion_dir)/external/external.gyp:ionjsoncpp',
+        '<(ion_dir)/port/port.gyp:ionport',
       ],
       'sources' : [
         'calltracemanager.cc',

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ limitations under the License.
 #include "ion/math/vector.h"
 #include "ion/port/nullptr.h"  // For kNullFunction.
 
+#include "absl/memory/memory.h"
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
 namespace ion {
@@ -41,7 +42,7 @@ class BufferObjectTest : public ::testing::Test {
  protected:
   void SetUp() override {
     bo_.Reset(new BufferObject);
-    resource_.reset(new MockBufferObjectResource);
+    resource_ = absl::make_unique<MockBufferObjectResource>();
     EXPECT_FALSE(resource_->AnyModifiedBitsSet());
     bo_->SetResource(0U, 0, resource_.get());
     EXPECT_EQ(resource_.get(), bo_->GetResource(0U, 0));
@@ -148,7 +149,7 @@ TEST_F(BufferObjectTest, SetData) {
   EXPECT_TRUE(bo_->GetData().Get() == nullptr);
   EXPECT_EQ(0U, bo_->GetStructSize());
   EXPECT_EQ(0U, bo_->GetCount());
-  EXPECT_EQ(BufferObject::kArrayBuffer, bo_->GetTarget());
+  EXPECT_EQ(BufferObject::kArrayBuffer, bo_->GetInitialTarget());
   EXPECT_EQ(BufferObject::kStaticDraw, bo_->GetUsageMode());
 
   EXPECT_FALSE(resource_->AnyModifiedBitsSet());

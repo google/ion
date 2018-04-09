@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,13 +26,6 @@
           '-Wconversion',
         ],
       }],
-      ['OS in ["mac", "ios"]', {
-        'xcode_settings': {
-          'OTHER_CFLAGS': [
-            '-Wno-conversion',
-           ],
-        },
-      }],
     ],
   },
   'targets': [
@@ -48,6 +41,7 @@
         '../../third_party/image_compression/image_compression/internal/dxtc_compressor.cc',
         '../../third_party/image_compression/image_compression/internal/dxtc_const_color_table.cc',
         '../../third_party/image_compression/image_compression/internal/dxtc_const_color_table.h',
+        '../../third_party/image_compression/image_compression/internal/dxtc_to_etc_transcoder.cc',
         '../../third_party/image_compression/image_compression/internal/etc_compressor.cc',
         '../../third_party/image_compression/image_compression/internal/pixel4x4.cc',
         '../../third_party/image_compression/image_compression/internal/pixel4x4.h',
@@ -55,11 +49,21 @@
         '../../third_party/image_compression/image_compression/public/compressed_image.h',
         '../../third_party/image_compression/image_compression/public/compressor.h',
         '../../third_party/image_compression/image_compression/public/dxtc_compressor.h',
+        '../../third_party/image_compression/image_compression/public/dxtc_to_etc_transcoder.h',
         '../../third_party/image_compression/image_compression/public/etc_compressor.h',
         '../../third_party/image_compression/image_compression/public/pvrtc_compressor.h',
       ],
       'dependencies': [
         '<(ion_dir)/port/port.gyp:ionport',   # because of override
+      ],
+      'conditions': [
+        ['OS in ["mac", "ios"]', {
+          'xcode_settings': {
+            'OTHER_CFLAGS': [
+              '-Wno-conversion',
+             ],
+          },
+        }],
       ],
       'defines': [
         'IS_LITTLE_ENDIAN=1',

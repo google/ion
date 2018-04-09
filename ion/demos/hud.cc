@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -173,7 +173,7 @@ class Hud::TextHelper {
              int width, int height);
 
   // Initializes a font, returning a pointer to a Font. Logs a message and
-  // returns a NULL pointer on error.
+  // returns a null pointer on error.
   ion::text::FontPtr InitFont(const std::string& font_name,
                               size_t size_in_pixels, size_t sdf_padding) {
     return demoutils::InitFont(font_manager_, font_name,
@@ -343,7 +343,7 @@ void Hud::InitFps(int num_integral_digits, int num_fractional_digits,
     fps_helper_->SetPrecision(num_integral_digits, num_fractional_digits);
     // Create a StaticFontImage using only the characters needed for the FPS
     // text.
-    ion::text::GlyphSet glyph_set(ion::base::AllocatorPtr(NULL));
+    ion::text::GlyphSet glyph_set(ion::base::AllocatorPtr(nullptr));
     font->AddGlyphsForAsciiCharacterRange('0', '9', &glyph_set);
     font->AddGlyphsForAsciiCharacterRange('*', '*', &glyph_set);
     font->AddGlyphsForAsciiCharacterRange('.', '.', &glyph_set);

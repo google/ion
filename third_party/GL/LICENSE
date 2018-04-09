@@ -9,6 +9,8 @@ Device drivers    src/mesa/drivers/*     See drivers         See drivers
 Ext headers       include/GL/glext.h     SGI                 SGI Free B
                   include/GL/glxext.h
 
+GLES3 platform    GLES3/gl3platform.h    Khronos Group Inc.  Apache 2
+
 GLUT              src/glut/              Mark Kilgard        Mark's copyright
 
 GLEW              src/glew-1.13.0        Nigel Stewart       Modified BSD

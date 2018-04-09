@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ limitations under the License.
 #include "ion/portgfx/isextensionsupported.h"
 
 #include "ion/base/logging.h"
+#include "ion/portgfx/glcontext.h"
 #include "ion/portgfx/glheaders.h"
-#include "ion/portgfx/visual.h"
 
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
@@ -27,26 +27,20 @@ TEST(IsExtensionSupported, All) {
   using ion::portgfx::IsExtensionSupported;
 
   // OpenGL requires a context to be current to query strings.
-  std::unique_ptr<ion::portgfx::Visual> visual(
-      ion::portgfx::Visual::CreateVisual());
-  ion::portgfx::Visual::MakeCurrent(visual.get());
-  if (!visual->IsValid()) {
+  ion::portgfx::GlContextPtr gl_context =
+      ion::portgfx::GlContext::CreateGlContext();
+  ion::portgfx::GlContext::MakeCurrent(gl_context);
+  if (!gl_context || !gl_context->IsValid()) {
     LOG(INFO) << "Unable to create an OpenGL context. This test "
               << "cannot run and will now exit.";
     return;
   }
 
-  // Check that the local OpenGL is at least version 2.0, and if not, print a
-  // notification and exit gracefully.
-  const int version = visual->GetGlVersion();
-  const int major = version / 10;
-  const int minor = version % 10;
-  if (version < 20) {
-    LOG(INFO) << "This system reports having OpenGL version " << major
-              << "." << minor << ", but Ion requires OpenGL >= 2.0.  This test "
-              << "cannot run and will now exit.";
-    return;
-  }
+  // Unit tests on Windows seem to be restricted to pre-OpenGL 2.0
+  // functionality, so return early.
+#if defined(ION_PLATFORM_WINDOWS)
+  return;
+#endif
 
   EXPECT_FALSE(IsExtensionSupported("not a real extension"));
   // For coverage, check for a couple of valid extensions. In general this is
@@ -62,17 +56,5 @@ TEST(IsExtensionSupported, All) {
   EXPECT_FALSE(IsExtensionSupported("_"));
   EXPECT_FALSE(IsExtensionSupported("array"));
   EXPECT_FALSE(IsExtensionSupported("occlusion"));
-#endif
-}
-
-TEST(IsExtensionIncomplete, All) {
-  using ion::portgfx::IsExtensionIncomplete;
-
-  // A random string isn't blacklisted, even if it isn't supported.
-  EXPECT_FALSE(IsExtensionIncomplete("not a real extension"));
-#if defined(ION_PLATFORM_ANDROID) || defined(ION_PLATFORM_GENERIC_ARM)
-  EXPECT_TRUE(IsExtensionIncomplete("vertex_array_object"));
-#else
-  EXPECT_FALSE(IsExtensionIncomplete("vertex_array_object"));
 #endif
 }

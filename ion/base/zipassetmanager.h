@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,15 +18,15 @@ limitations under the License.
 #ifndef ION_BASE_ZIPASSETMANAGER_H_
 #define ION_BASE_ZIPASSETMANAGER_H_
 
-#include <chrono>  // NOLINT
+#include <chrono>  // NOLINT(build/c++11)
 #include <map>
 #include <memory>
+#include <mutex>  // NOLINT(build/c++11)
 #include <set>
 #include <string>
 #include <vector>
 
 #include "base/macros.h"
-#include "ion/port/mutex.h"
 
 namespace ion {
 namespace base {
@@ -93,9 +93,9 @@ class ION_API ZipAssetManager {
       std::chrono::system_clock::time_point* timestamp);
 
   // Sets the data of the passed filename if the manager contains it. Returns
-  // whether the source was succesfully updated (e.g., that the manager contains
-  // filename).  Note that changing file data invalidates any existing returned
-  // reference from GetFileData for that file.
+  // whether the source was successfully updated (e.g., that the manager
+  // contains filename).  Note that changing file data invalidates any existing
+  // returned reference from GetFileData for that file.
   static bool SetFileData(const std::string& filename,
                           const std::string& source);
 
@@ -156,7 +156,7 @@ class ION_API ZipAssetManager {
   std::set<void*> zipfiles_;
 
   // Mutex to guard access to asset data.
-  port::Mutex mutex_;
+  std::mutex mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(ZipAssetManager);
 };

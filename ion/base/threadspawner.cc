@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@ limitations under the License.
 */
 
 #include "ion/base/threadspawner.h"
+
+#include <functional>
 
 namespace ion {
 namespace base {
@@ -36,39 +38,23 @@ static bool NamingThreadFunc(const std::string& name,
 
 ThreadSpawner::ThreadSpawner(const std::string& name,
                              port::ThreadFuncPtr func_ptr)
-    : name_(name),
-      func_(func_ptr ? std::bind(NamingThreadFunc, name,
-                                 port::ThreadStdFunc(func_ptr))
-                     : port::ThreadStdFunc()),
-      id_(Spawn()) {
+    : name_(name) {
+  if (func_ptr) {
+    thread_ = std::thread(std::bind(NamingThreadFunc, name, func_ptr));
+  }
 }
 
 ThreadSpawner::ThreadSpawner(const std::string& name,
                              const port::ThreadStdFunc& func)
-    : name_(name),
-      func_(std::bind(NamingThreadFunc, name, func)),
-      id_(Spawn()) {
-}
+    : name_(name), thread_(std::bind(NamingThreadFunc, name, func)) {}
 
 ThreadSpawner::~ThreadSpawner() {
   Join();
 }
 
 void ThreadSpawner::Join() {
-  if (id_ != port::kInvalidThreadId) {
-    port::ThreadId id = id_;
-    id_ = port::kInvalidThreadId;
-    port::JoinThread(id);
-  }
+  if (thread_.get_id() != std::thread::id()) thread_.join();
 }
-
-port::ThreadId ThreadSpawner::Spawn() {
-  if (func_)
-    return port::SpawnThreadStd(&func_);
-  else
-    return port::kInvalidThreadId;
-}
-
 
 }  // namespace base
 }  // namespace ion

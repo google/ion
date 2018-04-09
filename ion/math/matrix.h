@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ limitations under the License.
 #include <ostream>  // NOLINT
 
 #include "ion/base/logging.h"
+#include "ion/base/scalarsequence.h"
 #include "ion/base/static_assert.h"
 #include "ion/base/stringutils.h"
 
@@ -39,24 +40,23 @@ class Matrix {
   typedef T ValueType;
 
   // The default constructor zero-initializes all elements.
-  Matrix() : elem_() {}
+  constexpr Matrix() : elem_() {}
 
   // Dimension-specific constructors that are passed individual element values.
-  Matrix(T m00, T m01, T m10, T m11);  // Only when Dimension == 2.
-  Matrix(T m00, T m01, T m02,          // Only when Dimension == 3.
-         T m10, T m11, T m12,
-         T m20, T m21, T m22);
-  Matrix(T m00, T m01, T m02, T m03,   // Only when Dimension == 4.
-         T m10, T m11, T m12, T m13,
-         T m20, T m21, T m22, T m23,
-         T m30, T m31, T m32, T m33);
+  constexpr Matrix(T m00, T m01, T m10, T m11);  // Only when Dimension == 2.
+  constexpr Matrix(T m00, T m01, T m02,          // Only when Dimension == 3.
+                   T m10, T m11, T m12, T m20, T m21, T m22);
+  constexpr Matrix(T m00, T m01, T m02, T m03,  // Only when Dimension == 4.
+                   T m10, T m11, T m12, T m13, T m20, T m21, T m22, T m23,
+                   T m30, T m31, T m32, T m33);
 
   // Constructor that reads elements from a linear array of the correct size.
   explicit Matrix(const T array[Dimension * Dimension]);
 
   // Copy constructor from an instance of the same Dimension and any value type
   // that is compatible (via static_cast) with this instance's type.
-  template <typename U> explicit Matrix(const Matrix<Dimension, U>& other);
+  template <typename U>
+  constexpr explicit Matrix(const Matrix<Dimension, U>& other);
 
   // Returns a Matrix containing all zeroes.
   static Matrix Zero();
@@ -123,6 +123,11 @@ class Matrix {
   }
 
  private:
+  // Helper constructor that takes a ScalarSequence to index a raw matrix.
+  template <typename U, size_t... index>
+  constexpr Matrix(base::ScalarSequence<size_t, index...>,
+                   const Matrix<Dimension, U>& other);
+
   // Validates indices for accessors.
   void CheckIndices(int row, int col) const {
     // Check that the indices are in range. Use a single DCHECK statement with a
@@ -150,7 +155,7 @@ std::ostream& operator<<(std::ostream& out, const Matrix<Dimension, T>& m) {
   out << "M[";
   for (int row = 0; row < Dimension; ++row) {
     for (int col = 0; col < Dimension; ++col) {
-      out << m(row, col);
+      out << +m(row, col);
       if (col != Dimension - 1)
         out << ", ";
     }
@@ -185,58 +190,33 @@ std::istream& operator>>(std::istream& in, Matrix<Dimension, T>& m) {
 //------------------------------------------------------------------------------
 
 template <int Dimension, typename T>
-Matrix<Dimension, T>::Matrix(T m00, T m01, T m10, T m11) {
-  ION_STATIC_ASSERT(Dimension == 2, "Bad Dimension in Matrix constructor");
-  elem_[0][0] = m00;
-  elem_[0][1] = m01;
-  elem_[1][0] = m10;
-  elem_[1][1] = m11;
+constexpr Matrix<Dimension, T>::Matrix(T m00, T m01, T m10, T m11)
+    : elem_{{m00, m01}, {m10, m11}} {
+  static_assert(Dimension == 2, "Bad Dimension in Matrix constructor");
 }
 
 template <int Dimension, typename T>
-Matrix<Dimension, T>::Matrix(T m00, T m01, T m02,
-                             T m10, T m11, T m12,
-                             T m20, T m21, T m22) {
-  ION_STATIC_ASSERT(Dimension == 3, "Bad Dimension in Matrix constructor");
-  elem_[0][0] = m00;
-  elem_[0][1] = m01;
-  elem_[0][2] = m02;
-  elem_[1][0] = m10;
-  elem_[1][1] = m11;
-  elem_[1][2] = m12;
-  elem_[2][0] = m20;
-  elem_[2][1] = m21;
-  elem_[2][2] = m22;
+constexpr Matrix<Dimension, T>::Matrix(T m00, T m01, T m02, T m10, T m11, T m12,
+                                       T m20, T m21, T m22)
+    : elem_{{m00, m01, m02}, {m10, m11, m12}, {m20, m21, m22}} {
+  static_assert(Dimension == 3, "Bad Dimension in Matrix constructor");
 }
 
 template <int Dimension, typename T>
-Matrix<Dimension, T>::Matrix(T m00, T m01, T m02, T m03,
-                             T m10, T m11, T m12, T m13,
-                             T m20, T m21, T m22, T m23,
-                             T m30, T m31, T m32, T m33) {
-  ION_STATIC_ASSERT(Dimension == 4, "Bad Dimension in Matrix constructor");
-  elem_[0][0] = m00;
-  elem_[0][1] = m01;
-  elem_[0][2] = m02;
-  elem_[0][3] = m03;
-  elem_[1][0] = m10;
-  elem_[1][1] = m11;
-  elem_[1][2] = m12;
-  elem_[1][3] = m13;
-  elem_[2][0] = m20;
-  elem_[2][1] = m21;
-  elem_[2][2] = m22;
-  elem_[2][3] = m23;
-  elem_[3][0] = m30;
-  elem_[3][1] = m31;
-  elem_[3][2] = m32;
-  elem_[3][3] = m33;
+constexpr Matrix<Dimension, T>::Matrix(T m00, T m01, T m02, T m03, T m10, T m11,
+                                       T m12, T m13, T m20, T m21, T m22, T m23,
+                                       T m30, T m31, T m32, T m33)
+    : elem_{{m00, m01, m02, m03},
+            {m10, m11, m12, m13},
+            {m20, m21, m22, m23},
+            {m30, m31, m32, m33}} {
+  static_assert(Dimension == 4, "Bad Dimension in Matrix constructor");
 }
 
 template <int Dimension, typename T>
 Matrix<Dimension, T>::Matrix(const T array[Dimension * Dimension]) {
 #if defined(ION_PLATFORM_WINDOWS) && defined(ION_ARCH_X86_64)
-  // TODO(bug): this is a workaround for a possible compiler issue on
+  // 
   // memory alignment with x64_opt build using MSVC. Please see the bug
   // report for more detail and the bug reproduction steps.
   if ((reinterpret_cast<size_t>(&array[0]) & 0xF) != 0) {
@@ -252,13 +232,18 @@ Matrix<Dimension, T>::Matrix(const T array[Dimension * Dimension]) {
   memcpy(elem_, array, sizeof(elem_));
 }
 
-template <int Dimension, typename T> template <typename U>
-Matrix<Dimension, T>::Matrix(const Matrix<Dimension, U>& other) {
-  for (int i = 0; i < Dimension; ++i) {
-    for (int j = 0; j < Dimension; ++j)
-      elem_[i][j] = static_cast<const T>(other(i, j));
-  }
-}
+template <int Dimension, typename T>
+template <typename U>
+constexpr Matrix<Dimension, T>::Matrix(const Matrix<Dimension, U>& other)
+    : Matrix(typename base::ScalarSequenceGenerator<
+                 size_t, Dimension * Dimension>::Sequence(),
+             other) {}
+
+template <int Dimension, typename T>
+template <typename U, size_t... index>
+constexpr Matrix<Dimension, T>::Matrix(base::ScalarSequence<size_t, index...>,
+                                       const Matrix<Dimension, U>& other)
+    : Matrix(static_cast<T>(other[index / Dimension][index % Dimension])...) {}
 
 template <int Dimension, typename T>
 Matrix<Dimension, T> Matrix<Dimension, T>::Zero() {
@@ -274,10 +259,7 @@ template <int Dimension, typename T>
 Matrix<Dimension, T> Matrix<Dimension, T>::Identity() {
   Matrix result;
   for (int row = 0; row < Dimension; ++row) {
-    for (int col = 0; col < Dimension; ++col) {
-      result.elem_[row][col] =
-          row == col ? static_cast<T>(1) : static_cast<T>(0);
-    }
+    result.elem_[row][row] = static_cast<T>(1);
   }
   return result;
 }

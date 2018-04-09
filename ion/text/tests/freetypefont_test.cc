@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -54,6 +54,16 @@ static const FreeTypeFontPtr BuildFont(
   return BuildFontWithAllocator(name, size, sdf_padding, base::AllocatorPtr());
 }
 
+// Computes the union of the bounds of all the glyphs in |layout|.
+static math::Range2f ComputeTextBounds(const Layout& layout) {
+  math::Range2f text_bounds;
+  // Make sure all the glyph bounds are in the text bounds.
+  for (size_t i = 0; i < layout.GetGlyphCount(); ++i) {
+    text_bounds.ExtendByRange(layout.GetGlyph(i).bounds);
+  }
+  return text_bounds;
+}
+
 }  // anonymous namespace
 
 TEST(FreeTypeFontTest, ValidFont) {
@@ -81,10 +91,60 @@ TEST(FreeTypeFontTest, ValidFont) {
   // FontMetrics.
   const Font::FontMetrics& fmet = font->GetFontMetrics();
   EXPECT_EQ(38.f, fmet.line_advance_height);
+  EXPECT_NEAR(25.4f, fmet.ascender, 0.1f);
 
   // Kerning. The test font has some weird values, but these work.
   EXPECT_EQ(math::Vector2f(-1.f, 0.f), font->GetKerning('I', 'X'));
   EXPECT_EQ(math::Vector2f(1.f, 0.f), font->GetKerning('M', 'M'));
+}
+
+TEST(FreeTypeFontTest, TrailingWhitespaceAddsGlyphs) {
+  const FreeTypeFontPtr font = BuildFont("Test", 32U, 4U);
+  const LayoutOptions options;
+  const Layout layout = font->BuildLayout("size8   ", options);
+  EXPECT_EQ(8U, layout.GetGlyphCount());
+}
+
+TEST(FreeTypeFontTest, LayoutOptionsPixelPerfect) {
+  const FreeTypeFontPtr font = BuildFont("Test", 32U, 4U);
+  LayoutOptions options;
+
+  // Specify neither width nor height. Width and height of layout will be their
+  // natural size in pixels based on the chosen font.
+  options.target_size = math::Vector2f::Zero();
+
+  // Test one line of text.
+  const math::Range2f single_line_text_bounds = ComputeTextBounds(
+        font->BuildLayout("Testy test", options));
+  // Check sizes against golden values.
+  EXPECT_FLOAT_EQ(137.0f, single_line_text_bounds.GetSize()[0]);
+  EXPECT_FLOAT_EQ(31.0f, single_line_text_bounds.GetSize()[1]);
+
+  // Test several lines of text.
+  const math::Range2f multi_line_text_bounds = ComputeTextBounds(
+        font->BuildLayout("Test\nthree\nlines", options));
+  // Check sizes against golden values.
+  EXPECT_FLOAT_EQ(69.0f, multi_line_text_bounds.GetSize()[0]);
+  EXPECT_FLOAT_EQ(100.0f, multi_line_text_bounds.GetSize()[1]);
+}
+
+TEST(FreeTypeFontTest, BuildLayoutWithSpacing) {
+  const FreeTypeFontPtr font = BuildFont("Testdf", 32U, 0U);
+  LayoutOptions options;
+  Layout no_spacing = font->BuildLayout("abc", options);
+  EXPECT_EQ(3U, no_spacing.GetGlyphCount());
+  // Test only the x-coordinate of the lower left point of glyph's quad.
+  EXPECT_FLOAT_EQ(0.03125f, no_spacing.GetGlyph(0).quad.points[0][0]);
+  EXPECT_FLOAT_EQ(0.5625f, no_spacing.GetGlyph(1).quad.points[0][0]);
+  EXPECT_FLOAT_EQ(1.03125f, no_spacing.GetGlyph(2).quad.points[0][0]);
+  // The same text with additional horizontal spacing between glyphs
+  // (3 physical pixels).
+  options.glyph_spacing = 3;
+  Layout spacing = font->BuildLayout("abc", options);
+  EXPECT_EQ(3U, spacing.GetGlyphCount());
+  EXPECT_FLOAT_EQ(0.03125f, spacing.GetGlyph(0).quad.points[0][0]);
+  EXPECT_FLOAT_EQ(0.65625f, spacing.GetGlyph(1).quad.points[0][0]);
+  EXPECT_FLOAT_EQ(1.21875f, spacing.GetGlyph(2).quad.points[0][0]);
 }
 
 TEST(FreeTypeFontTest, ValidBitmapFont) {
@@ -100,7 +160,7 @@ TEST(FreeTypeFontTest, ValidBitmapFont) {
     const FreeTypeFont::GlyphMetrics& metrics =
         font->GetGlyphMetrics(font->GetDefaultGlyphForChar(kPileOfPoo));
     (void)metrics;
-    // TODO(bug): Why do we not get valid metrics?
+    // 
     // EXPECT_FALSE(base::IsInvalidReference(metrics));
     // EXPECT_EQ(math::Vector2f(19.f, 23.f), metrics.size);
     // EXPECT_EQ(math::Vector2f(1.f, 23.f), metrics.bitmap_offset);
@@ -110,9 +170,10 @@ TEST(FreeTypeFontTest, ValidBitmapFont) {
   // FontMetrics.
   const Font::FontMetrics& fmet = font->GetFontMetrics();
   EXPECT_EQ(132.f, fmet.line_advance_height);
+  EXPECT_NEAR(24.3f, fmet.ascender, 0.1f);
 }
 
-// TODO(user): Find a better fallback font for the kern test.
+// 
 TEST(FreeTypeFontTest, FallbackFont) {
   base::LogChecker logchecker;
   CharIndex katakana_ka = static_cast<CharIndex>(0x30AB);

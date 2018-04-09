@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,15 +15,15 @@ limitations under the License.
 
 */
 
-#include "ion/base/logging.h"
 #include "ion/port/memory.h"
+#include "ion/base/logging.h"
 
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
 TEST(Memory, SystemMemory) {
 #if defined(ION_PLATFORM_LINUX) || defined(ION_PLATFORM_ANDROID) || \
   defined(ION_PLATFORM_MAC) || defined(ION_PLATFORM_IOS) || \
-  defined(ION_PLATFORM_WINDOWS) || defined(ION_PLATFORM_GENERIC_ARM)
+  defined(ION_PLATFORM_WINDOWS) || defined(ION_GOOGLE_INTERNAL)
   EXPECT_GT(ion::port::GetSystemMemorySize(), 0U);
 #else
   EXPECT_EQ(0U, ion::port::GetSystemMemorySize());
@@ -34,7 +34,7 @@ TEST(Memory, ProcessMemory) {
   const uint64 process_memory = ion::port::GetProcessResidentMemorySize();
 #if defined(ION_PLATFORM_LINUX) || defined(ION_PLATFORM_ANDROID) || \
   defined(ION_PLATFORM_MAC) || defined(ION_PLATFORM_IOS) || \
-  defined(ION_PLATFORM_GENERIC_ARM) || \
+  defined(ION_GOOGLE_INTERNAL) || \
   (defined(ION_PLATFORM_WINDOWS) && !defined(ION_GOOGLE_INTERNAL))
   EXPECT_GT(process_memory, 0U);
   static const uint64 kAllocationSize = 10000000;

@@ -1,20 +1,3 @@
-/**
-Copyright 2016 Google Inc. All Rights Reserved.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS-IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-*/
-
 /** window.Ion holds all global JavaScript objects made available by Ion. */
 window.Ion = window.Ion || {};
 
@@ -55,6 +38,7 @@ window.Ion.SettingsPage = function(s_settings_provider) {
                          .text(label));
 
           var val;
+          var slider = null;
           if (setting.type_desc.slice(0, 5) == 'enum:') {
             // Create a drop-down list for enums.
             val = $('<select></select>');
@@ -65,6 +49,21 @@ window.Ion.SettingsPage = function(s_settings_provider) {
             }
             // Select the correct starting value.
             val.val(setting.getValue());
+          } else if (setting.type_desc.slice(0, 6) == 'range:') {
+            var tokens = setting.type_desc.slice(6).split('|');
+            // Set the value the latest, as it will be otherwise rounded during
+            // the subsequent attr() calls.
+            slider = $('<input></input>')
+                         .attr('type', 'range')
+                         .attr('min', tokens[0])
+                         .attr('max', tokens[1])
+                         .attr('step', tokens[2])
+                         .attr('value', setting.getValue());
+            val = $('<input></input>')
+                      .attr('size', 20)
+                      .attr('value', setting.getValue())
+                      .attr('type', 'text')
+                      .attr('is_range', true);
           } else {
             val = $('<input></input>')
                 .attr('size', 80)
@@ -78,7 +77,12 @@ window.Ion.SettingsPage = function(s_settings_provider) {
             }
           }
           val.attr('id', 'value_' + i).attr('setting_name', label);
-          row.append($('<td></td>').attr('class', 'setting_value').append(val));
+          td = $('<td></td>').attr('class', 'setting_value').append(val);
+          if (slider) {
+            td.append(slider.attr('id', 'value_' + i + '_slider')
+                          .attr('setting_name', label));
+          }
+          row.append(td);
           table.append(row);
         }
         $('#results').html(table);
@@ -91,12 +95,21 @@ window.Ion.SettingsPage = function(s_settings_provider) {
           var name = $(this).attr('setting_name');
           var id = '#' + $(this).attr('id');
           if ($(this).tagName == 'select') {
-            setSettingValue(id, name, $(id).val());
+            setSettingValue([id], name, $(id).val());
           } else if ($(this).attr('type') == 'checkbox') {
-            setSettingValue(id, name, $(id).prop('checked') ? 'true' : 'false');
+            setSettingValue(
+                [id], name, $(id).prop('checked') ? 'true' : 'false');
+          } else if ($(this).attr('is_range') == 'true') {
+            setSettingValue([id, id + '_slider'], name, $(id).val());
           } else {
-            setSettingValue(id, name, $(id).val());
+            setSettingValue([id], name, $(id).val());
           }
+        });
+        $('#value_' + i + '_slider').on('input', function() {
+          var name = $(this).attr('setting_name');
+          var slider_id = '#' + $(this).attr('id');
+          var id = slider_id.substr(0, slider_id.lastIndexOf('_'));
+          setSettingValue([id, slider_id], name, $(slider_id).val());
         });
       }
 
@@ -126,9 +139,11 @@ window.Ion.SettingsPage = function(s_settings_provider) {
   }
 
   // Sets the value of a setting and updates the input value if necessary.
-  function setSettingValue(id, name, valueText) {
+  function setSettingValue(ids, name, valueText) {
     s_settings[name].setValue(valueText, function(updatedValueText) {
-      $(id).val(updatedValueText);
+      for (var i = 0; i < ids.length; i++) {
+        $(ids[i]).val(updatedValueText);
+      }
     });
   }
 

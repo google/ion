@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -80,6 +80,8 @@ class ION_API TextureBase : public ResourceHolder {
     kGreen,
     kBlue,
     kAlpha,
+    kOne,
+    kZero
   };
 
   enum TextureType {
@@ -97,17 +99,27 @@ class ION_API TextureBase : public ResourceHolder {
   // SetSubImage() (see below). This is equivalent to using a GL TexStorage()
   // function. The passed image specifies the dimensions of the base texture
   // face and the format to use (any image data stored in image is ignored),
-  // while levels indicates the number of mipmap levels to allocate.
+  // while levels indicates the number of mipmap levels to allocate. Returns
+  // whether the texture was successfully set as immutable.
   //
   // Note that after calling this function, calling SetImage() on any of this
   // texture's faces is an error. All face updates must be through
   // SetSubImage(). Calling SetImmutable() repeatedly is also an error; it may
   // only be called once.
-  void SetImmutableImage(const ImagePtr& image, size_t levels);
+  bool SetImmutableImage(const ImagePtr& image, size_t levels);
   const ImagePtr& GetImmutableImage() const { return immutable_image_.Get(); }
   // Returns the number of immutable mipmap levels used by this texture. Returns
   // 0 if there is no immutable image.
   size_t GetImmutableLevels() const { return immutable_levels_; }
+
+  // Similar to SetImmutableImage(), but also marks the texture as protected,
+  // meaning that the memory backing the texture should be allocated using
+  // protected/trusted memory. Returns whether the texture was successfully set
+  // as immutable and protected.
+  bool SetProtectedImage(const ImagePtr& image, size_t levels);
+  // Returns whether the texture contains protected content and is backed by
+  // protected memory.
+  bool IsProtected() const { return is_protected_; }
 
   // Sets/returns the index of the lowest mipmap level to use when rendering.
   // The default value is 0.
@@ -217,6 +229,11 @@ class ION_API TextureBase : public ResourceHolder {
     // error will be generated during rendering.
     void SetImage(size_t level, const ImagePtr& image_in, TextureBase* texture);
 
+    // Removes all mipmap images from this Face.
+    void ClearMipmapImages() {
+      mipmaps_.Clear();
+    }
+
    private:
     // Whether any sub-images have been added. This is a Field rather than the
     // below vector so that sub-images can be cleared without triggering a
@@ -235,6 +252,9 @@ class ION_API TextureBase : public ResourceHolder {
   // protected or private destructors.
   ~TextureBase() override;
 
+  // Clears any non-immutable mipmap images.
+  virtual void ClearNonImmutableImages() = 0;
+
  private:
   Field<SamplerPtr> sampler_;
   Field<int> base_level_;
@@ -251,6 +271,9 @@ class ION_API TextureBase : public ResourceHolder {
   Field<ImagePtr> immutable_image_;
   // The number of immutable levels.
   size_t immutable_levels_;
+
+  // Whether this texture is a protected immutable image.
+  bool is_protected_;
 
   // Multisampling.
   Field<int> multisample_samples_;
@@ -283,13 +306,16 @@ class ION_API Texture : public TextureBase {
       face_.SetImage(level, image, this);
   }
   bool HasImage(size_t level) const {
-    return face_.HasImage(level);
+    return level < GetImmutableLevels() || face_.HasImage(level);
   }
   const ImagePtr GetImage(size_t level) const {
+    if (level < GetImmutableLevels()) {
+      return GetImmutableImage();
+    }
     return face_.GetImage(level);
   }
   size_t GetImageCount() const {
-    return face_.GetImageCount();
+    return GetImmutableLevels() ? GetImmutableLevels() : face_.GetImageCount();
   }
   void SetSubImage(size_t level, const math::Point2ui offset,
                    const ImagePtr& image) {
@@ -321,6 +347,8 @@ class ION_API Texture : public TextureBase {
   // protected or private destructors.
   ~Texture() override;
 
+  void ClearNonImmutableImages() override;
+
  private:
   // Called when an Image or DataContainer that this depends on changes.
   void OnNotify(const base::Notifier* notifier) override;
@@ -330,7 +358,7 @@ class ION_API Texture : public TextureBase {
 };
 
 // Convenience typedef for shared pointer to a Texture.
-typedef base::ReferentPtr<Texture>::Type TexturePtr;
+using TexturePtr = base::SharedPtr<Texture>;
 
 }  // namespace gfx
 }  // namespace ion

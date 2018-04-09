@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -69,6 +69,16 @@
       'target_name': 'roboto_italic',
       'sources': [
         '<(root_dir)/third_party/webfonts/apache/roboto/Roboto-Italic.ttf',
+      ],
+      'includes': [
+        'font_target.gypi',
+      ],
+    },
+
+    {
+      'target_name': 'roboto_thin',
+      'sources': [
+        '<(root_dir)/third_party/webfonts/apache/roboto/Roboto-Thin.ttf',
       ],
       'includes': [
         'font_target.gypi',

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -50,10 +50,25 @@ template <typename T> class StlAllocator : public std::allocator<T> {
   // seem to implicitly cast between allocators of different types.
   template <typename U> StlAllocator(const StlAllocator<U>& a)
       : allocator_(a.allocator_) {}
+
+  StlAllocator(const StlAllocator&) = default;
+  StlAllocator(StlAllocator&& other) { *this = std::move(other); }
+  StlAllocator& operator=(StlAllocator&& other) {
+    // NOTE: we _deliberately_ don't move from the other allocator's pointer.
+    // We want the other StlAllocator to still have its underlying Allocator
+    // available.
+    // This is to address a problem where, when moving from a STL container,
+    // the allocators also get moved. This can lead to bad results when the
+    // dtor of the moved-from container is invoked, and attempts to free
+    // something, using an allocator object that is no longer there.
+    allocator_ = other.allocator_;
+    return *this;
+  }
+
   // Returns the Allocator used by this.
   const AllocatorPtr& GetAllocator() const { return allocator_; }
 
-  Pointer allocate(SizeType n, ConstPointer hint = 0) {
+  Pointer allocate(SizeType n, ConstPointer hint = nullptr) {
     DCHECK(allocator_.Get());
     void* p = allocator_->AllocateMemory(n * sizeof(T));
     return reinterpret_cast<Pointer>(p);
@@ -77,7 +92,7 @@ template <typename T> class StlAllocator : public std::allocator<T> {
     // instantiated.
     typedef typename std::conditional<HasTrivialDestructor<T>::value, void,
                                       T>::type VoidOrT;
-    const VoidOrT* select_overload = NULL;
+    const VoidOrT* select_overload = nullptr;
     construct_impl(select_overload, p, val);
   }
   template <typename... Args>
@@ -88,7 +103,7 @@ template <typename T> class StlAllocator : public std::allocator<T> {
     // instantiated.
     typedef typename std::conditional<HasTrivialDestructor<T>::value, void,
                                       T>::type VoidOrT;
-    const VoidOrT* select_overload = NULL;
+    const VoidOrT* select_overload = nullptr;
     construct_impl(select_overload, p, std::forward<Args>(args)...);  // NOLINT
   }
   template <class U, class... Args>
@@ -100,7 +115,7 @@ template <typename T> class StlAllocator : public std::allocator<T> {
     // instantiated.
     typedef typename std::conditional<HasTrivialDestructor<U>::value, void,
                                       U>::type VoidOrU;
-    const VoidOrU* select_overload = NULL;
+    const VoidOrU* select_overload = nullptr;
     construct_impl(select_overload, p, std::forward<Args>(args)...);  // NOLINT
   }
 
@@ -131,19 +146,19 @@ template <typename T> class StlAllocator : public std::allocator<T> {
   void construct_impl(const T* dummy, Pointer p, const T& val) {
     Allocatable::SetPlacementAllocator(allocator_.Get());
     std::allocator<T>::construct(p, val);
-    Allocatable::SetPlacementAllocator(NULL);
+    Allocatable::SetPlacementAllocator(nullptr);
   }
   template <typename... Args>
   void construct_impl(const T* dummy, Pointer p, Args&&... args) {  // NOLINT
     Allocatable::SetPlacementAllocator(allocator_.Get());
     std::allocator<T>::construct(p, std::forward<Args>(args)...);  // NOLINT
-    Allocatable::SetPlacementAllocator(NULL);
+    Allocatable::SetPlacementAllocator(nullptr);
   }
   template <class U, class... Args>
   void construct_impl(const U* dummy, U* p, Args&&... args) {  // NOLINT
     Allocatable::SetPlacementAllocator(allocator_.Get());
     std::allocator<T>::construct(p, std::forward<Args>(args)...);  // NOLINT
-    Allocatable::SetPlacementAllocator(NULL);
+    Allocatable::SetPlacementAllocator(nullptr);
   }
 
   AllocatorPtr allocator_;
@@ -160,21 +175,21 @@ class StlInlinedAllocator : public StlAllocator<T> {
   typedef typename StlAllocator<T>::ConstPointer ConstPointer;
   typedef typename StlAllocator<T>::SizeType SizeType;
   explicit StlInlinedAllocator(const AllocatorPtr& allocator)
-      : StlAllocator<T>(allocator), current_(NULL), inlined_(true) {}
+      : StlAllocator<T>(allocator), current_(nullptr), inlined_(true) {}
   // Copy constructor. This needs to be explicitly listed so that inlined
   // storage is not copied.
   explicit StlInlinedAllocator(const StlInlinedAllocator<T, N>& a)
       : StlAllocator<T>(a.GetAllocator()),
-        current_(NULL),
+        current_(nullptr),
         inlined_(a.inlined_) {}
   // This copy constructor cannot be explicit because older versions of STL
   // seem to implicitly cast between allocators of different types.
   template <typename U>
   StlInlinedAllocator(const StlInlinedAllocator<U, N>& a)
       : StlAllocator<T>(a.GetAllocator()),
-        current_(NULL),
+        current_(nullptr),
         inlined_(a.inlined_) {}
-  Pointer allocate(SizeType n, ConstPointer hint = 0) {
+  Pointer allocate(SizeType n, ConstPointer hint = nullptr) {
     // Return the local storage if we can, otherwise mark this as not inlined
     // and do a normal allocation.
     if (n <= N && inlined_) {

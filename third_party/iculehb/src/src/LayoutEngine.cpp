@@ -1,3 +1,20 @@
+/**
+Copyright 2017 Google Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS-IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+*/
+
 /*
  * (C) Copyright IBM Corp. 1998-2011 - All Rights Reserved
  * (C) Copyright Google, Inc. 2012-2013 - All Rights Reserved
@@ -204,7 +221,7 @@ LayoutEngine::LayoutEngine(const LEFontInstance *fontInstance,
      * achieve the same.
      */
     unsigned int upem = fontInstance->getUnitsPerEM ();
-    /* Only support scale transforms here... FIXME? HOW? */
+    
     LEPoint p;
     fontInstance->transformFunits (upem, upem, p);
     float x_scale = p.fX;
@@ -292,10 +309,10 @@ le_int32 LayoutEngine::layoutChars(const LEUnicode chars[], le_int32 offset, le_
     hb_buffer_set_flags (fHbBuffer, (hb_buffer_flags_t)
                          ((offset == 0 ? HB_BUFFER_FLAG_BOT : 0) |
                           (offset + count == max ? HB_BUFFER_FLAG_EOT : 0)));
-    hb_buffer_add_utf16 (fHbBuffer, chars, max, offset, 0);
-    hb_buffer_add_utf16 (fHbBuffer, chars + offset, max - offset, 0, count);
+    hb_buffer_add_utf16 (fHbBuffer, reinterpret_cast<const uint16_t*>(chars), max, offset, 0);
+    hb_buffer_add_utf16 (fHbBuffer, reinterpret_cast<const uint16_t*>(chars + offset), max - offset, 0, count);
 
-    /* TODO Support features? */
+    
     hb_shape (fHbFont, fHbBuffer, NULL, 0);
 
     /* ICU LE generates at least one glyph for each and every input 16bit codepoint.

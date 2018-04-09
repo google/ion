@@ -1,0 +1,7 @@
+The iossim binary here is a build of a tool found in the Chromium project:
+  https://chromium.googlesource.com/chromium/src.git/+/master/testing/iossim/
+
+It is used to run unit tests for iOS. The old way that directly ran the
+executables with some environment variables set no longer works, so this
+provides a way that more closely imitates how Xcode itself invokes the
+Simulator.

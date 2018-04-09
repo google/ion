@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -62,8 +62,8 @@ limitations under the License.
 ION_REGISTER_ASSETS(IonSkinDataResources);
 ION_REGISTER_ASSETS(IonSkinResources);
 
-using ion::base::ZipAssetManager;
 using ion::math::Anglef;
+using ion::math::Matrix4f;
 using ion::math::Point2f;
 using ion::math::Point2i;
 using ion::math::Point3f;
@@ -73,7 +73,6 @@ using ion::math::Vector2f;
 using ion::math::Vector2i;
 using ion::math::Vector3f;
 using ion::math::Vector4f;
-using ion::math::Matrix4f;
 
 struct Vertex {
   Vector3f position;
@@ -141,6 +140,7 @@ class IonSkinDemo : public ViewerDemoBase {
  private:
   void UpdateView();
   void UpdateDepthMap();
+  void InitScreenSizedFbos(int width, int height);
 
   ion::gfx::NodePtr head_;
   ion::gfx::NodePtr draw_root_;
@@ -401,7 +401,8 @@ IonSkinDemo::IonSkinDemo(int width, int height)
       Vector4f(static_cast<float>(roughness_),
                static_cast<float>(specular_intensity_), 0.f, 0.f)));
   draw_root_->AddUniform(reg->Create<ion::gfx::Uniform>(
-      "uInvWindowDims", Vector2f(1.f, 1.f)));
+      "uInvWindowDims", Vector2f(1.f / static_cast<float>(width),
+                                 1.f / static_cast<float>(height))));
   draw_root_->AddUniform(
       reg->Create<ion::gfx::Uniform>("uExposure", 1.f));
 
@@ -568,6 +569,11 @@ IonSkinDemo::IonSkinDemo(int width, int height)
   texture_display_root_->AddChild(rect);
 
   // --------------------------------------------------------------------------
+  // Screen-sized framebuffer objects.
+  // --------------------------------------------------------------------------
+  InitScreenSizedFbos(width, height);
+
+  // --------------------------------------------------------------------------
   // Remote handlers.
   // --------------------------------------------------------------------------
   std::vector<ion::gfx::NodePtr> tracked_nodes;
@@ -587,11 +593,15 @@ void IonSkinDemo::Resize(int width, int height) {
   const Range2i viewport =
       Range2i::BuildWithSize(Point2i(0, 0), Vector2i(width, height));
   draw_root_->GetStateTable()->SetViewport(viewport);
-  draw_root_->SetUniformValue(8U, Vector2f(1.f / static_cast<float>(width),
-                                           1.f / static_cast<float>(height)));
+  draw_root_->SetUniformByName("uInvWindowDims",
+                               Vector2f(1.f / static_cast<float>(width),
+                                        1.f / static_cast<float>(height)));
   irradiance_root_->GetStateTable()->SetViewport(viewport);
   clear_root_->GetStateTable()->SetViewport(viewport);
+  InitScreenSizedFbos(width, height);
+}
 
+void IonSkinDemo::InitScreenSizedFbos(int width, int height) {
   ion::gfx::ImagePtr screen_sized_image(new ion::gfx::Image);
   screen_sized_image->Set(fbo_format_,
                     width,
@@ -677,19 +687,21 @@ void IonSkinDemo::UpdateDepthMap() {
   // Projection matrix for looking up depth values in the light's space.
   const Matrix4f bias_mat = trans * (scale * proj_mat);
 
-  depth_map_root_->SetUniformValue(0U, proj_mat);
-  depth_map_root_->SetUniformValue(1U, light_pos);
-  depth_map_root_->SetUniformValue(2U, Vector2f(min_depth, inv_depth_range));
+  depth_map_root_->SetUniformByName("uBiasMatrix", proj_mat);
+  depth_map_root_->SetUniformByName("uLightPos", light_pos);
+  depth_map_root_->SetUniformByName("uDepthAndInverseRange",
+                                    Vector2f(min_depth, inv_depth_range));
 
   Vector3f ranges(min_depth, inv_depth_range, max_depth - min_depth);
-  draw_root_->SetUniformValue(3U, bias_mat);
-  draw_root_->SetUniformValue(4U, light_pos);
-  draw_root_->SetUniformValue(5U, ranges);
-  draw_root_->SetUniformValue(9U, static_cast<float>(exposure_.GetValue()));
+  draw_root_->SetUniformByName("uBiasMatrix", bias_mat);
+  draw_root_->SetUniformByName("uLightPos", light_pos);
+  draw_root_->SetUniformByName("uDepthAndRanges", ranges);
+  draw_root_->SetUniformByName("uExposure",
+                               static_cast<float>(exposure_.GetValue()));
 
-  irradiance_root_->SetUniformValue(2U, bias_mat);
-  irradiance_root_->SetUniformValue(3U, light_pos);
-  irradiance_root_->SetUniformValue(4U, ranges);
+  irradiance_root_->SetUniformByName("uBiasMatrix", bias_mat);
+  irradiance_root_->SetUniformByName("uLightPos", light_pos);
+  irradiance_root_->SetUniformByName("uDepthAndRanges", ranges);
 
   // Draw the depth map.
   const ion::gfx::RendererPtr& renderer = GetRenderer();
@@ -699,20 +711,21 @@ void IonSkinDemo::UpdateDepthMap() {
   blur_root_->GetStateTable()->SetViewport(
       Range2i::BuildWithSize(Point2i(0, 0), Vector2i(kFboSize, kFboSize)));
   // No variance scaling for the depth blur.
-  blur_root_->SetUniformValue(1U, 1.f / static_cast<float>(kFboSize));
+  blur_root_->SetUniformByName("uInverseSize",
+                               1.f / static_cast<float>(kFboSize));
   for (int i = 0; i < blur_passes_; ++i) {
     // Blur the depth map in depth space using separable convolution. First blur
     // horizontally, reading from depth_map_ and writing into blurred_depth_map_
     // via blur_fbo_.
     renderer->BindFramebuffer(blur_fbo_);
-    blur_root_->SetUniformValue(0U, depth_map_);
+    blur_root_->SetUniformByName("uTexture", depth_map_);
     blur_root_->SetShaderProgram(blur_horizontally_);
     renderer->DrawScene(blur_root_);
     // Now blur vertically, reading from blurred_depth_map_ and writing into
     // depth_map_ via depth_fbo_.
     renderer->BindFramebuffer(depth_fbo_);
     blur_root_->SetShaderProgram(blur_vertically_);
-    blur_root_->SetUniformValue(0U, blurred_depth_map_);
+    blur_root_->SetUniformByName("uTexture", blurred_depth_map_);
     renderer->DrawScene(blur_root_);
   }
 }
@@ -741,8 +754,9 @@ void IonSkinDemo::RenderFrame() {
   renderer->DrawScene(clear_root_);
 
   // Compute irradiance in screen-space from depth.
-  irradiance_root_->SetUniformValue(0U, GetProjectionMatrix());
-  irradiance_root_->SetUniformValue(1U, GetModelviewMatrix());
+  irradiance_root_->SetUniformByName("uProjectionMatrix",
+                                     GetProjectionMatrix());
+  irradiance_root_->SetUniformByName("uModelviewMatrix", GetModelviewMatrix());
   const float rim_power = static_cast<float>(rim_power_);
   irradiance_root_->GetStateTable()->SetClearColor(
       Vector4f(rim_power, rim_power, rim_power, 1.));
@@ -769,37 +783,40 @@ void IonSkinDemo::RenderFrame() {
     // scatter_horizontal_tex_ via skin_horizontal_fbo_.
     renderer->BindFramebuffer(skin_horizontal_fbo_);
     blur_root_->SetShaderProgram(blur_horizontally_);
-    blur_root_->SetUniformValue(0U, irradiance_map_);
-    blur_root_->SetUniformValue(1U, dist_scale * inv_width * kVariances[i]);
+    blur_root_->SetUniformByName("uTexture", irradiance_map_);
+    blur_root_->SetUniformByName("uInverseSize",
+                                 dist_scale * inv_width * kVariances[i]);
     renderer->DrawScene(blur_root_);
     // Now blur vertically, reading from scatter_horizontal_tex_ and
     // accumulated_tex_ and writing into scatter_vertical_tex_ via
     // skin_vertical_fbo_.
     renderer->BindFramebuffer(skin_vertical_fbo_);
     blur_root_->SetShaderProgram(blur_vertically_and_accumulate_);
-    blur_root_->SetUniformValue(0U, scatter_horizontal_tex_);
-    blur_root_->SetUniformValue(1U, dist_scale * inv_height * kVariances[i]);
-    blur_root_->SetUniformValue(2U, profile_weights_.GetValue()[i]);
+    blur_root_->SetUniformByName("uTexture", scatter_horizontal_tex_);
+    blur_root_->SetUniformByName("uInverseSize",
+                                 dist_scale * inv_height * kVariances[i]);
+    blur_root_->SetUniformByName("uAccumWeights",
+                                 profile_weights_.GetValue()[i]);
     renderer->DrawScene(blur_root_);
     // Copy the accumulated result so that it can be read in the next pass.
     renderer->BindFramebuffer(accumulate_fbo_);
     blur_root_->SetShaderProgram(accumulate_);
-    blur_root_->SetUniformValue(0U, scatter_vertical_tex_);
+    blur_root_->SetUniformByName("uTexture", scatter_vertical_tex_);
     renderer->DrawScene(blur_root_);
   }
   // Unbind framebuffer and draw main scene.
   renderer->BindFramebuffer(ion::gfx::FramebufferObjectPtr());
-  draw_root_->SetUniformValue(
-      7U, Vector4f(static_cast<float>(roughness_),
-                   static_cast<float>(specular_intensity_), 0.f, 0.f));
+  draw_root_->SetUniformByName("uSkinParams",
+      Vector4f(static_cast<float>(roughness_),
+               static_cast<float>(specular_intensity_), 0.f, 0.f));
   renderer->DrawScene(draw_root_);
 
   // Show textures around the window if requested.
   const int hud_size =
       std::min(GetViewportSize()[0] >> 2, GetViewportSize()[1] >> 2);
   if (show_irrad_) {
-    texture_display_root_->SetUniformValue(0U, irradiance_map_);
-    texture_display_root_->SetUniformValue(1U, 1.f);
+    texture_display_root_->SetUniformByName("uTexture", irradiance_map_);
+    texture_display_root_->SetUniformByName("uFlip", 1.f);
     texture_display_root_->GetStateTable()->SetViewport(
         Range2i::BuildWithSize(Point2i(kHudOffset, kHudOffset),
                                Vector2i(hud_size, hud_size)));
@@ -807,8 +824,8 @@ void IonSkinDemo::RenderFrame() {
   }
 
   if (show_trans_) {
-    texture_display_root_->SetUniformValue(1U, 0.f);
-    texture_display_root_->SetUniformValue(0U, accumulated_tex_);
+    texture_display_root_->SetUniformByName("uTexture", accumulated_tex_);
+    texture_display_root_->SetUniformByName("uFlip", 0.f);
     texture_display_root_->GetStateTable()->SetViewport(Range2i::BuildWithSize(
         Point2i(GetViewportSize()[0] - hud_size - kHudOffset, kHudOffset),
         Vector2i(hud_size, hud_size)));
@@ -816,8 +833,8 @@ void IonSkinDemo::RenderFrame() {
   }
 
   if (show_depth_) {
-    texture_display_root_->SetUniformValue(1U, 1.f);
-    texture_display_root_->SetUniformValue(0U, depth_map_);
+    texture_display_root_->SetUniformByName("uTexture", depth_map_);
+    texture_display_root_->SetUniformByName("uFlip", 1.f);
     texture_display_root_->GetStateTable()->SetViewport(Range2i::BuildWithSize(
         Point2i(kHudOffset, GetViewportSize()[1] - hud_size - kHudOffset),
         Vector2i(hud_size, hud_size)));
@@ -852,8 +869,8 @@ void IonSkinDemo::ProcessMotion(float x, float y, bool is_press) {
     const Matrix4f modelview_matrix = ion::math::Inverse(GetModelviewMatrix());
     const Point3f camera_pos(
         modelview_matrix[0][3], modelview_matrix[1][3], modelview_matrix[2][3]);
-    blur_root_->SetUniformValue(3U, camera_pos);
-    draw_root_->SetUniformValue(6U, camera_pos);
+    blur_root_->SetUniformByName("uCameraPos", camera_pos);
+    draw_root_->SetUniformByName("uCameraPos", camera_pos);
   }
 }
 
@@ -866,6 +883,6 @@ void IonSkinDemo::ProcessScale(float scale) {
   }
 }
 
-DemoBase* CreateDemo(int w, int h) {
-  return new IonSkinDemo(w, h);
+std::unique_ptr<DemoBase> CreateDemo(int width, int height) {
+  return std::unique_ptr<DemoBase>(new IonSkinDemo(width, height));
 }

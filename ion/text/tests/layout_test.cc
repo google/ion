@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -135,7 +135,7 @@ TEST(LayoutTest, AddGlyph) {
   EXPECT_FALSE(layout.AddGlyph(
       Layout::Glyph(0, BuildQuad(1.0f, 4.0f, 3.0f, 8.0f), bounds, offset)));
 
-  GlyphSet glyphs(base::AllocatorPtr(NULL));
+  GlyphSet glyphs(base::AllocatorPtr(nullptr));
   layout.GetGlyphSet(&glyphs);
   EXPECT_EQ(glyphs.size(), 2U);
   EXPECT_EQ(glyphs.count(14U), 1U);

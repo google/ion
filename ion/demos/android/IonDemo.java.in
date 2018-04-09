@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import javax.microedition.khronos.opengles.GL10;
 /**
  * Main activity for Ion demos.
  *
+ * @author pss@google.com (Paul S. Strauss)
  */
 public class __class_name__ extends Activity {
   @Override
@@ -101,37 +102,51 @@ class DemoGLSurfaceView extends GLSurfaceView {
 }
 
 class IonRenderer implements GLSurfaceView.Renderer {
+  private long nativeDemo;
+  private int width;
+  private int height;
+
   public IonRenderer(int width, int height) {
-    width_ = width;
-    height_ = height;
+    this.width = width;
+    this.height = height;
   }
   public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-    nativeInit(width_, height_);
+    nativeDemo = nativeInit(width, height);
   }
 
   public void onSurfaceChanged(GL10 gl, int w, int h) {
-    nativeResize(w, h);
+    nativeResize(nativeDemo, w, h);
   }
 
   public void onDrawFrame(GL10 gl) {
-    nativeRender();
+    nativeRender(nativeDemo);
   }
 
   public void processMotion(float x, float y, boolean isPress) {
-    nativeMotion(x, y, isPress);
+    nativeMotion(nativeDemo, x, y, isPress);
   }
 
   public void processScale(float scale) {
-    nativeScale(scale);
+    nativeScale(nativeDemo, scale);
   }
 
-  private int width_;
-  private int height_;
+  public void shutdown() {
+    if (nativeDemo != 0L) {
+      nativeDone(nativeDemo);
+      nativeDemo = 0L;
+    }
+  }
 
-  private static native void nativeInit(int w, int h);
-  private static native void nativeResize(int w, int h);
-  private static native void nativeRender();
-  private static native void nativeMotion(float x, float y, boolean isPress);
-  private static native void nativeScale(float scale);
-  private static native void nativeDone();
+  @Override
+  public void finalize() {
+    shutdown();
+  }
+
+  private static native long nativeInit(int w, int h);
+  private static native void nativeResize(long nativeDemo, int w, int h);
+  private static native void nativeRender(long nativeDemo);
+  private static native void nativeMotion(
+      long nativeDemo, float x, float y, boolean isPress);
+  private static native void nativeScale(long nativeDemo, float scale);
+  private static native void nativeDone(long nativeDemo);
 }

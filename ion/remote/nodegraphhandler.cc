@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -35,6 +35,38 @@ ION_REGISTER_ASSETS(IonRemoteNodeGraphRoot);
 namespace ion {
 namespace remote {
 
+namespace {
+
+// Search |root|'s hierarchy for a Node labeled |label|.
+gfx::Node* SearchTrackedNodeHierarchy(gfx::Node* root,
+                                      const std::string& label) {
+  if (root->GetLabel() == label) {
+    return root;
+  }
+  for (const auto& child : root->GetChildren()) {
+    if (gfx::Node* child_search_result =
+        SearchTrackedNodeHierarchy(child.Get(), label)) {
+      return child_search_result;
+    }
+  }
+  return nullptr;
+}
+
+// Search the hierarchies contained in the set of |nodes| for a Node labeled
+// with |label|.
+gfx::Node* SearchTrackedNodeHierarchy(const std::vector<gfx::NodePtr>& nodes,
+                                      const std::string& label) {
+  for (const auto& root : nodes) {
+    if (gfx::Node* labeled_node =
+        SearchTrackedNodeHierarchy(root.Get(), label)) {
+      return labeled_node;
+    }
+  }
+  return nullptr;
+}
+
+}  // namespace
+
 NodeGraphHandler::NodeGraphHandler()
     : HttpServer::RequestHandler("/ion/nodegraph") {
   IonRemoteNodeGraphRoot::RegisterAssetsOnce();
@@ -68,7 +100,24 @@ const std::string NodeGraphHandler::HandleRequest(
     std::string* content_type) {
   const std::string path = path_in.empty() ? "index.html" : path_in;
 
-  if (path == "update") {
+  if (path == "set_node_enable") {
+    HttpServer::QueryMap::const_iterator it = args.find("node_label");
+    std::string server_response;
+    if (it != args.end()) {
+      const auto& node_label = it->second;
+      gfx::Node* named_node = SearchTrackedNodeHierarchy(nodes_, node_label);
+      if (named_node) {
+        named_node->Enable(!named_node->IsEnabled());
+        server_response = "Success";
+      } else {
+        server_response = "Node not found.";
+      }
+    } else {
+      server_response = "Malformed request; node_label argument expected but "
+          "not found.";
+    }
+    return server_response;
+  } else if (path == "update") {
     gfxutils::Printer printer;
     SetUpPrinter(args, &printer);
     return GetPrintString(&printer);

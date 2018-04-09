@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,10 +20,11 @@ limitations under the License.
 
 #include <string>
 
+struct sockaddr_storage;
+
 namespace ion {
 namespace remote {
 namespace testing {
-
 //
 // GetUnusedPort tries up to |num_ports_to_try| ports before failing, returning
 // the first available port it finds. If there is any problem trying to find an

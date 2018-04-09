@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,9 +23,9 @@ limitations under the License.
 
 #include <algorithm>
 #include <cstring>
+#include <mutex>  // NOLINT(build/c++11)
 #include <sstream>
 
-#include "ion/base/lockguards.h"
 #include "ion/base/logging.h"
 #include "ion/base/scopedallocation.h"
 #include "ion/base/stringutils.h"
@@ -46,7 +46,7 @@ class HttpServer::WebsocketHelper {
       : connection_(conn), ready_(false), binary_(false) {
   }
   ~WebsocketHelper() {
-    websocket_->helper_ = NULL;
+    websocket_->helper_ = nullptr;
   }
 
   void SetWebsocket(const WebsocketPtr& websocket) {
@@ -97,7 +97,7 @@ class HttpServer::WebsocketHelper {
   // If currently accumulating a fragmented message, remember whether the
   // message is in binary or text mode.
   bool binary_;
-  port::Mutex mutex_;
+  std::mutex mutex_;
 };
 
 int HttpServer::WebsocketHelper::ReceiveData(
@@ -108,7 +108,7 @@ int HttpServer::WebsocketHelper::ReceiveData(
 
   switch (opcode) {
     case CONTINUATION:
-      if (continuation_.size() == 0) {
+      if (continuation_.empty()) {
         // Continuation frame received, but no previous data...
         // close the connection!
         return 0;
@@ -156,7 +156,7 @@ int HttpServer::WebsocketHelper::ReceiveData(
 
 int HttpServer::WebsocketHelper::BeginContinuation(
     bool is_binary, char* data, size_t data_len) {
-  if (continuation_.size() > 0) {
+  if (!continuation_.empty()) {
     // Unfinished continuation already exists... close the connection!
     continuation_.clear();
     return 0;
@@ -205,7 +205,7 @@ void HttpServer::WebsocketHelper::SendData(
   }
 
   // Synchronize write access.
-  base::LockGuard lock(&mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   mg_write(connection_, header, header_size);
   mg_write(connection_, data, data_len);
 }
@@ -551,7 +551,7 @@ static int BeginRequestCallback(mg_connection* connection) {
   // other requests when calling the begin_request callback (it detects the
   // upgrade request later), so we need to avoid sending any data back before
   // Mongoose does the Websocket handshake.
-  if (NULL != mg_get_header(connection, "Sec-WebSocket-Key")) {
+  if (nullptr != mg_get_header(connection, "Sec-WebSocket-Key")) {
     return 0;
   }
   // Extract out the request method.
@@ -657,22 +657,35 @@ HttpServer::RequestHandler::RequestHandler(const std::string& base_path)
 HttpServer::RequestHandler::~RequestHandler() {}
 
 HttpServer::HttpServer(int port, int num_threads)
-    : context_(NULL),
+    : port_(port),
+      num_threads_(num_threads),
+      context_(nullptr),
       embed_local_sourced_files_(false) {
-  if (port) {
+  Resume();
+}
+
+void HttpServer::Pause() {
+  if (context_) {
+    mg_stop(context_);
+    context_ = nullptr;
+  }
+}
+
+void HttpServer::Resume() {
+  if (port_) {
     std::stringstream int_to_string;
-    int_to_string << port;
+    int_to_string << port_;
     // Directly passing int_to_string.str() to mongoose does not work on all
     // platforms, but assigning it to a string first does.
     const std::string port_cstr = int_to_string.str();
     int_to_string.str("");
-    int_to_string << num_threads;
+    int_to_string << num_threads_;
     const std::string num_threads_cstr = int_to_string.str();
 
     mg_callbacks callbacks;
     const char* options[] = { "listening_ports", port_cstr.c_str(),
                               "num_threads", num_threads_cstr.c_str(),
-                              NULL };
+                              nullptr };
 
     memset(&callbacks, 0, sizeof(callbacks));
     callbacks.log_message = LogCallback;
@@ -688,7 +701,7 @@ HttpServer::HttpServer(int port, int num_threads)
 HttpServer::~HttpServer() {
   if (context_) {
     mg_stop(context_);
-    context_ = NULL;
+    context_ = nullptr;
   }
 }
 
@@ -708,7 +721,7 @@ const std::string HttpServer::GetUriData(const std::string& uri) const {
 }
 
 bool HttpServer::IsRunning() const {
-  return context_ != NULL;
+  return context_ != nullptr;
 }
 
 void HttpServer::RegisterHandler(const RequestHandlerPtr& handler) {
@@ -717,36 +730,36 @@ void HttpServer::RegisterHandler(const RequestHandlerPtr& handler) {
   std::string chomped_path = handler->GetBasePath();
   while (chomped_path.length() > 1 && base::RemoveSuffix("/", &chomped_path)) {}
 
-  ion::base::LockGuard lock(&handlers_mutex_);
+  std::lock_guard<std::mutex> lock(handlers_mutex_);
   handlers_[chomped_path] = handler;
 }
 
 void HttpServer::UnregisterHandler(const std::string& path) {
-  ion::base::LockGuard lock(&handlers_mutex_);
+  std::lock_guard<std::mutex> lock(handlers_mutex_);
   handlers_.erase(path);
 }
 
 HttpServer::HandlerMap HttpServer::GetHandlers() const {
-  ion::base::LockGuard lock(&handlers_mutex_);
+  std::lock_guard<std::mutex> lock(handlers_mutex_);
   return handlers_;
 }
 
 void HttpServer::RegisterWebsocket(void* key, WebsocketHelper* helper) {
-  base::LockGuard lock(&websocket_mutex_);
+  std::lock_guard<std::mutex> lock(websocket_mutex_);
   DCHECK(websockets_.find(key) == websockets_.end());
   websockets_[key] = helper;
 }
 
 HttpServer::WebsocketHelper* HttpServer::FindWebsocket(void* key) {
-  base::LockGuard lock(&websocket_mutex_);
+  std::lock_guard<std::mutex> lock(websocket_mutex_);
   WebsocketMap::iterator it = websockets_.find(key);
   return (it == websockets_.end())
-      ? static_cast<HttpServer::WebsocketHelper*>(NULL)
+      ? static_cast<HttpServer::WebsocketHelper*>(nullptr)
       : it->second;
 }
 
 void HttpServer::UnregisterWebsocket(void* key) {
-  base::LockGuard lock(&websocket_mutex_);
+  std::lock_guard<std::mutex> lock(websocket_mutex_);
   WebsocketMap::iterator it = websockets_.find(key);
   DCHECK(it != websockets_.end()) << "could not find websocket to unregister";
   if (it != websockets_.end()) {
@@ -763,17 +776,29 @@ void HttpServer::Websocket::SendData(
 }
 
 size_t HttpServer::WebsocketCount() {
-  base::LockGuard lock(&websocket_mutex_);
+  std::lock_guard<std::mutex> lock(websocket_mutex_);
   return websockets_.size();
 }
 
 #else
 
 HttpServer::HttpServer(int port, int num_threads)
-    : context_(NULL),
+    : context_(nullptr),
       embed_local_sourced_files_(false) {}
 
 HttpServer::~HttpServer() {}
+
+// Stub all the public functions to prevent DLL errors in production builds.
+const std::string HttpServer::GetUriData(const std::string& uri) const {
+  return std::string();
+}
+bool HttpServer::IsRunning() const { return false; }
+void HttpServer::Pause() {}
+void HttpServer::Resume() {}
+void HttpServer::RegisterHandler(const RequestHandlerPtr& handler) {}
+void HttpServer::UnregisterHandler(const std::string& path) {}
+HttpServer::HandlerMap HttpServer::GetHandlers() const { return HandlerMap(); }
+size_t HttpServer::WebsocketCount() { return 0; }
 
 #endif  // !ION_PRODUCTION
 

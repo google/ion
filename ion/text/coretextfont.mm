@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@ limitations under the License.
 */
 
 #include "ion/text/coretextfont.h"
+
+#include <mutex>  // NOLINT(build/c++11)
 
 // Though functionally very similar, the objective-c font object on Mac is
 // NSFont and on iOS is UIFont, and they are found in different headers.
@@ -56,11 +58,21 @@ using math::Vector2f;
 // layout, so that CoreText won't wrap or clip its results.
 static const CGFloat kPathSizePixels = 10000;
 
+// Returns true if a target size passed to a layout function is valid. To be
+// valid, neither component can be negative.
+static bool IsSizeValid(const Vector2f& target_size) {
+  const float width = target_size[0];
+  const float height = target_size[1];
+  return (width >= 0.0f && height >= 0.0f);
+}
+
 // This is the transform that takes CoreText glyph coordinates and converts them
 // into those that can be used in ion::text::Layout::Glyph::Quads.
 struct Transform {
   Vector2d translation;
   Vector2d scale;
+  Point2f position;
+  Vector2f size;
 };
 
 // Calculates the transform that should be applied to glyph locations due to
@@ -72,13 +84,25 @@ static Transform CalculateLayoutOptionsTransform(
     const LayoutOptions& options,
     const Font* font) {
   // Work out the range enclosing the bounds of all the lines.
+  const CTLineBoundsOptions bounds_option = options.metrics_based_alignment ?
+      kCTLineBoundsExcludeTypographicLeading : kCTLineBoundsUseGlyphPathBounds;
   math::Range2d line_bounds_range;
   for (CFIndex line_index = 0; line_index < line_count; ++line_index) {
     CTLineRef line = (CTLineRef)CFArrayGetValueAtIndex(lines, line_index);
-    CGRect line_bounds = CTLineGetBoundsWithOptions(
-        line, kCTLineBoundsUseGlyphPathBounds);
+    CGRect line_bounds = CTLineGetBoundsWithOptions(line, bounds_option);
     line_bounds.origin.x += line_origins[line_index].x;
     line_bounds.origin.y += line_origins[line_index].y;
+    if (options.metrics_based_alignment) {
+      // Some fonts do not have descent defined and default to y_min, which
+      // can exceed the font size. Use the same approximation from ascender to
+      // estimate the descender and correct this offest.
+      CGFloat descent;
+      CTLineGetTypographicBounds(line, nullptr, &descent, nullptr);
+      const CGFloat descender = static_cast<CGFloat>(
+          font->GetSizeInPixels() - font->GetFontMetrics().ascender);
+      line_bounds.size.height = static_cast<CGFloat>(font->GetSizeInPixels());
+      line_bounds.origin.y += descent - descender;
+    }
     line_bounds_range.ExtendByPoint(Point2d(CGRectGetMinX(line_bounds),
                                             CGRectGetMinY(line_bounds)));
     line_bounds_range.ExtendByPoint(Point2d(CGRectGetMaxX(line_bounds),
@@ -92,10 +116,13 @@ static Transform CalculateLayoutOptionsTransform(
   const double rect_height =
       font->GetFontMetrics().line_advance_height * (line_count - 1) + font->GetSizeInPixels();
 
-  // Compute the scale based on the text size in pixels and LayoutOptions::target_size. If one of
-  // the target size dimensions is 0, use the other dimension's scale.
+  // Compute the scale based on the text size in pixels and LayoutOptions::target_size. If both the
+  // target size dimensions are 0, then do the layout in pixels with no scaling. If only one of the
+  // target size dimensions is 0, use the other dimension's scale.
   Vector2d scale_for_target_size;
-  if (options.target_size[0] == 0.0f) {
+  if (options.target_size == Vector2f::Zero()) {
+    scale_for_target_size = Vector2d::Fill(1.0);
+  } else if (options.target_size[0] == 0.0f) {
     DCHECK_GT(options.target_size[1], 0.0f);
     const double s = options.target_size[1] / rect_height;
     scale_for_target_size.Set(s, s);
@@ -111,6 +138,7 @@ static Transform CalculateLayoutOptionsTransform(
   // Calculate the translation needed to align the text relative to the origin rather than where
   // CoreText placed it within the CGPath.
   Vector2d translation_for_path;
+  double position_x = 0.0;  // Get the left edge of the text rectangle.
   if (line_count) {
     // Horizontal alignment has been done by CoreText within the path that it
     // was passed. All that remains is to center it around the origin rather
@@ -121,9 +149,11 @@ static Transform CalculateLayoutOptionsTransform(
         break;
       case kAlignHCenter:
         translation_for_path[0] = -kPathSizePixels * 0.5;
+        position_x = -line_bounds_range.GetSize()[0] / 2.0;
         break;
       case kAlignRight:
         translation_for_path[0] = -kPathSizePixels;
+        position_x = -line_bounds_range.GetSize()[0];
         break;
     }
 
@@ -152,6 +182,16 @@ static Transform CalculateLayoutOptionsTransform(
       translation_for_path[0] * scale_for_target_size[0] + options.target_point[0];
   result.translation[1] =
       translation_for_path[1] * scale_for_target_size[1] + options.target_point[1];
+
+  // Calculate the text rectangle's bottom-left position and size.
+  result.position[0] =
+      static_cast<float>(position_x * scale_for_target_size[0] + options.target_point[0]);
+  result.position[1] = static_cast<float>(result.translation[1] +
+      line_bounds_range.GetMinPoint()[1] * scale_for_target_size[1]);
+  result.size[0] =
+      static_cast<float>(line_bounds_range.GetSize()[0] * scale_for_target_size[0]);
+  result.size[1] =
+      static_cast<float>(line_bounds_range.GetSize()[1] * scale_for_target_size[1]);
   return result;
 }
 
@@ -209,10 +249,6 @@ static void AddGlyphToLayout(CGGlyph glyph,
                              const CGPoint& line_origin,
                              float sdf_padding,
                              Layout* layout) {
-  // Ignore characters (e.g., newlines) represented by zero-size glyphs.
-  if (bounds.size.width * bounds.size.height == 0.0)
-    return;
-
   const Point2d glyph_min(CGRectGetMinX(bounds) + position.x + line_origin.x,
                           CGRectGetMinY(bounds) + position.y + line_origin.y);
   const Point2d glyph_max(CGRectGetMaxX(bounds) + position.x + line_origin.x,
@@ -226,10 +262,13 @@ static void AddGlyphToLayout(CGGlyph glyph,
   // Scale nonuniformly about the Quad center to compensate for the padding.
   if (sdf_padding != 0) {
     const double padding = 2.0 * sdf_padding;
-    const Vector2d scale(
-        (CGRectGetWidth(bounds) + padding) / CGRectGetWidth(bounds),
-        (CGRectGetHeight(bounds) + padding) / CGRectGetHeight(bounds));
-    transformed_glyph = math::ScaleRangeNonUniformly(transformed_glyph, scale);
+    const double w = CGRectGetWidth(bounds);
+    const double h = CGRectGetHeight(bounds);
+    if (w > 0. && h > 0.) {
+      const Vector2d scale((w + padding) / w, (h + padding) / h);
+      transformed_glyph =
+          math::ScaleRangeNonUniformly(transformed_glyph, scale);
+    }
   }
 
   const Vector2f offset(float(CGRectGetMinX(bounds) * transform.scale[0]),
@@ -284,7 +323,7 @@ class CoreTextFont::Helper {
   FontToIndexMap font_to_index_map_;
   IndexToFontMap index_to_font_map_;
   // Guards all font<->index data fields above.
-  port::Mutex mutex_;
+  std::mutex mutex_;
 
   CTFontRef coretext_font_;
   CGPathRef path_;
@@ -300,16 +339,16 @@ CoreTextFont::Helper::Helper(const CoreTextFont& owning_font,
   const size_t size_in_pixels = owning_font.GetSizeInPixels();
   if (data && data_size) {
     CGDataProviderRef data_provider =
-        CGDataProviderCreateWithData(NULL, data, data_size, NULL);
+        CGDataProviderCreateWithData(nullptr, data, data_size, nullptr);
     CGFontRef cg_font = CGFontCreateWithDataProvider(data_provider);
     coretext_font_ =
-        CTFontCreateWithGraphicsFont(cg_font, size_in_pixels, NULL, NULL);
+        CTFontCreateWithGraphicsFont(cg_font, size_in_pixels, nullptr, nullptr);
     CFRelease(cg_font);
     CFRelease(data_provider);
   } else {
     CFStringRef name_ref = CFStringCreateWithCString(
-        NULL, owning_font.GetName().c_str(), kCFStringEncodingUTF8);
-    coretext_font_ = CTFontCreateWithName(name_ref, size_in_pixels, NULL);
+        nullptr, owning_font.GetName().c_str(), kCFStringEncodingUTF8);
+    coretext_font_ = CTFontCreateWithName(name_ref, size_in_pixels, nullptr);
     CFRelease(name_ref);
   }
 }
@@ -327,11 +366,11 @@ CTFrameRef CoreTextFont::Helper::CreateFrame(
     const std::string& text, HorizontalAlignment horizontal_alignment, float line_spacing) const {
   // Create a CFAttributedString from |string|, with the current font.
   CFStringRef cf_string = CFStringCreateWithBytes(
-      NULL, reinterpret_cast<const UInt8 *>(text.data()), text.size(),
+      nullptr, reinterpret_cast<const UInt8 *>(text.data()), text.size(),
       kCFStringEncodingUTF8, false);
   if (!cf_string) {
     LOG(ERROR) << "CreateFrame failed on: " << text;
-    return NULL;
+    return nullptr;
   }
   NSMutableParagraphStyle* paragraph_style =
       [[NSMutableParagraphStyle alloc] init];
@@ -366,7 +405,7 @@ CTFrameRef CoreTextFont::Helper::CreateFrame(
          NSParagraphStyleAttributeName: paragraph_style };
 
   CFAttributedStringRef attrString =
-      CFAttributedStringCreate(NULL, cf_string, (CFDictionaryRef)attributes);
+      CFAttributedStringCreate(nullptr, cf_string, (CFDictionaryRef)attributes);
   CFRelease(cf_string);
 
   // Create a CTFrame; this is the step that lays out the glyphs.
@@ -374,7 +413,7 @@ CTFrameRef CoreTextFont::Helper::CreateFrame(
       CTFramesetterCreateWithAttributedString(attrString);
   CFRelease(attrString);
   CTFrameRef frame = CTFramesetterCreateFrame(
-      framesetter, CFRangeMake(0, 0), path_, NULL);
+      framesetter, CFRangeMake(0, 0), path_, nullptr);
   CFRelease(framesetter);
   return frame;
 }
@@ -384,7 +423,7 @@ const Font::FontMetrics CoreTextFont::Helper::GetFontMetrics(
   FontMetrics metrics;
 
   // Calculation of font metrics as per http://goo.gl/MleUbS.
-  // TODO(bug): This has just been copied from the above link, so should
+  // 
   // be verified more; it may apply only to Mac.
   CGFloat ascent = CTFontGetAscent(coretext_font_);
   CGFloat descent = CTFontGetDescent(coretext_font_);
@@ -394,8 +433,14 @@ const Font::FontMetrics CoreTextFont::Helper::GetFontMetrics(
     leading = 0;
 
   leading = static_cast<CGFloat>(floor(leading + 0.5));
-  metrics.line_advance_height =
-      static_cast<float>(floor(ascent + 0.5) + floor(descent + 0.5) + leading);
+  const float ascender = static_cast<float>(floor(ascent + 0.5));
+  const float global_glyph_height = static_cast<float>(ascender + floor(descent + 0.5));
+  metrics.line_advance_height = static_cast<float>(global_glyph_height + leading);
+  // Some fonts do not contain the correct ascender or descender values, but
+  // instead only the maximum and minimum y values, which will exceed the size.
+  // To handle these cases, approximate the ascender with the ratio of ascender
+  // to (ascender + descender) and scale by size.
+  metrics.ascender = static_cast<float>(ascender * size_in_pixels / global_glyph_height);
   return metrics;
 }
 
@@ -418,7 +463,7 @@ bool CoreTextFont::Helper::LoadGlyphGrid(GlyphIndex glyph_index,
     memset(bitmapData.get(), 0, pixel_height * pixel_width);
     CGContextRef cg_context = CGBitmapContextCreate(
         bitmapData.get(), pixel_width, pixel_height,
-        8, pixel_width, NULL, kCGImageAlphaOnly);
+        8, pixel_width, nullptr, kCGImageAlphaOnly);
     CGContextSetTextMatrix(cg_context, CGAffineTransformIdentity);
 
     // Render the glyph into the above CGContext.
@@ -458,7 +503,7 @@ const Layout CoreTextFont::Helper::BuildLayout(const std::string& text,
                                                const Font* font) {
   CTFrameRef frame = CreateFrame(text, options.horizontal_alignment, options.line_spacing);
   Layout layout;
-  if (frame == nil) {
+  if (frame == nil || !IsSizeValid(options.target_size)) {
     return layout;
   }
   CFArrayRef lines = CTFrameGetLines(frame);
@@ -472,6 +517,8 @@ const Layout CoreTextFont::Helper::BuildLayout(const std::string& text,
       font->GetFontMetrics().line_advance_height *
       static_cast<float>(layout_options_transform.scale[1]) *
       options.line_spacing);
+  layout.SetPosition(layout_options_transform.position);
+  layout.SetSize(layout_options_transform.size);
 
   for (CFIndex line_index = 0; line_index < line_count; ++line_index) {
     CTLineRef line = (CTLineRef)CFArrayGetValueAtIndex(lines, line_index);
@@ -521,7 +568,7 @@ std::string CoreTextFont::Helper::GetCTFontName() const {
 }
 
 uint16 CoreTextFont::Helper::FontToFontIndex(CTFontRef font) {
-  base::LockGuard guard(&mutex_);
+  std::lock_guard<std::mutex> guard(mutex_);
   auto existing = font_to_index_map_.find(font);
   if (existing == font_to_index_map_.end()) {
     // It is assumed that there would never be enough fallback fonts mapped to
@@ -537,7 +584,7 @@ uint16 CoreTextFont::Helper::FontToFontIndex(CTFontRef font) {
 }
 
 CTFontRef CoreTextFont::Helper::FontIndexToFont(uint16 font_index) {
-  base::LockGuard guard(&mutex_);
+  std::lock_guard<std::mutex> guard(mutex_);
   return index_to_font_map_[font_index];
 }
 

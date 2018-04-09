@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -70,13 +70,15 @@ class ION_API LogChecker : public port::LogEntryWriter {
   // true, it clears the stream for the next call. If it returns false, it
   // leaves the stream alone so the caller can use GetLogString() to examine
   // the log.
-  bool HasMessage(const std::string& severity, const std::string& substring);
+  bool HasMessage(const std::string& severity_string,
+                  const std::string& substring);
 
   // Returns true if no message of the given severity and containing the given
   // substring was logged since the LogChecker was constructed or since the last
   // call to HasMessage(). This leaves the stream alone so the caller can use
   // GetLogString() to examine the log.
-  bool HasNoMessage(const std::string& severity, const std::string& substring);
+  bool HasNoMessage(const std::string& severity_string,
+                    const std::string& substring);
 
   // Returns true if any messages were logged since the instance was
   // constructed or since the last call to CheckLog().

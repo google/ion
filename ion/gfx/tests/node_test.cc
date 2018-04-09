@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -47,9 +47,9 @@ TEST(NodeTest, SetStateTable) {
   StateTablePtr ptr(new StateTable(400, 300));
 
   // Check that it is possible to set a StateTable.
-  EXPECT_EQ(NULL, node->GetStateTable().Get());
+  EXPECT_FALSE(node->GetStateTable());
   node->SetStateTable(ptr);
-  EXPECT_EQ(ptr.Get(), node->GetStateTable().Get());
+  EXPECT_EQ(ptr, node->GetStateTable());
 }
 
 TEST(NodeTest, SetShaderProgram) {
@@ -58,9 +58,9 @@ TEST(NodeTest, SetShaderProgram) {
   ShaderProgramPtr ptr(new ShaderProgram(registry));
 
   // Check that it is possible to set a ShaderProgram.
-  EXPECT_EQ(NULL, node->GetShaderProgram().Get());
+  EXPECT_FALSE(node->GetShaderProgram());
   node->SetShaderProgram(ptr);
-  EXPECT_EQ(ptr.Get(), node->GetShaderProgram().Get());
+  EXPECT_EQ(ptr, node->GetShaderProgram());
 }
 
 TEST(NodeTest, AddClearUniformBlocks) {

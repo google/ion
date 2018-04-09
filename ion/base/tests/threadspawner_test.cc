@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -47,19 +47,16 @@ static bool SampleFunc() {
 
 class ThreadCallbackHelper {
  public:
-  ThreadCallbackHelper()
-      : barrier1_(2),
-        barrier2_(2),
-        id_(port::kInvalidThreadId) {}
+  ThreadCallbackHelper() : barrier1_(2), barrier2_(2) {}
 
   port::Barrier* GetBarrier1() { return &barrier1_; }
   port::Barrier* GetBarrier2() { return &barrier2_; }
 
-  port::ThreadId GetId() const { return id_; }
+  std::thread::id GetId() const { return id_; }
 
   bool Run() {
-    EXPECT_EQ(port::kInvalidThreadId, id_);
-    id_ = port::GetCurrentThreadId();
+    EXPECT_EQ(std::thread::id(), id_);
+    id_ = std::this_thread::get_id();
 
     // Wait for the barrier before finishing.
     barrier2_.Wait();
@@ -69,7 +66,7 @@ class ThreadCallbackHelper {
  private:
   port::Barrier barrier1_;
   port::Barrier barrier2_;
-  port::ThreadId id_;
+  std::thread::id id_;
 };
 
 }  // anonymous namespace
@@ -86,25 +83,25 @@ TEST(ThreadSpawner, SpawnPtr) {
     // Create a thread and execute SampleFunc().
     ThreadSpawner ts("threaddy", SampleFunc);
     EXPECT_EQ("threaddy", ts.GetName());
-    EXPECT_NE(port::kInvalidThreadId, ts.GetId());
+    EXPECT_NE(std::thread::id(), ts.GetId());
   }
   EXPECT_TRUE(s_sample_func_was_called);
   s_sample_func_was_called = false;
 }
 
 TEST(ThreadSpawner, SpawnNull) {
-  // Create a thread with a NULL function. The thread ID should be invalid.
-  ThreadSpawner ts("Nully", NULL);
+  // Create a thread with a null function. The thread ID should be invalid.
+  ThreadSpawner ts("Nully", nullptr);
   EXPECT_EQ("Nully", ts.GetName());
-  EXPECT_EQ(port::kInvalidThreadId, ts.GetId());
+  EXPECT_EQ(std::thread::id(), ts.GetId());
 }
 
 TEST(ThreadSpawner, SpawnStd) {
   ThreadCallbackHelper tch;
-  EXPECT_EQ(port::kInvalidThreadId, tch.GetId());
+  EXPECT_EQ(std::thread::id(), tch.GetId());
   {
     // Create a thread and execute it.
-    ThreadSpawner ts("Stupid Name",
+    ThreadSpawner ts("Spawned via std::bind",
                      std::bind(&ThreadCallbackHelper::Run, &tch));
 
     // Once the thread hits the barrier, the ID should be set.
@@ -126,7 +123,7 @@ TEST(ThreadSpawner, Join) {
 
     // Join the ts. It should then have an invalid ID.
     ts.Join();
-    EXPECT_EQ(port::kInvalidThreadId, ts.GetId());
+    EXPECT_EQ(std::thread::id(), ts.GetId());
   }
 }
 

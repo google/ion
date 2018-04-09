@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -83,6 +83,8 @@
         # Freeglut copiously prints out every event when _DEBUG is defined, so
         # undefine it.
         '_DEBUG',
+        # Freeglut seems to be incompatible with UNICODE.
+        'UNICODE=1'
       ],
       'conditions': [
         ['OS in ["linux", "mac"]', {
@@ -189,7 +191,7 @@
           },  # link_settings
         }],
 
-        ['OS=="windows"', {
+        ['OS=="win"', {
           'link_settings': {
             'libraries': [
               '-lWinmm',  # For time stuff.
@@ -206,6 +208,10 @@
           },  # all_dependent_settings
           'defines!': [
             'NOGDI',
+          ],
+          'msvs_disabled_warnings': [
+            '4311', # pointer truncation from 'void *' to 'int'
+            '4312', # conversion from 'int' to 'void *' of greater size
           ],
         }],
       ],

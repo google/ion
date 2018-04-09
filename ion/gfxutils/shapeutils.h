@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -286,6 +286,13 @@ struct CylinderSpec : public ShapeSpec {
 
 // Builds and returns a Shape representing an axis-aligned cylinder.
 ION_API const gfx::ShapePtr BuildCylinderShape(const CylinderSpec& spec);
+
+// Builds and returns a Shape that does not have any per-vertex attributes at
+// all. Adding this shape to the graph will result in a draw call being
+// emitted to render num_vertices in mode specified by primitive_type.
+ION_API const gfx::ShapePtr BuildPrimitivesList(
+      const gfx::Shape::PrimitiveType primitive_type,
+      const int num_vertices);
 
 }  // namespace gfxutils
 }  // namespace ion

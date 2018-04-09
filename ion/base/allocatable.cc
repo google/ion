@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -89,7 +89,7 @@ class Allocatable::Helper {
   // possibility, since it is the default allocator and can be used until the
   // end of the program.
   Helper()
-      : placement_allocator_(NULL) {}
+      : placement_allocator_(nullptr) {}
 
   // Adds an AllocationData instance to the allocations_ vector.
   void AddAllocationData(const void* memory_ptr, size_t size,
@@ -203,7 +203,7 @@ bool Allocatable::Helper::FindAllocationData(const void* instance_ptr,
       // The allocatable must have its memory deleted manually, not by operator
       // delete.
       *memory_ptr_out =
-          ad.allocation_type == AllocationData::kNew ? memory_start : NULL;
+          ad.allocation_type == AllocationData::kNew ? memory_start : nullptr;
       *memory_ptr_out = memory_start;
       // Remove the AllocationData.
       allocations_.erase(allocations_.begin() + i);
@@ -214,7 +214,7 @@ bool Allocatable::Helper::FindAllocationData(const void* instance_ptr,
   // could be an STL placement allocation.
   if (placement_allocator_) {
     *allocator_out = placement_allocator_;
-    *memory_ptr_out = NULL;
+    *memory_ptr_out = nullptr;
     return true;
   }
   // The Allocatable must have been declared on the stack.
@@ -263,12 +263,12 @@ void Allocatable::Construct() {
     allocator_.Reset(allocator);
     memory_ptr_ = memory_ptr;
   } else {
-    memory_ptr_ = NULL;
+    memory_ptr_ = nullptr;
   }
 }
 
 Allocatable::Allocatable(const AllocatorPtr& allocator_in)
-    : allocator_(allocator_in), memory_ptr_(NULL) {
+    : allocator_(allocator_in), memory_ptr_(nullptr) {
   Allocator* allocator;
   const void* memory_ptr;
   // Avoid warnings when the below DCHECK is optimized out.
@@ -283,8 +283,12 @@ Allocatable::Allocatable(const AllocatorPtr& allocator_in)
 Allocatable::~Allocatable() {
   // If memory_ptr_ was set by the constructor, add a DeallocationData to the
   // Helper so that Delete() knows which Allocator to use.
-  if (memory_ptr_)
-    GetHelper()->AddDeallocationData(memory_ptr_, allocator_.Get());
+  if (memory_ptr_) {
+    Helper* helper = GetHelper();
+    if (helper) {
+      helper->AddDeallocationData(memory_ptr_, allocator_.Get());
+    }
+  }
 }
 
 void* Allocatable::New(size_t size, const AllocatorPtr& allocator) {

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,13 +17,12 @@ limitations under the License.
 
 #include <cstdio>
 #include <functional>
+#include <mutex>  // NOLINT(build/c++11)
 
-#include "ion/base/lockguards.h"
 #include "ion/base/logging.h"
 #include "ion/base/threadspawner.h"
 #include "ion/port/atomic.h"
 #include "ion/port/barrier.h"
-#include "ion/port/mutex.h"
 #include "ion/port/timer.h"
 
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
@@ -42,15 +41,15 @@ static bool Incrementer(Barrier *barrier,
   return true;
 }
 
-static bool MutexDoubleIncrementer(int *val, Mutex *mutex,
+static bool MutexDoubleIncrementer(int *val, std::mutex *mutex,
                                    int start, int count) {
   for (int i = start; i < count;) {
-    mutex->Lock();
+    mutex->lock();
     if (*val == i) {
       ++(*val);
       i += 2;
     }
-    mutex->Unlock();
+    mutex->unlock();
   }
   return true;
 }
@@ -122,7 +121,7 @@ TEST(Atomic, BoolFunctionality) {
 }
 
 TEST(Atomic, PointerFunctionality) {
-  std::atomic<int*> aptr(NULL);
+  std::atomic<int*> aptr(nullptr);
   int val1 = 5, val2 = 10;
 
   aptr = &val1;
@@ -148,18 +147,18 @@ TEST(Atomic, PointerFunctionality) {
 // Unfortunately gcc 4.6 doesn't support atomic enums. We won't use them for
 // now, but keep the test in case we upgrade later.
 #if !((__GNUC__ == 4 && __GNUC_MINOR_ <= 6) || __GNUC__ < 4)
-enum TestEnum { Light, Ridiculous, Ludicrous };
+enum TestAnimal { kMouse, kRat, kRabbit };
 
 TEST(Atomic, EnumFunctionality) {
-  std::atomic<TestEnum> aenum(Light);
+  std::atomic<TestAnimal> aenum(kMouse);
 
-  EXPECT_EQ(aenum.load(), Light);
-  EXPECT_EQ(aenum.exchange(Ridiculous), Light);
-  TestEnum expected = Light;
-  EXPECT_FALSE(aenum.compare_exchange_strong(expected, Ludicrous));
-  EXPECT_EQ(expected, Ridiculous);
-  EXPECT_TRUE(aenum.compare_exchange_strong(expected, Ludicrous));
-  EXPECT_EQ(aenum.load(), Ludicrous);
+  EXPECT_EQ(aenum.load(), kMouse);
+  EXPECT_EQ(aenum.exchange(kRat), kMouse);
+  TestAnimal expected = kMouse;
+  EXPECT_FALSE(aenum.compare_exchange_strong(expected, kRabbit));
+  EXPECT_EQ(expected, kRat);
+  EXPECT_TRUE(aenum.compare_exchange_strong(expected, kRabbit));
+  EXPECT_EQ(aenum.load(), kRabbit);
 }
 #endif  // GCC <= 4.6
 
@@ -213,7 +212,7 @@ TEST(Atomic, SpeedHeavyContention) {
   aincthread.Join();
   double a_ms = timer.GetInMs();
 
-  Mutex mutex;
+  std::mutex mutex;
   int val = 0;
 
   timer.Reset();
@@ -232,7 +231,7 @@ TEST(Atomic, SpeedHeavyContention) {
   if (m_ms/a_ms <= 1.0) {
     LOG(WARNING) << "SpeedNoContention shows mutexes faster than atomics!";
   }
-  // TODO(user): We really can't treat performance tests as yes/no on TAP.
+  // 
   // Find a better way to report this.
 }
 #endif  // !ION_PLATFORM_AMSJS
@@ -253,12 +252,12 @@ TEST(Atomic, SpeedNoContention) {
   }
   double a_ms = timer.GetInMs();
 
-  Mutex mutex;
+  std::mutex mutex;
   int val = 0;
 
   timer.Reset();
   for (int i = 0; i < kIterations; ++i) {
-    base::LockGuard guard(&mutex);
+    std::lock_guard<std::mutex> guard(mutex);
     ++val;
   }
   double m_ms = timer.GetInMs();

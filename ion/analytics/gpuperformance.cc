@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -59,8 +59,6 @@ namespace analytics {
 
 namespace {
 
-static const int kDefaultTrialCount = 5;
-
 // On Android, glFinish seems to have significant overhead, so perform multiple
 // draw iterations per glFinish to improve accuracy.
 static const int kInnerTrialCount = 20;
@@ -83,161 +81,169 @@ typedef GpuPerformanceTester::Measurement Measurement;
 
 static const char kSceneConstantsGroup[] = "Scene constants";
 
-static const Benchmark::Descriptor kNodeCountDescriptor(
+static const Benchmark::StaticDescriptor kNodeCountDescriptor(
     "Node Count", kSceneConstantsGroup, "Nodes in Ion scene graph", "nodes");
 
-static const Benchmark::Descriptor kShapeCountDescriptor(
+static const Benchmark::StaticDescriptor kShapeCountDescriptor(
     "Shape Count", kSceneConstantsGroup,
     "Shapes in Ion scene graph", "shapes");
 
-static const Benchmark::Descriptor kDrawCountDescriptor(
+static const Benchmark::StaticDescriptor kDrawCountDescriptor(
     "Draw Count", kSceneConstantsGroup,
     "Draw calls in Ion scene graph", "draw calls");
 
-static const Benchmark::Descriptor kVertexCountDescriptor(
+static const Benchmark::StaticDescriptor kVertexCountDescriptor(
     "Vertex Count", kSceneConstantsGroup,
     "Vertices in scene", "vertices");
 
-static const Benchmark::Descriptor kPrimitiveCountDescriptor(
+static const Benchmark::StaticDescriptor kPrimitiveCountDescriptor(
     "Primitive Count", kSceneConstantsGroup,
     "Renderable elements in scene: Triangles; points; etc.", "primitives");
 
-static const Benchmark::Descriptor kTriangleCountDescriptor(
+static const Benchmark::StaticDescriptor kTriangleCountDescriptor(
     "Triangle Count", kSceneConstantsGroup,
     "Renderable triangles in scene", "triangles");
 
-static const Benchmark::Descriptor kLineCountDescriptor(
+static const Benchmark::StaticDescriptor kLineCountDescriptor(
     "Line Count", kSceneConstantsGroup,
     "Renderable lines in scene", "lines");
 
-static const Benchmark::Descriptor kPointCountDescriptor(
+static const Benchmark::StaticDescriptor kPointCountDescriptor(
     "Point Count", kSceneConstantsGroup,
     "Renderable points in scene", "points");
 
-static const Benchmark::Descriptor kTrianglePercentDescriptor(
+static const Benchmark::StaticDescriptor kPatchCountDescriptor(
+    "Patch Count", kSceneConstantsGroup,
+    "Renderable patches  in scene", "patches");
+
+static const Benchmark::StaticDescriptor kTrianglePercentDescriptor(
     "Triangle Percent", kSceneConstantsGroup,
     "Percent of primitives that are triangles", "%");
 
-static const Benchmark::Descriptor kLinePercentDescriptor(
+static const Benchmark::StaticDescriptor kLinePercentDescriptor(
     "Line Percent", kSceneConstantsGroup,
     "Percent of primitives that are lines", "%");
 
-static const Benchmark::Descriptor kPointPercentDescriptor(
+static const Benchmark::StaticDescriptor kPointPercentDescriptor(
     "Point Percent", kSceneConstantsGroup,
     "Percent of primitives that are points", "%");
 
-static const Benchmark::Descriptor kVerticesPerShapeDescriptor(
+static const Benchmark::StaticDescriptor kPatchPercentDescriptor(
+    "Patch Percent", kSceneConstantsGroup,
+    "Percent of primitives that are patches", "%");
+
+static const Benchmark::StaticDescriptor kVerticesPerShapeDescriptor(
     "Vertices Per Shape", kSceneConstantsGroup,
     "Average number of vertices per shape (draw call)", "vertices/shape");
 
-static const Benchmark::Descriptor kPrimitivesPerShapeDescriptor(
+static const Benchmark::StaticDescriptor kPrimitivesPerShapeDescriptor(
     "Primitives Per Shape", kSceneConstantsGroup,
     "Average number of primitives per shape (draw call)", "primitives/shape");
 
-static const Benchmark::Descriptor kTrialCountDescriptor(
+static const Benchmark::StaticDescriptor kTrialCountDescriptor(
     "Trial Count", kSceneConstantsGroup,
     "Number of trials used to compute averages.", "frames");
 
-static const Benchmark::Descriptor kBindShaderCountDescriptor(
+static const Benchmark::StaticDescriptor kBindShaderCountDescriptor(
     "Bind Shader Count", kSceneConstantsGroup,
     "Number of bind shader calls.", "binds");
 
-static const Benchmark::Descriptor kBindTextureCountDescriptor(
+static const Benchmark::StaticDescriptor kBindTextureCountDescriptor(
     "Bind Texture Count", kSceneConstantsGroup,
     "Number of bind shader calls.", "binds");
 
-static const Benchmark::Descriptor kSetUniformCountDescriptor(
+static const Benchmark::StaticDescriptor kSetUniformCountDescriptor(
     "Set Uniform Count", kSceneConstantsGroup,
     "Number of uniform value set calls.", "set uniforms");
 
-static const Benchmark::Descriptor kBufferMemoryDescriptor(
+static const Benchmark::StaticDescriptor kBufferMemoryDescriptor(
     "Buffer Memory", kSceneConstantsGroup,
     "GPU Buffer memory used during the frame", "MB");
 
-static const Benchmark::Descriptor kFboMemoryDescriptor(
+static const Benchmark::StaticDescriptor kFboMemoryDescriptor(
     "FBO Memory", kSceneConstantsGroup,
     "GPU Framebuffer Object memory used during the frame", "MB");
 
-static const Benchmark::Descriptor kTextureMemoryDescriptor(
+static const Benchmark::StaticDescriptor kTextureMemoryDescriptor(
     "Texture Memory", kSceneConstantsGroup,
     "GPU texture memory used during the frame", "MB");
 
-static const Benchmark::Descriptor kFramebufferMemoryDescriptor(
+static const Benchmark::StaticDescriptor kFramebufferMemoryDescriptor(
     "Framebuffer Memory", kSceneConstantsGroup, "GPU Framebuffer memory", "MB");
 
-static const Benchmark::Descriptor kTotalGpuMemoryDescriptor(
+static const Benchmark::StaticDescriptor kTotalGpuMemoryDescriptor(
     "Total GPU Memory", kSceneConstantsGroup,
     "Total GPU memory used during the frame (excluding frame buffer)", "MB");
 
 static const char kSceneRatesGroup[] = "Scene Rates";
 
-static const Benchmark::Descriptor kFramesPerSecondDescriptor(
+static const Benchmark::StaticDescriptor kFramesPerSecondDescriptor(
     "Frames Per Second", kSceneRatesGroup, "Frames per second.",
     "frames/s");
 
-static const Benchmark::Descriptor kNodesPerSecondDescriptor(
+static const Benchmark::StaticDescriptor kNodesPerSecondDescriptor(
     "Nodes Per Second", kSceneRatesGroup,
     "Nodes per second.", "Knodes/s");
 
-static const Benchmark::Descriptor kShapesPerSecondDescriptor(
+static const Benchmark::StaticDescriptor kShapesPerSecondDescriptor(
     "Shapes Per Second", kSceneRatesGroup,
     "Shapes per second.", "Kshapes/s");
 
-static const Benchmark::Descriptor kDrawCallsPerSecondDescriptor(
+static const Benchmark::StaticDescriptor kDrawCallsPerSecondDescriptor(
     "Draw Calls Per Second", kSceneRatesGroup,
     "Draw calls per second.", "Kdraws/s");
 
-static const Benchmark::Descriptor kVerticesPerSecondDescriptor(
+static const Benchmark::StaticDescriptor kVerticesPerSecondDescriptor(
     "Vertices Per Second", kSceneRatesGroup,
     "Millions of vertices per second.", "Mvertices/s");
 
-static const Benchmark::Descriptor kPrimitivesPerSecondDescriptor(
+static const Benchmark::StaticDescriptor kPrimitivesPerSecondDescriptor(
     "Primitives Per Second", kSceneRatesGroup,
     "Millions of primitives per second.", "Mprimitives/s");
 
-static const Benchmark::Descriptor kPixelsPerSecondDescriptor(
+static const Benchmark::StaticDescriptor kPixelsPerSecondDescriptor(
     "Pixels Per Second", kSceneRatesGroup,
     "Millions of pixels per second.", "Mpixels/s");
 
 static const char kTimingsGroup[] = "Timings";
 
-static const Benchmark::Descriptor kRenderTimeDescriptor(
+static const Benchmark::StaticDescriptor kRenderTimeDescriptor(
     "Render Time", kTimingsGroup,
     "Time to render unmodified scene.", "ms/frame");
 
-static const Benchmark::Descriptor kResourceCreationDescriptor(
+static const Benchmark::StaticDescriptor kResourceCreationDescriptor(
     "Resource Creation", kTimingsGroup,
     "Time creating GL resources; CPU-GPU Bandwidth.", "ms/frame");
 
-static const Benchmark::Descriptor kNoDrawCallsDescriptor(
+static const Benchmark::StaticDescriptor kNoDrawCallsDescriptor(
     "No Draw Calls", kTimingsGroup,
     "Ion & OpenGL state change time; draw calls ignored.", "ms/frame");
 
-static const Benchmark::Descriptor kMinViewportDescriptor(
+static const Benchmark::StaticDescriptor kMinViewportDescriptor(
     "Min Viewport", kTimingsGroup,
     "Render time with no fill; vertex transform only.", "ms/frame");
 
 static const char kRatesBreakdownGroup[] = "Rates Breakdown";
 
-static const Benchmark::Descriptor kTransformRateDescriptor(
+static const Benchmark::StaticDescriptor kTransformRateDescriptor(
     "Transform Rate", kRatesBreakdownGroup,
     "Approximate Vertex Program performance.", "Mtriangles/s");
 
-static const Benchmark::Descriptor kFillRateDescriptor(
+static const Benchmark::StaticDescriptor kFillRateDescriptor(
     "Fill Rate", kRatesBreakdownGroup,
     "Approximate Fragment Program performance.", "Mpixels/s");
 
 const char kPercentBreakdownGroup[] = "Percent Breakdown";
 
-static const Benchmark::Descriptor kTraversalPercentDescriptor(
+static const Benchmark::StaticDescriptor kTraversalPercentDescriptor(
     "Traversal Percent", kPercentBreakdownGroup,
     "Approximate Ion and OpenGL API overhead.", "%");
 
-static const Benchmark::Descriptor kTransformPercentDescriptor(
+static const Benchmark::StaticDescriptor kTransformPercentDescriptor(
     "Transform Percent", kPercentBreakdownGroup,
     "Approximate Vertex Program utilization.", "%");
 
-static const Benchmark::Descriptor kFillPercentDescriptor(
+static const Benchmark::StaticDescriptor kFillPercentDescriptor(
     "Fill Percent", kPercentBreakdownGroup,
     "Approximate Fragment Program utilization.", "%");
 
@@ -288,14 +294,6 @@ struct RemoveGeometry {
 
 // Functor that counts the number of nodes and total primitives rendered.
 struct CountPrimitives {
-  CountPrimitives() :
-      node_count(0),
-      shape_count(0),
-      draw_count(0),
-      triangle_count(0),
-      line_count(0),
-      point_count(0),
-      vertex_count(0) {}
   void operator()(const NodePtr& node) {
     DCHECK(node.Get());
     ++node_count;
@@ -304,6 +302,7 @@ struct CountPrimitives {
     shape_count += size;
     for (size_t i = 0; i < size; ++i) {
       const ShapePtr& shape = node->GetShapes()[i];
+      GLint patch_vertices = shape->GetPatchVertices();
       size_t count = 0;
       // If the shape has ranges, sum them.
       if (const size_t range_count = shape->GetVertexRangeCount()) {
@@ -357,16 +356,21 @@ struct CountPrimitives {
           count -= 2;
           triangle_count += count;
           break;
+        case Shape::kPatches:
+          count /= patch_vertices;
+          patch_count += count;
+          break;
       }
     }  // for each shape
   }
-  size_t node_count;
-  size_t shape_count;
-  size_t draw_count;
-  size_t triangle_count;
-  size_t line_count;
-  size_t point_count;
-  size_t vertex_count;
+  size_t node_count = 0;
+  size_t shape_count = 0;
+  size_t draw_count = 0;
+  size_t triangle_count = 0;
+  size_t line_count = 0;
+  size_t point_count = 0;
+  size_t patch_count = 0;
+  size_t vertex_count = 0;
 };
 
 static NodePtr GetClearNode(uint32 width, uint32 height,
@@ -497,25 +501,8 @@ NodePtr GpuPerformanceTester::InstanceCopy(const NodePtr& scene) {
 }
 
 GpuPerformanceTester::GpuPerformanceTester(uint32 width, uint32 height)
-    : number_of_trials_(kDefaultTrialCount),
-      width_(width),
+    : width_(width),
       height_(height),
-      enables_(kConstants | kBaseline | kNoDraw |
-               kMinimumViewport | kGpuMemory | kGlTrace),
-      num_nodes_(0),
-      num_shapes_(0),
-      num_draws_(0),
-      num_vertices_(0),
-      num_triangles_(0),
-      num_lines_(0),
-      num_points_(0),
-      num_bind_shader_(0),
-      num_bind_texture_(0),
-      num_set_uniform_(0),
-      buffer_memory_(0),
-      fbo_memory_(0),
-      texture_memory_(0),
-      framebuffer_memory_(0),
       baseline_(kRenderTimeDescriptor, 0, kMaxValue, kMinValue, 0.0, 0.0),
       baseline_inverse_(kRenderTimeDescriptor, 0, kMaxValue, kMinValue,
                         0.0, 0.0),
@@ -523,8 +510,7 @@ GpuPerformanceTester::GpuPerformanceTester(uint32 width, uint32 height)
       no_draw_calls_(kNoDrawCallsDescriptor, 0, kMaxValue, kMinValue, 0.0, 0.0),
       min_viewport_(kMinViewportDescriptor, 0, kMaxValue, kMinValue, 0.0, 0.0),
       min_viewport_inverse_(kMinViewportDescriptor, 0, kMaxValue, kMinValue,
-                            0.0, 0.0) {
-}
+                            0.0, 0.0) {}
 
 GpuPerformanceTester::~GpuPerformanceTester() {}
 
@@ -543,11 +529,12 @@ void GpuPerformanceTester::AccumulateMeasurements(
     num_triangles_  += static_cast<int>(primitive_count.triangle_count);
     num_lines_      += static_cast<int>(primitive_count.line_count);
     num_points_     += static_cast<int>(primitive_count.point_count);
+    num_patches_    += static_cast<int>(primitive_count.patch_count);
     num_vertices_   += static_cast<int>(primitive_count.vertex_count);
   }
 
   // GPU memory usage.
-  // TODO(user): We should probably clear the GPU memory at the beginning of
+  // 
   // the first pass of a frame if we are going to measure this, just to be sure
   // we are not carrying a bunch of data needed for previous frames but not this
   // frame.
@@ -583,19 +570,19 @@ void GpuPerformanceTester::AccumulateMeasurements(
 
   // Constant metrics pulled from Ion GL Trace
   if (AreModesEnabled(kGlTrace)) {
-    // TODO(user): Use non-testing component of TraceVerifier rather than
+    // 
     // replicating the logic here ion::gfx::testing::TraceVerifier
     // trace_verifier(&(*graphics_manager));
 
     // Acquire tracing stream
-    std::ostream* prev_stream = graphics_manager->GetTracingStream();
-    std::ostringstream trace_stream;
-    graphics_manager->SetTracingStream(&trace_stream);
+    gfx::TracingStream& stream = graphics_manager->GetTracingStream();
+    stream.Clear();
+    stream.StartTracing();
     renderer->gfx::Renderer::DrawScene(scene);
-    graphics_manager->SetTracingStream(prev_stream);
+    stream.StopTracing();
 
     // Parse tracing stream for counts
-    gfx::TraceCallExtractor extractor(trace_stream.str());
+    gfx::TraceCallExtractor extractor(stream.String());
     num_bind_shader_ += extractor.GetCountOf(kUseProgramString);
     num_bind_texture_ += extractor.GetCountOf(kBindTextureString);
     num_set_uniform_ += extractor.GetCountOf(kUniformString);
@@ -643,6 +630,7 @@ const Benchmark GpuPerformanceTester::GetResults() {
   double percent_triangles = 0;
   double percent_lines = 0;
   double percent_points = 0;
+  double percent_patches = 0;
   double vertices_per_shape = 0;
   double primitives_per_shape = 0;
 
@@ -666,6 +654,9 @@ const Benchmark GpuPerformanceTester::GetResults() {
           static_cast<double>(num_primitives) * kToPercent;
       percent_points =
           static_cast<double>(num_points_) /
+          static_cast<double>(num_primitives) * kToPercent;
+      percent_patches =
+          static_cast<double>(num_patches_) /
           static_cast<double>(num_primitives) * kToPercent;
     }
     if (num_shapes_ > 0) {
@@ -692,12 +683,16 @@ const Benchmark GpuPerformanceTester::GetResults() {
                                             num_lines_));
   benchmark.AddConstant(Benchmark::Constant(kPointCountDescriptor,
                                             num_points_));
+  benchmark.AddConstant(Benchmark::Constant(kPatchCountDescriptor,
+                                            num_patches_));
   benchmark.AddConstant(Benchmark::Constant(kTrianglePercentDescriptor,
                                             percent_triangles));
   benchmark.AddConstant(Benchmark::Constant(kLinePercentDescriptor,
                                             percent_lines));
   benchmark.AddConstant(Benchmark::Constant(kPointPercentDescriptor,
                                             percent_points));
+  benchmark.AddConstant(Benchmark::Constant(kPatchPercentDescriptor,
+                                            percent_patches));
   benchmark.AddConstant(Benchmark::Constant(kVerticesPerShapeDescriptor,
                                             vertices_per_shape));
   benchmark.AddConstant(Benchmark::Constant(kPrimitivesPerShapeDescriptor,
@@ -841,7 +836,7 @@ const Benchmark GpuPerformanceTester::GetResults() {
                                      kToMilli));
 
   // Resource creation time.
-  // TODO(user): Shouldn't this be resource creation - baseline?
+  // 
   benchmark.AddAccumulatedVariable(
       Benchmark::AccumulatedVariable(kResourceCreationDescriptor,
                                      trial_count,
@@ -873,7 +868,7 @@ const Benchmark GpuPerformanceTester::GetResults() {
 
   // Transform-rate = Null-viewport - State-changes.
   // Units of triangles per second.
-  // TODO(user) this should probably have state change time subtracted.
+  // 
   const double transform_time = min_viewport_.mean;
   const double transform_deviation = min_viewport_.standard_deviation;
   const double transform_min = min_viewport_.minimum;
@@ -1072,7 +1067,7 @@ Measurement GpuPerformanceTester::MeasurePerformance(
   ApplyToTree(scene, disable_depth_test_functor);
 
   NodePtr clear_node(GetClearNode(width_, height_, scene->GetAllocator()));
-  // NOTE(user): We are forcing the call to DrawScene to be gfx::Renderer's,
+  // NOTE: We are forcing the call to DrawScene to be gfx::Renderer's,
   // this is because we now have a derived Renderer, BenchmarkRenderer, which
   // overrides DrawScene to run this benchmark.  Therefore, we get an infinite
   // recursion if we don't call the right version of DrawScene().
@@ -1126,7 +1121,7 @@ Measurement GpuPerformanceTester::MeasureResourceCreation(
   // Do two passes to compute something like a standard deviation.
   // Really, we are interested in getting any kind of bounds on these
   // statistics.
-  // TODO(user): update this so we have sufficient stats for stddev.
+  // 
   NodePtr clear_node(GetClearNode(width_, height_, scene->GetAllocator()));
 
   RendererPtr resource_renderer_one(new Renderer(graphics_manager));

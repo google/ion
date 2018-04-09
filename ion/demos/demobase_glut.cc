@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ limitations under the License.
 #include "ion/math/utils.h"
 
 #if defined(ION_PLATFORM_ASMJS)
+#include <emscripten.h>
 #include "GL/glut.h"
 #else
 #include "GL/freeglut.h"
@@ -34,7 +35,10 @@ limitations under the License.
 //
 //-----------------------------------------------------------------------------
 
-static DemoBase* demo = NULL;
+// GLUT programs never return from main(), they always call exit(). To avoid
+// crashes at program exit, we have to explicitly clean up the demo object in a
+// handler registered with std::atexit().
+static DemoBase* demo = nullptr;
 enum {
   LEFT_BUTTON = 1,
   RIGHT_BUTTON = 2,
@@ -44,7 +48,12 @@ static int buttons = 0;
 static int last_x = 0, last_y = 0;
 
 static void Init(int w, int h) {
-  demo = CreateDemo(w, h);
+  demo = CreateDemo(w, h).release();
+}
+
+static void Done() {
+  delete demo;
+  demo = nullptr;
 }
 
 static void Resize(int w, int h) {
@@ -62,11 +71,6 @@ static void Update() {
   if (demo)
     demo->Update();
   glutPostRedisplay();
-}
-
-static void Done() {
-  delete demo;
-  demo = NULL;
 }
 
 static void Keyboard(unsigned char key, int x, int y) {
@@ -151,7 +155,18 @@ int main(int argc, char* argv[]) {
   Init(kWidth, kHeight);
   std::atexit(Done);
 
+#if defined(ION_PLATFORM_ASMJS)
+  // When testing asmjs with Scuba, we need to render a single frame, then
+  // trigger an event so that the test knows when it can capture a screenshot.
+  Render();
+  EM_ASM({ Module.canvas.dispatchEvent(new Event('rendered')); });
+#else
+  // The glutSetWindowTitle function is not defined in the emscripten
+  // implementation of GLUT.
   const std::string demo_name = "ION Demo: " + demo->GetDemoAppName();
   glutSetWindowTitle(demo_name.c_str());
+#endif
+
+  // The GLUT main loop never returns.
   glutMainLoop();
 }

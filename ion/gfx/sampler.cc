@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ limitations under the License.
 #include "ion/base/enumhelper.h"
 #include "ion/base/static_assert.h"
 #include "ion/portgfx/glheaders.h"
+#include "absl/base/macros.h"
 
 namespace ion {
 namespace gfx {
@@ -59,11 +60,11 @@ EnumHelper::GetEnumData() {
     "Always", "Equal", "Greater", "GreaterOrEqual", "Less", "LessOrEqual",
     "Never", "NotEqual"
   };
-  ION_STATIC_ASSERT(ARRAYSIZE(kValues) == ARRAYSIZE(kStrings),
+  ION_STATIC_ASSERT(ABSL_ARRAYSIZE(kValues) == ABSL_ARRAYSIZE(kStrings),
                     "EnumHelper size mismatch");
   return EnumData<Sampler::CompareFunction>(
       base::IndexMap<Sampler::CompareFunction, GLenum>(kValues,
-                                                       ARRAYSIZE(kValues)),
+                                                       ABSL_ARRAYSIZE(kValues)),
       kStrings);
 }
 
@@ -72,10 +73,11 @@ template <> ION_API const EnumHelper::EnumData<Sampler::CompareMode>
 EnumHelper::GetEnumData() {
   static const GLenum kValues[] = { GL_COMPARE_REF_TO_TEXTURE, GL_NONE };
   static const char* kStrings[] = { "CompareToTexture", "None" };
-  ION_STATIC_ASSERT(ARRAYSIZE(kValues) == ARRAYSIZE(kStrings),
+  ION_STATIC_ASSERT(ABSL_ARRAYSIZE(kValues) == ABSL_ARRAYSIZE(kStrings),
                     "EnumHelper size mismatch");
   return EnumData<Sampler::CompareMode>(
-      base::IndexMap<Sampler::CompareMode, GLenum>(kValues, ARRAYSIZE(kValues)),
+      base::IndexMap<Sampler::CompareMode, GLenum>(kValues,
+                                                   ABSL_ARRAYSIZE(kValues)),
       kStrings);
 }
 
@@ -90,10 +92,11 @@ EnumHelper::GetEnumData() {
     "Nearest", "Linear", "NearestMipmapNearest", "NearestMipmapLinear",
     "LinearMipmapNearest", "LinearMipmapLinear"
   };
-  ION_STATIC_ASSERT(ARRAYSIZE(kValues) == ARRAYSIZE(kStrings),
+  ION_STATIC_ASSERT(ABSL_ARRAYSIZE(kValues) == ABSL_ARRAYSIZE(kStrings),
                     "EnumHelper size mismatch");
   return EnumData<Sampler::FilterMode>(
-      base::IndexMap<Sampler::FilterMode, GLenum>(kValues, ARRAYSIZE(kValues)),
+      base::IndexMap<Sampler::FilterMode, GLenum>(kValues,
+                                                  ABSL_ARRAYSIZE(kValues)),
       kStrings);
 }
 
@@ -104,10 +107,11 @@ EnumHelper::GetEnumData() {
     GL_CLAMP_TO_EDGE, GL_REPEAT, GL_MIRRORED_REPEAT
   };
   static const char* kStrings[] = { "ClampToEdge", "Repeat", "MirroredRepeat" };
-  ION_STATIC_ASSERT(ARRAYSIZE(kValues) == ARRAYSIZE(kStrings),
+  ION_STATIC_ASSERT(ABSL_ARRAYSIZE(kValues) == ABSL_ARRAYSIZE(kStrings),
                     "EnumHelper size mismatch");
   return EnumData<Sampler::WrapMode>(
-      base::IndexMap<Sampler::WrapMode, GLenum>(kValues, ARRAYSIZE(kValues)),
+      base::IndexMap<Sampler::WrapMode, GLenum>(kValues,
+                                                ABSL_ARRAYSIZE(kValues)),
       kStrings);
 }
 

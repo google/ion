@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -110,8 +110,8 @@ void Rotation<T>::GetAxisAndAngle(VectorType* axis, AngleType* angle) const {
 }
 
 template <typename T>
-void Rotation<T>::GetEulerAngles(
-    AngleType* yaw, AngleType* pitch, AngleType* roll) const {
+void Rotation<T>::GetRollPitchYaw(AngleType* roll, AngleType* pitch,
+                                  AngleType* yaw) const {
   DCHECK(yaw);
   DCHECK(pitch);
   DCHECK(roll);
@@ -121,13 +121,13 @@ void Rotation<T>::GetEulerAngles(
   const T& qw = quat_[3];
 
   const T test = qz * qy + qx * qw;
-  if (test > static_cast<T>(0.4999f)) {
+  if (test > static_cast<T>(0.5) - std::numeric_limits<T>::epsilon()) {
     // There is a singularity when the pitch is directly up, so calculate the
     // angles another way.
     *yaw = AngleType::FromRadians(static_cast<T>(2. * atan2(qz, qw)));
     *pitch = AngleType::FromRadians(static_cast<T>(M_PI_2));
     *roll = AngleType::FromRadians(static_cast<T>(0.));
-  } else  if (test < static_cast<T>(-0.4999f)) {
+  } else if (test < static_cast<T>(-0.5) + std::numeric_limits<T>::epsilon()) {
     // There is a singularity when the pitch is directly down, so calculate the
     // angles another way.
     *yaw = AngleType::FromRadians(static_cast<T>(-2. * atan2(qz, qw)));
@@ -141,6 +141,74 @@ void Rotation<T>::GetEulerAngles(
         2. * test)));
     *roll = AngleType::FromRadians(static_cast<T>(atan2(
         2. * qz * qw - 2. * qy * qx , 1. - 2. * qz * qz - 2. * qx * qx)));
+  }
+}
+
+template <typename T>
+void Rotation<T>::GetYawPitchRoll(AngleType* yaw, AngleType* pitch,
+                                  AngleType* roll) const {
+  DCHECK(yaw);
+  DCHECK(pitch);
+  DCHECK(roll);
+
+  // Rotate vector <0, 0, -1> by the quaternion v' = q * v * q_conjugate, so let
+  //   v' = q * v * qc
+  //   v  = 0 + 0i + 0j -  k
+  //   q  = w + xi + yj + zk
+  //   qc = w - xi - yj - zk
+  //
+  // Which means:
+  //   v * qc = (-k) * (w - xi - yj - zk)
+  //          = -wk + xki + ykj + zkk
+  //          = -wk +  xj -  yi - z
+  //          = -z  -  yi + xj  - wk
+  //
+  // And:
+  //   q * v * qc = (w + xi + yj + zk) * (-z - yi + xj - wk)
+  //              = -  wz  -  wyi +  wxj -  wwk
+  //                - xiz  - xiyi + xixj - xiwk
+  //                - yjz  - yjyi + yjxj - yjwk
+  //                - zkz  - zkyi + zkxj - zkwk
+  //
+  // By the properties of i, j, and k (i.e. ii = jj = kk = ijk = -1;
+  //                                        ij =  k; jk =  i; ki =  j;
+  //                                        ji = -k; kj = -i; ik = -j;):
+  //   q * v * qc = - wz  - wyi + wxj - wwk
+  //                - xzi + xy  + xxk + xwj
+  //                - yzj + yyk - yx  - ywi
+  //                - zzk - zyj - zxi + zw
+  //
+  // Grouping by quaternion unit and simplifying gives us:
+  //   q * v * qc = - wz  + xy  - yx  + zw
+  //                - wyi - xzi - ywi - zxi
+  //                + wxj + xwj - yzj - zyj
+  //                - wwk + xxk + yyk - zzk
+  //              = 0
+  //                - 2(xz + wy)i
+  //                + 2(wx - yz)j
+  //                (- ww + xx + yy - zz)k
+  const T& qx = quat_[0];
+  const T& qy = quat_[1];
+  const T& qz = quat_[2];
+  const T& qw = quat_[3];
+
+  const T vx = -2 * (qx * qz + qw * qy);
+  const T vy = 2 * (qw * qx - qy * qz);
+  const T vz = (-qw * qw + qx * qx + qy * qy - qz * qz);
+
+  if (vy > static_cast<T>(1.) - std::numeric_limits<T>::epsilon()) {
+    *yaw = AngleType::FromRadians(static_cast<T>(2. * atan2(qz, qw)));
+    *pitch = AngleType::FromRadians(static_cast<T>(M_PI_2));
+    *roll = AngleType::FromRadians(static_cast<T>(0.));
+  } else if (vy < static_cast<T>(-1.) + std::numeric_limits<T>::epsilon()) {
+    *yaw = AngleType::FromRadians(static_cast<T>(-2. * atan2(qz, qw)));
+    *pitch = AngleType::FromRadians(static_cast<T>(-M_PI_2));
+    *roll = AngleType::FromRadians(static_cast<T>(0.));
+  } else {
+    *yaw = AngleType::FromRadians(static_cast<T>(atan2(-vx, -vz)));
+    *pitch = AngleType::FromRadians(static_cast<T>(asin(vy)));
+    *roll = AngleType::FromRadians(static_cast<T>(
+        atan2(2. * qw * qz + 2. * qx * qy, 1. - 2. * qx * qx - 2. * qz * qz)));
   }
 }
 
@@ -209,21 +277,29 @@ Rotation<T> Rotation<T>::Slerp(const Rotation& r0,
 
 //-----------------------------------------------------------------------------
 // Explicit instantiations.
+// If you add any instantiations, please also add explicit instantiation
+// declarations to the section in rotations.h. Otherwise, ClangTidy may complain
+// when people try to use these templates. (See
+// http://g3doc/devtools/cymbal/clang_tidy/g3doc/checks/clang-diagnostic-undefined-func-template.md)
 // -----------------------------------------------------------------------------
 
-#define ION_INSTANTIATE_ROTATION_FUNCTIONS(type)                        \
-template void ION_API Rotation<type>::SetAxisAndAngle(                  \
-    const Vector<3, type>& axis, const Angle<type>& angle);             \
-template void ION_API Rotation<type>::GetAxisAndAngle(                  \
-    Vector<3, type>* axis, Angle<type>* angle) const;                   \
-template void ION_API Rotation<type>::GetEulerAngles(                   \
-    Angle<type>* yaw, Angle<type>* pitch, Angle<type>* roll) const;     \
-template Rotation<type> ION_API Rotation<type>::RotateInto(             \
-    const Vector<3, type>& from, const Vector<3, type>& to);            \
-template Rotation<type> ION_API Rotation<type>::Slerp(                  \
-    const Rotation& r0, const Rotation& r1, type t);                    \
-template Rotation<type> ION_API Rotation<type>::FromRotationMatrix(     \
-    const Matrix<3, type>& mat)
+#define ION_INSTANTIATE_ROTATION_FUNCTIONS(type)                      \
+  template void ION_API Rotation<type>::SetAxisAndAngle(              \
+      const Vector<3, type>& axis, const Angle<type>& angle);         \
+  template void ION_API Rotation<type>::GetAxisAndAngle(              \
+      Vector<3, type>* axis, Angle<type>* angle) const;               \
+  template void ION_API Rotation<type>::GetYawPitchRoll(              \
+      Angle<type>* yaw, Angle<type>* pitch, Angle<type>* roll) const; \
+  template void ION_API Rotation<type>::GetRollPitchYaw(              \
+      Angle<type>* roll, Angle<type>* pitch, Angle<type>* yaw) const; \
+  template void ION_API Rotation<type>::GetEulerAngles(               \
+      Angle<type>* yaw, Angle<type>* pitch, Angle<type>* roll) const; \
+  template Rotation<type> ION_API Rotation<type>::RotateInto(         \
+      const Vector<3, type>& from, const Vector<3, type>& to);        \
+  template Rotation<type> ION_API Rotation<type>::Slerp(              \
+      const Rotation& r0, const Rotation& r1, type t);                \
+  template Rotation<type> ION_API Rotation<type>::FromRotationMatrix( \
+      const Matrix<3, type>& mat)
 
 ION_INSTANTIATE_ROTATION_FUNCTIONS(double);  // NOLINT; thinks it's a function.
 ION_INSTANTIATE_ROTATION_FUNCTIONS(float);   // NOLINT; thinks it's a function.

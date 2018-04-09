@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,41 +15,18 @@ limitations under the License.
 
 */
 
-#ifndef ION_GFX_GLFUNCTIONS_H_
-#define ION_GFX_GLFUNCTIONS_H_
+#ifndef ION_GFX_GLFUNCTIONS_INC_
+#define ION_GFX_GLFUNCTIONS_INC_
 
 #if !defined(ION_WRAP_GL_FUNC)
-#  error "ION_WRAP_GL_FUNC must be defined to include glfunctions.h"
+#  error "ION_WRAP_GL_FUNC must be defined to include glfunctions.inc"
+// The line below pacifies IDEs when opening this file
+#  define ION_WRAP_GL_FUNC(group, name, return_type, typed_args, args, trace)
 #endif
 
 #if !defined(ION_TRACE_ARG)
 #  define ION_TRACE_ARG(...)
 #endif
-
-// These types are necessary to distinguish between types with overlapping
-// values, e.g., GL_ZERO, GL_NONE, and GL_POINTS are the same number. Having
-// specially named types allows TracingHelper determine which value to print.
-typedef GLenum GLblendenum;
-typedef GLenum GLstencilenum;
-typedef GLint GLintenum;
-typedef GLint GLtextureenum;
-typedef GLbitfield GLmapaccess;
-// These special types let TracingHelper know the type of pointer being passed.
-typedef GLfloat GLfloat1;
-typedef GLfloat GLfloat2;
-typedef GLfloat GLfloat3;
-typedef GLfloat GLfloat4;
-typedef GLfloat GLmatrix2;
-typedef GLfloat GLmatrix3;
-typedef GLfloat GLmatrix4;
-typedef GLint GLint1;
-typedef GLint GLint2;
-typedef GLint GLint3;
-typedef GLint GLint4;
-typedef GLuint GLuint1;
-typedef GLuint GLuint2;
-typedef GLuint GLuint3;
-typedef GLuint GLuint4;
 
 // -----------------------------------------------------------------------------
 // Macros wrapping all OpenGL functions.
@@ -205,7 +182,7 @@ typedef GLuint GLuint4;
   ION_WRAP_GL_FUNC(group, name, return_type,                            \
                    (t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6, t7 a7,    \
                     t8 a8, t9 a9, t10 a10, t11 a11, t12 a12),           \
-                   (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11),      \
+                   (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12), \
                    ION_TRACE_ARG(name, t1, a1) << ", " <<               \
                    ION_TRACE_ARG(name, t2, a2) << ", " <<               \
                    ION_TRACE_ARG(name, t3, a3) << ", " <<               \
@@ -321,7 +298,9 @@ ION_WRAP_GL_FUNC2(Core, GetAttribLocation, GLint, GLuint, program,
 ION_WRAP_GL_FUNC2(Core, GetBooleanv, void, GLenum, pname, GLboolean*, params)
 ION_WRAP_GL_FUNC3(Core, GetBufferParameteriv, void, GLenum, target, GLenum,
                   value, GLint*, data)
+#ifndef ION_WRAP_SKIP_GetError
 ION_WRAP_GL_FUNC0(Core, GetError, GLenum)
+#endif
 ION_WRAP_GL_FUNC2(Core, GetFloatv, void, GLenum, pname, GLfloat*, params)
 ION_WRAP_GL_FUNC4(Core, GetFramebufferAttachmentParameteriv, void, GLenum,
                   target, GLenum, attachment, GLenum, pname, GLint*, params)
@@ -465,9 +444,17 @@ ION_WRAP_GL_FUNC6(Core, VertexAttribPointer, void, GLuint, index, GLint, size,
 ION_WRAP_GL_FUNC4(Core, Viewport, void, GLint, x, GLint, y, GLsizei, width,
                   GLsizei, height)
 
-// ChooseBuffer group.
-ION_WRAP_GL_FUNC1(ChooseBuffer, DrawBuffer, void, GLenum, buffer)
-ION_WRAP_GL_FUNC1(ChooseBuffer, ReadBuffer, void, GLenum, buffer)
+// ComputeShader group.
+ION_WRAP_GL_FUNC3(ComputeShader, DispatchCompute, void, GLuint, num_groups_x,
+                  GLuint, num_groups_y, GLuint, num_groups_z)
+ION_WRAP_GL_FUNC1(ComputeShader, DispatchComputeIndirect, void, GLintptr,
+                  indirect)
+
+// CopyBufferSubData group.
+ION_WRAP_GL_FUNC5(CopyBufferSubData, CopyBufferSubData,
+                  void, GLenum, read_target, GLenum, write_target,
+                  GLintptr, read_offset, GLintptr, write_offset,
+                  GLsizeiptr, size)
 
 // DebugLabel group.
 ION_WRAP_GL_FUNC5(DebugLabel, GetObjectLabel, void, GLenum, type, GLuint,
@@ -498,16 +485,46 @@ ION_WRAP_GL_FUNC8(DebugOutput, GetDebugMessageLog, GLuint, GLuint, count,
 ION_WRAP_GL_FUNC2(DebugOutput, GetPointerv, void, GLenum, pname, void**,
                   params)
 
+// DiscardFramebuffer group
+// EXT_discard_framebuffer extension. Equivalent to InvalidateFramebuffer but
+// works prior to OpenGL ES 3.0 if the extension is available.
+ION_WRAP_GL_FUNC3(DiscardFramebuffer, DiscardFramebufferEXT, void, GLenum,
+                  target, GLsizei, numAttachments, const GLenum*, attachments)
+
+// DrawBuffer group.
+ION_WRAP_GL_FUNC1(DrawBuffer, DrawBuffer, void, GLenum, buffer)
+
+// DrawBuffers group.
+ION_WRAP_GL_FUNC2(DrawBuffers, DrawBuffers, void, GLsizei, n, const GLenum*,
+                  bufs)
+
+// DrawInstanced group.
+ION_WRAP_GL_FUNC4(DrawInstanced, DrawArraysInstanced, void, GLenum, mode,
+                  GLint, first, GLsizei, count, GLsizei, primCount)
+ION_WRAP_GL_FUNC5(DrawInstanced, DrawElementsInstanced, void, GLenum, mode,
+                  GLsizei, count, GLenum, type, const GLvoid*, indices, GLsizei,
+                  primCount)
+
+// EglImage group.
+ION_WRAP_GL_FUNC2(EglImage, EGLImageTargetTexture2DOES, void, GLenum, target,
+                  void*, image)
+ION_WRAP_GL_FUNC2(EglImage, EGLImageTargetRenderbufferStorageOES, void,
+                  GLenum, target, void*, image)
+
 // FramebufferBlit group.
 ION_WRAP_GL_FUNC10(FramebufferBlit, BlitFramebuffer, void, GLint, srcX0, GLint,
                    srcY0, GLint, srcX1, GLint, srcY1, GLint, dstX0, GLint,
                    dstY0, GLint, dstX1, GLint, dstY1, GLbitfield, mask, GLenum,
                    filter)
 
-// FramebufferMultisample group.
-ION_WRAP_GL_FUNC5(FramebufferMultisample, RenderbufferStorageMultisample, void,
-                  GLenum, target, GLsizei, samples, GLenum, internal_format,
-                  GLsizei, width, GLsizei, height)
+// FramebufferTextureLayer group.
+ION_WRAP_GL_FUNC5(FramebufferTextureLayer, FramebufferTextureLayer, void,
+                  GLenum, target, GLenum, attachment, GLuint, texture, GLint,
+                  level, GLint, layer)
+
+// GetString group.
+ION_WRAP_GL_FUNC2(GetString, GetStringi, const GLubyte*, GLenum, name, GLuint,
+                  index)
 
 // GpuShader4 group.
 ION_WRAP_GL_FUNC3(GpuShader4, GetUniformuiv, void, GLuint, program, GLint,
@@ -527,27 +544,35 @@ ION_WRAP_GL_FUNC5(GpuShader4, Uniform4ui, void, GLint, location, GLuint, v0,
                   GLuint, v1, GLuint, v2, GLuint, v3)
 ION_WRAP_GL_FUNC3(GpuShader4, Uniform4uiv, void, GLint, location, GLsizei,
                   count, const GLuint4*, value)
-// TODO(user): Add support for VertexAttribI*, GetVertexAttribI*,
+// 
 // BindFragDataLocation, and GetFragDataLocation.
 
-// EglImage group.
-ION_WRAP_GL_FUNC2(EglImage, EGLImageTargetTexture2DOES, void, GLenum, target,
-                  void*, image)
-ION_WRAP_GL_FUNC2(EglImage, EGLImageTargetRenderbufferStorageOES, void,
-                  GLenum, target, void*, image)
+// ImplicitMultisample group, i.e., EXT_multisampled_render_to_texture. Note
+// that the second function is NOT equivalent to the core OpenGL ES 3.1 variant.
+ION_WRAP_GL_FUNC6(ImplicitMultisample, FramebufferTexture2DMultisampleEXT, void,
+                  GLenum, target, GLenum, attachment, GLenum, textarget, GLuint,
+                  texture, GLint, level, GLsizei, samples)
+ION_WRAP_GL_FUNC5(ImplicitMultisample, RenderbufferStorageMultisampleEXT, void,
+                  GLenum, target, GLsizei, samples, GLenum, internalformat,
+                  GLsizei, width, GLsizei, height)
 
-// GetString group.
-ION_WRAP_GL_FUNC2(GetString, GetStringi, const GLubyte*, GLenum, name, GLuint,
-                  index)
+// BindBufferIndexed group.
+ION_WRAP_GL_FUNC3(BindBufferIndexed, BindBufferBase, void, GLenum, target,
+                  GLuint, index, GLuint, buffer)
+ION_WRAP_GL_FUNC5(BindBufferIndexed, BindBufferRange, void, GLenum, target,
+                  GLuint, index, GLuint, buffer, GLintptr, offset, GLsizeiptr,
+                  size)
 
-// Instanced drawing group.
-ION_WRAP_GL_FUNC4(InstancedDrawing, DrawArraysInstanced, void, GLenum, mode,
-                  GLint, first, GLsizei, count, GLsizei, primCount)
-ION_WRAP_GL_FUNC5(InstancedDrawing, DrawElementsInstanced, void, GLenum, mode,
-                  GLsizei, count, GLenum, type, const GLvoid*, indices, GLsizei,
-                  primCount)
-ION_WRAP_GL_FUNC2(InstancedDrawing, VertexAttribDivisor, void, GLuint, index,
+// InstancedArrays group.
+ION_WRAP_GL_FUNC2(InstancedArrays, VertexAttribDivisor, void, GLuint, index,
                   GLuint, divisor)
+
+// InvalidateFramebuffer group.
+ION_WRAP_GL_FUNC3(InvalidateFramebuffer, InvalidateFramebuffer, void, GLenum,
+                  target, GLsizei, numAttachments, const GLenum*, attachments)
+ION_WRAP_GL_FUNC7(InvalidateFramebuffer, InvalidateSubFramebuffer, void, GLenum,
+                  target, GLsizei, numAttachments, const GLenum*, attachments,
+                  GLint, x, GLint, y, GLsizei, width, GLsizei, height)
 
 // MapBuffer group.
 ION_WRAP_GL_FUNC2(MapBuffer, MapBuffer, void*, GLenum, target, GLenum, access)
@@ -558,23 +583,35 @@ ION_WRAP_GL_FUNC3(MapBufferBase, GetBufferPointerv, void, GLenum, target,
 ION_WRAP_GL_FUNC1(MapBufferBase, UnmapBuffer, void, GLenum, target)
 
 // MapBufferRange group.
-ION_WRAP_GL_FUNC3(MapBufferRange, FlushMappedBufferRange, GLsync, GLenum,
+ION_WRAP_GL_FUNC3(MapBufferRange, FlushMappedBufferRange, void, GLenum,
                   target, GLintptr, offset, GLsizeiptr, length)
 ION_WRAP_GL_FUNC4(MapBufferRange, MapBufferRange, void*, GLenum, target,
                   GLintptr, offset, GLsizeiptr, length, GLmapaccess, access)
-
-// CopyBufferSubData group.
-ION_WRAP_GL_FUNC5(CopyBufferSubData, CopyBufferSubData,
-                  void, GLenum, read_target, GLenum, write_target,
-                  GLintptr, read_offset, GLintptr, write_offset,
-                  GLsizeiptr, size)
-
 // MultisampleFramebufferResolve group.
 ION_WRAP_GL_FUNC0(
     MultisampleFramebufferResolve, ResolveMultisampleFramebuffer, void)
 
+// Multiview group.
+ION_WRAP_GL_FUNC6(Multiview, FramebufferTextureMultiviewOVR, void, GLenum,
+                  target, GLenum, attachment, GLuint, texture, GLint, level,
+                  GLint, baseViewIndex, GLsizei, numViews)
+
+// MultiviewMultisample group.
+ION_WRAP_GL_FUNC7(MultiviewImplicitMultisample,
+                  FramebufferTextureMultisampleMultiviewOVR, void, GLenum,
+                  target, GLenum, attachment, GLuint, texture, GLint, level,
+                  GLsizei, samples, GLint, baseViewIndex, GLsizei, numViews)
+
 // PointSize group.
 ION_WRAP_GL_FUNC1(PointSize, PointSize, void, GLfloat, size)
+
+// ReadBuffer group.
+ION_WRAP_GL_FUNC1(ReadBuffer, ReadBuffer, void, GLenum, buffer)
+
+// RenderbufferMultisample group.
+ION_WRAP_GL_FUNC5(RenderbufferMultisample, RenderbufferStorageMultisample, void,
+                  GLenum, target, GLsizei, samples, GLenum, internal_format,
+                  GLsizei, width, GLsizei, height)
 
 // SamplerObjects group.
 ION_WRAP_GL_FUNC2(SamplerObjects, BindSampler, void, GLuint, unit, GLuint,
@@ -596,6 +633,9 @@ ION_WRAP_GL_FUNC3(SamplerObjects, SamplerParameteri, void, GLuint, sampler,
                   GLenum, pname, GLtextureenum, param)
 ION_WRAP_GL_FUNC3(SamplerObjects, SamplerParameteriv, void, GLuint, sampler,
                   GLenum, pname, const GLint*, params)
+
+// SampleShading group.
+ION_WRAP_GL_FUNC1(SampleShading, MinSampleShading, void, GLfloat, value)
 
 // Sync objects group.
 ION_WRAP_GL_FUNC3(Sync, ClientWaitSync, GLenum, GLsync, sync, GLbitfield, flags,
@@ -629,6 +669,9 @@ ION_WRAP_GL_FUNC11(Texture3d, TexSubImage3D, void, GLenum, target, GLint, level,
                    width, GLsizei, height, GLsizei, depth, GLenum, format,
                    GLenum, type, const GLvoid*, data)
 
+// TextureBarrier group.
+ION_WRAP_GL_FUNC0(TextureBarrier, TextureBarrier, void)
+
 // TextureMultisample group.
 ION_WRAP_GL_FUNC6(TextureMultisample, TexImage2DMultisample, void, GLenum,
                   target, GLsizei, samples, GLenum, internal_format, GLsizei,
@@ -660,6 +703,28 @@ ION_WRAP_GL_FUNC7(TextureStorageMultisample, TexStorage3DMultisample, void,
                   GLsizei, width, GLsizei, height, GLsizei, depth, GLboolean,
                   fixed_sample_locations)
 
+// TiledRendering group.
+ION_WRAP_GL_FUNC5(TiledRendering, StartTilingQCOM, void, GLuint, x, GLuint, y,
+                  GLuint, width, GLuint, height, GLbitfield, preserveMask)
+ION_WRAP_GL_FUNC1(TiledRendering, EndTilingQCOM, void, GLbitfield, preserveMask)
+
+// FramebufferFoveated group.
+// https://www.khronos.org/registry/OpenGL/extensions/QCOM/QCOM_framebuffer_foveated.txt
+ION_WRAP_GL_FUNC5(FramebufferFoveated, FramebufferFoveationConfigQCOM, void,
+                  GLuint, fbo, GLuint, numLayers, GLuint, focalPointsPerLayer,
+                  GLuint, requestedFeatures, GLuint*, providedFeatures)
+ION_WRAP_GL_FUNC8(FramebufferFoveated, FramebufferFoveationParametersQCOM, void,
+                  GLuint, fbo, GLuint, layer, GLuint, focalPoint, GLfloat,
+                  focalX, GLfloat, focalY, GLfloat, gainX, GLfloat, gainY,
+                  GLfloat, foveaArea)
+
+// TextureFoveated group.
+// https://www.khronos.org/registry/OpenGL/extensions/QCOM/QCOM_texture_foveated.txt
+ION_WRAP_GL_FUNC8(TextureFoveated, TextureFoveationParametersQCOM, void,
+                  GLuint, texture, GLuint, layer, GLuint, focalPoint, GLfloat,
+                  focalX, GLfloat, focalY, GLfloat, gainX, GLfloat, gainY,
+                  GLfloat, foveaArea)
+
 // TransformFeedback group.
 ION_WRAP_GL_FUNC1(TransformFeedback, BeginTransformFeedback, void, GLenum,
                   primitive_mode)
@@ -689,8 +754,20 @@ ION_WRAP_GL_FUNC2(VertexArrays, GenVertexArrays, void, GLsizei, n, GLuint*,
                   arrays)
 ION_WRAP_GL_FUNC1(VertexArrays, IsVertexArray, GLboolean, GLuint, array)
 
-// Raw group.  These functions only have basic Ion support.
+// Raw group.  The functions here belong to two categories:
+// a) They have GraphicsManager loading support and may have FakeGlContext
+//    support, but are not used anywhere else in Ion.
+// b) They part of more than one feature. (For example, multiple extensions
+//    define the function GetIntegeri_v, and it is present when any of those are
+//    present.)
+ION_WRAP_GL_FUNC7(Raw, BindImageTexture, void, GLuint, unit, GLuint, texture,
+                  GLint, level, GLboolean, layered, GLint, layer,
+                  GLenum, access, GLenum, format)
 ION_WRAP_GL_FUNC2(Raw, GetInteger64v, void, GLenum, pname, GLint64*, params)
+ION_WRAP_GL_FUNC3(Raw, GetInteger64i_v, void, GLenum, pname, GLuint, index,
+                       GLint64*, params)
+ION_WRAP_GL_FUNC3(Raw, GetIntegeri_v, void, GLenum, pname, GLuint, index,
+                       GLint*, params)
 ION_WRAP_GL_FUNC3(Raw, TexBuffer, void, GLintenum, target, GLenum,
                   internal_format, GLint, buffer)
 // Raw group.  Timer queries.
@@ -710,6 +787,25 @@ ION_WRAP_GL_FUNC3(Raw, GetQueryObjectuiv, void, GLuint, id, GLenum, pname,
                   GLuint*, params)
 ION_WRAP_GL_FUNC1(Raw, IsQuery, GLboolean, GLuint, id)
 ION_WRAP_GL_FUNC2(Raw, QueryCounter, void, GLuint, id, GLenum, target)
+// Memory barriers.
+#if defined(MemoryBarrier)
+// NOTE: winnt.h defines a MemoryBarrier macro that interferes with
+// properly loading glMemoryBarrier. We can't undef it, but we can
+// use the push/pop macro pragma, which is non-standard but supported
+// by all three of GCC, MSVC and Clang.
+#pragma push_macro("MemoryBarrier")
+#undef MemoryBarrier
+ION_WRAP_GL_FUNC1(Raw, MemoryBarrier, void, GLbitfield, barriers)
+#pragma pop_macro("MemoryBarrier")
+#else
+ION_WRAP_GL_FUNC1(Raw, MemoryBarrier, void, GLbitfield, barriers)
+#endif  // defined(MemoryBarrier)
+
+// Tessellation group.
+ION_WRAP_GL_FUNC2(TessellationShader, PatchParameteri, void, GLenum, pname,
+                  GLint, value)
+ION_WRAP_GL_FUNC2(TessellationShader, PatchParameterfv, void, GLenum, pname,
+                  GLfloat*, values)
 
 #undef ION_TRACE_ARG
 #undef ION_WRAP_GL_FUNC
@@ -727,7 +823,7 @@ ION_WRAP_GL_FUNC2(Raw, QueryCounter, void, GLuint, id, GLenum, target)
 #undef ION_WRAP_GL_FUNC11
 #undef ION_WRAP_GL_FUNC12
 
-#endif  // ION_GFX_GLFUNCTIONS_H_
+#endif  // ION_GFX_GLFUNCTIONS_INC_
 
 // Allow this file to be included again.
-#undef ION_GFX_GLFUNCTIONS_H_
+#undef ION_GFX_GLFUNCTIONS_INC_

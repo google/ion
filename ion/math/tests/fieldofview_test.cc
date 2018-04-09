@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ limitations under the License.
 
 #include "ion/math/fieldofview.h"
 #include "ion/math/matrixutils.h"
+#include "ion/math/tests/testutils.h"
 
 #include "third_party/googletest/googletest/include/gtest/gtest.h"
 
@@ -117,10 +118,14 @@ TEST_F(FieldOfViewTest, OperatorEqualAndNotEqual) {
     EXPECT_TRUE(fov1 == fov2);
     EXPECT_FALSE(fov1 != fov2);
     fov2.SetRight(Angled::FromRadians(1.0));
+    EXPECT_TRUE(fov1 == fov1);
+    EXPECT_TRUE(fov2 == fov2);
     EXPECT_TRUE(fov1 != fov2);
     EXPECT_FALSE(fov1 == fov2);
   }
   {
+    using ion::math::testing::IsAlmostEqual;
+    using ::testing::Not;
     const FieldOfViewf fov1(
         Anglef::FromDegrees(10.0f), Anglef::FromDegrees(20.0f),
         Anglef::FromDegrees(30.0f), Anglef::FromDegrees(40.0f));
@@ -128,9 +133,17 @@ TEST_F(FieldOfViewTest, OperatorEqualAndNotEqual) {
                       Anglef::FromDegrees(30.0f), Anglef::FromDegrees(40.0f));
     EXPECT_TRUE(fov1 == fov2);
     EXPECT_FALSE(fov1 != fov2);
+    EXPECT_THAT(fov1, IsAlmostEqual(fov2, Anglef()));
+    EXPECT_THAT(fov1, IsAlmostEqual(fov2, Anglef()));
     fov2.SetRight(Anglef::FromRadians(1.0f));
     EXPECT_TRUE(fov1 != fov2);
     EXPECT_FALSE(fov1 == fov2);
+    EXPECT_THAT(fov1, Not(IsAlmostEqual(fov2, Anglef())));
+    fov2.SetRight(Anglef::FromDegrees(21.f));
+    EXPECT_THAT(fov1, IsAlmostEqual(fov2, Anglef::FromDegrees(1.5f)));
+    EXPECT_THAT(fov1, IsAlmostEqual(fov2, Anglef::FromRadians(0.02f)));
+    EXPECT_THAT(fov1, Not(IsAlmostEqual(fov2, Anglef::FromDegrees(0.5f))));
+    EXPECT_THAT(fov1, Not(IsAlmostEqual(fov2, Anglef::FromRadians(0.015f))));
   }
 }
 
@@ -141,14 +154,23 @@ TEST_F(FieldOfViewTest, FromTangents) {
   const Anglef kBottom = Anglef::FromDegrees(30.0f);
   const Anglef kTop = Anglef::FromDegrees(40.0f);
   const FieldOfViewf test_fov = FieldOfViewf::FromTangents(
-      std::tan(kLeft.Radians()),
+      std::tan(-kLeft.Radians()),
       std::tan(kRight.Radians()),
-      std::tan(kBottom.Radians()),
+      std::tan(-kBottom.Radians()),
       std::tan(kTop.Radians()));
+  const FieldOfViewf test_fov2 = FieldOfViewf::FromTangents(
+      Range2f(Point2f(std::tan(-kLeft.Radians()), std::tan(-kBottom.Radians())),
+              Point2f(std::tan(kRight.Radians()), std::tan(kTop.Radians()))));
+  EXPECT_EQ(test_fov, test_fov2);
   EXPECT_NEAR(kLeft.Degrees(), test_fov.GetLeft().Degrees(), kTol);
   EXPECT_NEAR(kRight.Degrees(), test_fov.GetRight().Degrees(), kTol);
   EXPECT_NEAR(kBottom.Degrees(), test_fov.GetBottom().Degrees(), kTol);
   EXPECT_NEAR(kTop.Degrees(), test_fov.GetTop().Degrees(), kTol);
+  const Range2f tangents = test_fov.GetTangents();
+  EXPECT_NEAR(std::tan(-kLeft.Radians()), tangents.GetMinPoint()[0], kTol);
+  EXPECT_NEAR(std::tan(-kBottom.Radians()), tangents.GetMinPoint()[1], kTol);
+  EXPECT_NEAR(std::tan(kRight.Radians()), tangents.GetMaxPoint()[0], kTol);
+  EXPECT_NEAR(std::tan(kTop.Radians()), tangents.GetMaxPoint()[1], kTol);
 }
 
 TEST_F(FieldOfViewTest, FromProjectionMatrix) {
@@ -170,6 +192,54 @@ TEST_F(FieldOfViewTest, FromProjectionMatrix) {
   EXPECT_NEAR(kRight.Degrees(), test_fov.GetRight().Degrees(), kTol);
   EXPECT_NEAR(kBottom.Degrees(), test_fov.GetBottom().Degrees(), kTol);
   EXPECT_NEAR(kTop.Degrees(), test_fov.GetTop().Degrees(), kTol);
+}
+
+TEST_F(FieldOfViewTest, FromInfiniteFarProjectionMatrix) {
+  // Ensure that we are able to correctly reconstruct a FieldOfView from an
+  // infinite projection matrix.
+  const float kTol = 1e-5f;
+  const Anglef kLeft = Anglef::FromDegrees(10.0f);
+  const Anglef kRight = Anglef::FromDegrees(20.0f);
+  const Anglef kBottom = Anglef::FromDegrees(30.0f);
+  const Anglef kTop = Anglef::FromDegrees(40.0f);
+  const FieldOfView<float> fov(kLeft, kRight, kBottom, kTop);
+
+  const float kNear = 0.01f;
+  const float kFarEpsilon = 0.0f;
+  const Matrix4f proj_mat = fov.GetInfiniteFarProjectionMatrix(kNear,
+                                                               kFarEpsilon);
+  const FieldOfView<float> test_fov =
+      FieldOfView<float>::FromProjectionMatrix(proj_mat);
+  EXPECT_NEAR(kLeft.Degrees(), test_fov.GetLeft().Degrees(), kTol);
+  EXPECT_NEAR(kRight.Degrees(), test_fov.GetRight().Degrees(), kTol);
+  EXPECT_NEAR(kBottom.Degrees(), test_fov.GetBottom().Degrees(), kTol);
+  EXPECT_NEAR(kTop.Degrees(), test_fov.GetTop().Degrees(), kTol);
+}
+
+// Sanity test for shorthands.
+TEST_F(FieldOfViewTest, FromDegreesAndRadians) {
+  const float kTol = 1e-5f;
+  const Anglef kLeftDegrees = Anglef::FromDegrees(10.0f);
+  const Anglef kRightDegrees = Anglef::FromDegrees(20.0f);
+  const Anglef kBottomDegrees = Anglef::FromDegrees(30.0f);
+  const Anglef kTopDegrees = Anglef::FromDegrees(40.0f);
+  const FieldOfViewf test_fov_d = FieldOfViewf::FromDegrees(
+      10.f, 20.f, 30.f, 40.f);
+  EXPECT_NEAR(kLeftDegrees.Degrees(), test_fov_d.GetLeft().Degrees(), kTol);
+  EXPECT_NEAR(kRightDegrees.Degrees(), test_fov_d.GetRight().Degrees(), kTol);
+  EXPECT_NEAR(kBottomDegrees.Degrees(), test_fov_d.GetBottom().Degrees(), kTol);
+  EXPECT_NEAR(kTopDegrees.Degrees(), test_fov_d.GetTop().Degrees(), kTol);
+
+  const Anglef kLeftRadians = Anglef::FromRadians(0.2f);
+  const Anglef kRightRadians = Anglef::FromRadians(0.3f);
+  const Anglef kBottomRadians = Anglef::FromRadians(0.4f);
+  const Anglef kTopRadians = Anglef::FromRadians(0.5f);
+  const FieldOfViewf test_fov_r = FieldOfViewf::FromRadians(
+      0.2f, 0.3f, 0.4f, 0.5f);
+  EXPECT_NEAR(kLeftRadians.Radians(), test_fov_r.GetLeft().Radians(), kTol);
+  EXPECT_NEAR(kRightRadians.Radians(), test_fov_r.GetRight().Radians(), kTol);
+  EXPECT_NEAR(kBottomRadians.Radians(), test_fov_r.GetBottom().Radians(), kTol);
+  EXPECT_NEAR(kTopRadians.Radians(), test_fov_r.GetTop().Radians(), kTol);
 }
 
 TEST_F(FieldOfViewTest, FromToTotalFovAndOpticalCenter) {

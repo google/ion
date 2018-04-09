@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ limitations under the License.
 // should be enabled on the platform.
 #if !defined(ION_ALIGNMENT_ENABLED)
 #  if defined(ION_PLATFORM_WINDOWS) || defined(ION_PLATFORM_ANDROID) || \
-      defined(ION_PLATFORM_GENERIC_ARM)
+      defined(ION_GOOGLE_INTERNAL)
 // Alignment is turned off by default on Windows because the compiler has
 // problems with copying data structures containing aligned elements. Many
 // Android devices (e.g., 2012 Nexus 7) do not properly support alignment.

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ limitations under the License.
 
 #include "base/integral_types.h"
 #include "ion/base/logging.h"
+#include "absl/memory/memory.h"
 
 namespace ion {
 namespace text {
@@ -41,9 +42,8 @@ class BinPacker::Skyline {
   typedef BinPacker::Rectangle Rectangle;
 
   explicit Skyline(const Vector2ui& bin_size);
-  explicit Skyline(const Skyline& from)  // Copy constructor.
-      : bin_size_(from.bin_size_),
-        levels_(from.levels_) {}
+  Skyline(const Skyline& from)  // Copy constructor.
+      : bin_size_(from.bin_size_), levels_(from.levels_) {}
 
   const Vector2ui& GetBinSize() const { return bin_size_; }
 
@@ -69,7 +69,7 @@ class BinPacker::Skyline {
   bool FindLevel(Rectangle* rect, size_t* level_index) const;
 
   // Adds a level to the skyline starting at the given index.
-  // TODO(user): Do a better job figuring out what all this code does and
+  // 
   // improve comments here and within functions.
   void AddLevel(size_t index, const Rectangle& rect);
 
@@ -202,15 +202,14 @@ BinPacker::~BinPacker() {}
 
 BinPacker& BinPacker::operator=(const BinPacker& from) {
   rectangles_ = from.rectangles_;
-  if (from.skyline_.get())
-    skyline_.reset(new Skyline(*from.skyline_));
+  if (from.skyline_) skyline_ = absl::make_unique<Skyline>(*from.skyline_);
   num_rectangles_packed_ = from.num_rectangles_packed_;
   return *this;
 }
 
 bool BinPacker::Pack(const Vector2ui& bin_size) {
-  if (!skyline_.get() || skyline_->GetBinSize() != bin_size) {
-    skyline_.reset(new Skyline(bin_size));
+  if (!skyline_ || skyline_->GetBinSize() != bin_size) {
+    skyline_ = absl::make_unique<Skyline>(bin_size);
     num_rectangles_packed_ = 0;
   }
 

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,7 +28,12 @@ limitations under the License.
 #  define API_DECL
 #endif
 
-#if defined(ION_PLATFORM_ASMJS) || defined(ION_PLATFORM_NACL)
+#if defined(ION_PLATFORM_ANDROID)
+#  include <android/log.h>
+#endif
+
+#if defined(ION_PLATFORM_ASMJS) || defined(ION_PLATFORM_NACL) || \
+    defined(__myriad2__)
 # define THREAD_NAMING_SUPPORTED 0
 #else
 # define THREAD_NAMING_SUPPORTED 1
@@ -38,58 +43,6 @@ namespace ion {
 namespace port {
 
 namespace {
-
-//-----------------------------------------------------------------------------
-//
-// Platform-independent helper functions.
-//
-//-----------------------------------------------------------------------------
-
-// Sets the ThreadId of the main thread and returns it.  This must be called
-// before any new thread is spawned. If id is kInvalidThreadId, this sets the
-// main thread ID to the current thread ID unless the main thread ID was
-// already set.
-static ThreadId InitMainThreadId(ThreadId id) {
-  static ThreadId main_thread_id = kInvalidThreadId;
-  if (id == kInvalidThreadId) {
-    if (main_thread_id == kInvalidThreadId)
-      main_thread_id = GetCurrentThreadId();
-  } else {
-    main_thread_id = id;
-  }
-  return main_thread_id;
-}
-
-// Thread callback functions return a DWORD on Windows and void* with pthreads.
-// Casting a Boolean success code to a void* requires a reinterpret_cast, but
-// that causes an error with DWORD on Windows. This specialized little adapter
-// function fixes this problem.
-template <typename ReturnType> static ReturnType CastSuccessCode(bool success) {
-  return static_cast<ReturnType>(success ? 0 : 1);
-}
-template <> void* CastSuccessCode(bool success) {
-  return reinterpret_cast<void*>(static_cast<size_t>(success ? 0 : 1));
-}
-
-// Spawns a new thread, invoking the function pointer passed via arg.
-template <typename ReturnType>
-static ReturnType API_DECL InvokeThreadFuncPtr(void* arg) {
-  ThreadFuncPtr func_ptr = reinterpret_cast<ThreadFuncPtr>(arg);
-
-  // The return value does not matter as long as it is zero when successful.
-  const bool success = (*func_ptr)();
-  return CastSuccessCode<ReturnType>(success);
-}
-
-// Spawns a new thread, invoking the std::function passed via arg.
-template <typename ReturnType>
-static ReturnType API_DECL InvokeThreadFuncStd(void* arg) {
-  ThreadStdFunc* func = reinterpret_cast<ThreadStdFunc*>(arg);
-
-  // The return value does not matter as long as it is zero when successful.
-  const bool success = (*func)();
-  return CastSuccessCode<ReturnType>(success);
-}
 
 //-----------------------------------------------------------------------------
 //
@@ -106,22 +59,6 @@ struct ThreadNameInfo {
   DWORD  thread_id;  // Thread ID, or -1 to indicate the calling thread.
   DWORD flags;       // Reserved for future use; must be zero.
 };
-
-// This is called by SpawnThread() to do the platform-specific part.
-static void CreateThread(const ThreadFuncPtr func_ptr, void* arg,
-                         ThreadId* id) {
-  if (!::CreateThread(NULL, 0, InvokeThreadFuncPtr<DWORD>, arg, 0, id))
-    std::cerr << "***ION error: Unable to create thread: " << GetLastError()
-              << "\n";
-}
-
-// This is called by SpawnThreadStd() to do the platform-specific part.
-static void CreateThreadStd(const ThreadStdFunc* func, void* arg,
-                            ThreadId* id) {
-  if (!::CreateThread(NULL, 0, InvokeThreadFuncStd<DWORD>, arg, 0, id))
-    std::cerr << "***ION error: Unable to create thread: " << GetLastError()
-              << "\n";
-}
 
 #endif
 
@@ -142,28 +79,21 @@ static bool CheckPthreadSuccess(const char* what, int result) {
     // Note that because this code is in port, we don't have access to
     // base::LogChecker, which means that there is no good way to trap error
     // messages in tests.
+
+#if defined(ION_PLATFORM_ANDROID)
+    // If 'result' is ENOMEM, writing to std::cerr would cause an exception,
+    // so this function calls __android_log_print instead to prevent a crash.
+    __android_log_print(ANDROID_LOG_ERROR, "Ion",
+                        "Pthread error %s returned %d: %s\n", what, result,
+                        strerror(result));
+#else
     std::cerr << "Pthread error: " << what << " returned "
               << result << ": " << strerror(result) << "\n";
+#endif
     return false;
 #endif  // COV_NF_END
   }
   return true;
-}
-
-// This is called by SpawnThread() to do the platform-specific part.
-static void CreateThread(const ThreadFuncPtr func_ptr, void* arg,
-                         ThreadId* id) {
-  CheckPthreadSuccess(
-      "Creating thread",
-      ::pthread_create(id, NULL, InvokeThreadFuncPtr<void*>, arg));
-}
-
-// This is called by SpawnThreadStd() to do the platform-specific part.
-static void CreateThreadStd(const ThreadStdFunc* func, void* arg,
-                            ThreadId* id) {
-  CheckPthreadSuccess(
-      "Creating thread",
-      ::pthread_create(id, NULL, InvokeThreadFuncStd<void*>, arg));
 }
 
 #endif
@@ -176,42 +106,8 @@ static void CreateThreadStd(const ThreadStdFunc* func, void* arg,
 //
 //-----------------------------------------------------------------------------
 
-ThreadId SpawnThread(const ThreadFuncPtr func_ptr) {
-  // A non-main thread may be created, so make sure the main thread ID is set.
-  // This will set it to the current thread unless it was already set.
-  InitMainThreadId(kInvalidThreadId);
-
-  ThreadId id = kInvalidThreadId;
-  if (func_ptr) {
-    void* arg = const_cast<void*>(reinterpret_cast<const void*>(func_ptr));
-    CreateThread(func_ptr, arg, &id);
-  }
-  return id;
-}
-
-ThreadId SpawnThreadStd(const ThreadStdFunc* func) {
-  // A non-main thread may be created, so make sure the main thread ID is set.
-  // This will set it to the current thread unless it was already set.
-  InitMainThreadId(kInvalidThreadId);
-
-  ThreadId id = kInvalidThreadId;
-  if (func && *func) {
-    void* arg = const_cast<void*>(reinterpret_cast<const void*>(func));
-    CreateThreadStd(func, arg, &id);
-  }
-  return id;
-}
-
 bool IsThreadNamingSupported() {
   return THREAD_NAMING_SUPPORTED;
-}
-
-bool IsMainThread() {
-  return GetCurrentThreadId() == InitMainThreadId(kInvalidThreadId);
-}
-
-void SetMainThreadId(ThreadId id) {
-  InitMainThreadId(id);
 }
 
 //-----------------------------------------------------------------------------
@@ -221,19 +117,6 @@ void SetMainThreadId(ThreadId id) {
 //-----------------------------------------------------------------------------
 #if defined(ION_PLATFORM_WINDOWS)
 
-bool JoinThread(ThreadId id) {
-  if (id != kInvalidThreadId) {
-    if (const HANDLE handle = ::OpenThread(THREAD_ALL_ACCESS, 0, id)) {
-      ::WaitForSingleObject(handle, INFINITE);
-      ::CloseHandle(handle);
-      return true;
-    }
-    std::cerr << "***ION error: Could not join thread with ID " << id
-              << ": error " << GetLastError() << "\n";
-  }
-  return false;
-}
-
 size_t GetMaxThreadNameLength() {
   return 0;
 }
@@ -241,7 +124,8 @@ size_t GetMaxThreadNameLength() {
 bool SetThreadName(const std::string& name) {
   bool success = false;
   // Search MSDN for "How to Set a Thread Name in Native Code" for the source
-  // of this ridiculous implementation.
+  // of these incantations. Basically, the officially blessed way to set the
+  // thread name is to raise a special SEH exception.
   ThreadNameInfo info;
   info.name = name.c_str();
   info.thread_id = GetCurrentThreadId();
@@ -255,14 +139,6 @@ bool SetThreadName(const std::string& name) {
               << info.thread_id << "\n";
   }
   return success;
-}
-
-void YieldThread() {
-  ::SwitchToThread();
-}
-
-ThreadId GetCurrentThreadId() {
-  return ::GetCurrentThreadId();
 }
 
 ThreadLocalStorageKey CreateThreadLocalStorageKey() {
@@ -286,7 +162,7 @@ bool SetThreadLocalStorage(ThreadLocalStorageKey key, void* ptr) {
 }
 
 void* GetThreadLocalStorage(ThreadLocalStorageKey key) {
-  return key == kInvalidThreadLocalStorageKey ? NULL : ::TlsGetValue(key);
+  return key == kInvalidThreadLocalStorageKey ? nullptr : ::TlsGetValue(key);
 }
 
 bool DeleteThreadLocalStorageKey(ThreadLocalStorageKey key) {
@@ -306,13 +182,6 @@ bool DeleteThreadLocalStorageKey(ThreadLocalStorageKey key) {
 //
 //-----------------------------------------------------------------------------
 #if !defined(ION_PLATFORM_WINDOWS)
-
-bool JoinThread(ThreadId id) {
-  if (id != kInvalidThreadId) {
-    return CheckPthreadSuccess("Joining thread", ::pthread_join(id, NULL));
-  }
-  return false;
-}
 
 size_t GetMaxThreadNameLength() {
 #if THREAD_NAMING_SUPPORTED
@@ -337,25 +206,17 @@ bool SetThreadName(const std::string& name) {
 #  else
   return CheckPthreadSuccess(
       "Naming thread",
-      ::pthread_setname_np(GetCurrentThreadId(), truncated_name.c_str()));
+      ::pthread_setname_np(::pthread_self(), truncated_name.c_str()));
 #  endif
 #else
   return false;
 #endif
 }
 
-void YieldThread() {
-  CheckPthreadSuccess("Yielding thread", sched_yield());
-}
-
-ThreadId GetCurrentThreadId() {
-  return ::pthread_self();
-}
-
 ThreadLocalStorageKey CreateThreadLocalStorageKey() {
   ThreadLocalStorageKey key = kInvalidThreadLocalStorageKey;
   CheckPthreadSuccess("Creating thread-local storage key",
-                      ::pthread_key_create(&key, NULL));
+                      ::pthread_key_create(&key, nullptr));
   return key;
 }
 
@@ -368,7 +229,7 @@ bool SetThreadLocalStorage(ThreadLocalStorageKey key, void* ptr) {
 }
 
 void* GetThreadLocalStorage(ThreadLocalStorageKey key) {
-  return key == kInvalidThreadLocalStorageKey ? NULL :
+  return key == kInvalidThreadLocalStorageKey ? nullptr :
       ::pthread_getspecific(key);
 }
 

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@ limitations under the License.
 */
 
 #include "ion/math/transformutils.h"
+
+#include <array>
 
 #include "ion/base/logchecker.h"
 #include "ion/math/matrix.h"
@@ -222,6 +224,34 @@ TEST(TransformUtils, RotationMatrixNH) {
                Point3d(1.0, 3.0, -2.0), m * Point3d(1.0, 2.0, 3.0));
 }
 
+TEST(TransformUtils, RangeMapping) {
+  const Range2f src = Range2f(Point2f(-1.f, -2.f), Point2f(3.f, 0.f));
+  const Range2f dest = Range2f(Point2f(0.f, 0.f), Point2f(8.f, 8.f));
+  const Matrix3f mapping = RangeMappingMatrixH(src, dest);
+
+  // Check endpoints.
+  EXPECT_PRED2((testing::PointsAlmostEqual<2, float>),
+               dest.GetMinPoint(), mapping * src.GetMinPoint());
+  EXPECT_PRED2((testing::PointsAlmostEqual<2, float>),
+               dest.GetMaxPoint(), mapping * src.GetMaxPoint());
+  // Check a point in the middle of the source range.
+  EXPECT_PRED2((testing::PointsAlmostEqual<2, float>),
+               dest.GetCenter(), mapping * src.GetCenter());
+  // Check reasonable behavior for empty and degenerate input ranges.
+  EXPECT_TRUE(src.ContainsPoint(
+      RangeMappingMatrixH(Range2f(), src) * Point2f(123.f, 234.f)));
+  EXPECT_TRUE(dest.ContainsPoint(
+      RangeMappingMatrixH(Range2f(), dest) * Point2f(-123.f, -4.f)));
+  EXPECT_PRED2((testing::PointsAlmostEqual<2, float>), Point2f(0.f, 4.f),
+      RangeMappingMatrixH(Range2f(Point2f(), Point2f(0.f, 16.f)), dest) *
+          Point2f(7.f, 8.f));
+  // Check points at some arbitrary place.
+  const Vector2f test_point(0.125f, 0.675f);
+  EXPECT_PRED2((testing::PointsAlmostEqual<2, float>),
+               dest.GetMinPoint() + test_point * dest.GetSize(),
+               mapping * (src.GetMinPoint() + test_point * src.GetSize()));
+}
+
 TEST(TransformUtils, Composition) {
   // Verify that transformation matrices compose as expected.
   const Matrix4d s = ScaleMatrixH(Vector3d(4.0, 5.0, 6.0));
@@ -281,29 +311,29 @@ TEST(TransformUtils, LookAtMatrix) {
   EXPECT_PRED2((testing::MatricesAlmostEqual<4, double>),
                lookat, LookAtMatrixFromDir(eye, center - eye, up));
 
-#if ION_DEBUG
+#if !ION_PRODUCTION
   // Error cases for LookAtMatrixFromCenter and LookAtMatrixFromDir.
-  base::SetBreakHandler(kNullFunction);
-  base::LogChecker log_checker;
-
   // Pass in a zero direction vector.
-  LookAtMatrixFromCenter(eye, eye, up);
-  EXPECT_TRUE(log_checker.HasMessage("DFATAL", "zero length or are parallel"));
-  LookAtMatrixFromDir(eye, Vector3d::Zero(), up);
-  EXPECT_TRUE(log_checker.HasMessage("DFATAL", "zero length or are parallel"));
+  EXPECT_DEATH_IF_SUPPORTED(LookAtMatrixFromCenter(eye, eye, up),
+                            "zero length or are parallel");
+  EXPECT_DEATH_IF_SUPPORTED(LookAtMatrixFromDir(eye, Vector3d::Zero(), up),
+                            "zero length or are parallel");
 
   // Pass in a zero up vector.
-  LookAtMatrixFromCenter(eye, center, Vector3d::Zero());
-  EXPECT_TRUE(log_checker.HasMessage("DFATAL", "zero length or are parallel"));
-  LookAtMatrixFromDir(eye, center - eye, Vector3d::Zero());
-  EXPECT_TRUE(log_checker.HasMessage("DFATAL", "zero length or are parallel"));
+  EXPECT_DEATH_IF_SUPPORTED(
+      LookAtMatrixFromCenter(eye, center, Vector3d::Zero()),
+      "zero length or are parallel");
+  EXPECT_DEATH_IF_SUPPORTED(
+      LookAtMatrixFromDir(eye, center - eye, Vector3d::Zero()),
+      "zero length or are parallel");
 
   // Pass in a parallel up and direction vectors.
-  LookAtMatrixFromCenter(eye, center, 42.0f * (center - eye));
-  EXPECT_TRUE(log_checker.HasMessage("DFATAL", "zero length or are parallel"));
-  LookAtMatrixFromDir(eye, center - eye, 42.0f * (center - eye));
-  EXPECT_TRUE(log_checker.HasMessage("DFATAL", "zero length or are parallel"));
-  base::RestoreDefaultBreakHandler();
+  EXPECT_DEATH_IF_SUPPORTED(
+      LookAtMatrixFromCenter(eye, center, 42.0f * (center - eye)),
+      "zero length or are parallel");
+  EXPECT_DEATH_IF_SUPPORTED(
+      LookAtMatrixFromDir(eye, center - eye, 42.0f * (center - eye)),
+      "zero length or are parallel");
 #endif
 }
 
@@ -393,6 +423,34 @@ TEST(TransformUtils, PerspectiveMatrixFromView) {
   TestPerspectiveMatrixFromView<float>();
 }
 
+TEST(TransformUtils, InfiniteFarClip) {
+  const double z_near = 0.3;
+  const double z_far_epsilon = 0.0f;
+
+  const Matrix4d infinite_far_clip = PerspectiveMatrixFromInfiniteFrustum(
+      -z_near, z_near, -z_near, z_near, z_near, z_far_epsilon);
+
+  const double z_far = std::numeric_limits<float>::max();
+  struct TestCase { Point3d world; Point3d clip; };
+  const std::array<TestCase, 5> test_cases{{
+      {{0.0, 0.0, -z_near}, {0.0, 0.0, -1.0}},       // Center near.
+      {{0.0, 0.0, -z_far}, {0.0, 0.0, 1.0}},         // Center far.
+      {{-z_near, 0.0, -z_near}, {-1.0, 0.0, -1.0}},  // Left near.
+      {{-z_far, 0.0, -z_far}, {-1.0, 0.0, 1.0}},     // Left far.
+      {{z_far, z_far, -z_far}, {1.0, 1.0, 1.0}}      // Top-right far.
+  }};
+
+  for (const TestCase& test_case : test_cases) {
+    const Point3d projected_clip =
+        ProjectPoint(infinite_far_clip, test_case.world);
+    EXPECT_EQ(projected_clip, test_case.clip);
+  }
+
+  EXPECT_PRED2((testing::MatricesAlmostEqual<4, double>),
+               Inverse(infinite_far_clip),
+               PerspectiveMatrixInverse(infinite_far_clip));
+}
+
 TEST(TransformUtils, PerspectiveMatrixInverse) {
   const double x_left = 1.0;
   const double x_right = 11.0;
@@ -405,6 +463,115 @@ TEST(TransformUtils, PerspectiveMatrixInverse) {
   EXPECT_PRED2((testing::MatricesAlmostEqual<4, double>),
                Inverse(matrix),
                PerspectiveMatrixInverse(matrix));
+}
+
+TEST(TransformUtils, GetTranslationVector) {
+  Vector<3, float> translation_a(1.0f, 2.0f, 3.0f);
+  Vector<3, float> translation_b(4.0f, 5.0f, 6.0f);
+  Matrix<4, float> matrix_a = TranslationMatrix(translation_a);
+  Matrix<4, float> matrix_b = TranslationMatrix(translation_b);
+  Vector<3, float> translation_expect = translation_a + translation_b;
+
+  EXPECT_EQ(translation_a, GetTranslationVector(matrix_a));
+  EXPECT_EQ(translation_expect, GetTranslationVector(matrix_a * matrix_b));
+}
+
+TEST(TransformUtils, GetScaleVector) {
+  Vector<3, float> scale_a(1.0f, 2.0f, 3.0f);
+  Vector<3, float> scale_b(4.0f, 5.0f, 6.0f);
+  Matrix<4, float> matrix_a = ScaleMatrixH(scale_a);
+  Matrix<4, float> matrix_b = ScaleMatrixH(scale_b);
+
+  EXPECT_EQ(scale_a, GetScaleVector(matrix_a));
+
+  Vector<3, float> scale_expect;
+  for (int i = 0; i < 3; ++i) {
+    scale_expect[i] = scale_a[i] * scale_b[i];
+  }
+  EXPECT_EQ(scale_expect, GetScaleVector(matrix_a * matrix_b));
+}
+
+TEST(TransformUtils, GetRotationMatrix) {
+  Vector<3, float> axis(1.0f, 0.0f, 0.0f);
+  Angle<float> angle_a = Angle<float>::FromDegrees(10.0f);
+  Angle<float> angle_b = Angle<float>::FromDegrees(20.0f);
+  Angle<float> angle_result = angle_a + angle_b;
+  Rotation<float> rotation_a = Rotation<float>::FromAxisAndAngle(axis, angle_a);
+  Rotation<float> rotation_b = Rotation<float>::FromAxisAndAngle(axis, angle_b);
+  Rotation<float> rotation_expect =
+      Rotation<float>::FromAxisAndAngle(axis, angle_result);
+  Matrix<4, float> matrix_a = RotationMatrixH(rotation_a);
+  Matrix<4, float> matrix_b = RotationMatrixH(rotation_b);
+
+  EXPECT_EQ(rotation_a,
+            Rotation<float>::FromRotationMatrix(GetRotationMatrix(matrix_a)));
+
+  Rotation<float> rotation_actual = Rotation<float>::FromRotationMatrix(
+      GetRotationMatrix(matrix_a * matrix_b));
+  Vector<3, float> axis_expect;
+  Vector<3, float> axis_actual;
+  Angle<float> angle_expect;
+  Angle<float> angle_actual;
+  rotation_expect.GetAxisAndAngle(&axis_expect, &angle_expect);
+  rotation_actual.GetAxisAndAngle(&axis_actual, &angle_actual);
+  EXPECT_TRUE(VectorsAlmostEqual(axis_expect, axis_actual, 1e-4f));
+  EXPECT_NEAR(angle_expect.Degrees(), angle_actual.Degrees(), 1e-4f);
+}
+
+TEST(TransformUtils, GetAllMatrixComponents) {
+  float epsilon = 1e-4f;
+  Vector<3, float> translation_default = Vector<3, float>(1.0f, 2.0f, 3.0f);
+  Vector<3, float> scale_default = Vector<3, float>(4.0f, 5.0f, 6.0f);
+  Rotation<float> rotation_default = Rotation<float>::FromAxisAndAngle(
+      Vector<3, float>(7.0f, 8.0f, 9.0f), Angle<float>::FromDegrees(10.0f));
+  Matrix<4, float> matrix_default = TranslationMatrix(translation_default) *
+                                    RotationMatrixH(rotation_default) *
+                                    ScaleMatrixH(scale_default);
+
+  // Check Translation component.
+  EXPECT_EQ(translation_default, GetTranslationVector(matrix_default));
+
+  // Check Scale component.
+  for (int i = 0; i < 3; ++i) {
+    EXPECT_NEAR(scale_default[i], GetScaleVector(matrix_default)[i], epsilon);
+  }
+
+  // Check Rotation component.
+  Rotation<float> rotation_expect = rotation_default;
+  Rotation<float> rotation_actual =
+      Rotation<float>::FromRotationMatrix(GetRotationMatrix(matrix_default));
+  Vector<3, float> axis_expect;
+  Vector<3, float> axis_actual;
+  Angle<float> angle_expect;
+  Angle<float> angle_actual;
+  rotation_expect.GetAxisAndAngle(&axis_expect, &angle_expect);
+  rotation_actual.GetAxisAndAngle(&axis_actual, &angle_actual);
+  EXPECT_TRUE(VectorsAlmostEqual(axis_expect, axis_actual, epsilon));
+  EXPECT_NEAR(angle_expect.Degrees(), angle_actual.Degrees(), epsilon);
+}
+
+TEST(TransformUtils, Interpolation) {
+  Vector<3, float> translation_from(1.0f, 2.0f, 3.0f);
+  Vector<3, float> translation_to(10.0f, 20.0f, 30.0f);
+  Matrix<4, float> matrix_from = TranslationMatrix(translation_from);
+  Matrix<4, float> matrix_to = TranslationMatrix(translation_to);
+
+  EXPECT_EQ(matrix_from, Interpolate(matrix_from, matrix_to, 0.0f));
+  EXPECT_EQ(matrix_to, Interpolate(matrix_from, matrix_to, 1.0f));
+
+  float rate = 0.5f;
+  Matrix<4, float> matrix_actual = matrix_from;
+  for (int i = 1; i <= 10; ++i) {
+    // Every step, we translate the translation at (1 - rate^step). This means
+    // it will progress from "from" to "to". This mirrors Lerp for translation.
+    // The equation is: result = (end - start) * (1 - rate^step) + start.
+    Vector<3, float> translation =
+        (translation_to - translation_from) *
+            (1.0f - std::pow(rate, static_cast<float>(i))) +
+        translation_from;
+    matrix_actual = Interpolate(matrix_actual, matrix_to, rate);
+    EXPECT_EQ(TranslationMatrix(translation), matrix_actual);
+  }
 }
 
 }  // namespace math

@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -57,7 +57,7 @@ TEST(ShapeTest, SetAttributeArray) {
   AttributeArrayPtr ptr(new AttributeArray());
 
   // Check that it is possible to set a AttributeArray.
-  EXPECT_EQ(NULL, shape->GetAttributeArray().Get());
+  EXPECT_EQ(nullptr, shape->GetAttributeArray().Get());
   shape->SetAttributeArray(ptr);
   EXPECT_EQ(ptr.Get(), shape->GetAttributeArray().Get());
 }
@@ -67,7 +67,7 @@ TEST(ShapeTest, SetIndexBuffer) {
   IndexBufferPtr ptr(new IndexBuffer());
 
   // Check that it is possible to set a IndexBuffer.
-  EXPECT_EQ(NULL, shape->GetIndexBuffer().Get());
+  EXPECT_EQ(nullptr, shape->GetIndexBuffer().Get());
   shape->SetIndexBuffer(ptr);
   EXPECT_EQ(ptr.Get(), shape->GetIndexBuffer().Get());
 }
@@ -184,6 +184,33 @@ TEST(ShapeTest, AddSetAndEnableVertexRanges) {
   EXPECT_EQ(0U, shape->GetVertexRangeCount());
   EXPECT_EQ(math::Range1i(), shape->GetVertexRange(0));
   EXPECT_TRUE(log_checker.HasMessage("WARNING", "Out of bounds index"));
+}
+
+TEST(ShapeTest, CopyConstructor) {
+  ShapePtr nshape;
+  AttributeArrayPtr aptr(new AttributeArray());
+  IndexBufferPtr iptr(new IndexBuffer());
+  math::Range1i r0(0, 10);
+  {
+    ShapePtr oshape(new Shape);
+    // Scope the original shape's lifetime so that we don't accidentally refer
+    // to it when verifying the cloned data in the new shape.
+    oshape->SetLabel("myLabel");
+    oshape->SetPrimitiveType(Shape::kLines);
+    oshape->SetAttributeArray(aptr);
+    oshape->SetIndexBuffer(iptr);
+    oshape->SetInstanceCount(33);
+    oshape->AddVertexRange(r0);
+    oshape->SetVertexRangeInstanceCount(0, 1);
+    nshape.Reset(new Shape(*oshape));
+  }
+  EXPECT_EQ("myLabel", nshape->GetLabel());
+  EXPECT_EQ(Shape::kLines, nshape->GetPrimitiveType());
+  EXPECT_EQ(aptr.Get(), nshape->GetAttributeArray().Get());
+  EXPECT_EQ(iptr.Get(), nshape->GetIndexBuffer().Get());
+  EXPECT_EQ(33, nshape->GetInstanceCount());
+  EXPECT_EQ(r0, nshape->GetVertexRange(0));
+  EXPECT_EQ(1, nshape->GetVertexRangeInstanceCount(0));
 }
 
 }  // namespace gfx

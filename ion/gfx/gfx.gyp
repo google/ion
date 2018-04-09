@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@
         'statetable.h',
       ],
       'conditions': [
-        ['OS == "windows"', {
+        ['OS == "win"', {
           'all_dependent_settings': {
             'defines': [
               'ION_APIENTRY=APIENTRY',
@@ -59,9 +59,10 @@
       'sources' : [
         'tracinghelper.cc',
         'tracinghelper.h',
+        'tracinghelperenums.cc',
       ],
       'conditions': [
-        ['OS == "windows"', {
+        ['OS == "win"', {
           'all_dependent_settings': {
             'defines': [
               'ION_APIENTRY=APIENTRY',
@@ -84,14 +85,18 @@
       'target_name' : 'graphicsmanager',
       'type': 'static_library',
       'sources' : [
+        'glconstants.inc',
         'glfunctions.inc',
+        'glfunctiontypes.h',
         'graphicsmanager.cc',
         'graphicsmanager.h',
         'graphicsmanagermacrodefs.h',
         'graphicsmanagermacroundefs.h',
+        'tracingstream.cc',
+        'tracingstream.h',
       ],
       'conditions': [
-        ['OS == "windows"', {
+        ['OS == "win"', {
           'all_dependent_settings': {
             'defines': [
               'ION_APIENTRY=APIENTRY',
@@ -104,15 +109,10 @@
             ],
           },
         }],
+        ['ion_analytics_enabled', {
+          'dependencies': ['<(ion_dir)/profile/profile.gyp:ionprofile'],
+        }],
       ],
-      'cflags_cc': [
-        '-Wno-unused-local-typedefs',
-      ],
-      'all_dependent_settings': {
-        'cflags_cc': [
-          '-Wno-unused-local-typedefs',
-        ],
-      },
       'dependencies': [
         ':statetable',
         ':tracinghelper',
@@ -131,6 +131,8 @@
         'attributearray.h',
         'bufferobject.cc',
         'bufferobject.h',
+        'computeprogram.cc',
+        'computeprogram.h',
         'cubemaptexture.cc',
         'cubemaptexture.h',
         'framebufferobject.cc',
@@ -163,10 +165,10 @@
         'shape.h',
         'texture.cc',
         'texture.h',
-        'texturemanager.cc',
-        'texturemanager.h',
         'tracecallextractor.cc',
         'tracecallextractor.h',
+        'tracingstream.h',
+        'transformfeedback.h',
         'uniform.cc',
         'uniform.h',
         'uniformblock.cc',
@@ -179,7 +181,7 @@
       'conditions': [
         # Thanks to graphicsmanagermacrodefs.h's usage of ION_APIENTRY, in
         # practice most dependents of this library will need ION_APIENTRY defined.
-        ['OS == "windows"', {
+        ['OS == "win"', {
           'all_dependent_settings': {
             'defines': [
               'ION_APIENTRY=APIENTRY',
@@ -208,10 +210,10 @@
       'target_name': 'iongfx_for_tests',
       'type': 'static_library',
       'sources': [
-        'tests/mockgraphicsmanager.cc',
-        'tests/mockgraphicsmanager.h',
-        'tests/mockvisual.cc',
-        'tests/mockvisual.h',
+        'tests/fakeglcontext.cc',
+        'tests/fakeglcontext.h',
+        'tests/fakegraphicsmanager.cc',
+        'tests/fakegraphicsmanager.h',
         'tests/testscene.cc',
         'tests/testscene.h',
         'tests/traceverifier.cc',

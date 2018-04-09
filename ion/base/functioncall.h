@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ limitations under the License.
 
 #include "base/macros.h"
 #include "ion/base/allocatable.h"
+#include "ion/base/scalarsequence.h"
 
 namespace ion {
 namespace base {
@@ -63,15 +64,15 @@ template <typename ReturnType, typename... Types>
 class FunctionCall<ReturnType(Types...)> : public FunctionCallBase {
  public:
   // Constructor for a free function (general non-member function).
-  FunctionCall(ReturnType (*func)(Types...),
-               Types&&... args)  // NOLINT
+  explicit FunctionCall(ReturnType (*func)(Types...),
+                        Types&&... args)  // NOLINT
       : free_func_(func),
         args_(std::make_tuple(std::forward<Types>(args)...)) {}
 
   // Constructor for a std::function (returned by std::bind()).
-  FunctionCall(const std::function<ReturnType(Types...)>& func,
-               Types&&... args)  // NOLINT
-      : free_func_(NULL),
+  explicit FunctionCall(const std::function<ReturnType(Types...)>& func,
+                        Types&&... args)  // NOLINT
+      : free_func_(nullptr),
         std_func_(func),
         args_(std::make_tuple(std::forward<Types>(args)...)) {}
 
@@ -81,11 +82,15 @@ class FunctionCall<ReturnType(Types...)> : public FunctionCallBase {
   void operator()() const override {
     // This expands out into a sequence for all
     if (free_func_)
-      this->ExpandArgsAndCall(free_func_,
-                              SequenceGenerator<sizeof...(Types)>{});
+      this->ExpandArgsAndCall(
+          free_func_,
+          typename ScalarSequenceGenerator<size_t,
+                                           sizeof...(Types)>::Sequence());
     else
-      this->ExpandArgsAndCall(std_func_,
-                              SequenceGenerator<sizeof...(Types)>{});
+      this->ExpandArgsAndCall(
+          std_func_,
+          typename ScalarSequenceGenerator<size_t,
+                                           sizeof...(Types)>::Sequence());
   }
 
   // Returns a const reference to the Ith argument of the function call.
@@ -103,29 +108,18 @@ class FunctionCall<ReturnType(Types...)> : public FunctionCallBase {
   }
 
  private:
-  // Sequence will work with std::get() to match a particular index and unpack
-  // a tuple.
-  template <size_t... Indicies> struct Sequence {};
-
-  // Inner case, instantiates an N-1 SequenceGenerator.
-  template <size_t N, size_t... Indices>
-  struct SequenceGenerator : SequenceGenerator<N - 1U, N - 1U, Indices...> {};
-
-  // Specializes for 0 base case, generating a Sequence with the other indices.
-  template <size_t... Indices>
-  struct SequenceGenerator<0U, Indices...> : Sequence<Indices...> {};
-
   // Expands the arguments out of the tuple and passes them to the stored
   // function call, executing the function. The unpack notation instantiates a
   // std::get() call for each index of the sequence, thus unpacking the
   // arguments from args_.
   template <typename Func, size_t... Indices>
-  void ExpandArgsAndCall(const Func& func, Sequence<Indices...> seq) const {
+  void ExpandArgsAndCall(const Func& func,
+                         ScalarSequence<size_t, Indices...> seq) const {
     func(std::get<Indices>(args_)...);
   }
 
   // The function to call, either a free function or std::function.
-  // TODO(user): Make this a union when NaCl/QNX support non-trivial enums.
+  // 
   ReturnType (*free_func_)(Types...);
   std::function<ReturnType(Types...)> std_func_;
 

@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<IAD name="IonPhysicsShaders">
+  <assets>
+    <file name="verlet.vp">shaders/physics_verlet.vp</file>
+    <file name="verlet.fp">shaders/physics_verlet.fp</file>
+    <file name="draw.fp">shaders/physics_draw.fp</file>
+    <file name="draw.vp">shaders/physics_draw.vp</file>
+  </assets>
+</IAD>

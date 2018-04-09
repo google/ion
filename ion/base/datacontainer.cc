@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,16 +17,16 @@ limitations under the License.
 
 #include "ion/base/datacontainer.h"
 
+#include <mutex>  // NOLINT(build/c++11)
+
 #include "ion/base/allocationmanager.h"
-#include "ion/base/lockguards.h"
 #include "ion/base/staticsafedeclare.h"
-#include "ion/port/mutex.h"
 
 namespace ion {
 namespace base {
 
 DataContainer::DataContainer(const Deleter& deleter, bool is_wipeable)
-    : data_(NULL),
+    : data_(nullptr),
       is_wipeable_(is_wipeable),
       deleter_(deleter) {
 }
@@ -61,11 +61,11 @@ bool DataContainer::AddOrRemoveDataFromCheck(void* data, bool is_add) {
   ION_DECLARE_SAFE_STATIC_POINTER(std::set<void*>, client_pointers_used);
 
   // Protect access to client_pointers_used.
-  static port::Mutex mutex;
-  LockGuard guard(&mutex);
+  ION_DECLARE_SAFE_STATIC_POINTER(std::mutex, mutex);
+  std::lock_guard<std::mutex> guard(*mutex);
 
   // If another DataContainer already uses this pointer log an error and
-  // return a NULL container.
+  // return a null container.
   if (is_add) {
     if (client_pointers_used->count(data)) {
       LOG(ERROR) << "Duplicate client-space pointer passed to "
@@ -83,9 +83,9 @@ bool DataContainer::AddOrRemoveDataFromCheck(void* data, bool is_add) {
 }
 
 void DataContainer::InternalWipeData() {
-  if (data_ != NULL && deleter_) {
+  if (data_ != nullptr && deleter_) {
     deleter_(data_);
-    data_ = NULL;
+    data_ = nullptr;
   }
 }
 

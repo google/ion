@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -53,6 +53,7 @@
         'calltracehandler_test.cc',
         'httpserver_test.cc',
         'nodegraphhandler_test.cc',
+        'portutils_test.cc',
         'remoteserver_test.cc',
         'resourcehandler_test.cc',
         'settinghandler_test.cc',
@@ -70,6 +71,7 @@
         '<(ion_dir)/image/image.gyp:ionimage',
         '<(ion_dir)/port/port.gyp:ionport',
         '<(ion_dir)/remote/remote.gyp:ionremote_for_tests',
+        '<(ion_dir)/remote/remote.gyp:portutils',
         '<(ion_dir)/analytics/analytics.gyp:ionanalytics',
       ],
     },  # target: remote_test

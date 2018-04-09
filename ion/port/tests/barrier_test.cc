@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -58,34 +58,31 @@ TEST(Barrier, MultiThreads) {
   EXPECT_EQ(0, count);
   Barrier barrier(4);
   EXPECT_TRUE(barrier.IsValid());
-  ThreadStdFunc f1(std::bind(ThreadCallback, &barrier, 10));
-  ThreadStdFunc f2(std::bind(ThreadCallback, &barrier, 20));
-  ThreadStdFunc f3(std::bind(ThreadCallback, &barrier, 30));
 
   // Spawn three threads and have them all wait for the barrier. Also have this
   // calling thread wait for the barrier.
-  ThreadId t1 = SpawnThreadStd(&f1);
-  ThreadId t2 = SpawnThreadStd(&f2);
-  ThreadId t3 = SpawnThreadStd(&f3);
+  std::thread t1(ThreadCallback, &barrier, 10);
+  std::thread t2(ThreadCallback, &barrier, 20);
+  std::thread t3(ThreadCallback, &barrier, 30);
   barrier.Wait();
 
   // When all 4 threads have called Wait(), this will execute.
   EXPECT_EQ(60, count);
 
-  ThreadId t4 = SpawnThreadStd(&f1);
-  ThreadId t5 = SpawnThreadStd(&f2);
-  ThreadId t6 = SpawnThreadStd(&f3);
+  std::thread t4(ThreadCallback, &barrier, 10);
+  std::thread t5(ThreadCallback, &barrier, 20);
+  std::thread t6(ThreadCallback, &barrier, 30);
   barrier.Wait();
 
   // When all 4 threads have called Wait(), this will execute.
   EXPECT_EQ(120, count);
 
-  JoinThread(t1);
-  JoinThread(t2);
-  JoinThread(t3);
-  JoinThread(t4);
-  JoinThread(t5);
-  JoinThread(t6);
+  t1.join();
+  t2.join();
+  t3.join();
+  t4.join();
+  t5.join();
+  t6.join();
 }
 #endif  // !ION_PLATFORM_ASMJS
 

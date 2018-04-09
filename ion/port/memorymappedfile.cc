@@ -1,5 +1,5 @@
 /**
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,14 +34,15 @@ namespace ion {
 namespace port {
 
 MemoryMappedFile::MemoryMappedFile(const std::string& path)
-    : data_(NULL), length_(0) {
+    : data_(nullptr), length_(0) {
 #if defined(ION_PLATFORM_WINDOWS)
   const std::wstring wide = Utf8ToWide(path);
   HANDLE handle = ::CreateFileW(wide.c_str(), GENERIC_READ,
-                                FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                                OPEN_EXISTING, 0, NULL);
+                                FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                                OPEN_EXISTING, 0, nullptr);
   if (handle != INVALID_HANDLE_VALUE) {
-    mapping_ = ::CreateFileMapping(handle, NULL, PAGE_READONLY, 0, 0, NULL);
+    mapping_ = ::CreateFileMapping(handle, nullptr, PAGE_READONLY, 0, 0,
+                                   nullptr);
     if (mapping_) {
       data_ = ::MapViewOfFile(mapping_, FILE_MAP_READ, 0, 0, 0);
       LARGE_INTEGER size;
@@ -49,7 +50,7 @@ MemoryMappedFile::MemoryMappedFile(const std::string& path)
         length_ = static_cast<size_t>(size.QuadPart);
       } else {
         ::UnmapViewOfFile(data_);
-        data_ = NULL;
+        data_ = nullptr;
       }
     }
     ::CloseHandle(handle);
@@ -62,9 +63,9 @@ MemoryMappedFile::MemoryMappedFile(const std::string& path)
   int fd = open(path.c_str(), O_RDONLY);
   if (fd < 0)
     return;
-  data_ = mmap(NULL, length_, PROT_READ, MAP_PRIVATE, fd, 0);
+  data_ = mmap(nullptr, length_, PROT_READ, MAP_PRIVATE, fd, 0);
   if (data_ == MAP_FAILED || close(fd)) {
-    data_ = NULL;
+    data_ = nullptr;
     return;
   }
 #endif
