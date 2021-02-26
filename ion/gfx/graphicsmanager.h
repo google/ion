@@ -264,8 +264,8 @@ class ION_API GraphicsManager : public base::Referent {
 
   // Checks if the given high-level feature is supported and enabled. Support is
   // determined by checking the OpenGL version, extensions, available functions
-  // and an implementation blacklist. The results are cached, so calling this
-  // function is very fast. By default, all supported features are enabled.
+  // and implementation-specific blocking. The results are cached, so calling
+  // this function is very fast. By default, all supported features are enabled.
   // Applications can explicitly disable some supported features and later
   // re-enable them. It is not possible to force-enable features which are not
   // supported.
