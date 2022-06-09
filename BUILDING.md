@@ -29,7 +29,9 @@ a different version, remember to correctly set the CXX environment variable.
 
 ## Building
 Build Ion and its dependencies by running `build.sh` or `build.py` from the
-`ion/` directory.
+`ion/` directory. Note you will have to obtain ninja binaries from
+https://github.com/ninja-build/ninja/releases and place them in a
+`third_party/ninja/files/bin` subdirectory.
 
 ### Special Instructions for Android
 If building for android, edit `ion/dev/android_common.gypi` and add the paths to
