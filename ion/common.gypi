@@ -339,6 +339,7 @@
             '-lc_nonshared',
             '-ldl',
             '-lgcc',
+            '-latomic',
           ],
         },
         'cflags': [
